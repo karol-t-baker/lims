@@ -1,412 +1,580 @@
 """
-acid_model.py — OLS regression model for citric acid dosage prediction.
+acid_model.py — Buffer capacity model for citric acid dosage prediction.
 
-Reads feature table, filters to K7+K40GL, fits OLS with 4 features,
-runs LOO-CV, generates HTML report with diagnostics.
+Reads verified JSONs directly, models buffer capacity (kg acid / ton / pH unit),
+produces HTML report with operator formula.
 
 Usage:
     python acid_model.py
 """
 
+import json
+import warnings
+from itertools import combinations
+
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
+from statsmodels.stats.outliers_influence import variance_inflation_factor
 from sklearn.model_selection import LeaveOneOut
 from scipy import stats
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import base64
 from io import BytesIO
 from pathlib import Path
 
-FEATURE_CSV = Path("data/parquet/feature_table.csv")
+VERIFIED_DIR = Path("data/verified")
 MODEL_CSV = Path("data/parquet/model_data.csv")
 OUT_HTML = Path("raport_model.html")
+TARGET = "buffer_cap"
 
-FEATURES = ["delta_ph_czwart", "wielkosc_kg"]
-TARGET = "acid_kg_per_ton"
+ALL_FEATURES = ["wielkosc_kg", "ph_utlenienie", "produkt_K40GL"]
+
+
+# ── Data loading ─────────────────────────────────────────────────────────────
 
 
 def load_data() -> pd.DataFrame:
-    """Load feature table, filter to K7+K40GL."""
-    df = pd.read_csv(FEATURE_CSV)
-    df = df[df["produkt"].isin(["Chegina K7", "Chegina K40GL"])].copy()
+    """Load data directly from verified JSONs."""
+    results = []
 
-    model_cols = FEATURES + [TARGET]
+    for prod_dir in sorted(VERIFIED_DIR.iterdir()):
+        if not prod_dir.is_dir():
+            continue
+        produkt = prod_dir.name.replace("_", " ")
+        if produkt not in ("Chegina K7", "Chegina K40GL"):
+            continue
+
+        # Find unique batch IDs
+        batch_ids = set()
+        for f in prod_dir.glob("*.json"):
+            name = f.stem
+            for suffix in ("_strona1", "_proces", "_koncowa"):
+                if name.endswith(suffix):
+                    batch_ids.add(name[: -len(suffix)])
+
+        for batch_nr in sorted(batch_ids):
+            s1_path = prod_dir / f"{batch_nr}_strona1.json"
+            proc_path = prod_dir / f"{batch_nr}_proces.json"
+            konc_path = prod_dir / f"{batch_nr}_koncowa.json"
+
+            if not (s1_path.exists() and proc_path.exists() and konc_path.exists()):
+                print(f"  SKIP {prod_dir.name}/{batch_nr} — incomplete set")
+                continue
+
+            s1 = json.loads(s1_path.read_text())
+            proc = json.loads(proc_path.read_text())
+            konc = json.loads(konc_path.read_text())
+
+            # pH from utlenienie (last analiza)
+            ph_utl, nd20_utl = None, None
+            utl = proc.get("etapy", {}).get("utlenienie", {})
+            if utl:
+                for k in reversed(utl.get("kroki", [])):
+                    if k.get("typ") == "analiza":
+                        if ph_utl is None:
+                            ph_utl = k.get("ph_10proc")
+                        if nd20_utl is None:
+                            nd20_utl = k.get("nd20")
+                        if ph_utl is not None and nd20_utl is not None:
+                            break
+
+            # Final pH from koncowa
+            ak = konc.get("analiza_koncowa", {}) or {}
+            ph_konc = ak.get("ph_10proc")
+
+            # Acid: ONLY from strona1 standaryzowanie (koncowa kontynuacja = duplicates)
+            acid_kg = sum(
+                s.get("ilosc_kg", 0) or 0
+                for s in s1.get("standaryzowanie", [])
+                if s.get("kod_dodatku") == "kw_cytrynowy"
+            )
+
+            wielkosc = s1.get("wielkosc_szarzy_kg")
+
+            results.append(
+                {
+                    "batch_id": f"{prod_dir.name}/{batch_nr}",
+                    "produkt": produkt,
+                    "wielkosc_kg": wielkosc,
+                    "ph_utlenienie": ph_utl,
+                    "nd20_utlenienie": nd20_utl,
+                    "ph_koncowa": ph_konc,
+                    "acid_kg": acid_kg,
+                }
+            )
+
+    df = pd.DataFrame(results)
+    df["produkt_K40GL"] = (df["produkt"] == "Chegina K40GL").astype(int)
+    df["acid_per_ton"] = df["acid_kg"] / (df["wielkosc_kg"] / 1000)
+    df["delta_ph"] = df["ph_utlenienie"] - df["ph_koncowa"]
+    df["buffer_cap"] = df["acid_per_ton"] / df["delta_ph"]
+
+    print(f"Loaded {len(df)} batches from verified JSONs")
+
+    # Drop rows without buffer_cap (missing pH or zero delta)
     before = len(df)
-    df = df.dropna(subset=model_cols).reset_index(drop=True)
-    print(f"Data: {before} batches, {len(df)} complete cases (dropped {before - len(df)})")
+    df = df.dropna(subset=["buffer_cap"]).reset_index(drop=True)
+    # Also drop inf / negative buffer_cap
+    df = df[np.isfinite(df["buffer_cap"]) & (df["buffer_cap"] > 0)].reset_index(
+        drop=True
+    )
+    print(f"Complete cases: {len(df)} (dropped {before - len(df)} with missing data)")
 
-    export_cols = ["batch_id", "produkt", "nr_partii"] + FEATURES + [TARGET]
-    df[export_cols].to_csv(MODEL_CSV, index=False)
+    # Export
+    MODEL_CSV.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(MODEL_CSV, index=False)
     print(f"Model data saved: {MODEL_CSV}")
+
+    # Summary
+    for prod in ["Chegina K40GL", "Chegina K7"]:
+        sub = df[df["produkt"] == prod]["buffer_cap"]
+        if len(sub) > 1:
+            print(
+                f"  {prod}: buffer_cap mean={sub.mean():.3f} "
+                f"std={sub.std():.3f} cv={sub.std()/sub.mean()*100:.1f}% n={len(sub)}"
+            )
+        elif len(sub) == 1:
+            print(f"  {prod}: buffer_cap={sub.iloc[0]:.3f} n=1")
 
     return df
 
 
-def check_vif(df: pd.DataFrame) -> pd.DataFrame:
-    """Compute Variance Inflation Factors. Drop features with VIF > 5."""
-    from statsmodels.stats.outliers_influence import variance_inflation_factor
+# ── VIF ──────────────────────────────────────────────────────────────────────
 
-    X = df[FEATURES].values
+
+def check_vif(df: pd.DataFrame, features: list[str]) -> pd.DataFrame:
+    """Compute VIF for given feature list."""
+    X = df[features].values
     vif_data = []
-    for i, feat in enumerate(FEATURES):
-        vif_val = variance_inflation_factor(X, i)
+    for i, feat in enumerate(features):
+        vif_val = variance_inflation_factor(X, i) if len(features) > 1 else 1.0
         vif_data.append({"feature": feat, "VIF": round(vif_val, 2)})
-
-    vif_df = pd.DataFrame(vif_data)
-    print("\n=== VIF Check ===")
-    print(vif_df.to_string(index=False))
-
-    high_vif = vif_df[vif_df["VIF"] > 5]
-    if not high_vif.empty:
-        print(f"\nWARNING: High VIF detected: {high_vif['feature'].tolist()}")
-
-    return vif_df
+    return pd.DataFrame(vif_data)
 
 
-def fit_ols(df: pd.DataFrame):
-    """Fit OLS regression with constant."""
-    X = sm.add_constant(df[FEATURES])
+# ── Feature selection ────────────────────────────────────────────────────────
+
+
+def _loo_r2(df: pd.DataFrame, features: list[str]) -> tuple[float, float]:
+    """Quick LOO R² and MAE for a feature set. Returns (r2, mae)."""
+    X = sm.add_constant(df[features])
+    y = df[TARGET].values
+    loo = LeaveOneOut()
+    preds = np.empty(len(y))
+    for train_idx, test_idx in loo.split(X):
+        model = sm.OLS(y[train_idx], X.iloc[train_idx]).fit()
+        preds[test_idx] = model.predict(X.iloc[test_idx])
+    ss_res = np.sum((y - preds) ** 2)
+    ss_tot = np.sum((y - y.mean()) ** 2)
+    r2 = 1 - ss_res / ss_tot
+    mae = np.mean(np.abs(y - preds))
+    return r2, mae
+
+
+def select_features(df: pd.DataFrame) -> list[str]:
+    """Test all feature combos, print comparison, pick best LOO R² with VIF < 5."""
+    print("\n── Feature selection ──")
+    rows = []
+
+    for k in range(1, len(ALL_FEATURES) + 1):
+        for combo in combinations(ALL_FEATURES, k):
+            feats = list(combo)
+            vif_df = check_vif(df, feats)
+            max_vif = vif_df["VIF"].max()
+            r2, mae = _loo_r2(df, feats)
+            rows.append(
+                {
+                    "features": " + ".join(feats),
+                    "n_feat": k,
+                    "LOO_R2": round(r2, 4),
+                    "LOO_MAE": round(mae, 4),
+                    "max_VIF": round(max_vif, 2),
+                    "VIF_ok": max_vif < 5,
+                    "_feats": feats,
+                }
+            )
+
+    comp = pd.DataFrame(rows).sort_values("LOO_R2", ascending=False)
+    print(
+        comp[["features", "n_feat", "LOO_R2", "LOO_MAE", "max_VIF", "VIF_ok"]].to_string(
+            index=False
+        )
+    )
+
+    # Pick best LOO R² among VIF-ok combos
+    valid = comp[comp["VIF_ok"]]
+    if valid.empty:
+        print("WARNING: No combo with VIF < 5 — using best overall")
+        best = comp.iloc[0]
+    else:
+        best = valid.iloc[0]
+
+    selected = best["_feats"]
+    print(f"\n>>> Selected: {selected}  (LOO R²={best['LOO_R2']}, max VIF={best['max_VIF']})")
+    return selected
+
+
+# ── OLS fit ──────────────────────────────────────────────────────────────────
+
+
+def fit_ols(
+    df: pd.DataFrame, features: list[str]
+) -> sm.regression.linear_model.RegressionResultsWrapper:
+    """Fit OLS, print summary."""
+    X = sm.add_constant(df[features])
     y = df[TARGET]
-
     model = sm.OLS(y, X).fit()
-
-    print("\n=== OLS Regression Results ===")
+    print("\n── OLS summary ──")
     print(model.summary())
-
-    print("\n=== Coefficients with 95% CI ===")
-    conf = model.conf_int(alpha=0.05)
-    coef_table = pd.DataFrame({
-        "coefficient": model.params,
-        "std_err": model.bse,
-        "t_stat": model.tvalues,
-        "p_value": model.pvalues,
-        "ci_lower": conf[0],
-        "ci_upper": conf[1],
-    })
-    print(coef_table.round(4).to_string())
-
     return model
 
 
-def loo_cv(df: pd.DataFrame) -> tuple:
-    """Leave-One-Out cross-validation. Returns predictions DataFrame."""
-    X_full = sm.add_constant(df[FEATURES])
-    y_full = df[TARGET].values
-
-    loo = LeaveOneOut()
-    predictions = []
-
-    for train_idx, test_idx in loo.split(X_full):
-        X_train, X_test = X_full.iloc[train_idx], X_full.iloc[test_idx]
-        y_train = y_full[train_idx]
-
-        model_fold = sm.OLS(y_train, X_train).fit()
-        y_pred = model_fold.predict(X_test).iloc[0]
-
-        predictions.append({
-            "batch_id": df.iloc[test_idx[0]]["batch_id"],
-            "produkt": df.iloc[test_idx[0]]["produkt"],
-            "actual": y_full[test_idx[0]],
-            "predicted_loo": y_pred,
-            "residual_loo": y_full[test_idx[0]] - y_pred,
-        })
-
-    pred_df = pd.DataFrame(predictions)
-
-    ss_res = (pred_df["residual_loo"] ** 2).sum()
-    ss_tot = ((pred_df["actual"] - pred_df["actual"].mean()) ** 2).sum()
-    loo_r2 = 1 - ss_res / ss_tot
-    loo_mae = pred_df["residual_loo"].abs().mean()
-    loo_rmse = np.sqrt((pred_df["residual_loo"] ** 2).mean())
-
-    print("\n=== LOO-CV Results ===")
-    print(f"  LOO R²:   {loo_r2:.3f}")
-    print(f"  LOO MAE:  {loo_mae:.3f} kg/t")
-    print(f"  LOO RMSE: {loo_rmse:.3f} kg/t")
-
-    print("\n=== Predictions ===")
-    print(pred_df.round(3).to_string(index=False))
-
-    return pred_df, {"loo_r2": loo_r2, "loo_mae": loo_mae, "loo_rmse": loo_rmse}
+# ── LOO-CV ───────────────────────────────────────────────────────────────────
 
 
-def bootstrap_ci(df: pd.DataFrame, n_boot: int = 1000) -> pd.DataFrame:
-    """Bootstrap confidence intervals for coefficients."""
-    X = sm.add_constant(df[FEATURES])
+def loo_cv(
+    df: pd.DataFrame, features: list[str]
+) -> tuple[pd.DataFrame, dict]:
+    """LOO cross-validation. Returns predictions df and metrics dict."""
+    X = sm.add_constant(df[features])
     y = df[TARGET].values
-    feat_names = ["const"] + FEATURES
+    loo = LeaveOneOut()
+    preds = np.empty(len(y))
 
-    rng = np.random.RandomState(42)
-    boot_coefs = []
+    for train_idx, test_idx in loo.split(X):
+        model = sm.OLS(y[train_idx], X.iloc[train_idx]).fit()
+        preds[test_idx] = model.predict(X.iloc[test_idx])
 
-    for _ in range(n_boot):
-        idx = rng.choice(len(X), size=len(X), replace=True)
-        X_b, y_b = X.iloc[idx], y[idx]
+    residuals = y - preds
+    ss_res = np.sum(residuals**2)
+    ss_tot = np.sum((y - y.mean()) ** 2)
+    r2 = 1 - ss_res / ss_tot
+    mae = np.mean(np.abs(residuals))
+    rmse = np.sqrt(np.mean(residuals**2))
+    mape = np.mean(np.abs(residuals / y)) * 100
+
+    metrics = {"LOO_R2": r2, "MAE": mae, "RMSE": rmse, "MAPE": mape}
+    print("\n── LOO-CV ──")
+    for k, v in metrics.items():
+        print(f"  {k}: {v:.4f}")
+
+    pred_df = df[["batch_id", "produkt", TARGET]].copy()
+    pred_df["predicted"] = preds
+    pred_df["residual"] = residuals
+    pred_df["abs_error"] = np.abs(residuals)
+    return pred_df, metrics
+
+
+# ── Bootstrap CI ─────────────────────────────────────────────────────────────
+
+
+def bootstrap_ci(
+    df: pd.DataFrame, features: list[str], n_boot: int = 2000
+) -> pd.DataFrame:
+    """Bootstrap confidence intervals for coefficients."""
+    X = sm.add_constant(df[features])
+    y = df[TARGET].values
+    n = len(y)
+    coef_names = ["const"] + features
+    boot_coefs = np.empty((n_boot, len(coef_names)))
+
+    rng = np.random.default_rng(42)
+    for b in range(n_boot):
+        idx = rng.choice(n, size=n, replace=True)
         try:
-            m = sm.OLS(y_b, X_b).fit()
-            boot_coefs.append(m.params.values)
+            m = sm.OLS(y[idx], X.iloc[idx]).fit()
+            boot_coefs[b] = m.params.values
         except Exception:
-            continue
+            boot_coefs[b] = np.nan
 
-    boot_arr = np.array(boot_coefs)
-    ci_df = pd.DataFrame({
-        "feature": feat_names,
-        "boot_mean": boot_arr.mean(axis=0),
-        "boot_ci_2.5": np.percentile(boot_arr, 2.5, axis=0),
-        "boot_ci_97.5": np.percentile(boot_arr, 97.5, axis=0),
-    })
+    boot_coefs = boot_coefs[~np.isnan(boot_coefs).any(axis=1)]
 
-    print("\n=== Bootstrap CIs (1000 resamples) ===")
-    print(ci_df.round(4).to_string(index=False))
+    rows = []
+    for i, name in enumerate(coef_names):
+        lo, hi = np.percentile(boot_coefs[:, i], [2.5, 97.5])
+        rows.append(
+            {
+                "feature": name,
+                "boot_mean": np.mean(boot_coefs[:, i]),
+                "CI_2.5%": lo,
+                "CI_97.5%": hi,
+            }
+        )
 
+    ci_df = pd.DataFrame(rows)
+    print("\n── Bootstrap 95% CI ──")
+    print(ci_df.to_string(index=False))
     return ci_df
 
 
-def diagnostics(model, df: pd.DataFrame, pred_df: pd.DataFrame) -> list:
-    """Generate diagnostic plots. Returns list of (name, fig) tuples."""
-    figs = []
+# ── Diagnostic plots ─────────────────────────────────────────────────────────
 
-    X = sm.add_constant(df[FEATURES])
+
+def fig_to_base64(fig: plt.Figure) -> str:
+    """Convert matplotlib figure to base64 PNG string."""
+    buf = BytesIO()
+    fig.savefig(buf, format="png", dpi=120, bbox_inches="tight")
+    buf.seek(0)
+    b64 = base64.b64encode(buf.read()).decode()
+    plt.close(fig)
+    return b64
+
+
+def diagnostics(
+    model,
+    df: pd.DataFrame,
+    features: list[str],
+    pred_df: pd.DataFrame,
+) -> list[str]:
+    """Generate 4 diagnostic plots, return list of base64-encoded PNGs."""
     y = df[TARGET].values
-    y_pred_insample = model.predict(X)
-    residuals = model.resid
+    fitted = model.fittedvalues
+    resid = model.resid
+    product_colors = df["produkt_K40GL"].map({0: "#2196F3", 1: "#FF9800"}).values
+
+    figs_b64 = []
 
     # 1. Actual vs Predicted (LOO)
-    fig, ax = plt.subplots(figsize=(8, 6))
-    colors = {"Chegina K7": "#1f77b4", "Chegina K40GL": "#ff7f0e"}
-    for prod, color in colors.items():
-        mask = pred_df["produkt"] == prod
-        ax.scatter(pred_df.loc[mask, "actual"], pred_df.loc[mask, "predicted_loo"],
-                  c=color, label=prod, s=80, edgecolors="k", linewidth=0.5, zorder=3)
-    lims = [min(y.min(), pred_df["predicted_loo"].min()) - 1,
-            max(y.max(), pred_df["predicted_loo"].max()) + 1]
-    ax.plot(lims, lims, "k--", alpha=0.5, label="Perfect prediction")
-    ax.set_xlabel("Actual acid (kg/ton)")
-    ax.set_ylabel("Predicted acid (kg/ton) — LOO")
-    ax.set_title("Actual vs LOO-Predicted")
+    fig, ax = plt.subplots(figsize=(6, 5))
+    for prod, color, label in [
+        (0, "#2196F3", "K7"),
+        (1, "#FF9800", "K40GL"),
+    ]:
+        mask = df["produkt_K40GL"] == prod
+        ax.scatter(
+            pred_df.loc[mask, TARGET],
+            pred_df.loc[mask, "predicted"],
+            c=color,
+            label=label,
+            s=50,
+            alpha=0.8,
+            edgecolors="k",
+            linewidth=0.5,
+        )
+    mn = min(y.min(), pred_df["predicted"].min()) * 0.95
+    mx = max(y.max(), pred_df["predicted"].max()) * 1.05
+    ax.plot([mn, mx], [mn, mx], "k--", alpha=0.5)
+    ax.set_xlabel("Actual buffer_cap")
+    ax.set_ylabel("LOO Predicted buffer_cap")
+    ax.set_title("Actual vs LOO Predicted")
     ax.legend()
-    ax.grid(True, alpha=0.3)
-    plt.tight_layout()
-    figs.append(("actual_vs_predicted", fig))
+    fig.tight_layout()
+    figs_b64.append(fig_to_base64(fig))
 
     # 2. Residuals vs Fitted
-    fig, ax = plt.subplots(figsize=(8, 5))
-    ax.scatter(y_pred_insample, residuals, s=60, edgecolors="k", linewidth=0.5)
-    ax.axhline(y=0, color="red", linestyle="--", alpha=0.5)
+    fig, ax = plt.subplots(figsize=(6, 5))
+    ax.scatter(fitted, resid, c=product_colors, s=50, alpha=0.8, edgecolors="k", linewidth=0.5)
+    ax.axhline(0, color="k", linestyle="--", alpha=0.5)
     ax.set_xlabel("Fitted values")
     ax.set_ylabel("Residuals")
     ax.set_title("Residuals vs Fitted")
-    ax.grid(True, alpha=0.3)
-    plt.tight_layout()
-    figs.append(("residuals_vs_fitted", fig))
+    fig.tight_layout()
+    figs_b64.append(fig_to_base64(fig))
 
     # 3. Q-Q plot
-    fig, ax = plt.subplots(figsize=(6, 6))
-    stats.probplot(residuals, dist="norm", plot=ax)
+    fig, ax = plt.subplots(figsize=(6, 5))
+    sm.qqplot(resid, line="45", ax=ax, markersize=5)
     ax.set_title("Q-Q Plot of Residuals")
-    ax.grid(True, alpha=0.3)
-    plt.tight_layout()
-    figs.append(("qq_plot", fig))
+    fig.tight_layout()
+    figs_b64.append(fig_to_base64(fig))
 
     # 4. Cook's distance
     influence = model.get_influence()
     cooks_d = influence.cooks_distance[0]
-    fig, ax = plt.subplots(figsize=(10, 5))
-    batch_labels = df["batch_id"].str.replace("Chegina_", "").str.replace("__", " ")
-    ax.bar(range(len(cooks_d)), cooks_d, color="#2196F3", edgecolor="k", linewidth=0.5)
-    ax.set_xticks(range(len(cooks_d)))
-    ax.set_xticklabels(batch_labels, rotation=45, ha="right", fontsize=8)
-    ax.axhline(y=4/len(df), color="red", linestyle="--", alpha=0.5,
-               label=f"Threshold (4/n = {4/len(df):.2f})")
-    ax.set_ylabel("Cook's Distance")
-    ax.set_title("Cook's Distance — Influential Observations")
+    fig, ax = plt.subplots(figsize=(6, 5))
+    ax.stem(range(len(cooks_d)), cooks_d, markerfmt=",", basefmt="k-")
+    ax.axhline(4 / len(y), color="r", linestyle="--", alpha=0.7, label=f"4/n = {4/len(y):.3f}")
+    ax.set_xlabel("Observation")
+    ax.set_ylabel("Cook's distance")
+    ax.set_title("Cook's Distance")
     ax.legend()
-    plt.tight_layout()
-    figs.append(("cooks_distance", fig))
+    fig.tight_layout()
+    figs_b64.append(fig_to_base64(fig))
 
-    threshold = 4 / len(df)
-    influential = [(df.iloc[i]["batch_id"], round(d, 3)) for i, d in enumerate(cooks_d) if d > threshold]
-    if influential:
-        print(f"\n=== Influential observations (Cook's D > {threshold:.2f}) ===")
-        for bid, d in influential:
-            print(f"  {bid}: {d}")
-    else:
-        print(f"\nNo influential observations (all Cook's D < {threshold:.2f})")
-
-    return figs
+    return figs_b64
 
 
-def fig_to_base64(fig) -> str:
-    buf = BytesIO()
-    fig.savefig(buf, format="png", dpi=120, bbox_inches="tight")
-    buf.seek(0)
-    return base64.b64encode(buf.read()).decode("utf-8")
+# ── HTML report ──────────────────────────────────────────────────────────────
 
 
 def generate_report(
     df: pd.DataFrame,
     model,
+    features: list[str],
     vif_df: pd.DataFrame,
     pred_df: pd.DataFrame,
     loo_metrics: dict,
     boot_ci_df: pd.DataFrame,
-    diag_figs: list,
-):
-    """Generate self-contained HTML report."""
+    diag_figs: list[str],
+) -> None:
+    """Generate HTML report and save to OUT_HTML."""
+    # Build formula string
+    coefs = model.params
+    formula_parts = [f"{coefs['const']:.4f}"]
+    for feat in features:
+        sign = "+" if coefs[feat] >= 0 else "-"
+        formula_parts.append(f" {sign} {abs(coefs[feat]):.4f} * {feat}")
+    formula_str = "".join(formula_parts)
+
+    # Example calculation (first K7 row)
+    ex = df[df["produkt_K40GL"] == 0].iloc[0]
+    ex_row = pd.DataFrame([ex[features].to_dict()])
+    ex_row.insert(0, "const", 1.0)
+    bc_ex = model.predict(ex_row).iloc[0]
+    dose_ex = bc_ex * ex["delta_ph"] * (ex["wielkosc_kg"] / 1000)
+
+    # Feature ranges
+    ranges_html = ""
+    for feat in features:
+        lo, hi = df[feat].min(), df[feat].max()
+        ranges_html += f"<tr><td>{feat}</td><td>{lo:.1f}</td><td>{hi:.1f}</td></tr>\n"
 
     # Coefficient table
-    conf = model.conf_int(alpha=0.05)
     coef_rows = ""
-    for name in model.params.index:
-        c = model.params[name]
-        se = model.bse[name]
-        t = model.tvalues[name]
-        p = model.pvalues[name]
-        lo, hi = conf.loc[name, 0], conf.loc[name, 1]
-        p_str = f"{p:.4f}" if p >= 0.001 else f"{p:.2e}"
-        sig = "***" if p < 0.001 else "**" if p < 0.01 else "*" if p < 0.05 else ""
-        coef_rows += f"<tr><td>{name}</td><td>{c:.4f}</td><td>{se:.4f}</td><td>{t:.2f}</td><td>{p_str} {sig}</td><td>[{lo:.4f}, {hi:.4f}]</td></tr>\n"
+    for _, row in boot_ci_df.iterrows():
+        ols_val = coefs.get(row["feature"], 0)
+        pval = model.pvalues.get(row["feature"], np.nan)
+        coef_rows += (
+            f"<tr><td>{row['feature']}</td>"
+            f"<td>{ols_val:.4f}</td>"
+            f"<td>{pval:.4f}</td>"
+            f"<td>[{row['CI_2.5%']:.4f}, {row['CI_97.5%']:.4f}]</td></tr>\n"
+        )
 
     # VIF table
     vif_rows = ""
-    for _, r in vif_df.iterrows():
-        color = "color:red" if r["VIF"] > 5 else ""
-        vif_rows += f'<tr><td>{r["feature"]}</td><td style="{color}">{r["VIF"]:.2f}</td></tr>\n'
+    for _, row in vif_df.iterrows():
+        vif_rows += f"<tr><td>{row['feature']}</td><td>{row['VIF']:.2f}</td></tr>\n"
 
-    # Predictions table
+    # LOO predictions table
     pred_rows = ""
-    for _, r in pred_df.iterrows():
-        color = "color:red" if abs(r["residual_loo"]) > 2 * loo_metrics["loo_rmse"] else ""
-        pred_rows += f'<tr><td>{r["batch_id"]}</td><td>{r["produkt"]}</td><td>{r["actual"]:.2f}</td><td>{r["predicted_loo"]:.2f}</td><td style="{color}">{r["residual_loo"]:.2f}</td></tr>\n'
+    for _, row in pred_df.sort_values("abs_error", ascending=False).iterrows():
+        pred_rows += (
+            f"<tr><td>{row['batch_id']}</td>"
+            f"<td>{row['produkt']}</td>"
+            f"<td>{row[TARGET]:.3f}</td>"
+            f"<td>{row['predicted']:.3f}</td>"
+            f"<td>{row['residual']:+.3f}</td></tr>\n"
+        )
 
-    # Figures
-    fig_html = ""
-    for name, fig in diag_figs:
-        b64 = fig_to_base64(fig)
-        fig_html += f'<div class="chart"><img src="data:image/png;base64,{b64}" alt="{name}"></div>\n'
-
-    # Operator formula
-    params = model.params
-    formula_parts = [f"{params['const']:.2f}"]
-    for f in FEATURES:
-        sign = "+" if params[f] >= 0 else "-"
-        formula_parts.append(f"{sign} {abs(params[f]):.4f} x {f}")
-    formula_str = " ".join(formula_parts)
-
-    # Example calculation
-    example_row = df[df["produkt"] == "Chegina K7"].iloc[0]
-    example_pred = model.predict(sm.add_constant(example_row[FEATURES].to_frame().T, has_constant="add")).iloc[0]
-    example_calc = f"""
-    <p><strong>Przyklad:</strong> batch {example_row['batch_id']}</p>
-    <ul>
-        <li>delta_ph_czwart = {example_row['delta_ph_czwart']:.2f}</li>
-        <li>wielkosc_kg = {example_row['wielkosc_kg']:.0f}</li>
-    </ul>
-    <p>Predykcja: <strong>{example_pred:.2f} kg/t</strong>
-       (rzeczywista: {example_row[TARGET]:.2f} kg/t)</p>
-    """
-
-    # Feature ranges
-    range_rows = ""
-    for f in FEATURES:
-        range_rows += f"<tr><td>{f}</td><td>{df[f].min():.2f}</td><td>{df[f].max():.2f}</td><td>{df[f].mean():.2f}</td></tr>\n"
+    # Per-product stats
+    product_stats = ""
+    for prod in ["Chegina K7", "Chegina K40GL"]:
+        sub = df[df["produkt"] == prod]["buffer_cap"]
+        if len(sub) > 1:
+            product_stats += (
+                f"<tr><td>{prod}</td><td>{len(sub)}</td>"
+                f"<td>{sub.mean():.3f}</td><td>{sub.std():.3f}</td>"
+                f"<td>{sub.std()/sub.mean()*100:.1f}%</td></tr>\n"
+            )
 
     html = f"""<!DOCTYPE html>
 <html lang="pl">
 <head>
-<meta charset="utf-8">
-<title>Model Predykcji Dawki Kwasu Cytrynowego</title>
+<meta charset="UTF-8">
+<title>Model buffer capacity - kwas cytrynowy</title>
 <style>
-    body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-           max-width: 1200px; margin: 0 auto; padding: 20px; background: #f5f5f5; }}
-    h1 {{ color: #1a237e; border-bottom: 3px solid #1a237e; padding-bottom: 10px; }}
-    h2 {{ color: #283593; margin-top: 40px; }}
-    .summary {{ background: white; border-radius: 8px; padding: 20px; margin: 20px 0;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
-    .summary .stat {{ display: inline-block; margin: 10px 20px; text-align: center; }}
-    .summary .stat .value {{ font-size: 28px; font-weight: bold; color: #1a237e; }}
-    .summary .stat .label {{ font-size: 12px; color: #666; }}
-    .formula {{ background: #e8eaf6; border-radius: 8px; padding: 20px; margin: 20px 0;
-                font-family: 'Courier New', monospace; font-size: 14px; }}
-    .table {{ border-collapse: collapse; width: 100%; margin: 15px 0; font-size: 13px; }}
-    .table th {{ background: #283593; color: white; padding: 8px 12px; text-align: left; }}
-    .table td {{ padding: 6px 12px; border-bottom: 1px solid #e0e0e0; }}
-    .table tr:hover {{ background: #e3f2fd; }}
-    .chart {{ background: white; border-radius: 8px; padding: 15px; margin: 20px 0;
-              box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; }}
-    .chart img {{ max-width: 100%; height: auto; }}
-    .note {{ background: #fff3e0; border-left: 4px solid #ff9800;
-             padding: 10px 15px; margin: 10px 0; font-size: 13px; }}
-    .operator {{ background: #e8f5e9; border: 2px solid #4caf50; border-radius: 8px;
-                 padding: 20px; margin: 20px 0; }}
-    .operator h2 {{ color: #2e7d32; margin-top: 0; }}
+  body {{ font-family: 'Segoe UI', Arial, sans-serif; max-width: 1000px; margin: 30px auto; padding: 0 20px; color: #333; }}
+  h1 {{ color: #1565C0; border-bottom: 2px solid #1565C0; padding-bottom: 8px; }}
+  h2 {{ color: #2E7D32; margin-top: 30px; }}
+  table {{ border-collapse: collapse; margin: 12px 0; width: 100%; }}
+  th, td {{ border: 1px solid #ccc; padding: 6px 10px; text-align: right; }}
+  th {{ background: #f5f5f5; text-align: center; }}
+  td:first-child {{ text-align: left; }}
+  .metric-box {{ display: inline-block; background: #e3f2fd; border-radius: 8px; padding: 12px 20px; margin: 6px; text-align: center; }}
+  .metric-box .val {{ font-size: 1.5em; font-weight: bold; color: #1565C0; }}
+  .metric-box .lbl {{ font-size: 0.85em; color: #555; }}
+  .formula-box {{ background: #fff3e0; border-left: 4px solid #FF9800; padding: 15px; margin: 15px 0; font-family: monospace; font-size: 1.1em; }}
+  .operator-box {{ background: #e8f5e9; border-left: 4px solid #4CAF50; padding: 15px; margin: 15px 0; }}
+  .note {{ background: #fce4ec; border-left: 4px solid #e91e63; padding: 12px; margin: 12px 0; }}
+  img {{ max-width: 100%; margin: 8px 0; }}
+  .plot-grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }}
 </style>
 </head>
 <body>
 
-<h1>Model Predykcji Dawki Kwasu Cytrynowego</h1>
-<p>Generated: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M')} | Dane: {len(df)} szarzy (K7 + K40GL) | 2 cechy</p>
+<h1>Model buffer capacity &mdash; dawkowanie kwasu cytrynowego</h1>
+<p>Raport wygenerowany automatycznie z danych zweryfikowanych JSON.</p>
 
-<div class="summary">
-    <div class="stat"><div class="value">{model.rsquared:.3f}</div><div class="label">R\u00b2 (in-sample)</div></div>
-    <div class="stat"><div class="value">{model.rsquared_adj:.3f}</div><div class="label">Adj R\u00b2</div></div>
-    <div class="stat"><div class="value">{loo_metrics['loo_r2']:.3f}</div><div class="label">R\u00b2 (LOO-CV)</div></div>
-    <div class="stat"><div class="value">{loo_metrics['loo_mae']:.2f}</div><div class="label">MAE (kg/t)</div></div>
-    <div class="stat"><div class="value">{loo_metrics['loo_rmse']:.2f}</div><div class="label">RMSE (kg/t)</div></div>
+<h2>1. Metryki modelu</h2>
+<div>
+  <div class="metric-box"><div class="val">{model.rsquared:.3f}</div><div class="lbl">R&sup2;</div></div>
+  <div class="metric-box"><div class="val">{model.rsquared_adj:.3f}</div><div class="lbl">Adj R&sup2;</div></div>
+  <div class="metric-box"><div class="val">{loo_metrics['LOO_R2']:.3f}</div><div class="lbl">LOO R&sup2;</div></div>
+  <div class="metric-box"><div class="val">{loo_metrics['MAE']:.4f}</div><div class="lbl">LOO MAE</div></div>
+  <div class="metric-box"><div class="val">{loo_metrics['RMSE']:.4f}</div><div class="lbl">LOO RMSE</div></div>
+  <div class="metric-box"><div class="val">{loo_metrics['MAPE']:.1f}%</div><div class="lbl">LOO MAPE</div></div>
+</div>
+
+<h2>2. Formula modelu</h2>
+<div class="formula-box">
+  buffer_cap = {formula_str}
+</div>
+
+<h2>3. Statystyki per produkt</h2>
+<table>
+  <tr><th>Produkt</th><th>n</th><th>mean</th><th>std</th><th>CV</th></tr>
+  {product_stats}
+</table>
+
+<h2>4. Wzor operatorski</h2>
+<div class="operator-box">
+  <p><strong>Dawka kwasu cytrynowego [kg]:</strong></p>
+  <p style="font-family:monospace; font-size:1.1em;">
+    dawka_kwasu_kg = buffer_cap &times; (pH_utlenienie &minus; pH_docelowe) &times; (wielkosc_kg / 1000)
+  </p>
+  <p>gdzie <code>buffer_cap</code> obliczamy z modelu powyzej.</p>
+  <hr>
+  <p><strong>Przyklad (szarza {ex['batch_id']}):</strong></p>
+  <ul>
+    <li>wielkosc_kg = {ex['wielkosc_kg']:.0f}</li>
+    <li>ph_utlenienie = {ex['ph_utlenienie']:.2f}</li>
+    <li>ph_docelowe (koncowa) = {ex['ph_koncowa']:.2f}</li>
+    <li>buffer_cap (model) = {bc_ex:.3f}</li>
+    <li><strong>dawka = {bc_ex:.3f} &times; ({ex['ph_utlenienie']:.2f} &minus; {ex['ph_koncowa']:.2f}) &times; {ex['wielkosc_kg']/1000:.1f} = {dose_ex:.1f} kg</strong></li>
+    <li>Rzeczywista dawka: {ex['acid_kg']:.1f} kg</li>
+  </ul>
 </div>
 
 <div class="note">
-    <strong>Uwaga:</strong> n={len(df)} \u2014 model eksploracyjny. LOO R\u00b2 jest uczciw\u0105 metryk\u0105 generalizacji.
-    Walidacja na nowych szarzach wymagana przed u\u017cyciem operacyjnym.
-    \u015bredni b\u0142\u0105d predykcji (MAE): {loo_metrics['loo_mae']:.2f} kg/t.
+  <strong>Uwaga:</strong> K40GL ma bardzo stabilna buffer capacity (~1.71, CV ~4%), wiec prosty srednia moze
+  wystarczyc. K7 jest bardziej zmienny (CV ~18%) i korzysta z regresji uwzgledniajacej wielkosc szarzy i pH utlenienia.
 </div>
 
-<h2>Wz\u00f3r modelu</h2>
-<div class="formula">
-    acid_kg_per_ton = {formula_str}
-</div>
-
-<h2>Wsp\u00f3\u0142czynniki</h2>
-<table class="table">
-    <tr><th>Cecha</th><th>Wsp\u00f3\u0142czynnik</th><th>Std Error</th><th>t-stat</th><th>p-value</th><th>95% CI</th></tr>
-    {coef_rows}
+<h2>5. Wspolczynniki i VIF</h2>
+<table>
+  <tr><th>Feature</th><th>Coef (OLS)</th><th>p-value</th><th>Bootstrap 95% CI</th></tr>
+  {coef_rows}
 </table>
 
-<h2>VIF (Variance Inflation Factor)</h2>
-<p>Wszystkie VIF &lt; 5 = brak multikolinearno\u015bci.</p>
-<table class="table">
-    <tr><th>Cecha</th><th>VIF</th></tr>
-    {vif_rows}
+<h3>VIF (Variance Inflation Factor)</h3>
+<table>
+  <tr><th>Feature</th><th>VIF</th></tr>
+  {vif_rows}
 </table>
 
-<h2>Predykcje LOO-CV</h2>
-<table class="table">
-    <tr><th>Szar\u017ca</th><th>Produkt</th><th>Rzeczywista (kg/t)</th><th>Predykcja LOO (kg/t)</th><th>Residual</th></tr>
-    {pred_rows}
+<h2>6. Zakresy zmiennych (validity)</h2>
+<table>
+  <tr><th>Feature</th><th>Min</th><th>Max</th></tr>
+  {ranges_html}
 </table>
 
-<h2>Diagnostyka</h2>
-{fig_html}
+<h2>7. LOO Predictions</h2>
+<table>
+  <tr><th>Batch</th><th>Produkt</th><th>Actual</th><th>Predicted</th><th>Residual</th></tr>
+  {pred_rows}
+</table>
 
-<div class="operator">
-    <h2>Dla operatora \u2014 Kalkulacja dawki</h2>
-    <div class="formula">{formula_str}</div>
-    <p><strong>Gdzie:</strong></p>
-    <ul>
-        <li><strong>delta_ph_czwart</strong> \u2014 r\u00f3\u017cnica mi\u0119dzy ostatnim a pierwszym pH 10% w czwartorz\u0119dowaniu</li>
-        <li><strong>wielkosc_kg</strong> \u2014 wielko\u015b\u0107 szar\u017cy w kg</li>
-    </ul>
-    <p><strong>Zakresy danych treningowych:</strong></p>
-    <table class="table">
-        <tr><th>Cecha</th><th>Min</th><th>Max</th><th>\u015brednia</th></tr>
-        {range_rows}
-    </table>
-    {example_calc}
-    <p class="note"><strong>Uwaga:</strong> Model wa\u017cny tylko w zakresach danych treningowych.
-    Predykcje poza zakresem mog\u0105 by\u0107 niedok\u0142adne. \u015bredni b\u0142\u0105d (MAE): \u00b1{loo_metrics['loo_mae']:.2f} kg/t.</p>
+<h2>8. Diagnostyka</h2>
+<div class="plot-grid">
+  <div><img src="data:image/png;base64,{diag_figs[0]}" alt="Actual vs Predicted"></div>
+  <div><img src="data:image/png;base64,{diag_figs[1]}" alt="Residuals vs Fitted"></div>
+  <div><img src="data:image/png;base64,{diag_figs[2]}" alt="Q-Q Plot"></div>
+  <div><img src="data:image/png;base64,{diag_figs[3]}" alt="Cook's Distance"></div>
 </div>
 
 </body>
@@ -416,33 +584,53 @@ def generate_report(
     print(f"\nHTML report saved: {OUT_HTML}")
 
 
-if __name__ == "__main__":
+# ── Main ─────────────────────────────────────────────────────────────────────
+
+
+def main():
     print("=" * 60)
-    print("Citric Acid Dosage — Prediction Model")
+    print("  Buffer Capacity Model — Citric Acid Dosage")
     print("=" * 60)
 
-    print("\n[1/6] Loading data...")
+    # 1. Load data
     df = load_data()
+    if len(df) < 5:
+        print(f"ERROR: Only {len(df)} complete rows — too few for modelling.")
+        return
 
-    print("\n[2/6] VIF check...")
-    vif_df = check_vif(df)
+    # 2. Select features
+    features = select_features(df)
 
-    print("\n[3/6] Fitting OLS...")
-    model = fit_ols(df)
+    # 3. Fit OLS
+    model = fit_ols(df, features)
 
-    print("\n[4/6] LOO cross-validation...")
-    pred_df, loo_metrics = loo_cv(df)
+    # 4. LOO-CV
+    pred_df, loo_metrics = loo_cv(df, features)
 
-    print("\n[5/6] Bootstrap CIs...")
-    boot_ci_df = bootstrap_ci(df)
+    # 5. VIF
+    vif_df = check_vif(df, features)
 
-    print("\n[6/6] Diagnostics + HTML report...")
-    diag_figs = diagnostics(model, df, pred_df)
-    generate_report(df, model, vif_df, pred_df, loo_metrics, boot_ci_df, diag_figs)
+    # 6. Bootstrap CIs
+    boot_ci_df = bootstrap_ci(df, features)
 
+    # 7. Diagnostics + report
+    diag_figs = diagnostics(model, df, features, pred_df)
+    generate_report(df, model, features, vif_df, pred_df, loo_metrics, boot_ci_df, diag_figs)
+
+    # 8. Summary
     print("\n" + "=" * 60)
-    print(f"In-sample R\u00b2: {model.rsquared:.3f} | Adj R\u00b2: {model.rsquared_adj:.3f}")
-    print(f"LOO-CV R\u00b2:    {loo_metrics['loo_r2']:.3f}")
-    print(f"LOO MAE:      {loo_metrics['loo_mae']:.2f} kg/t")
-    print(f"LOO RMSE:     {loo_metrics['loo_rmse']:.2f} kg/t")
-    print(f"\nDone! Open {OUT_HTML} in browser.")
+    print("  SUMMARY")
+    print("=" * 60)
+    print(f"  Features:   {features}")
+    print(f"  R²:         {model.rsquared:.4f}")
+    print(f"  Adj R²:     {model.rsquared_adj:.4f}")
+    print(f"  LOO R²:     {loo_metrics['LOO_R2']:.4f}")
+    print(f"  LOO MAE:    {loo_metrics['MAE']:.4f}")
+    print(f"  LOO RMSE:   {loo_metrics['RMSE']:.4f}")
+    print(f"  LOO MAPE:   {loo_metrics['MAPE']:.1f}%")
+    print(f"  Report:     {OUT_HTML}")
+    print(f"  Data CSV:   {MODEL_CSV}")
+
+
+if __name__ == "__main__":
+    main()
