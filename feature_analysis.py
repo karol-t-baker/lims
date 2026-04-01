@@ -12,6 +12,16 @@ import sqlite3
 import numpy as np
 import pandas as pd
 from pathlib import Path
+from scipy.stats import spearmanr
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.linear_model import ElasticNetCV, ElasticNet
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import LeaveOneOut
+import base64
+from io import BytesIO
 
 DB_PATH = Path("data/batch_db.sqlite")
 OUT_CSV = Path("data/parquet/feature_table.csv")
@@ -298,16 +308,369 @@ def clean_and_export(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def analyze_correlations(df: pd.DataFrame) -> tuple[pd.DataFrame, list]:
+    """Approach A: Spearman correlation with target + scatter plots."""
+    figs = []
+
+    meta_cols = ["batch_id", "produkt", "nr_partii", "template_id",
+                 "nr_amidatora", "nr_mieszalnika", "acid_total_kg"]
+    num_cols = [c for c in df.select_dtypes(include=[np.number]).columns
+                if c not in meta_cols and c != "acid_kg_per_ton"]
+
+    # Spearman correlation with target
+    corr_results = []
+    for col in num_cols:
+        valid = df[[col, "acid_kg_per_ton"]].dropna()
+        if len(valid) < 5:
+            continue
+        rho, pval = spearmanr(valid[col], valid["acid_kg_per_ton"])
+        corr_results.append({
+            "feature": col,
+            "spearman_rho": round(rho, 3),
+            "p_value": round(pval, 4),
+            "n_valid": len(valid),
+            "abs_rho": abs(rho),
+        })
+
+    corr_df = pd.DataFrame(corr_results).sort_values("abs_rho", ascending=False)
+    print("\n=== Spearman correlations with acid_kg_per_ton ===")
+    print(corr_df.to_string(index=False))
+
+    # Heatmap of top features
+    top_feats = corr_df.head(15)["feature"].tolist()
+    if top_feats:
+        corr_matrix = df[top_feats + ["acid_kg_per_ton"]].corr(method="spearman")
+        fig, ax = plt.subplots(figsize=(12, 10))
+        sns.heatmap(corr_matrix, annot=True, fmt=".2f", cmap="RdBu_r",
+                    center=0, vmin=-1, vmax=1, ax=ax)
+        ax.set_title("Spearman Correlation Matrix — Top 15 Features + Target")
+        plt.tight_layout()
+        figs.append(("corr_heatmap", fig))
+
+    # Scatter plots: top 10 features vs target
+    top10 = corr_df.head(10)["feature"].tolist()
+    if top10:
+        n_plots = len(top10)
+        n_cols_plot = 2
+        n_rows_plot = (n_plots + 1) // 2
+        fig, axes = plt.subplots(n_rows_plot, n_cols_plot, figsize=(14, 4 * n_rows_plot))
+        axes = axes.flatten()
+
+        colors = {"Chegina K7": "#1f77b4", "Chegina K40GL": "#ff7f0e",
+                  "Chegina K40GLO": "#2ca02c", "Chegina K40GLOL": "#d62728"}
+
+        for i, feat in enumerate(top10):
+            ax = axes[i]
+            for prod, color in colors.items():
+                mask = df["produkt"] == prod
+                ax.scatter(df.loc[mask, feat], df.loc[mask, "acid_kg_per_ton"],
+                          c=color, label=prod, s=60, alpha=0.8, edgecolors="k", linewidth=0.5)
+            rho = corr_df[corr_df["feature"] == feat]["spearman_rho"].iloc[0]
+            ax.set_xlabel(feat, fontsize=9)
+            ax.set_ylabel("acid_kg_per_ton")
+            ax.set_title(f"rho={rho:.3f}", fontsize=10)
+            ax.grid(True, alpha=0.3)
+
+        axes[0].legend(fontsize=7, loc="best")
+        for j in range(len(top10), len(axes)):
+            axes[j].set_visible(False)
+
+        fig.suptitle("Top 10 Features vs Citric Acid Dosage (kg/ton)", fontsize=14, y=1.01)
+        plt.tight_layout()
+        figs.append(("scatter_top10", fig))
+
+    return corr_df, figs
+
+
+def analyze_elasticnet(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, list]:
+    """Approach B: ElasticNet with LOO-CV + bootstrap stability."""
+    figs = []
+
+    meta_cols = ["batch_id", "produkt", "nr_partii", "template_id",
+                 "nr_amidatora", "nr_mieszalnika", "acid_total_kg"]
+    num_cols = [c for c in df.select_dtypes(include=[np.number]).columns
+                if c not in meta_cols and c != "acid_kg_per_ton"]
+
+    # Prepare X, y — drop rows/cols with NaN
+    sub = df[num_cols + ["acid_kg_per_ton"]].dropna(axis=1, thresh=int(len(df) * 0.6))
+    sub = sub.dropna()
+    feat_cols = [c for c in sub.columns if c != "acid_kg_per_ton"]
+
+    X = sub[feat_cols].values
+    y = sub["acid_kg_per_ton"].values
+    print(f"\nElasticNet: {X.shape[0]} samples, {X.shape[1]} features")
+    print(f"Features used: {feat_cols}")
+
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    # LOO-CV ElasticNet
+    alphas = np.logspace(-3, 1, 20)
+    l1_ratios = [0.1, 0.3, 0.5, 0.7, 0.9, 1.0]
+
+    enet_cv = ElasticNetCV(
+        l1_ratio=l1_ratios, alphas=alphas,
+        cv=LeaveOneOut(), max_iter=10000,
+        random_state=42
+    )
+    enet_cv.fit(X_scaled, y)
+    print(f"Best alpha={enet_cv.alpha_:.4f}, l1_ratio={enet_cv.l1_ratio_:.2f}")
+    print(f"LOO R²={enet_cv.score(X_scaled, y):.3f}")
+
+    # Coefficients
+    coef_df = pd.DataFrame({
+        "feature": feat_cols,
+        "coefficient": enet_cv.coef_,
+        "abs_coef": np.abs(enet_cv.coef_),
+    }).sort_values("abs_coef", ascending=False)
+    print("\n=== ElasticNet coefficients ===")
+    print(coef_df.to_string(index=False))
+
+    # Bootstrap stability (100 iterations)
+    n_boot = 100
+    boot_selected = {f: 0 for f in feat_cols}
+    boot_coefs = {f: [] for f in feat_cols}
+    rng = np.random.RandomState(42)
+
+    for _ in range(n_boot):
+        idx = rng.choice(len(X_scaled), size=len(X_scaled), replace=True)
+        X_b, y_b = X_scaled[idx], y[idx]
+        enet = ElasticNet(alpha=enet_cv.alpha_, l1_ratio=enet_cv.l1_ratio_, max_iter=10000)
+        enet.fit(X_b, y_b)
+        for j, f in enumerate(feat_cols):
+            if abs(enet.coef_[j]) > 1e-6:
+                boot_selected[f] += 1
+            boot_coefs[f].append(enet.coef_[j])
+
+    stability_df = pd.DataFrame({
+        "feature": feat_cols,
+        "selection_pct": [boot_selected[f] / n_boot * 100 for f in feat_cols],
+        "coef_mean": [np.mean(boot_coefs[f]) for f in feat_cols],
+        "coef_std": [np.std(boot_coefs[f]) for f in feat_cols],
+    }).sort_values("selection_pct", ascending=False)
+    print("\n=== Bootstrap stability (100 iterations) ===")
+    print(stability_df.to_string(index=False))
+
+    # Stability bar chart
+    fig, ax = plt.subplots(figsize=(12, 6))
+    top_stab = stability_df.head(20)
+    bars = ax.barh(range(len(top_stab)), top_stab["selection_pct"],
+                   color=["#2196F3" if p >= 80 else "#FFC107" if p >= 50 else "#E0E0E0"
+                          for p in top_stab["selection_pct"]])
+    ax.set_yticks(range(len(top_stab)))
+    ax.set_yticklabels(top_stab["feature"], fontsize=9)
+    ax.set_xlabel("Bootstrap Selection Frequency (%)")
+    ax.set_title("ElasticNet Bootstrap Stability — Feature Selection Frequency")
+    ax.axvline(x=80, color="red", linestyle="--", alpha=0.5, label="80% threshold")
+    ax.axvline(x=50, color="orange", linestyle="--", alpha=0.5, label="50% threshold")
+    ax.legend()
+    ax.invert_yaxis()
+    plt.tight_layout()
+    figs.append(("bootstrap_stability", fig))
+
+    return stability_df, coef_df, figs
+
+
+def build_combined_ranking(corr_df: pd.DataFrame, stability_df: pd.DataFrame) -> pd.DataFrame:
+    """Combine Approach A (correlation) and B (ElasticNet stability) into final ranking."""
+
+    merged = corr_df[["feature", "spearman_rho", "abs_rho", "p_value"]].merge(
+        stability_df[["feature", "selection_pct", "coef_mean"]],
+        on="feature", how="outer"
+    )
+
+    if merged["abs_rho"].max() > 0:
+        merged["corr_score"] = merged["abs_rho"] / merged["abs_rho"].max()
+    else:
+        merged["corr_score"] = 0
+
+    if merged["selection_pct"].max() > 0:
+        merged["stability_score"] = merged["selection_pct"] / merged["selection_pct"].max()
+    else:
+        merged["stability_score"] = 0
+
+    merged["combined_score"] = (
+        0.5 * merged["corr_score"].fillna(0) +
+        0.5 * merged["stability_score"].fillna(0)
+    )
+
+    domain_notes = {
+        "last_ph_10proc": "Direct: higher pH = more acid to neutralize",
+        "naoh_czwart_kg_per_ton": "Direct: more NaOH used = more alkaline = more acid",
+        "wielkosc_kg": "Scale effect: larger batches may have different proportions",
+        "delta_ph_czwart": "pH change during quaternization reflects NaOH absorption",
+        "last_procent_aa": "Active amines residual — may affect acid demand",
+        "last_nd20": "Refractive index — product composition indicator",
+        "dmapa_total_kg_per_ton": "DMAPA amount affects amine content → pH",
+        "mca_80_kg_per_ton": "MCA amount affects quaternization completeness",
+        "lk_amid_last": "Acid number after amidation — residual acidity",
+        "ph_smca": "SMCA pH — affects downstream chemistry",
+        "czas_czwart_h": "Longer quaternization may indicate process difficulties",
+        "n_analiz_czwart": "More analyses = more complex process trajectory",
+    }
+    merged["domain_note"] = merged["feature"].map(domain_notes).fillna("")
+
+    merged = merged.sort_values("combined_score", ascending=False)
+    return merged
+
+
+def fig_to_base64(fig) -> str:
+    buf = BytesIO()
+    fig.savefig(buf, format="png", dpi=120, bbox_inches="tight")
+    buf.seek(0)
+    return base64.b64encode(buf.read()).decode("utf-8")
+
+
+def generate_html_report(
+    df: pd.DataFrame,
+    ranking: pd.DataFrame,
+    corr_df: pd.DataFrame,
+    stability_df: pd.DataFrame,
+    all_figs: list,
+):
+    """Generate self-contained HTML report."""
+
+    fig_html = ""
+    for name, fig in all_figs:
+        b64 = fig_to_base64(fig)
+        fig_html += f'<div class="chart"><img src="data:image/png;base64,{b64}" alt="{name}"></div>\n'
+
+    ranking_html = ranking.round(3).to_html(index=False, classes="table")
+    corr_html = corr_df.round(3).to_html(index=False, classes="table")
+    stability_html = stability_df.round(3).to_html(index=False, classes="table")
+
+    n_batches = len(df)
+    n_features = len(ranking)
+    target_stats = df["acid_kg_per_ton"].describe()
+
+    recommended_html = ""
+    for _, row in ranking.head(8).iterrows():
+        note = f" — <em>{row['domain_note']}</em>" if row.get("domain_note") else ""
+        recommended_html += f"<li><strong>{row['feature']}</strong> (score: {row['combined_score']:.2f}){note}</li>\n"
+
+    html = f"""<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>Feature Selection Report — Citric Acid Dosage</title>
+<style>
+    body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+           max-width: 1200px; margin: 0 auto; padding: 20px; background: #f5f5f5; }}
+    h1 {{ color: #1a237e; border-bottom: 3px solid #1a237e; padding-bottom: 10px; }}
+    h2 {{ color: #283593; margin-top: 40px; }}
+    .summary {{ background: white; border-radius: 8px; padding: 20px; margin: 20px 0;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
+    .summary .stat {{ display: inline-block; margin: 10px 20px; text-align: center; }}
+    .summary .stat .value {{ font-size: 28px; font-weight: bold; color: #1a237e; }}
+    .summary .stat .label {{ font-size: 12px; color: #666; }}
+    .recommended {{ background: #e8f5e9; border-left: 4px solid #4caf50;
+                    padding: 15px 20px; margin: 20px 0; border-radius: 0 8px 8px 0; }}
+    .table {{ border-collapse: collapse; width: 100%; margin: 15px 0; font-size: 13px; }}
+    .table th {{ background: #283593; color: white; padding: 8px 12px; text-align: left; }}
+    .table td {{ padding: 6px 12px; border-bottom: 1px solid #e0e0e0; }}
+    .table tr:hover {{ background: #e3f2fd; }}
+    .chart {{ background: white; border-radius: 8px; padding: 15px; margin: 20px 0;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; }}
+    .chart img {{ max-width: 100%; height: auto; }}
+    .note {{ background: #fff3e0; border-left: 4px solid #ff9800;
+             padding: 10px 15px; margin: 10px 0; font-size: 13px; }}
+</style>
+</head>
+<body>
+
+<h1>Feature Selection Report — Citric Acid Dosage Prediction</h1>
+<p>Generated: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M')}</p>
+
+<div class="summary">
+    <div class="stat"><div class="value">{n_batches}</div><div class="label">Batches</div></div>
+    <div class="stat"><div class="value">{n_features}</div><div class="label">Features analyzed</div></div>
+    <div class="stat"><div class="value">{target_stats['mean']:.1f}</div><div class="label">Mean acid (kg/t)</div></div>
+    <div class="stat"><div class="value">{target_stats['min']:.1f}–{target_stats['max']:.1f}</div><div class="label">Range (kg/t)</div></div>
+    <div class="stat"><div class="value">{target_stats['std']:.1f}</div><div class="label">Std dev (kg/t)</div></div>
+</div>
+
+<div class="note">
+    <strong>Caveat:</strong> n={n_batches} is very small. All results are exploratory, not confirmatory.
+    Feature rankings should be validated as more batches are collected.
+</div>
+
+<h2>Recommended Feature Set</h2>
+<div class="recommended">
+    <p><strong>Top features (combined Spearman + ElasticNet stability):</strong></p>
+    <ul>
+{recommended_html}
+    </ul>
+</div>
+
+<h2>Visualizations</h2>
+{fig_html}
+
+<h2>Approach A — Spearman Rank Correlation</h2>
+<p>Spearman correlation is robust at small n and captures monotonic (not just linear) relationships.</p>
+{corr_html}
+
+<h2>Approach B — ElasticNet Bootstrap Stability</h2>
+<p>ElasticNet with LOO-CV + 100 bootstrap resamples. Features selected &gt;80% are highly stable.</p>
+{stability_html}
+
+<h2>Combined Ranking</h2>
+<p>50% Spearman |rho| (normalized) + 50% bootstrap selection frequency (normalized).</p>
+{ranking_html}
+
+</body>
+</html>"""
+
+    OUT_HTML.write_text(html, encoding="utf-8")
+    print(f"\nHTML report saved: {OUT_HTML}")
+
+
 if __name__ == "__main__":
     db = get_db()
 
-    print("Building feature table...")
+    print("=" * 60)
+    print("Feature Selection Analysis — Citric Acid Dosage")
+    print("=" * 60)
+
+    print("\n[1/6] Building target variable...")
     df = build_target(db)
+
+    print("[2/6] Extracting raw material features...")
     df = build_raw_material_features(db, df)
+
+    print("[3/6] Extracting process analysis features...")
     df = build_analysis_features(db, df)
+
+    print("[4/6] Extracting timing features...")
     df = build_timing_features(db, df)
+
+    print("[5/6] Extracting sensor features...")
     df = build_sensor_features(db, df)
+
+    print("[6/6] Cleaning and exporting...")
     df = clean_and_export(df)
 
-    print(f"\nFinal shape: {df.shape}")
-    print(df.describe().round(3).to_string())
+    print("\n" + "=" * 60)
+    print("Running Approach A: Spearman Correlation")
+    print("=" * 60)
+    corr_df, figs_a = analyze_correlations(df)
+
+    print("\n" + "=" * 60)
+    print("Running Approach B: ElasticNet + Bootstrap")
+    print("=" * 60)
+    stability_df, coef_df, figs_b = analyze_elasticnet(df)
+
+    print("\n" + "=" * 60)
+    print("Building combined ranking + HTML report")
+    print("=" * 60)
+    ranking = build_combined_ranking(corr_df, stability_df)
+    all_figs = figs_a + figs_b
+    generate_html_report(df, ranking, corr_df, stability_df, all_figs)
+
+    print("\n=== RECOMMENDED FEATURES ===")
+    for _, row in ranking.head(8).iterrows():
+        note = f"  ({row['domain_note']})" if row.get("domain_note") else ""
+        print(f"  {row['combined_score']:.2f}  {row['feature']}{note}")
+
+    print(f"\nDone! Open {OUT_HTML} in browser.")
+
+    db.close()
