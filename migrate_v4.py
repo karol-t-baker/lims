@@ -91,6 +91,49 @@ def migrate_batch(db: sqlite3.Connection, card: dict) -> str:
     return batch_id
 
 
+def migrate_materials(db: sqlite3.Connection, batch_id: str, card: dict):
+    """Insert surowce + standaryzowanie from strona1 into materials."""
+    s1 = card.get("strona1", {})
+
+    for sur in s1.get("surowce", []):
+        korekta_json = json.dumps(sur["korekta"]) if sur.get("korekta") else None
+        db.execute("""
+            INSERT INTO materials (
+                batch_id, kategoria, kod, nazwa, ilosc_kg, ilosc_receptura_kg,
+                nr_partii_materialu, lp, godzina, _ocr_pewnosc, _korekta
+            ) VALUES (?, 'surowiec', ?, ?, ?, ?, ?, ?, NULL, ?, ?)
+        """, (
+            batch_id,
+            sur.get("kod_surowca"),
+            sur.get("nazwa_surowca"),
+            sur.get("ilosc_zaladowana_kg"),
+            sur.get("ilosc_recepturowa_kg"),
+            sur.get("numer_partii_surowca"),
+            sur.get("lp"),
+            sur.get("ocr_pewnosc"),
+            korekta_json,
+        ))
+
+    for dod in s1.get("standaryzowanie", []):
+        korekta_json = json.dumps(dod["korekta"]) if dod.get("korekta") else None
+        db.execute("""
+            INSERT INTO materials (
+                batch_id, kategoria, kod, nazwa, ilosc_kg, ilosc_receptura_kg,
+                nr_partii_materialu, lp, godzina, _ocr_pewnosc, _korekta
+            ) VALUES (?, 'dodatek', ?, ?, ?, NULL, ?, ?, ?, ?, ?)
+        """, (
+            batch_id,
+            dod.get("kod_dodatku"),
+            dod.get("nazwa_dodatku"),
+            dod.get("ilosc_kg"),
+            dod.get("nr_partii_dodatku"),
+            dod.get("lp"),
+            dod.get("godzina"),
+            dod.get("ocr_pewnosc"),
+            korekta_json,
+        ))
+
+
 def _collect_pewnosc(obj, acc: list):
     """Recursively collect all ocr_pewnosc values."""
     if isinstance(obj, dict):

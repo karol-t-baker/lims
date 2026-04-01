@@ -216,3 +216,38 @@ def test_batch_migration(v4_db):
     assert row["_source"] == "ocr"
     assert row["_schema_version"] == "4.0"
     db.close()
+
+
+def test_materials_migration(v4_db):
+    from migrate_v4 import migrate_batch, migrate_materials
+
+    db = sqlite3.connect(str(v4_db))
+    db.row_factory = sqlite3.Row
+    batch_id = migrate_batch(db, SAMPLE_V3)
+    migrate_materials(db, batch_id, SAMPLE_V3)
+    db.commit()
+
+    rows = db.execute(
+        "SELECT * FROM materials WHERE batch_id = ? ORDER BY kategoria, lp",
+        (batch_id,)
+    ).fetchall()
+
+    # 1 surowiec + 1 dodatek in SAMPLE_V3
+    assert len(rows) == 2
+
+    sur = rows[1]  # surowiec sorts after dodatek
+    assert sur["kategoria"] == "surowiec"
+    assert sur["kod"] == "kwasy_c1218"
+    assert sur["ilosc_kg"] == 2240
+    assert sur["ilosc_receptura_kg"] == 2240
+    assert sur["nr_partii_materialu"] == "531/25"
+    assert sur["lp"] == 1
+
+    dod = rows[0]  # dodatek
+    assert dod["kategoria"] == "dodatek"
+    assert dod["kod"] == "kw_cytrynowy"
+    assert dod["ilosc_kg"] == 125
+    assert dod["ilosc_receptura_kg"] is None
+    assert dod["godzina"] == "20:15"
+    assert dod["_ocr_pewnosc"] == 0.8
+    db.close()
