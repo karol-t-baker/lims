@@ -24,15 +24,14 @@ FEATURE_CSV = Path("data/parquet/feature_table.csv")
 MODEL_CSV = Path("data/parquet/model_data.csv")
 OUT_HTML = Path("raport_model.html")
 
-FEATURES = ["naoh_50_kg_per_ton", "delta_ph_czwart", "produkt_K40GL", "wielkosc_kg"]
+FEATURES = ["delta_ph_czwart", "wielkosc_kg"]
 TARGET = "acid_kg_per_ton"
 
 
 def load_data() -> pd.DataFrame:
-    """Load feature table, filter to K7+K40GL, create binary product column."""
+    """Load feature table, filter to K7+K40GL."""
     df = pd.read_csv(FEATURE_CSV)
     df = df[df["produkt"].isin(["Chegina K7", "Chegina K40GL"])].copy()
-    df["produkt_K40GL"] = (df["produkt"] == "Chegina K40GL").astype(int)
 
     model_cols = FEATURES + [TARGET]
     before = len(df)
@@ -240,6 +239,183 @@ def diagnostics(model, df: pd.DataFrame, pred_df: pd.DataFrame) -> list:
     return figs
 
 
+def fig_to_base64(fig) -> str:
+    buf = BytesIO()
+    fig.savefig(buf, format="png", dpi=120, bbox_inches="tight")
+    buf.seek(0)
+    return base64.b64encode(buf.read()).decode("utf-8")
+
+
+def generate_report(
+    df: pd.DataFrame,
+    model,
+    vif_df: pd.DataFrame,
+    pred_df: pd.DataFrame,
+    loo_metrics: dict,
+    boot_ci_df: pd.DataFrame,
+    diag_figs: list,
+):
+    """Generate self-contained HTML report."""
+
+    # Coefficient table
+    conf = model.conf_int(alpha=0.05)
+    coef_rows = ""
+    for name in model.params.index:
+        c = model.params[name]
+        se = model.bse[name]
+        t = model.tvalues[name]
+        p = model.pvalues[name]
+        lo, hi = conf.loc[name, 0], conf.loc[name, 1]
+        p_str = f"{p:.4f}" if p >= 0.001 else f"{p:.2e}"
+        sig = "***" if p < 0.001 else "**" if p < 0.01 else "*" if p < 0.05 else ""
+        coef_rows += f"<tr><td>{name}</td><td>{c:.4f}</td><td>{se:.4f}</td><td>{t:.2f}</td><td>{p_str} {sig}</td><td>[{lo:.4f}, {hi:.4f}]</td></tr>\n"
+
+    # VIF table
+    vif_rows = ""
+    for _, r in vif_df.iterrows():
+        color = "color:red" if r["VIF"] > 5 else ""
+        vif_rows += f'<tr><td>{r["feature"]}</td><td style="{color}">{r["VIF"]:.2f}</td></tr>\n'
+
+    # Predictions table
+    pred_rows = ""
+    for _, r in pred_df.iterrows():
+        color = "color:red" if abs(r["residual_loo"]) > 2 * loo_metrics["loo_rmse"] else ""
+        pred_rows += f'<tr><td>{r["batch_id"]}</td><td>{r["produkt"]}</td><td>{r["actual"]:.2f}</td><td>{r["predicted_loo"]:.2f}</td><td style="{color}">{r["residual_loo"]:.2f}</td></tr>\n'
+
+    # Figures
+    fig_html = ""
+    for name, fig in diag_figs:
+        b64 = fig_to_base64(fig)
+        fig_html += f'<div class="chart"><img src="data:image/png;base64,{b64}" alt="{name}"></div>\n'
+
+    # Operator formula
+    params = model.params
+    formula_parts = [f"{params['const']:.2f}"]
+    for f in FEATURES:
+        sign = "+" if params[f] >= 0 else "-"
+        formula_parts.append(f"{sign} {abs(params[f]):.4f} x {f}")
+    formula_str = " ".join(formula_parts)
+
+    # Example calculation
+    example_row = df[df["produkt"] == "Chegina K7"].iloc[0]
+    example_pred = model.predict(sm.add_constant(example_row[FEATURES].to_frame().T, has_constant="add")).iloc[0]
+    example_calc = f"""
+    <p><strong>Przyklad:</strong> batch {example_row['batch_id']}</p>
+    <ul>
+        <li>delta_ph_czwart = {example_row['delta_ph_czwart']:.2f}</li>
+        <li>wielkosc_kg = {example_row['wielkosc_kg']:.0f}</li>
+    </ul>
+    <p>Predykcja: <strong>{example_pred:.2f} kg/t</strong>
+       (rzeczywista: {example_row[TARGET]:.2f} kg/t)</p>
+    """
+
+    # Feature ranges
+    range_rows = ""
+    for f in FEATURES:
+        range_rows += f"<tr><td>{f}</td><td>{df[f].min():.2f}</td><td>{df[f].max():.2f}</td><td>{df[f].mean():.2f}</td></tr>\n"
+
+    html = f"""<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>Model Predykcji Dawki Kwasu Cytrynowego</title>
+<style>
+    body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+           max-width: 1200px; margin: 0 auto; padding: 20px; background: #f5f5f5; }}
+    h1 {{ color: #1a237e; border-bottom: 3px solid #1a237e; padding-bottom: 10px; }}
+    h2 {{ color: #283593; margin-top: 40px; }}
+    .summary {{ background: white; border-radius: 8px; padding: 20px; margin: 20px 0;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1); }}
+    .summary .stat {{ display: inline-block; margin: 10px 20px; text-align: center; }}
+    .summary .stat .value {{ font-size: 28px; font-weight: bold; color: #1a237e; }}
+    .summary .stat .label {{ font-size: 12px; color: #666; }}
+    .formula {{ background: #e8eaf6; border-radius: 8px; padding: 20px; margin: 20px 0;
+                font-family: 'Courier New', monospace; font-size: 14px; }}
+    .table {{ border-collapse: collapse; width: 100%; margin: 15px 0; font-size: 13px; }}
+    .table th {{ background: #283593; color: white; padding: 8px 12px; text-align: left; }}
+    .table td {{ padding: 6px 12px; border-bottom: 1px solid #e0e0e0; }}
+    .table tr:hover {{ background: #e3f2fd; }}
+    .chart {{ background: white; border-radius: 8px; padding: 15px; margin: 20px 0;
+              box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; }}
+    .chart img {{ max-width: 100%; height: auto; }}
+    .note {{ background: #fff3e0; border-left: 4px solid #ff9800;
+             padding: 10px 15px; margin: 10px 0; font-size: 13px; }}
+    .operator {{ background: #e8f5e9; border: 2px solid #4caf50; border-radius: 8px;
+                 padding: 20px; margin: 20px 0; }}
+    .operator h2 {{ color: #2e7d32; margin-top: 0; }}
+</style>
+</head>
+<body>
+
+<h1>Model Predykcji Dawki Kwasu Cytrynowego</h1>
+<p>Generated: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M')} | Dane: {len(df)} szarzy (K7 + K40GL) | 2 cechy</p>
+
+<div class="summary">
+    <div class="stat"><div class="value">{model.rsquared:.3f}</div><div class="label">R\u00b2 (in-sample)</div></div>
+    <div class="stat"><div class="value">{model.rsquared_adj:.3f}</div><div class="label">Adj R\u00b2</div></div>
+    <div class="stat"><div class="value">{loo_metrics['loo_r2']:.3f}</div><div class="label">R\u00b2 (LOO-CV)</div></div>
+    <div class="stat"><div class="value">{loo_metrics['loo_mae']:.2f}</div><div class="label">MAE (kg/t)</div></div>
+    <div class="stat"><div class="value">{loo_metrics['loo_rmse']:.2f}</div><div class="label">RMSE (kg/t)</div></div>
+</div>
+
+<div class="note">
+    <strong>Uwaga:</strong> n={len(df)} \u2014 model eksploracyjny. LOO R\u00b2 jest uczciw\u0105 metryk\u0105 generalizacji.
+    Walidacja na nowych szarzach wymagana przed u\u017cyciem operacyjnym.
+    \u015bredni b\u0142\u0105d predykcji (MAE): {loo_metrics['loo_mae']:.2f} kg/t.
+</div>
+
+<h2>Wz\u00f3r modelu</h2>
+<div class="formula">
+    acid_kg_per_ton = {formula_str}
+</div>
+
+<h2>Wsp\u00f3\u0142czynniki</h2>
+<table class="table">
+    <tr><th>Cecha</th><th>Wsp\u00f3\u0142czynnik</th><th>Std Error</th><th>t-stat</th><th>p-value</th><th>95% CI</th></tr>
+    {coef_rows}
+</table>
+
+<h2>VIF (Variance Inflation Factor)</h2>
+<p>Wszystkie VIF &lt; 5 = brak multikolinearno\u015bci.</p>
+<table class="table">
+    <tr><th>Cecha</th><th>VIF</th></tr>
+    {vif_rows}
+</table>
+
+<h2>Predykcje LOO-CV</h2>
+<table class="table">
+    <tr><th>Szar\u017ca</th><th>Produkt</th><th>Rzeczywista (kg/t)</th><th>Predykcja LOO (kg/t)</th><th>Residual</th></tr>
+    {pred_rows}
+</table>
+
+<h2>Diagnostyka</h2>
+{fig_html}
+
+<div class="operator">
+    <h2>Dla operatora \u2014 Kalkulacja dawki</h2>
+    <div class="formula">{formula_str}</div>
+    <p><strong>Gdzie:</strong></p>
+    <ul>
+        <li><strong>delta_ph_czwart</strong> \u2014 r\u00f3\u017cnica mi\u0119dzy ostatnim a pierwszym pH 10% w czwartorz\u0119dowaniu</li>
+        <li><strong>wielkosc_kg</strong> \u2014 wielko\u015b\u0107 szar\u017cy w kg</li>
+    </ul>
+    <p><strong>Zakresy danych treningowych:</strong></p>
+    <table class="table">
+        <tr><th>Cecha</th><th>Min</th><th>Max</th><th>\u015brednia</th></tr>
+        {range_rows}
+    </table>
+    {example_calc}
+    <p class="note"><strong>Uwaga:</strong> Model wa\u017cny tylko w zakresach danych treningowych.
+    Predykcje poza zakresem mog\u0105 by\u0107 niedok\u0142adne. \u015bredni b\u0142\u0105d (MAE): \u00b1{loo_metrics['loo_mae']:.2f} kg/t.</p>
+</div>
+
+</body>
+</html>"""
+
+    OUT_HTML.write_text(html, encoding="utf-8")
+    print(f"\nHTML report saved: {OUT_HTML}")
+
+
 if __name__ == "__main__":
     print("=" * 60)
     print("Citric Acid Dosage — Prediction Model")
@@ -260,13 +436,13 @@ if __name__ == "__main__":
     print("\n[5/6] Bootstrap CIs...")
     boot_ci_df = bootstrap_ci(df)
 
-    print("\n[6/6] Diagnostics...")
+    print("\n[6/6] Diagnostics + HTML report...")
     diag_figs = diagnostics(model, df, pred_df)
-    for name, fig in diag_figs:
-        fig.savefig(f"/tmp/{name}.png", dpi=100, bbox_inches="tight")
+    generate_report(df, model, vif_df, pred_df, loo_metrics, boot_ci_df, diag_figs)
 
     print("\n" + "=" * 60)
-    print(f"In-sample R²: {model.rsquared:.3f} | Adj R²: {model.rsquared_adj:.3f}")
-    print(f"LOO-CV R²:    {loo_metrics['loo_r2']:.3f}")
+    print(f"In-sample R\u00b2: {model.rsquared:.3f} | Adj R\u00b2: {model.rsquared_adj:.3f}")
+    print(f"LOO-CV R\u00b2:    {loo_metrics['loo_r2']:.3f}")
     print(f"LOO MAE:      {loo_metrics['loo_mae']:.2f} kg/t")
     print(f"LOO RMSE:     {loo_metrics['loo_rmse']:.2f} kg/t")
+    print(f"\nDone! Open {OUT_HTML} in browser.")
