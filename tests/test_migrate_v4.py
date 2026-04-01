@@ -357,6 +357,30 @@ def test_events_kroki(v4_db):
     db.close()
 
 
+def test_material_id_linking(v4_db):
+    from migrate_v4 import migrate_batch, migrate_materials, migrate_events, link_materials
+
+    db = sqlite3.connect(str(v4_db))
+    db.row_factory = sqlite3.Row
+    batch_id = migrate_batch(db, SAMPLE_V3)
+    migrate_materials(db, batch_id, SAMPLE_V3)
+    migrate_events(db, batch_id, SAMPLE_V3)
+    link_materials(db, batch_id, SAMPLE_V3)
+    db.commit()
+
+    row = db.execute("""
+        SELECT e.material_id, m.kod, m.ilosc_kg
+        FROM events e
+        JOIN materials m ON e.material_id = m.id
+        WHERE e.batch_id = ? AND e.stage = 'standaryzacja'
+              AND e.substancja_nazwa = 'Kw. cytrynowy'
+    """, (batch_id,)).fetchone()
+    assert row is not None
+    assert row["kod"] == "kw_cytrynowy"
+    assert row["ilosc_kg"] == 125
+    db.close()
+
+
 def test_events_total_count(v4_db):
     from migrate_v4 import migrate_batch, migrate_events
 

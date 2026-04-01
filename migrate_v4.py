@@ -338,6 +338,55 @@ def _insert_analiza_event(db, batch_id, equipment_id, stage, ana, seq,
     ))
 
 
+def link_materials(db: sqlite3.Connection, batch_id: str, card: dict):
+    """Link events with standaryzowanie_idx to their material_id."""
+    dodatki = db.execute("""
+        SELECT id, lp FROM materials
+        WHERE batch_id = ? AND kategoria = 'dodatek'
+        ORDER BY lp
+    """, (batch_id,)).fetchall()
+
+    if not dodatki:
+        return
+
+    s1_stand = card.get("strona1", {}).get("standaryzowanie", [])
+    idx_to_material_id = {}
+    for i, _ in enumerate(s1_stand):
+        if i < len(dodatki):
+            idx_to_material_id[i] = dodatki[i][0]  # material.id
+
+    all_kroki_with_idx = []
+    proc = card.get("proces", {})
+    for etap_data in (proc.get("etapy") or {}).values():
+        if etap_data is None:
+            continue
+        for krok in etap_data.get("kroki", []):
+            idx = krok.get("standaryzowanie_idx")
+            if idx is not None and idx in idx_to_material_id:
+                all_kroki_with_idx.append((
+                    krok.get("datetime_start"),
+                    krok.get("substancja"),
+                    idx_to_material_id[idx],
+                ))
+
+    konc = card.get("koncowa", {})
+    sk = konc.get("standaryzacja_kontynuacja") or {}
+    for krok in sk.get("kroki", []):
+        idx = krok.get("standaryzowanie_idx")
+        if idx is not None and idx in idx_to_material_id:
+            all_kroki_with_idx.append((
+                krok.get("datetime_start"),
+                krok.get("substancja"),
+                idx_to_material_id[idx],
+            ))
+
+    for dt, subst, mat_id in all_kroki_with_idx:
+        db.execute("""
+            UPDATE events SET material_id = ?
+            WHERE batch_id = ? AND dt = ? AND substancja_nazwa = ?
+        """, (mat_id, batch_id, dt, subst))
+
+
 def _collect_pewnosc(obj, acc: list):
     """Recursively collect all ocr_pewnosc values."""
     if isinstance(obj, dict):
