@@ -506,6 +506,42 @@ def migrate_sensors(db: sqlite3.Connection, v3_db_path: Path):
         ))
 
 
+def print_report(db_path: Path):
+    """Print migration summary report."""
+    db = sqlite3.connect(str(db_path))
+
+    print("\n=== Schema v4 Migration Report ===\n")
+
+    for table in ["batch", "materials", "events", "sensor_readings"]:
+        n = db.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+        print(f"  {table}: {n} rows")
+
+    print("\nBatches by product:")
+    for row in db.execute("SELECT produkt, COUNT(*) c FROM batch GROUP BY produkt ORDER BY c DESC"):
+        print(f"  {row[0]}: {row[1]}")
+
+    verified = db.execute("SELECT COUNT(*) FROM batch WHERE _verified = 1").fetchone()[0]
+    total = db.execute("SELECT COUNT(*) FROM batch").fetchone()[0]
+    print(f"\nVerified: {verified}/{total}")
+
+    print("\nEvents by stage:")
+    for row in db.execute("""
+        SELECT stage, event_type, COUNT(*) c
+        FROM events GROUP BY stage, event_type ORDER BY stage, event_type
+    """):
+        print(f"  {row[0]}.{row[1]}: {row[2]}")
+
+    print("\nMaterials by category:")
+    for row in db.execute("SELECT kategoria, COUNT(*) FROM materials GROUP BY kategoria"):
+        print(f"  {row[0]}: {row[1]}")
+
+    linked = db.execute("SELECT COUNT(*) FROM events WHERE material_id IS NOT NULL").fetchone()[0]
+    total_ev = db.execute("SELECT COUNT(*) FROM events").fetchone()[0]
+    print(f"\nEvents with material_id: {linked}/{total_ev}")
+
+    db.close()
+
+
 if __name__ == "__main__":
     import sys
 
@@ -527,10 +563,4 @@ if __name__ == "__main__":
         db.close()
         print("Migrated sensor_readings from v3 database")
 
-    db = sqlite3.connect(str(db_path))
-    for table in ["batch", "materials", "events", "sensor_readings"]:
-        n = db.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
-        print(f"  {table}: {n} rows")
-    verified = db.execute("SELECT COUNT(*) FROM batch WHERE _verified = 1").fetchone()[0]
-    print(f"  verified: {verified}")
-    db.close()
+    print_report(db_path)
