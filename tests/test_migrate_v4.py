@@ -251,3 +251,124 @@ def test_materials_migration(v4_db):
     assert dod["godzina"] == "20:15"
     assert dod["_ocr_pewnosc"] == 0.8
     db.close()
+
+
+def test_events_structured_substages(v4_db):
+    from migrate_v4 import migrate_batch, migrate_events
+
+    db = sqlite3.connect(str(v4_db))
+    db.row_factory = sqlite3.Row
+    batch_id = migrate_batch(db, SAMPLE_V3)
+    migrate_events(db, batch_id, SAMPLE_V3)
+    db.commit()
+
+    # wlaczenie_reaktora → zmiana_stanu
+    rows = db.execute("""
+        SELECT * FROM events
+        WHERE batch_id = ? AND stage = 'amid' AND event_type = 'zmiana_stanu'
+        ORDER BY dt
+    """, (batch_id,)).fetchall()
+    assert len(rows) >= 1
+    reaktor = rows[0]
+    assert reaktor["opis"] == "wlaczenie_reaktora"
+    assert reaktor["dt"] == "2026-01-07T10:45"
+    assert reaktor["temperatura_docelowa_c"] == 170
+
+    # smca.wytworzenie_smca → zmiana_stanu with ilosc_kg
+    smca_rows = db.execute("""
+        SELECT * FROM events
+        WHERE batch_id = ? AND stage = 'smca' AND event_type = 'zmiana_stanu'
+        ORDER BY dt
+    """, (batch_id,)).fetchall()
+    assert len(smca_rows) >= 1
+    assert smca_rows[0]["opis"] == "wytworzenie_smca"
+    assert smca_rows[0]["ilosc_kg"] == 232
+    assert smca_rows[0]["temperatura_c"] == 45
+
+    # smca.analiza_smca → analiza
+    smca_ana = db.execute("""
+        SELECT * FROM events
+        WHERE batch_id = ? AND stage = 'smca' AND event_type = 'analiza'
+    """, (batch_id,)).fetchall()
+    assert len(smca_ana) == 1
+    assert smca_ana[0]["ph"] == 8.5
+
+    # czwart.przeciagniecie_amidu → zmiana_stanu
+    czwart_rows = db.execute("""
+        SELECT * FROM events
+        WHERE batch_id = ? AND stage = 'czwart' AND event_type = 'zmiana_stanu'
+    """, (batch_id,)).fetchall()
+    assert len(czwart_rows) >= 1
+    assert czwart_rows[0]["opis"] == "przeciagniecie_amidu"
+
+    db.close()
+
+
+def test_events_kroki(v4_db):
+    from migrate_v4 import migrate_batch, migrate_events
+
+    db = sqlite3.connect(str(v4_db))
+    db.row_factory = sqlite3.Row
+    batch_id = migrate_batch(db, SAMPLE_V3)
+    migrate_events(db, batch_id, SAMPLE_V3)
+    db.commit()
+
+    # amid kroki: 1 analiza + 1 dodatek
+    amid_events = db.execute("""
+        SELECT * FROM events
+        WHERE batch_id = ? AND stage = 'amid' AND event_type IN ('analiza', 'dodatek')
+        ORDER BY dt
+    """, (batch_id,)).fetchall()
+    assert len(amid_events) == 2
+    assert amid_events[0]["event_type"] == "analiza"
+    assert amid_events[0]["lk"] == 11.78
+    assert amid_events[1]["event_type"] == "dodatek"
+    assert amid_events[1]["substancja_nazwa"] == "DMAPA"
+    assert amid_events[1]["ilosc_kg"] == 30
+
+    # czwart kroki: 1 dodatek + 1 analiza
+    czwart_events = db.execute("""
+        SELECT * FROM events
+        WHERE batch_id = ? AND stage = 'czwart' AND event_type IN ('analiza', 'dodatek')
+        ORDER BY dt
+    """, (batch_id,)).fetchall()
+    assert len(czwart_events) == 2
+    assert czwart_events[0]["event_type"] == "dodatek"
+    assert czwart_events[0]["substancja_nazwa"] == "NaOH"
+    assert czwart_events[0]["ilosc_kg"] == 232
+    assert czwart_events[0]["temperatura_c"] == 87.5
+    assert czwart_events[1]["event_type"] == "analiza"
+    assert czwart_events[1]["ph_10proc"] == 6.0
+    assert czwart_events[1]["nd20"] == 1.4098
+
+    # standaryzacja kroki from proces + koncowa kontynuacja
+    stand_events = db.execute("""
+        SELECT * FROM events
+        WHERE batch_id = ? AND stage = 'standaryzacja' AND event_type = 'dodatek'
+        ORDER BY dt
+    """, (batch_id,)).fetchall()
+    assert len(stand_events) == 2  # 1 from proces + 1 from koncowa
+    assert stand_events[0]["substancja_nazwa"] == "Kw. cytrynowy"
+    assert stand_events[0]["ilosc_kg"] == 125
+    assert stand_events[1]["substancja_nazwa"] == "Woda"
+    assert stand_events[1]["ilosc_kg"] == 540
+    assert stand_events[1]["operator_raw"] == "MG"
+
+    db.close()
+
+
+def test_events_total_count(v4_db):
+    from migrate_v4 import migrate_batch, migrate_events
+
+    db = sqlite3.connect(str(v4_db))
+    batch_id = migrate_batch(db, SAMPLE_V3)
+    migrate_events(db, batch_id, SAMPLE_V3)
+    db.commit()
+
+    total = db.execute("SELECT COUNT(*) FROM events WHERE batch_id = ?",
+                       (batch_id,)).fetchone()[0]
+    # Structured: wlaczenie_reaktora, wytworzenie_smca, analiza_smca, przeciagniecie_amidu = 4
+    # Kroki: amid(2) + czwart(2) + standaryzacja(1) + koncowa_kontynuacja(1) = 6
+    # Total = 10
+    assert total == 10
+    db.close()

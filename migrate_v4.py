@@ -134,6 +134,210 @@ def migrate_materials(db: sqlite3.Connection, batch_id: str, card: dict):
         ))
 
 
+# Sub-stages that are structured objects (not kroki arrays)
+STRUCTURED_SUBSTAGES = {
+    "amid": {
+        "zaladunek_surowcow": {"event_type": "zmiana_stanu"},
+        "zaladunek_dmapa": {"event_type": "zmiana_stanu"},
+        "wlaczenie_reaktora": {"event_type": "zmiana_stanu"},
+        "reakcja_amidowania": {"event_type": "zmiana_stanu"},
+        "destylacja": {"event_type": "zmiana_stanu"},
+    },
+    "smca": {
+        "wytworzenie_smca": {"event_type": "zmiana_stanu"},
+        "analiza_smca": {"event_type": "analiza"},
+    },
+    "czwartorzedowanie": {
+        "przeciagniecie_amidu": {"event_type": "zmiana_stanu"},
+    },
+}
+
+
+def migrate_events(db: sqlite3.Connection, batch_id: str, card: dict):
+    """Insert all process events from v3 card into events table."""
+    proc = card.get("proces", {})
+    konc = card.get("koncowa", {})
+    equipment_id = card.get("strona1", {}).get("nr_amidatora")
+    pola_watpliwe = set(proc.get("pola_watpliwe", []) + konc.get("pola_watpliwe", []))
+
+    seq_counter = [0]
+
+    def next_seq():
+        seq_counter[0] += 1
+        return seq_counter[0]
+
+    etapy = proc.get("etapy", {})
+    for etap_key, etap_data in etapy.items():
+        if etap_data is None:
+            continue
+        stage = STAGE_MAP.get(etap_key, etap_key)
+
+        # 1. Structured sub-stages
+        substage_defs = STRUCTURED_SUBSTAGES.get(etap_key, {})
+        for sub_key, sub_def in substage_defs.items():
+            sub = etap_data.get(sub_key)
+            if sub is None:
+                continue
+            _insert_structured_event(db, batch_id, equipment_id, stage,
+                                     sub_key, sub, sub_def, next_seq(),
+                                     pola_watpliwe)
+
+        # 2. Kroki arrays
+        for krok in etap_data.get("kroki", []):
+            _insert_krok_event(db, batch_id, equipment_id, stage,
+                               krok, next_seq(), pola_watpliwe)
+
+    # 3. koncowa.standaryzacja_kontynuacja.kroki → stage = "standaryzacja"
+    sk = konc.get("standaryzacja_kontynuacja") or {}
+    for krok in sk.get("kroki", []):
+        _insert_krok_event(db, batch_id, equipment_id, "standaryzacja",
+                           krok, next_seq(), pola_watpliwe)
+
+    # 4. koncowa.analiza_miedzyoper_standaryzowanie → analiza event
+    ami = konc.get("analiza_miedzyoper_standaryzowanie")
+    if ami:
+        _insert_analiza_event(db, batch_id, equipment_id, "standaryzacja",
+                              ami, next_seq(), pola_watpliwe,
+                              opis="analiza_miedzyoperacyjna")
+
+
+def _ts_precision(dt_str: str, pola_watpliwe: set, path_hint: str = "") -> str:
+    for pw in pola_watpliwe:
+        if path_hint and path_hint in pw:
+            return "estimated"
+    return "minute"
+
+
+def _insert_structured_event(db, batch_id, equipment_id, stage,
+                              sub_key, sub, sub_def, seq, pola_watpliwe):
+    event_type = sub_def["event_type"]
+    dt = sub.get("datetime_start")
+    if not dt:
+        return
+
+    proznia = sub.get("proznia_ba")
+    if proznia is not None and proznia in (-1, -99):
+        proznia = None
+
+    db.execute("""
+        INSERT INTO events (
+            batch_id, equipment_id, dt, dt_end, stage, event_type, seq,
+            ilosc_kg, temperatura_c, proznia_ba,
+            ph, ph_10proc, nd20,
+            opis, temperatura_docelowa_c, operator_raw,
+            _source, _ts_precision, _ocr_pewnosc
+        ) VALUES (?, ?, ?, ?, ?, ?, ?,
+                  ?, ?, ?,
+                  ?, ?, ?,
+                  ?, ?, ?,
+                  'ocr', ?, ?)
+    """, (
+        batch_id, equipment_id, dt,
+        sub.get("datetime_koniec") or sub.get("datetime_end"),
+        stage, event_type, seq,
+        sub.get("ilosc_kg") or sub.get("ilosc_naoh_kg"),
+        sub.get("temperatura_c"),
+        proznia,
+        sub.get("ph"), sub.get("ph_10proc"), sub.get("nd20"),
+        sub_key if event_type == "zmiana_stanu" else None,
+        sub.get("temperatura_docelowa_c"),
+        sub.get("operator_podpis_raw"),
+        _ts_precision(dt, pola_watpliwe),
+        sub.get("ocr_pewnosc"),
+    ))
+
+
+def _insert_krok_event(db, batch_id, equipment_id, stage, krok, seq, pola_watpliwe):
+    typ = krok.get("typ", "dodatek")
+    dt = krok.get("datetime_start")
+    if not dt:
+        return
+
+    proznia = krok.get("proznia_ba")
+    if proznia is not None and proznia in (-1, -99):
+        proznia = None
+
+    db.execute("""
+        INSERT INTO events (
+            batch_id, equipment_id, dt, dt_end, stage, event_type, seq,
+            substancja_kod, substancja_nazwa, ilosc_kg,
+            temperatura_c, proznia_ba,
+            ph, ph_10proc, nd20, procent_aa, procent_sm, procent_sa,
+            procent_nacl, procent_so3, procent_h2o2,
+            le, lk, barwa_raw, barwa_fau, barwa_hz, barwa_opis,
+            operator_raw,
+            _source, _ts_precision, _ocr_pewnosc
+        ) VALUES (?, ?, ?, NULL, ?, ?, ?,
+                  NULL, ?, ?,
+                  ?, ?,
+                  ?, ?, ?, ?, ?, ?,
+                  ?, ?, ?,
+                  ?, ?, ?, ?, ?, ?,
+                  ?,
+                  'ocr', ?, ?)
+    """, (
+        batch_id, equipment_id, dt,
+        stage, typ, seq,
+        krok.get("substancja"),
+        krok.get("ilosc_kg"),
+        krok.get("temperatura_c"),
+        proznia,
+        krok.get("ph"),
+        krok.get("ph_10proc"),
+        krok.get("nd20"),
+        krok.get("procent_aa"),
+        krok.get("procent_sm"),
+        krok.get("procent_sa"),
+        krok.get("procent_nacl"),
+        krok.get("procent_so3"),
+        krok.get("procent_h2o2"),
+        krok.get("le_liczba_estrowa") or krok.get("le"),
+        krok.get("lk_liczba_kwasowa") or krok.get("lk"),
+        krok.get("barwa"),
+        krok.get("barwa_fau"),
+        krok.get("barwa_hz"),
+        krok.get("barwa_opis"),
+        krok.get("operator_podpis_raw"),
+        _ts_precision(dt, pola_watpliwe),
+        krok.get("ocr_pewnosc"),
+    ))
+
+
+def _insert_analiza_event(db, batch_id, equipment_id, stage, ana, seq,
+                           pola_watpliwe, opis=None):
+    dt = ana.get("datetime") or ana.get("datetime_start")
+    if not dt:
+        return
+
+    db.execute("""
+        INSERT INTO events (
+            batch_id, equipment_id, dt, stage, event_type, seq,
+            ph, ph_10proc, nd20, procent_aa, procent_sm, procent_sa,
+            procent_nacl, procent_so3, procent_h2o2,
+            le, lk, barwa_raw, barwa_fau, barwa_hz, barwa_opis,
+            opis, operator_raw,
+            _source, _ts_precision, _ocr_pewnosc
+        ) VALUES (?, ?, ?, ?, 'analiza', ?,
+                  ?, ?, ?, ?, ?, ?,
+                  ?, ?, ?,
+                  ?, ?, ?, ?, ?, ?,
+                  ?, ?,
+                  'ocr', ?, ?)
+    """, (
+        batch_id, equipment_id, dt, stage, seq,
+        ana.get("ph"), ana.get("ph_10proc"), ana.get("nd20"),
+        ana.get("procent_aa"), ana.get("procent_sm"), ana.get("procent_sa"),
+        ana.get("procent_nacl"), ana.get("procent_so3"), ana.get("procent_h2o2"),
+        ana.get("le_liczba_kwasowa") or ana.get("le"),
+        ana.get("lk_liczba_kwasowa") or ana.get("lk"),
+        ana.get("barwa"), ana.get("barwa_fau"), ana.get("barwa_hz"),
+        ana.get("barwa_opis"),
+        opis, ana.get("operator_podpis_raw"),
+        _ts_precision(dt, pola_watpliwe),
+        ana.get("ocr_pewnosc"),
+    ))
+
+
 def _collect_pewnosc(obj, acc: list):
     """Recursively collect all ocr_pewnosc values."""
     if isinstance(obj, dict):
