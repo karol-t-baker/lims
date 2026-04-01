@@ -381,6 +381,29 @@ def test_material_id_linking(v4_db):
     db.close()
 
 
+def test_migrate_card_full(v4_db):
+    from migrate_v4 import migrate_card
+
+    db = sqlite3.connect(str(v4_db))
+    db.row_factory = sqlite3.Row
+    migrate_card(db, SAMPLE_V3)
+    db.commit()
+
+    batch_count = db.execute("SELECT COUNT(*) FROM batch").fetchone()[0]
+    mat_count = db.execute("SELECT COUNT(*) FROM materials").fetchone()[0]
+    event_count = db.execute("SELECT COUNT(*) FROM events").fetchone()[0]
+
+    assert batch_count == 1
+    assert mat_count == 2
+    assert event_count == 10
+
+    linked = db.execute(
+        "SELECT COUNT(*) FROM events WHERE material_id IS NOT NULL"
+    ).fetchone()[0]
+    assert linked >= 1
+    db.close()
+
+
 def test_events_total_count(v4_db):
     from migrate_v4 import migrate_batch, migrate_events
 

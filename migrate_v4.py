@@ -397,3 +397,98 @@ def _collect_pewnosc(obj, acc: list):
     elif isinstance(obj, list):
         for item in obj:
             _collect_pewnosc(item, acc)
+
+
+def migrate_card(db: sqlite3.Connection, card: dict):
+    """Migrate a single v3 card (all three tables)."""
+    batch_id = migrate_batch(db, card)
+    migrate_materials(db, batch_id, card)
+    migrate_events(db, batch_id, card)
+    link_materials(db, batch_id, card)
+    return batch_id
+
+
+def migrate_all(input_dir: Path, db_path: Path, use_verified: bool = True):
+    """Migrate all v3 JSONs from output_json/ (or verified/) into v4 database."""
+    db = create_db(db_path)
+    count = 0
+
+    if use_verified:
+        verified_dir = input_dir.parent / "verified"
+        if verified_dir.exists():
+            count += _migrate_from_verified(db, verified_dir)
+
+    # Also process output_json for non-verified batches
+    output_dir = input_dir if input_dir.name == "output_json" else input_dir / "output_json"
+    if output_dir.exists():
+        existing = set(r[0] for r in db.execute("SELECT batch_id FROM batch").fetchall())
+        for json_path in sorted(output_dir.rglob("*.json")):
+            card = json.loads(json_path.read_text())
+            if "produkt" not in card:
+                continue
+            bid = _make_batch_id(card["produkt"], card["nr_partii"])
+            if bid in existing:
+                continue
+            migrate_card(db, card)
+            count += 1
+
+    db.commit()
+    db.close()
+    return count
+
+
+def _migrate_from_verified(db: sqlite3.Connection, verified_dir: Path) -> int:
+    """Migrate from verified/ directory (split into _strona1, _proces, _koncowa files)."""
+    count = 0
+    batches = {}
+
+    for json_path in sorted(verified_dir.rglob("*.json")):
+        name = json_path.stem
+        for suffix in ("_strona1", "_proces", "_koncowa"):
+            if name.endswith(suffix):
+                batch_key = (json_path.parent.name, name[: -len(suffix)])
+                section = suffix[1:]
+                batches.setdefault(batch_key, {})[section] = json.loads(
+                    json_path.read_text()
+                )
+                break
+
+    for (produkt_dir, nr_key), sections in batches.items():
+        s1 = sections.get("strona1", {})
+        produkt = s1.get("produkt", produkt_dir.replace("_", " "))
+        nr_partii = s1.get("nr_partii", nr_key.replace("_", "/"))
+        card = {
+            "produkt": produkt,
+            "nr_partii": nr_partii,
+            "_schema_version": "3.0",
+            "strona1": s1,
+            "proces": sections.get("proces", {}),
+            "koncowa": sections.get("koncowa", {}),
+        }
+        bid = migrate_card(db, card)
+        db.execute("UPDATE batch SET _verified = 1 WHERE batch_id = ?", (bid,))
+        count += 1
+
+    return count
+
+
+if __name__ == "__main__":
+    import sys
+
+    data_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("data")
+    db_path = data_dir / "batch_db_v4.sqlite"
+
+    if db_path.exists():
+        db_path.unlink()
+        print(f"Removed existing {db_path}")
+
+    count = migrate_all(data_dir / "output_json", db_path, use_verified=True)
+    print(f"Migrated {count} batches → {db_path}")
+
+    db = sqlite3.connect(str(db_path))
+    for table in ["batch", "materials", "events", "sensor_readings"]:
+        n = db.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+        print(f"  {table}: {n} rows")
+    verified = db.execute("SELECT COUNT(*) FROM batch WHERE _verified = 1").fetchone()[0]
+    print(f"  verified: {verified}")
+    db.close()
