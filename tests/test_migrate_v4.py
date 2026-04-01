@@ -419,3 +419,40 @@ def test_events_total_count(v4_db):
     # Total = 10
     assert total == 10
     db.close()
+
+
+def test_sensor_migration(tmp_path):
+    from migrate_v4 import create_db, migrate_sensors
+
+    v3_path = tmp_path / "batch_db.sqlite"
+    v3 = sqlite3.connect(str(v3_path))
+    v3.execute("""
+        CREATE TABLE sensor_readings (
+            id INTEGER PRIMARY KEY, batch_id TEXT, datetime TEXT,
+            source TEXT, equipment TEXT, temp_c REAL,
+            temp_plaszcz_c REAL, proznia_bar REAL, dozownik_l REAL, etap TEXT
+        )
+    """)
+    v3.execute("""
+        INSERT INTO sensor_readings (batch_id, datetime, source, equipment,
+            temp_c, temp_plaszcz_c, proznia_bar, dozownik_l, etap)
+        VALUES ('Chegina_K40GL__1_2026', '2026-01-07T11:00:00', 'reactor', 'R8',
+                95.2, 110.5, -0.8, 15.3, 'amid')
+    """)
+    v3.commit()
+    v3.close()
+
+    v4_path = tmp_path / "batch_db_v4.sqlite"
+    create_db(v4_path)
+    v4 = sqlite3.connect(str(v4_path))
+    v4.row_factory = sqlite3.Row
+
+    migrate_sensors(v4, v3_path)
+    v4.commit()
+
+    rows = v4.execute("SELECT * FROM sensor_readings").fetchall()
+    assert len(rows) == 1
+    assert rows[0]["temp_c"] == 95.2
+    assert rows[0]["equipment"] == "R8"
+    assert rows[0]["etap"] == "amid"
+    v4.close()

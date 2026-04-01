@@ -472,11 +472,39 @@ def _migrate_from_verified(db: sqlite3.Connection, verified_dir: Path) -> int:
     return count
 
 
+def migrate_sensors(db: sqlite3.Connection, v3_db_path: Path):
+    """Copy sensor_readings from v3 database to v4."""
+    v3 = sqlite3.connect(str(v3_db_path))
+    rows = v3.execute("SELECT * FROM sensor_readings").fetchall()
+    cols = [d[0] for d in v3.execute("SELECT * FROM sensor_readings LIMIT 0").description]
+    v3.close()
+
+    for row in rows:
+        values = dict(zip(cols, row))
+        db.execute("""
+            INSERT INTO sensor_readings (
+                batch_id, datetime, source, equipment,
+                temp_c, temp_plaszcz_c, proznia_bar, dozownik_l, etap
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            values.get("batch_id"),
+            values.get("datetime"),
+            values.get("source"),
+            values.get("equipment"),
+            values.get("temp_c"),
+            values.get("temp_plaszcz_c"),
+            values.get("proznia_bar"),
+            values.get("dozownik_l"),
+            values.get("etap"),
+        ))
+
+
 if __name__ == "__main__":
     import sys
 
     data_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("data")
     db_path = data_dir / "batch_db_v4.sqlite"
+    v3_db_path = data_dir / "batch_db.sqlite"
 
     if db_path.exists():
         db_path.unlink()
@@ -484,6 +512,13 @@ if __name__ == "__main__":
 
     count = migrate_all(data_dir / "output_json", db_path, use_verified=True)
     print(f"Migrated {count} batches → {db_path}")
+
+    if v3_db_path.exists():
+        db = sqlite3.connect(str(db_path))
+        migrate_sensors(db, v3_db_path)
+        db.commit()
+        db.close()
+        print("Migrated sensor_readings from v3 database")
 
     db = sqlite3.connect(str(db_path))
     for table in ["batch", "materials", "events", "sensor_readings"]:
