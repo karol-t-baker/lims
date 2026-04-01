@@ -247,8 +247,15 @@ def _insert_structured_event(db, batch_id, equipment_id, stage,
     ))
 
 
+_EVENT_TYPE_NORMALIZE = {
+    "adiciotion": "dodatek",
+    "addition": "dodatek",
+}
+
+
 def _insert_krok_event(db, batch_id, equipment_id, stage, krok, seq, pola_watpliwe):
     typ = krok.get("typ", "dodatek")
+    typ = _EVENT_TYPE_NORMALIZE.get(typ, typ)
     dt = krok.get("datetime_start")
     if not dt:
         return
