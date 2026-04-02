@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block title %}MBR {{ mbr.produkt }} v{{ mbr.wersja }}{% endblock %}
+{% block nav_mbr %}active{% endblock %}
+
+{% block topbar_title %}
+  <a href="{{ url_for('mbr_list') }}" style="color:var(--text-dim);text-decoration:none;font-size:13px;">Szablony MBR</a>
+  <span style="color:var(--text-dim);margin:0 6px;">/</span>
+  {{ mbr.produkt }} <span class="tp-acc">v{{ mbr.wersja }}</span>
+{% endblock %}
+{% block topbar_right %}
+  {% if mbr.status == 'draft' %}
+    <span class="en-badge b-wait">draft</span>
+  {% elif mbr.status == 'active' %}
+    <span class="en-badge b-ok">active</span>
+  {% else %}
+    <span class="en-badge" style="background:var(--surface-alt);color:var(--text-dim);">archived</span>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="col-main" id="editor-root">
+
+  {% with messages = get_flashed_messages() %}
+  {% if messages %}
+  <div style="margin-bottom:16px;">
+    {% for msg in messages %}
+    <div style="background:var(--teal-bg);color:var(--teal);padding:8px 14px;border-radius:var(--radius);font-size:12px;margin-bottom:4px;">{{ msg }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+
+  {# ═══ TABS ═══ #}
+  <div class="rp-tabs" style="margin-bottom:20px;background:var(--surface);border-radius:var(--radius) var(--radius) 0 0;">
+    <div class="rp-tab active" data-tab="etapy" onclick="switchTab('etapy')">Etapy procesu</div>
+    <div class="rp-tab" data-tab="parametry" onclick="switchTab('parametry')">Parametry laboratoryjne</div>
+  </div>
+
+  <form method="POST" id="mbr-form" onsubmit="return serializeForm()">
+    <input type="hidden" name="etapy_json" id="etapy_json_input">
+    <input type="hidden" name="parametry_lab" id="parametry_lab_input">
+
+    {# ═══ TAB 1: ETAPY ═══ #}
+    <div class="rp-view active" id="tab-etapy">
+      <div id="etapy-container"></div>
+
+      {% if mbr.status == 'draft' %}
+      <button type="button" class="btn btn-o" style="margin-top:12px;" onclick="addEtap()">+ Dodaj etap</button>
+      {% endif %}
+    </div>
+
+    {# ═══ TAB 2: PARAMETRY LAB ═══ #}
+    <div class="rp-view" id="tab-parametry">
+      <div id="parametry-container"></div>
+    </div>
+
+    {# ═══ NOTATKI + SAVE ═══ #}
+    {% if mbr.status == 'draft' %}
+    <div class="section" style="margin-top:24px;">
+      <div class="sec-head">
+        <div class="sec-title">Notatki</div>
+      </div>
+      <div class="sec-body">
+        <textarea name="notatki" style="width:100%;min-height:60px;padding:10px;border:1.5px solid var(--border);border-radius:var(--radius);font-family:var(--font);font-size:13px;color:var(--text);resize:vertical;" placeholder="Notatki do wersji...">{{ mbr.notatki or '' }}</textarea>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:16px;">
+      <button type="submit" class="btn btn-p">Zapisz szablon</button>
+      <a href="{{ url_for('mbr_list') }}" class="btn btn-o">Anuluj</a>
+    </div>
+    {% endif %}
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const IS_DRAFT = {{ 'true' if mbr.status == 'draft' else 'false' }};
+let etapy = {{ mbr.etapy_json | safe }};
+let parametry = {{ mbr.parametry_lab | safe }};
+
+function switchTab(tab) {
+  document.querySelectorAll('.rp-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.getElementById('tab-etapy').classList.toggle('active', tab === 'etapy');
+  document.getElementById('tab-parametry').classList.toggle('active', tab === 'parametry');
+  if (tab === 'parametry') renderParametry();
+}
+
+// ═══ ETAPY ═══
+
+function renderEtapy() {
+  const c = document.getElementById('etapy-container');
+  c.innerHTML = '';
+  etapy.forEach((etap, i) => {
+    const div = document.createElement('div');
+    div.className = 'section';
+    div.style.marginBottom = '12px';
+    const disabled = IS_DRAFT ? '' : 'disabled';
+    div.innerHTML = `
+      <div class="sec-head">
+        <div class="sec-icon teal">${i + 1}</div>
+        <div style="flex:1;">
+          <input type="text" value="${esc(etap.nazwa)}" ${disabled}
+            onchange="etapy[${i}].nazwa=this.value"
+            placeholder="Nazwa etapu"
+            style="border:none;font-size:14px;font-weight:600;color:var(--text);width:100%;background:transparent;font-family:var(--font);">
+        </div>
+        ${IS_DRAFT ? `<button type="button" class="btn btn-o" style="padding:4px 10px;font-size:10px;color:var(--red);" onclick="removeEtap(${i})">Usun</button>` : ''}
+      </div>
+      <div class="sec-body">
+        <label style="display:block;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-dim);font-weight:500;margin-bottom:4px;">Instrukcja</label>
+        <textarea ${disabled} onchange="etapy[${i}].instrukcja=this.value"
+          style="width:100%;min-height:60px;padding:10px;border:1.5px solid var(--border);border-radius:var(--radius);font-family:var(--font);font-size:13px;color:var(--text);resize:vertical;margin-bottom:12px;"
+          placeholder="Instrukcje technologiczne...">${esc(etap.instrukcja || '')}</textarea>
+
+        <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-sec);cursor:pointer;">
+          <input type="checkbox" ${etap.sekcja_lab ? 'checked' : ''} ${disabled}
+            onchange="etapy[${i}].sekcja_lab=this.checked?etapy[${i}].sekcja_lab||etapy[${i}].nazwa:'';renderEtapy();">
+          Sekcja lab
+        </label>
+
+        ${etap.sekcja_lab ? `
+        <div style="margin-top:8px;">
+          <label style="display:block;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-dim);font-weight:500;margin-bottom:4px;">Kod sekcji lab</label>
+          <input type="text" value="${esc(etap.sekcja_lab)}" ${disabled}
+            onchange="etapy[${i}].sekcja_lab=this.value"
+            style="padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:13px;font-family:var(--mono);color:var(--text);width:250px;">
+        </div>
+        ` : ''}
+      </div>
+    `;
+    c.appendChild(div);
+  });
+}
+
+function addEtap() {
+  etapy.push({ nazwa: '', instrukcja: '', sekcja_lab: '' });
+  renderEtapy();
+}
+
+function removeEtap(i) {
+  if (!confirm('Usunac etap?')) return;
+  etapy.splice(i, 1);
+  renderEtapy();
+}
+
+// ═══ PARAMETRY LAB ═══
+
+function getSekcjeLab() {
+  return etapy.filter(e => e.sekcja_lab).map(e => e.sekcja_lab);
+}
+
+function renderParametry() {
+  const c = document.getElementById('parametry-container');
+  c.innerHTML = '';
+  const sekcje = getSekcjeLab();
+  if (sekcje.length === 0) {
+    c.innerHTML = '<p style="color:var(--text-dim);font-size:13px;">Brak sekcji laboratoryjnych. Zaznacz "Sekcja lab" w zakladce Etapy.</p>';
+    return;
+  }
+  sekcje.forEach(sek => {
+    if (!parametry[sek]) parametry[sek] = [];
+    const pola = parametry[sek];
+    const disabled = IS_DRAFT ? '' : 'disabled';
+
+    const div = document.createElement('div');
+    div.className = 'section';
+    div.style.marginBottom = '16px';
+
+    let rows = '';
+    pola.forEach((p, j) => {
+      rows += `<tr style="border-bottom:1px solid var(--surface-alt);">
+        <td style="padding:6px 8px;"><input type="text" value="${esc(p.kod)}" ${disabled} onchange="parametry['${esc(sek)}'][${j}].kod=this.value" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:4px;font-size:12px;font-family:var(--mono);"></td>
+        <td style="padding:6px 8px;"><input type="text" value="${esc(p.tag)}" ${disabled} onchange="parametry['${esc(sek)}'][${j}].tag=this.value" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:4px;font-size:12px;font-family:var(--mono);"></td>
+        <td style="padding:6px 8px;"><input type="text" value="${esc(p.label)}" ${disabled} onchange="parametry['${esc(sek)}'][${j}].label=this.value" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:4px;font-size:12px;"></td>
+        <td style="padding:6px 8px;"><input type="number" step="any" value="${p.min != null ? p.min : ''}" ${disabled} onchange="parametry['${esc(sek)}'][${j}].min=this.value?parseFloat(this.value):null" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:4px;font-size:12px;font-family:var(--mono);text-align:center;"></td>
+        <td style="padding:6px 8px;"><input type="number" step="any" value="${p.max != null ? p.max : ''}" ${disabled} onchange="parametry['${esc(sek)}'][${j}].max=this.value?parseFloat(this.value):null" style="width:100%;padding:6px;border:1px solid var(--border);border-radius:4px;font-size:12px;font-family:var(--mono);text-align:center;"></td>
+        <td style="padding:6px 8px;"><input type="number" step="1" value="${p.precyzja != null ? p.precyzja : ''}" ${disabled} onchange="parametry['${esc(sek)}'][${j}].precyzja=this.value?parseInt(this.value):null" style="width:70px;padding:6px;border:1px solid var(--border);border-radius:4px;font-size:12px;font-family:var(--mono);text-align:center;"></td>
+        ${IS_DRAFT ? `<td style="padding:6px 8px;"><button type="button" class="btn btn-o" style="padding:3px 8px;font-size:10px;color:var(--red);" onclick="removePole('${esc(sek)}',${j})">x</button></td>` : ''}
+      </tr>`;
+    });
+
+    div.innerHTML = `
+      <div class="sec-head">
+        <div class="sec-icon teal">L</div>
+        <div class="sec-title">${esc(sek)}</div>
+        <span style="margin-left:auto;font-size:11px;color:var(--text-dim);">${pola.length} parametrow</span>
+      </div>
+      <div class="sec-body" style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border);">
+              <th style="padding:8px;text-align:left;font-size:10px;color:var(--text-dim);font-weight:500;text-transform:uppercase;">Kod</th>
+              <th style="padding:8px;text-align:left;font-size:10px;color:var(--text-dim);font-weight:500;text-transform:uppercase;">Tag</th>
+              <th style="padding:8px;text-align:left;font-size:10px;color:var(--text-dim);font-weight:500;text-transform:uppercase;">Label</th>
+              <th style="padding:8px;text-align:left;font-size:10px;color:var(--text-dim);font-weight:500;text-transform:uppercase;">Min</th>
+              <th style="padding:8px;text-align:left;font-size:10px;color:var(--text-dim);font-weight:500;text-transform:uppercase;">Max</th>
+              <th style="padding:8px;text-align:left;font-size:10px;color:var(--text-dim);font-weight:500;text-transform:uppercase;">Precyzja</th>
+              ${IS_DRAFT ? '<th></th>' : ''}
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+        ${IS_DRAFT ? `<button type="button" class="btn btn-o" style="margin-top:8px;font-size:11px;" onclick="addPole('${esc(sek)}')">+ Dodaj parametr</button>` : ''}
+      </div>
+    `;
+    c.appendChild(div);
+  });
+}
+
+function addPole(sek) {
+  if (!parametry[sek]) parametry[sek] = [];
+  parametry[sek].push({ kod: '', tag: '', label: '', min: null, max: null, precyzja: 2 });
+  renderParametry();
+}
+
+function removePole(sek, j) {
+  parametry[sek].splice(j, 1);
+  renderParametry();
+}
+
+// ═══ SERIALIZE ═══
+
+function serializeForm() {
+  document.getElementById('etapy_json_input').value = JSON.stringify(etapy);
+  document.getElementById('parametry_lab_input').value = JSON.stringify(parametry);
+  return true;
+}
+
+// ═══ UTIL ═══
+
+function esc(s) {
+  if (s == null) return '';
+  const d = document.createElement('div');
+  d.textContent = String(s);
+  return d.innerHTML.replace(/"/g, '&quot;');
+}
+
+// ═══ INIT ═══
+renderEtapy();
+</script>
+{% endblock %}

@@ -8,7 +8,10 @@ import socket
 
 from flask import Flask, redirect, url_for, request, session, render_template, flash
 
-from mbr.models import get_db, init_mbr_tables, verify_user
+from mbr.models import (
+    get_db, init_mbr_tables, verify_user,
+    list_mbr, get_mbr, save_mbr, activate_mbr, clone_mbr,
+)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("MBR_SECRET_KEY", "dev-secret-change-in-prod")
@@ -91,7 +94,66 @@ def index():
 @app.route("/technolog/mbr")
 @role_required("technolog")
 def mbr_list():
-    return "<h2>Szablony MBR</h2><p>TODO</p>"
+    db = get_db()
+    try:
+        mbrs = list_mbr(db)
+    finally:
+        db.close()
+    return render_template("technolog/mbr_list.html", mbrs=mbrs)
+
+
+@app.route("/technolog/mbr/<int:mbr_id>", methods=["GET", "POST"])
+@role_required("technolog")
+def mbr_edit(mbr_id):
+    db = get_db()
+    try:
+        if request.method == "POST":
+            etapy_json = request.form.get("etapy_json", "[]")
+            parametry_lab = request.form.get("parametry_lab", "{}")
+            notatki = request.form.get("notatki", "")
+            ok = save_mbr(db, mbr_id, etapy_json, parametry_lab, notatki)
+            if not ok:
+                flash("Nie udalo sie zapisac — szablon nie jest w trybie draft.")
+            else:
+                flash("Zapisano.")
+            return redirect(url_for("mbr_edit", mbr_id=mbr_id))
+        mbr = get_mbr(db, mbr_id)
+    finally:
+        db.close()
+    if mbr is None:
+        return "Nie znaleziono szablonu", 404
+    return render_template("technolog/mbr_edit.html", mbr=mbr)
+
+
+@app.route("/technolog/mbr/<int:mbr_id>/activate", methods=["POST"])
+@role_required("technolog")
+def mbr_activate(mbr_id):
+    db = get_db()
+    try:
+        ok = activate_mbr(db, mbr_id)
+    finally:
+        db.close()
+    if not ok:
+        flash("Nie udalo sie aktywowac szablonu.")
+    else:
+        flash("Szablon aktywowany.")
+    return redirect(url_for("mbr_list"))
+
+
+@app.route("/technolog/mbr/<int:mbr_id>/clone", methods=["POST"])
+@role_required("technolog")
+def mbr_clone(mbr_id):
+    db = get_db()
+    try:
+        user = session["user"]["login"]
+        new_id = clone_mbr(db, mbr_id, user)
+    finally:
+        db.close()
+    if new_id is None:
+        flash("Nie udalo sie sklonowac szablonu.")
+        return redirect(url_for("mbr_list"))
+    flash("Sklonowano szablon.")
+    return redirect(url_for("mbr_edit", mbr_id=new_id))
 
 
 @app.route("/technolog/dashboard")

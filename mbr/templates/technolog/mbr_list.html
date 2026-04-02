@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Szablony MBR{% endblock %}
+{% block nav_mbr %}active{% endblock %}
+
+{% block topbar_title %}Szablony MBR{% endblock %}
+{% block topbar_right %}{{ mbrs|length }} szablon(ow){% endblock %}
+
+{% block content %}
+<div class="col-main">
+
+  {% with messages = get_flashed_messages() %}
+  {% if messages %}
+  <div style="margin-bottom:16px;">
+    {% for msg in messages %}
+    <div style="background:var(--teal-bg);color:var(--teal);padding:8px 14px;border-radius:var(--radius);font-size:12px;margin-bottom:4px;">{{ msg }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endwith %}
+
+  {% set ns = namespace(current_produkt='') %}
+  {% for mbr in mbrs %}
+
+    {% if mbr.produkt != ns.current_produkt %}
+      {% if ns.current_produkt != '' %}
+        </tbody></table></div>
+      {% endif %}
+      {% set ns.current_produkt = mbr.produkt %}
+
+      <div class="section" style="margin-bottom:20px;">
+        <div class="sec-head">
+          <div class="sec-icon teal">{{ loop.index }}</div>
+          <div class="sec-title">{{ mbr.produkt }}</div>
+        </div>
+        <table style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border);">
+              <th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Wersja</th>
+              <th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Status</th>
+              <th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Data aktywacji</th>
+              <th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Autor</th>
+              <th style="padding:10px 16px;text-align:right;font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Akcje</th>
+            </tr>
+          </thead>
+          <tbody>
+    {% endif %}
+
+    <tr style="border-bottom:1px solid var(--surface-alt);">
+      <td style="padding:10px 16px;font-size:13px;font-weight:600;">v{{ mbr.wersja }}</td>
+      <td style="padding:10px 16px;">
+        {% if mbr.status == 'draft' %}
+          <span class="en-badge b-wait">draft</span>
+        {% elif mbr.status == 'active' %}
+          <span class="en-badge b-ok">active</span>
+        {% else %}
+          <span class="en-badge" style="background:var(--surface-alt);color:var(--text-dim);">archived</span>
+        {% endif %}
+      </td>
+      <td style="padding:10px 16px;font-size:12px;color:var(--text-sec);font-family:var(--mono);">{{ mbr.dt_aktywacji or '---' }}</td>
+      <td style="padding:10px 16px;font-size:12px;color:var(--text-sec);">{{ mbr.utworzony_przez or '---' }}</td>
+      <td style="padding:10px 16px;text-align:right;">
+        <div style="display:flex;gap:6px;justify-content:flex-end;">
+          {% if mbr.status == 'draft' %}
+            <a href="{{ url_for('mbr_edit', mbr_id=mbr.mbr_id) }}" class="btn btn-p" style="padding:6px 14px;font-size:11px;">Edytuj</a>
+            <form method="POST" action="{{ url_for('mbr_activate', mbr_id=mbr.mbr_id) }}" style="display:inline;">
+              <button type="submit" class="btn btn-o" style="padding:6px 14px;font-size:11px;" onclick="return confirm('Aktywowac szablon v{{ mbr.wersja }}?')">Aktywuj</button>
+            </form>
+          {% else %}
+            <a href="{{ url_for('mbr_edit', mbr_id=mbr.mbr_id) }}" class="btn btn-o" style="padding:6px 14px;font-size:11px;">Podglad</a>
+          {% endif %}
+          <form method="POST" action="{{ url_for('mbr_clone', mbr_id=mbr.mbr_id) }}" style="display:inline;">
+            <button type="submit" class="btn btn-o" style="padding:6px 14px;font-size:11px;">Klonuj</button>
+          </form>
+        </div>
+      </td>
+    </tr>
+
+  {% endfor %}
+
+  {% if mbrs %}
+    </tbody></table></div>
+  {% else %}
+    <p style="color:var(--text-dim);font-size:13px;">Brak szablonow MBR.</p>
+  {% endif %}
+
+</div>
+{% endblock %}
