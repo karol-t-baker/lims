@@ -11,7 +11,7 @@ from flask import Flask, redirect, url_for, request, session, render_template, f
 from mbr.models import get_db, init_mbr_tables, verify_user
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("MBR_SECRET_KEY") or os.urandom(32)
+app.secret_key = os.environ.get("MBR_SECRET_KEY", "dev-secret-change-in-prod")
 
 
 # ---------------------------------------------------------------------------
