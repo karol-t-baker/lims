@@ -869,6 +869,44 @@ body {
 .po-check { display: none; float: right; font-size: 14px; color: var(--teal); }
 .product-option.selected .po-check { display: block; }
 
+/* ═══ PRODUCT SEARCH SELECTOR ═══ */
+
+.product-search-wrap { position: relative; }
+.product-search { width: 100%; }
+.product-dropdown {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 10;
+  background: var(--surface); border: 1.5px solid var(--border); border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  max-height: 240px; overflow-y: auto;
+  display: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.product-search:focus + .product-dropdown,
+.product-dropdown:hover { display: block; }
+.product-search-wrap.open .product-dropdown { display: block; }
+.product-item {
+  padding: 10px 12px; cursor: pointer; display: flex; align-items: center; gap: 8px;
+  border-bottom: 1px solid var(--surface-alt);
+}
+.product-item:hover { background: var(--teal-bg); }
+.product-item.hidden { display: none; }
+.product-item-name { font-size: 13px; font-weight: 600; }
+.product-item-full { font-size: 10px; color: var(--text-dim); }
+
+.product-selected {
+  display: flex; align-items: center; gap: 8px; margin-top: 8px;
+  padding: 10px 12px; background: var(--teal-bg); border: 1.5px solid var(--teal);
+  border-radius: var(--radius);
+}
+.product-selected-name { font-size: 14px; font-weight: 600; color: var(--teal); }
+.product-selected-clear {
+  margin-left: auto; width: 24px; height: 24px; border-radius: 50%;
+  border: 1px solid var(--teal); background: white; color: var(--teal);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+}
+.product-selected-clear:hover { background: var(--teal); color: white; }
+
 
 /* ═══ FORM ELEMENTS (modal) ═══ */
 

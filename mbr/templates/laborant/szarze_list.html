@@ -160,14 +160,23 @@
         <div id="step-2a" style="display:none;">
           <div class="form-row">
             <div class="form-label">Produkt</div>
-            <div class="product-grid" id="product-grid-szarza">
-              {% for p in products %}
-              <div class="product-option" onclick="selectProduct(this, '{{ p }}', 'szarza')">
-                <span class="po-check">&#10003;</span>
-                <div class="po-name">{{ p|short_product }}</div>
-                <div class="po-desc">{{ p }}</div>
+            <div class="product-search-wrap">
+              <input class="form-input product-search" type="text"
+                     placeholder="Szukaj produktu..."
+                     oninput="filterProducts(this)"
+                     autocomplete="off">
+              <div class="product-dropdown">
+                {% for p in products %}
+                <div class="product-item" data-product="{{ p }}" onclick="pickProduct(this)">
+                  <span class="product-item-name">{{ p|short_product }}</span>
+                  <span class="product-item-full">{{ p }}</span>
+                </div>
+                {% endfor %}
               </div>
-              {% endfor %}
+            </div>
+            <div class="product-selected" id="selected-product-szarza" style="display:none;">
+              <span class="product-selected-name"></span>
+              <button type="button" class="product-selected-clear" onclick="clearProduct('szarza')">&times;</button>
             </div>
           </div>
 
@@ -197,14 +206,23 @@
         <div id="step-2b" style="display:none;">
           <div class="form-row">
             <div class="form-label">Produkt</div>
-            <div class="product-grid" id="product-grid-zbiornik">
-              {% for p in products %}
-              <div class="product-option" onclick="selectProduct(this, '{{ p }}', 'zbiornik')">
-                <span class="po-check">&#10003;</span>
-                <div class="po-name">{{ p|short_product }}</div>
-                <div class="po-desc">{{ p }}</div>
+            <div class="product-search-wrap">
+              <input class="form-input product-search" type="text"
+                     placeholder="Szukaj produktu..."
+                     oninput="filterProducts(this)"
+                     autocomplete="off">
+              <div class="product-dropdown">
+                {% for p in products %}
+                <div class="product-item" data-product="{{ p }}" onclick="pickProduct(this)">
+                  <span class="product-item-name">{{ p|short_product }}</span>
+                  <span class="product-item-full">{{ p }}</span>
+                </div>
+                {% endfor %}
               </div>
-              {% endfor %}
+            </div>
+            <div class="product-selected" id="selected-product-zbiornik" style="display:none;">
+              <span class="product-selected-name"></span>
+              <button type="button" class="product-selected-clear" onclick="clearProduct('zbiornik')">&times;</button>
             </div>
           </div>
 
@@ -277,16 +295,38 @@ function backToStep1() {
   document.getElementById('modal-subtitle').textContent = 'Wybierz typ rejestracji';
   // Clear selections
   document.querySelectorAll('#step-1 .product-option').forEach(function(p) { p.classList.remove('selected'); });
+  // Reset product search selectors
+  clearProduct('szarza');
+  clearProduct('zbiornik');
 }
 
-function selectProduct(el, product, context) {
-  // Clear selections within the same grid
-  const grid = el.closest('.product-grid');
-  grid.querySelectorAll('.product-option').forEach(function(p) { p.classList.remove('selected'); });
-  el.classList.add('selected');
+function filterProducts(input) {
+  const query = input.value.toLowerCase();
+  const wrap = input.closest('.product-search-wrap');
+  wrap.classList.add('open');
+  wrap.querySelectorAll('.product-item').forEach(item => {
+    const name = item.dataset.product.toLowerCase();
+    const shortName = item.querySelector('.product-item-name').textContent.toLowerCase();
+    item.classList.toggle('hidden', !name.includes(query) && !shortName.includes(query));
+  });
+}
+
+function pickProduct(el) {
+  const product = el.dataset.product;
+  const shortName = el.querySelector('.product-item-name').textContent;
+
   document.getElementById('produkt-input').value = product;
 
-  // Auto-fill nr_partii
+  // Show selected badge, hide search
+  const context = currentTyp; // 'szarza' or 'zbiornik'
+  const wrap = el.closest('.product-search-wrap');
+  wrap.style.display = 'none';
+  const selected = wrap.parentElement.querySelector('.product-selected');
+  selected.style.display = 'flex';
+  selected.querySelector('.product-selected-name').textContent = shortName + ' — ' + product;
+  selected.dataset.context = context;
+
+  // Fetch auto-number
   fetch('/api/next-nr/' + encodeURIComponent(product))
     .then(r => r.json())
     .then(data => {
@@ -297,6 +337,36 @@ function selectProduct(el, product, context) {
       }
     });
 }
+
+function clearProduct(context) {
+  document.getElementById('produkt-input').value = '';
+  // Find the correct form step
+  const step = context === 'szarza' ? document.getElementById('step-2a') : document.getElementById('step-2b');
+  const wrap = step.querySelector('.product-search-wrap');
+  const selected = step.querySelector('.product-selected');
+  wrap.style.display = 'block';
+  wrap.querySelector('.product-search').value = '';
+  wrap.classList.remove('open');
+  // Show all items again
+  wrap.querySelectorAll('.product-item').forEach(item => item.classList.remove('hidden'));
+  selected.style.display = 'none';
+  // Clear nr_partii
+  if (context === 'szarza') {
+    document.getElementById('nr-partii-input').value = '';
+  } else {
+    document.getElementById('nr-partii-input-zb').value = '';
+  }
+}
+
+// Dropdown blur/focus handlers
+document.querySelectorAll('.product-search').forEach(input => {
+  input.addEventListener('blur', () => {
+    setTimeout(() => input.closest('.product-search-wrap').classList.remove('open'), 200);
+  });
+  input.addEventListener('focus', () => {
+    input.closest('.product-search-wrap').classList.add('open');
+  });
+});
 
 // Sync zbiornik nr_partii to the actual form field before submit
 document.getElementById('new-batch-form').addEventListener('submit', function() {
