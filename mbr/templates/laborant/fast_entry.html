@@ -4,8 +4,8 @@
 {% block nav_szarze %}active{% endblock %}
 
 {% block topbar_title %}
-  <a href="{{ url_for('szarze_list') }}" style="color:var(--text-dim);text-decoration:none;font-size:13px;">Szarze</a>
-  <span style="color:var(--text-dim);margin:0 6px;">/</span>
+  <a href="{{ url_for('szarze_list') }}" class="tp-breadcrumb">Szarze</a>
+  <span class="tp-sep">/</span>
   {{ ebr.batch_id }} <span class="tp-acc">{{ ebr.produkt }}</span>
 {% endblock %}
 {% block topbar_right %}
@@ -18,18 +18,32 @@
 
 {% block head %}
 <script src="{{ url_for('static', filename='calculator.js') }}" defer></script>
+<style>
+  .tp-breadcrumb { color: var(--text-dim); text-decoration: none; font-size: 13px; }
+  .tp-breadcrumb:hover { color: var(--text-sec); }
+  .tp-sep { color: var(--text-dim); margin: 0 6px; }
+</style>
 {% endblock %}
 
 {# ═══ SIDEBAR ═══ #}
 {% block sidebar %}
 {% set etapy = ebr.etapy_json | tojson | safe if ebr.etapy_json is string else ebr.etapy_json | tojson | safe %}
 <div class="sidebar">
+
+  {# 3-way toggle: Etapy | Szarze | Zbiorniki #}
+  <div class="sb-toggle">
+    <div class="sb-toggle-btn active" data-panel="etapy">Etapy</div>
+    <div class="sb-toggle-btn" data-panel="szarze">Szarze</div>
+    <div class="sb-toggle-btn" data-panel="zbiorniki">Zbiorniki</div>
+  </div>
+
+  {# Context header (batch info) #}
   <div class="sb-batch">
-    <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:2px;">{{ ebr.batch_id }}</div>
     <div class="sb-meta">
-      Amidator: {{ ebr.nr_amidatora or '---' }}<br>
+      <strong>{{ ebr.batch_id }}</strong> &mdash; {{ ebr.produkt }}<br>
+      Amidator: {{ ebr.nr_amidatora or '---' }} &bull;
       Mieszalnik: {{ ebr.nr_mieszalnika or '---' }}<br>
-      Wielkosc: {{ ebr.wielkosc_szarzy_kg or '---' }} kg<br>
+      {{ ebr.wielkosc_szarzy_kg or '---' }} kg &bull;
       Start: {{ ebr.dt_start }}
     </div>
     <div class="sb-progress" id="sb-progress">
@@ -37,10 +51,30 @@
     </div>
   </div>
 
-  <div class="sb-lab">Etapy procesu</div>
-  <div class="sb-list" id="sb-etapy">
-    {# filled by JS #}
+  {# Panel: Etapy #}
+  <div class="sb-panel active" id="panel-etapy">
+    <div class="sb-lab">Etapy procesu</div>
+    <div class="sb-list" id="sb-etapy">
+      {# filled by JS #}
+    </div>
   </div>
+
+  {# Panel: Szarze #}
+  <div class="sb-panel" id="panel-szarze">
+    <div class="sb-lab">Aktywne szarze</div>
+    <div class="sb-list" id="sb-szarze">
+      {# filled by JS #}
+    </div>
+  </div>
+
+  {# Panel: Zbiorniki #}
+  <div class="sb-panel" id="panel-zbiorniki">
+    <div class="sb-lab">Zbiorniki magazynowe</div>
+    <div class="sb-list">
+      <div class="sb-footer">Wkrotce</div>
+    </div>
+  </div>
+
 </div>
 {% endblock %}
 
@@ -53,8 +87,8 @@
 {# ═══ RIGHT PANEL ═══ #}
 <div class="col-right">
   <div class="rp-tabs">
-    <div class="rp-tab active" onclick="showRightPanel('ref')">Referencje</div>
-    <div class="rp-tab" onclick="showRightPanel('calc')">Kalkulator</div>
+    <div class="rp-tab active" onclick="showRightPanel('ref')" id="tab-ref">Referencje</div>
+    <div class="rp-tab" onclick="showRightPanel('calc')" id="tab-calc">Kalkulator</div>
   </div>
   <div class="rp-body">
     <div class="rp-view active" id="rp-ref">
@@ -64,7 +98,7 @@
     </div>
     <div class="rp-view" id="rp-calc">
       <div id="calc-container">
-        <div style="color:var(--text-dim);font-size:12px;">Kliknij pole miareczkowe aby otworzyc kalkulator.</div>
+        <div class="calc-method">Kliknij pole miareczkowe aby otworzyc kalkulator.</div>
       </div>
     </div>
   </div>
@@ -77,7 +111,7 @@
 <div class="footer">
   <span class="f-hint">Zapisz sekcje pojedynczo lub zatwierdz cala karte.</span>
   <div class="f-sp"></div>
-  <form method="POST" action="{{ url_for('complete_entry', ebr_id=ebr.ebr_id) }}" style="display:inline;" onsubmit="return confirm('Zatwierdzic karte? Nie bedzie mozna edytowac.')">
+  <form method="POST" action="{{ url_for('complete_entry', ebr_id=ebr.ebr_id) }}" onsubmit="return confirm('Zatwierdzic karte? Nie bedzie mozna edytowac.')">
     <button type="submit" class="btn btn-p">Zatwierdz karte</button>
   </form>
 </div>
@@ -107,6 +141,19 @@ function getPola(sekcja) {
     if (s.pola && Array.isArray(s.pola)) return s.pola;
     return [];
 }
+
+
+// ═══ SIDEBAR TOGGLE ═══
+
+document.querySelectorAll('.sb-toggle-btn').forEach(btn => {
+    btn.onclick = () => {
+        document.querySelectorAll('.sb-toggle-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.sb-panel').forEach(p => p.classList.remove('active'));
+        document.getElementById('panel-' + btn.dataset.panel).classList.add('active');
+    };
+});
+
 
 // ═══ RENDER SIDEBAR ETAPY ═══
 
@@ -140,17 +187,63 @@ function renderSidebar() {
             st.style.cursor = 'pointer';
         }
 
+        // Parameter names for subtitle
+        const pola = getPola(sekcja);
+        const subText = isLocked
+            ? 'Tylko odczyt'
+            : (hasPola ? pola.map(p => p.label).slice(0, 4).join(', ') + (pola.length > 4 ? '...' : '') : 'Brak parametrow');
+
+        // Count: filled / total
+        const sekWyniki = wyniki[sekcja] || {};
+        const filledCount = Object.keys(sekWyniki).length;
+        const totalCount = pola.length;
+        const cntText = hasPola ? `${filledCount}/${totalCount}` : '';
+
         st.innerHTML = `
             <div class="st-dot"></div>
             <div class="st-body">
                 <div class="st-name">${esc(etap.nazwa)}</div>
-                <div class="st-sub">${isLocked ? 'Tylko odczyt' : (hasPola ? sekcja : 'Brak parametrow')}</div>
+                <div class="st-sub">${esc(subText)}</div>
             </div>
-            ${isLocked ? '<span style="font-size:12px;color:var(--text-dim);">&#128274;</span>' : ''}
+            ${isLocked ? '<span class="st-cnt">&#128274;</span>' : (cntText ? '<span class="st-cnt">' + cntText + '</span>' : '')}
         `;
         container.appendChild(st);
     });
 }
+
+
+// ═══ RENDER SIDEBAR SZARZE ═══
+
+function renderSzarze() {
+    const container = document.getElementById('sb-szarze');
+    container.innerHTML = '';
+
+    // Current batch as the only item (we only have data for the current EBR)
+    const bi = document.createElement('div');
+    bi.className = 'bi active';
+    bi.innerHTML = `
+        <div class="bi-top">
+            <span class="bi-batch">${esc('{{ ebr.batch_id }}')}</span>
+            <span class="bi-product">${esc('{{ ebr.produkt }}')}</span>
+            <div class="bi-priority normal"></div>
+        </div>
+        <div class="bi-stage">${esc(etapy.find(e => !e.read_only && e.sekcja_lab && getPola(e.sekcja_lab).length > 0)?.nazwa || '---')}</div>
+        <div class="bi-dots" id="bi-dots-current"></div>
+    `;
+    container.appendChild(bi);
+
+    // Fill progress dots
+    const dotsContainer = document.getElementById('bi-dots-current');
+    etapy.forEach(etap => {
+        const sekcja = etap.sekcja_lab || '';
+        if (!sekcja || etap.read_only) return;
+        const hasW = wyniki[sekcja] && Object.keys(wyniki[sekcja]).length > 0;
+        const bd = document.createElement('div');
+        bd.className = 'bd' + (hasW ? ' done' : '');
+        dotsContainer.appendChild(bd);
+    });
+}
+
 
 // ═══ RENDER MAIN SECTIONS ═══
 
@@ -170,11 +263,14 @@ function renderSections() {
         const allInLimit = hasSomeResults && Object.values(sekWyniki).every(w => w.w_limicie === 1);
         const isReadonly = ebrStatus !== 'open';
 
+        // Determine if this is the first unfilled section (make it "current")
+        const isFirst = !container.querySelector('.section.current') && !hasSomeResults;
+
         const section = document.createElement('div');
-        section.className = 'section';
+        section.className = 'section' + (isFirst ? ' current' : '');
         section.id = 'sec-' + sekcja;
 
-        // Header
+        // Header with badge
         let badgeHtml = '';
         if (hasSomeResults) {
             if (allInLimit) {
@@ -189,12 +285,12 @@ function renderSections() {
         let headHtml = `
             <div class="sec-head">
                 <div class="sec-icon teal">${i + 1}</div>
-                <div class="sec-title">${esc(etap.nazwa)}</div>
+                <span class="sec-title">${esc(etap.nazwa)}</span>
                 ${badgeHtml}
             </div>
         `;
 
-        // Body with fields
+        // Body with fields in .fg.wide grid
         let fieldsHtml = '<div class="fg wide">';
         pola.forEach(pole => {
             const existing = sekWyniki[pole.kod];
@@ -245,6 +341,7 @@ function renderSections() {
     });
 }
 
+
 // ═══ RENDER REFERENCES ═══
 
 function renderReferences() {
@@ -268,6 +365,7 @@ function renderReferences() {
         container.innerHTML += html;
     });
 }
+
 
 // ═══ VALIDATION ═══
 
@@ -294,6 +392,7 @@ function validateField(input) {
     }
 }
 
+
 // ═══ SAVE ═══
 
 async function saveSection(sekcja) {
@@ -318,12 +417,14 @@ async function saveSection(sekcja) {
     if (resp.ok) location.reload();
 }
 
+
 // ═══ SCROLL ═══
 
 function scrollToSection(sekcja) {
     const el = document.getElementById('sec-' + sekcja);
     if (el) el.scrollIntoView({behavior: 'smooth', block: 'start'});
 }
+
 
 // ═══ RIGHT PANEL ═══
 
@@ -335,14 +436,21 @@ function showRightPanel(view) {
     document.getElementById('rp-calc').classList.toggle('active', view === 'calc');
 }
 
+
 // ═══ CALCULATOR BRIDGE ═══
 
 function openCalc(tag, kod, sekcja) {
     showRightPanel('calc');
+    // Highlight active titr field
+    document.querySelectorAll('.ff.titr').forEach(f => f.classList.remove('active-calc'));
+    if (event && event.currentTarget) {
+        event.currentTarget.closest('.ff.titr')?.classList.add('active-calc');
+    }
     if (typeof window.openCalculator === 'function') {
         window.openCalculator(tag, kod, sekcja);
     }
 }
+
 
 // ═══ UTILS ═══
 
@@ -353,9 +461,11 @@ function esc(s) {
     return d.innerHTML.replace(/"/g, '&quot;');
 }
 
+
 // ═══ INIT ═══
 
 renderSidebar();
+renderSzarze();
 renderSections();
 renderReferences();
 </script>
