@@ -1,0 +1,357 @@
+{% extends "base.html" %}
+
+{% block title %}EBR {{ ebr.batch_id }}{% endblock %}
+{% block nav_szarze %}active{% endblock %}
+
+{% block topbar_title %}
+  <a href="{{ url_for('szarze_list') }}" style="color:var(--text-dim);text-decoration:none;font-size:13px;">Szarze</a>
+  <span style="color:var(--text-dim);margin:0 6px;">/</span>
+  {{ ebr.batch_id }} <span class="tp-acc">{{ ebr.produkt }}</span>
+{% endblock %}
+{% block topbar_right %}
+  {% if ebr.status == 'open' %}
+    <span class="en-badge b-wait">open</span>
+  {% else %}
+    <span class="en-badge b-ok">completed</span>
+  {% endif %}
+{% endblock %}
+
+{% block head %}
+<script src="{{ url_for('static', filename='calculator.js') }}" defer></script>
+{% endblock %}
+
+{# ═══ SIDEBAR ═══ #}
+{% block sidebar %}
+{% set etapy = ebr.etapy_json | tojson | safe if ebr.etapy_json is string else ebr.etapy_json | tojson | safe %}
+<div class="sidebar">
+  <div class="sb-batch">
+    <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:2px;">{{ ebr.batch_id }}</div>
+    <div class="sb-meta">
+      Amidator: {{ ebr.nr_amidatora or '---' }}<br>
+      Mieszalnik: {{ ebr.nr_mieszalnika or '---' }}<br>
+      Wielkosc: {{ ebr.wielkosc_szarzy_kg or '---' }} kg<br>
+      Start: {{ ebr.dt_start }}
+    </div>
+    <div class="sb-progress" id="sb-progress">
+      {# filled by JS #}
+    </div>
+  </div>
+
+  <div class="sb-lab">Etapy procesu</div>
+  <div class="sb-list" id="sb-etapy">
+    {# filled by JS #}
+  </div>
+</div>
+{% endblock %}
+
+{# ═══ MAIN CONTENT ═══ #}
+{% block content %}
+<div class="col-main" id="sections-container">
+  {# filled by JS #}
+</div>
+
+{# ═══ RIGHT PANEL ═══ #}
+<div class="col-right">
+  <div class="rp-tabs">
+    <div class="rp-tab active" onclick="showRightPanel('ref')">Referencje</div>
+    <div class="rp-tab" onclick="showRightPanel('calc')">Kalkulator</div>
+  </div>
+  <div class="rp-body">
+    <div class="rp-view active" id="rp-ref">
+      <div id="ref-container">
+        {# filled by JS #}
+      </div>
+    </div>
+    <div class="rp-view" id="rp-calc">
+      <div id="calc-container">
+        <div style="color:var(--text-dim);font-size:12px;">Kliknij pole miareczkowe aby otworzyc kalkulator.</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{# ═══ FOOTER ═══ #}
+{% block footer %}
+{% if ebr.status == 'open' %}
+<div class="footer">
+  <span class="f-hint">Zapisz sekcje pojedynczo lub zatwierdz cala karte.</span>
+  <div class="f-sp"></div>
+  <form method="POST" action="{{ url_for('complete_entry', ebr_id=ebr.ebr_id) }}" style="display:inline;" onsubmit="return confirm('Zatwierdzic karte? Nie bedzie mozna edytowac.')">
+    <button type="submit" class="btn btn-p">Zatwierdz karte</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+const ebrId = {{ ebr.ebr_id }};
+const ebrStatus = "{{ ebr.status }}";
+const etapy = {{ (ebr.etapy_json if ebr.etapy_json is string else ebr.etapy_json | tojson) | safe }};
+const parametry = {{ (ebr.parametry_lab if ebr.parametry_lab is string else ebr.parametry_lab | tojson) | safe }};
+const wyniki = {{ wyniki | tojson | safe }};
+
+const TITR_TAGS = ['procent_sa', 'procent_nacl', 'procent_aa', 'procent_so3', 'procent_h2o2', 'lk', 'le_liczba_kwasowa'];
+
+// Normalize: parametry[sekcja] may be {pola: [...]} or [...]
+function getPola(sekcja) {
+    const s = parametry[sekcja];
+    if (!s) return [];
+    if (Array.isArray(s)) return s;
+    if (s.pola && Array.isArray(s.pola)) return s.pola;
+    return [];
+}
+
+// ═══ RENDER SIDEBAR ETAPY ═══
+
+function renderSidebar() {
+    const container = document.getElementById('sb-etapy');
+    const progress = document.getElementById('sb-progress');
+    container.innerHTML = '';
+    progress.innerHTML = '';
+
+    etapy.forEach((etap, i) => {
+        const sekcja = etap.sekcja_lab || '';
+        const isLocked = etap.read_only === true;
+        const hasPola = sekcja && getPola(sekcja).length > 0;
+        const hasWyniki = sekcja && wyniki[sekcja] && Object.keys(wyniki[sekcja]).length > 0;
+        const isDone = hasWyniki;
+
+        // Progress dot
+        const dot = document.createElement('div');
+        dot.className = 'sb-pd' + (isDone ? ' done' : '');
+        progress.appendChild(dot);
+
+        // Stage item
+        const st = document.createElement('div');
+        let cls = 'st';
+        if (isLocked) cls += ' locked';
+        else if (isDone) cls += ' done';
+        st.className = cls;
+
+        if (!isLocked && hasPola) {
+            st.onclick = () => scrollToSection(sekcja);
+            st.style.cursor = 'pointer';
+        }
+
+        st.innerHTML = `
+            <div class="st-dot"></div>
+            <div class="st-body">
+                <div class="st-name">${esc(etap.nazwa)}</div>
+                <div class="st-sub">${isLocked ? 'Tylko odczyt' : (hasPola ? sekcja : 'Brak parametrow')}</div>
+            </div>
+            ${isLocked ? '<span style="font-size:12px;color:var(--text-dim);">&#128274;</span>' : ''}
+        `;
+        container.appendChild(st);
+    });
+}
+
+// ═══ RENDER MAIN SECTIONS ═══
+
+function renderSections() {
+    const container = document.getElementById('sections-container');
+    container.innerHTML = '';
+
+    etapy.forEach((etap, i) => {
+        const sekcja = etap.sekcja_lab || '';
+        if (!sekcja) return;
+        if (etap.read_only === true) return;
+        const pola = getPola(sekcja);
+        if (pola.length === 0) return;
+
+        const sekWyniki = wyniki[sekcja] || {};
+        const hasSomeResults = Object.keys(sekWyniki).length > 0;
+        const allInLimit = hasSomeResults && Object.values(sekWyniki).every(w => w.w_limicie === 1);
+        const isReadonly = ebrStatus !== 'open';
+
+        const section = document.createElement('div');
+        section.className = 'section';
+        section.id = 'sec-' + sekcja;
+
+        // Header
+        let badgeHtml = '';
+        if (hasSomeResults) {
+            if (allInLimit) {
+                badgeHtml = '<span class="sec-badge b-ok">OK</span>';
+            } else {
+                badgeHtml = '<span class="sec-badge" style="background:var(--red-bg);color:var(--red);">Poza limitem</span>';
+            }
+        } else {
+            badgeHtml = '<span class="sec-badge b-wait">Oczekuje</span>';
+        }
+
+        let headHtml = `
+            <div class="sec-head">
+                <div class="sec-icon teal">${i + 1}</div>
+                <div class="sec-title">${esc(etap.nazwa)}</div>
+                ${badgeHtml}
+            </div>
+        `;
+
+        // Body with fields
+        let fieldsHtml = '<div class="fg wide">';
+        pola.forEach(pole => {
+            const existing = sekWyniki[pole.kod];
+            const val = existing ? existing.wartosc : '';
+            const komentarzVal = existing ? (existing.komentarz || '') : '';
+            const isTitr = TITR_TAGS.includes(pole.kod);
+
+            let inputClass = '';
+            if (existing) {
+                inputClass = existing.w_limicie === 1 ? 'ok' : 'err';
+            }
+
+            const normText = (pole.min != null || pole.max != null)
+                ? `<span class="norm">${pole.min != null ? pole.min : ''}${pole.min != null && pole.max != null ? ' - ' : ''}${pole.max != null ? pole.max : ''}</span>`
+                : '';
+
+            fieldsHtml += `
+                <div class="ff${isTitr ? ' titr' : ''}">
+                    <label>${esc(pole.label)} ${normText}</label>
+                    <input type="number" step="any"
+                        data-kod="${esc(pole.kod)}"
+                        data-sekcja="${esc(sekcja)}"
+                        data-tag="${esc(pole.tag)}"
+                        data-min="${pole.min != null ? pole.min : ''}"
+                        data-max="${pole.max != null ? pole.max : ''}"
+                        value="${val !== '' && val !== null ? val : ''}"
+                        class="${inputClass}"
+                        ${isReadonly ? 'readonly' : ''}
+                        ${isTitr && !isReadonly ? `onclick="openCalc('${esc(pole.kod)}', '${esc(pole.kod)}', '${esc(sekcja)}')"` : ''}
+                        oninput="validateField(this)">
+                    <textarea data-komentarz="${esc(pole.kod)}" data-sekcja="${esc(sekcja)}"
+                        placeholder="Komentarz (wymagany przy przekroczeniu limitu)..."
+                        style="display:${existing && existing.w_limicie === 0 ? 'block' : 'none'};width:100%;margin-top:4px;padding:6px 8px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:11px;font-family:var(--font);color:var(--text);min-height:36px;resize:vertical;"
+                        ${isReadonly ? 'readonly' : ''}>${komentarzVal}</textarea>
+                </div>
+            `;
+        });
+        fieldsHtml += '</div>';
+
+        // Save button per section
+        let saveBtn = '';
+        if (!isReadonly) {
+            saveBtn = `<div style="margin-top:14px;text-align:right;"><button class="btn btn-p" onclick="saveSection('${esc(sekcja)}')">Zapisz ${esc(etap.nazwa)}</button></div>`;
+        }
+
+        section.innerHTML = headHtml + '<div class="sec-body">' + fieldsHtml + saveBtn + '</div>';
+        container.appendChild(section);
+    });
+}
+
+// ═══ RENDER REFERENCES ═══
+
+function renderReferences() {
+    const container = document.getElementById('ref-container');
+    container.innerHTML = '';
+
+    etapy.forEach(etap => {
+        const sekcja = etap.sekcja_lab || '';
+        if (!sekcja || etap.read_only === true) return;
+        const pola = getPola(sekcja);
+        if (pola.length === 0) return;
+
+        let html = `<div class="ref norms"><div class="ref-t">${esc(etap.nazwa)}</div>`;
+        pola.forEach(pole => {
+            const minMax = (pole.min != null || pole.max != null)
+                ? `${pole.min != null ? pole.min : '...'} - ${pole.max != null ? pole.max : '...'}`
+                : '---';
+            html += `<div class="rr"><span class="rr-k">${esc(pole.label)}</span><span class="rr-v">${minMax}</span></div>`;
+        });
+        html += '</div>';
+        container.innerHTML += html;
+    });
+}
+
+// ═══ VALIDATION ═══
+
+function validateField(input) {
+    const val = parseFloat(input.value);
+    const min = input.dataset.min !== '' ? parseFloat(input.dataset.min) : null;
+    const max = input.dataset.max !== '' ? parseFloat(input.dataset.max) : null;
+    const komentarz = document.querySelector(`textarea[data-komentarz="${input.dataset.kod}"][data-sekcja="${input.dataset.sekcja}"]`);
+
+    input.classList.remove('ok', 'err');
+
+    if (input.value === '' || isNaN(val)) {
+        if (komentarz) komentarz.style.display = 'none';
+        return;
+    }
+
+    let inLimit = true;
+    if (min !== null && val < min) inLimit = false;
+    if (max !== null && val > max) inLimit = false;
+
+    input.classList.add(inLimit ? 'ok' : 'err');
+    if (komentarz) {
+        komentarz.style.display = inLimit ? 'none' : 'block';
+    }
+}
+
+// ═══ SAVE ═══
+
+async function saveSection(sekcja) {
+    const fields = document.querySelectorAll(`input[data-sekcja="${sekcja}"]`);
+    const values = {};
+    fields.forEach(f => {
+        if (f.value && f.dataset.kod) {
+            const komentarz = document.querySelector(`textarea[data-komentarz="${f.dataset.kod}"][data-sekcja="${sekcja}"]`);
+            values[f.dataset.kod] = {
+                wartosc: f.value,
+                komentarz: komentarz ? komentarz.value : ""
+            };
+        }
+    });
+    if (Object.keys(values).length === 0) return;
+
+    const resp = await fetch(`/laborant/ebr/${ebrId}/save`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({sekcja, values})
+    });
+    if (resp.ok) location.reload();
+}
+
+// ═══ SCROLL ═══
+
+function scrollToSection(sekcja) {
+    const el = document.getElementById('sec-' + sekcja);
+    if (el) el.scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+// ═══ RIGHT PANEL ═══
+
+function showRightPanel(view) {
+    document.querySelectorAll('.rp-tab').forEach((t, i) => {
+        t.classList.toggle('active', (view === 'ref' && i === 0) || (view === 'calc' && i === 1));
+    });
+    document.getElementById('rp-ref').classList.toggle('active', view === 'ref');
+    document.getElementById('rp-calc').classList.toggle('active', view === 'calc');
+}
+
+// ═══ CALCULATOR BRIDGE ═══
+
+function openCalc(tag, kod, sekcja) {
+    showRightPanel('calc');
+    if (typeof window.openCalculator === 'function') {
+        window.openCalculator(tag, kod, sekcja);
+    }
+}
+
+// ═══ UTILS ═══
+
+function esc(s) {
+    if (s == null) return '';
+    const d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML.replace(/"/g, '&quot;');
+}
+
+// ═══ INIT ═══
+
+renderSidebar();
+renderSections();
+renderReferences();
+</script>
+{% endblock %}

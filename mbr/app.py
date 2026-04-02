@@ -6,12 +6,14 @@ import functools
 import os
 import socket
 
-from flask import Flask, redirect, url_for, request, session, render_template, flash
+from flask import Flask, redirect, url_for, request, session, render_template, flash, jsonify
 
 from mbr.models import (
     get_db, init_mbr_tables, verify_user,
     list_mbr, get_mbr, save_mbr, activate_mbr, clone_mbr,
     list_ebr_open, list_ebr_completed, export_wyniki_csv,
+    create_ebr, get_ebr, get_ebr_wyniki, save_wyniki, complete_ebr,
+    sync_ebr_to_v4, PRODUCTS,
 )
 
 app = Flask(__name__)
@@ -201,7 +203,78 @@ def tech_export():
 @app.route("/laborant/szarze")
 @role_required("laborant")
 def szarze_list():
-    return "<h2>Szarże EBR</h2><p>TODO</p>"
+    db = get_db()
+    try:
+        batches = list_ebr_open(db)
+    finally:
+        db.close()
+    return render_template("laborant/szarze_list.html", batches=batches, products=PRODUCTS)
+
+
+@app.route("/laborant/szarze/new", methods=["POST"])
+@role_required("laborant")
+def szarze_new():
+    produkt = request.form.get("produkt", "")
+    nr_partii = request.form.get("nr_partii", "")
+    nr_amidatora = request.form.get("nr_amidatora", "")
+    nr_mieszalnika = request.form.get("nr_mieszalnika", "")
+    wielkosc_raw = request.form.get("wielkosc_kg", "")
+    wielkosc_kg = float(wielkosc_raw) if wielkosc_raw else None
+    operator = session["user"]["login"]
+
+    db = get_db()
+    try:
+        ebr_id = create_ebr(db, produkt, nr_partii, nr_amidatora, nr_mieszalnika, wielkosc_kg, operator)
+    finally:
+        db.close()
+
+    if ebr_id is None:
+        flash("Brak aktywnego szablonu MBR dla tego produktu.")
+        return redirect(url_for("szarze_list"))
+    return redirect(url_for("fast_entry", ebr_id=ebr_id))
+
+
+@app.route("/laborant/ebr/<int:ebr_id>")
+@login_required
+def fast_entry(ebr_id):
+    db = get_db()
+    try:
+        ebr = get_ebr(db, ebr_id)
+        if ebr is None:
+            return "Nie znaleziono szarzy", 404
+        wyniki = get_ebr_wyniki(db, ebr_id)
+    finally:
+        db.close()
+    return render_template("laborant/fast_entry.html", ebr=ebr, wyniki=wyniki)
+
+
+@app.route("/laborant/ebr/<int:ebr_id>/save", methods=["POST"])
+@login_required
+def save_entry(ebr_id):
+    data = request.get_json()
+    sekcja = data.get("sekcja", "")
+    values = data.get("values", {})
+    user = session["user"]["login"]
+
+    db = get_db()
+    try:
+        save_wyniki(db, ebr_id, sekcja, values, user)
+        sync_ebr_to_v4(db, ebr_id)
+    finally:
+        db.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/laborant/ebr/<int:ebr_id>/complete", methods=["POST"])
+@login_required
+def complete_entry(ebr_id):
+    db = get_db()
+    try:
+        complete_ebr(db, ebr_id)
+        sync_ebr_to_v4(db, ebr_id)
+    finally:
+        db.close()
+    return redirect(url_for("szarze_list"))
 
 
 # ---------------------------------------------------------------------------

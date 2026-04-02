@@ -11,6 +11,8 @@ import bcrypt
 
 DB_PATH = Path(__file__).parent.parent / "data" / "batch_db_v4.sqlite"
 
+PRODUCTS = ["Chegina_K7", "Chegina_K40GL", "Chegina_K40GLO", "Chegina_K40GLOL"]
+
 
 def get_db() -> sqlite3.Connection:
     """Return sqlite3 connection with Row factory and foreign_keys=ON."""
@@ -309,3 +311,247 @@ def export_wyniki_csv(
     sql += " ORDER BY eb.batch_id, ew.sekcja, ew.kod_parametru"
     rows = db.execute(sql, params).fetchall()
     return [dict(r) for r in rows]
+
+
+# ---------------------------------------------------------------------------
+# EBR CRUD
+# ---------------------------------------------------------------------------
+
+def create_ebr(
+    db: sqlite3.Connection,
+    produkt: str,
+    nr_partii: str,
+    nr_amidatora: str,
+    nr_mieszalnika: str,
+    wielkosc_kg: float | None,
+    operator: str,
+) -> int | None:
+    """Create new EBR from active MBR. Returns ebr_id or None if no active MBR."""
+    mbr = get_active_mbr(db, produkt)
+    if mbr is None:
+        return None
+    batch_id = f"{produkt}__{nr_partii.replace('/', '_')}"
+    now = datetime.now().isoformat(timespec="seconds")
+    cur = db.execute(
+        "INSERT INTO ebr_batches (mbr_id, batch_id, nr_partii, nr_amidatora, "
+        "nr_mieszalnika, wielkosc_szarzy_kg, dt_start, operator) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (mbr["mbr_id"], batch_id, nr_partii, nr_amidatora,
+         nr_mieszalnika, wielkosc_kg, now, operator),
+    )
+    db.commit()
+    return cur.lastrowid
+
+
+def get_ebr(db: sqlite3.Connection, ebr_id: int) -> dict | None:
+    """Get EBR with joined MBR data (produkt, etapy_json, parametry_lab)."""
+    row = db.execute("""
+        SELECT
+            eb.*,
+            mt.produkt,
+            mt.etapy_json,
+            mt.parametry_lab
+        FROM ebr_batches eb
+        JOIN mbr_templates mt ON mt.mbr_id = eb.mbr_id
+        WHERE eb.ebr_id = ?
+    """, (ebr_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def get_ebr_wyniki(db: sqlite3.Connection, ebr_id: int) -> dict:
+    """Returns {sekcja: {kod_parametru: row_dict}}."""
+    rows = db.execute(
+        "SELECT * FROM ebr_wyniki WHERE ebr_id = ?", (ebr_id,)
+    ).fetchall()
+    result: dict = {}
+    for r in rows:
+        d = dict(r)
+        sek = d["sekcja"]
+        kod = d["kod_parametru"]
+        if sek not in result:
+            result[sek] = {}
+        result[sek][kod] = d
+    return result
+
+
+def save_wyniki(
+    db: sqlite3.Connection,
+    ebr_id: int,
+    sekcja: str,
+    values: dict,
+    user: str,
+) -> None:
+    """Save lab results. values = {kod: {wartosc, komentarz}}.
+    Looks up pole definition from MBR parametry_lab to get tag, min, max.
+    Uses INSERT ... ON CONFLICT ... DO UPDATE for upsert.
+    Auto-computes w_limicie."""
+    ebr = get_ebr(db, ebr_id)
+    if ebr is None:
+        return
+    parametry = json.loads(ebr["parametry_lab"]) if isinstance(ebr["parametry_lab"], str) else ebr["parametry_lab"]
+    sekcja_def = parametry.get(sekcja, {})
+    pola = sekcja_def.get("pola", []) if isinstance(sekcja_def, dict) else sekcja_def
+    pola_map = {p["kod"]: p for p in pola}
+    now = datetime.now().isoformat(timespec="seconds")
+
+    for kod, entry in values.items():
+        pole = pola_map.get(kod)
+        if pole is None:
+            continue
+        wartosc_raw = entry.get("wartosc", "")
+        komentarz = entry.get("komentarz", "")
+        try:
+            wartosc = float(wartosc_raw)
+        except (ValueError, TypeError):
+            continue
+
+        tag = pole.get("tag", "")
+        min_limit = pole.get("min")
+        max_limit = pole.get("max")
+
+        # Compute w_limicie
+        w_limicie = 1
+        if min_limit is not None and wartosc < min_limit:
+            w_limicie = 0
+        if max_limit is not None and wartosc > max_limit:
+            w_limicie = 0
+
+        db.execute("""
+            INSERT INTO ebr_wyniki (ebr_id, sekcja, kod_parametru, tag, wartosc,
+                min_limit, max_limit, w_limicie, komentarz, is_manual, dt_wpisu, wpisal)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+            ON CONFLICT(ebr_id, sekcja, kod_parametru) DO UPDATE SET
+                wartosc = excluded.wartosc,
+                min_limit = excluded.min_limit,
+                max_limit = excluded.max_limit,
+                w_limicie = excluded.w_limicie,
+                komentarz = excluded.komentarz,
+                dt_wpisu = excluded.dt_wpisu,
+                wpisal = excluded.wpisal
+        """, (ebr_id, sekcja, kod, tag, wartosc, min_limit, max_limit,
+              w_limicie, komentarz, now, user))
+    db.commit()
+
+
+def complete_ebr(db: sqlite3.Connection, ebr_id: int) -> None:
+    """Set status='completed', dt_end=now."""
+    now = datetime.now().isoformat(timespec="seconds")
+    db.execute(
+        "UPDATE ebr_batches SET status = 'completed', dt_end = ? WHERE ebr_id = ?",
+        (now, ebr_id),
+    )
+    db.commit()
+
+
+# ---------------------------------------------------------------------------
+# V4 Sync
+# ---------------------------------------------------------------------------
+
+_KOD_TO_EVENT_COL = {
+    "ph": "ph", "ph_10proc": "ph_10proc", "nd20": "nd20",
+    "procent_sm": "procent_sm", "procent_sa": "procent_sa",
+    "procent_nacl": "procent_nacl", "procent_aa": "procent_aa",
+    "procent_so3": "procent_so3", "procent_h2o2": "procent_h2o2",
+    "lk": "lk", "le_liczba_kwasowa": "lk",
+    "barwa_fau": "barwa_fau", "barwa_hz": "barwa_hz",
+}
+
+_KOD_TO_AK_COL = {
+    "ph": "ak_ph", "ph_10proc": "ak_ph_10proc", "nd20": "ak_nd20",
+    "procent_sm": "ak_procent_sm", "procent_sa": "ak_procent_sa",
+    "procent_nacl": "ak_procent_nacl", "procent_aa": "ak_procent_aa",
+    "procent_so3": "ak_procent_so3", "procent_h2o2": "ak_procent_h2o2",
+    "barwa_fau": "ak_barwa_fau", "barwa_hz": "ak_barwa_hz",
+}
+
+_SEKCJA_TO_STAGE = {
+    "przed_standaryzacja": "standaryzacja",
+    "analiza_koncowa": "analiza_koncowa",
+}
+
+
+def sync_ebr_to_v4(db: sqlite3.Connection, ebr_id: int) -> None:
+    """Sync EBR data to v4 events and batch tables.
+    1. Delete old digital events for this batch
+    2. For each sekcja in wyniki: INSERT into events table
+    3. If completed + has analiza_koncowa: UPSERT batch row with ak_* fields
+    """
+    ebr = get_ebr(db, ebr_id)
+    if ebr is None:
+        return
+    batch_id = ebr["batch_id"]
+    now = datetime.now().isoformat(timespec="seconds")
+
+    # 0. Ensure batch row exists (required by FK on events)
+    existing_batch = db.execute(
+        "SELECT batch_id FROM batch WHERE batch_id = ?", (batch_id,)
+    ).fetchone()
+    if not existing_batch:
+        db.execute(
+            "INSERT INTO batch (batch_id, produkt, nr_partii, _source) VALUES (?, ?, ?, 'digital')",
+            (batch_id, ebr["produkt"], ebr["nr_partii"]),
+        )
+
+    # 1. Delete old digital events for this batch
+    db.execute(
+        "DELETE FROM events WHERE batch_id = ? AND _source = 'digital'",
+        (batch_id,),
+    )
+
+    # 2. Insert events for each sekcja
+    wyniki = get_ebr_wyniki(db, ebr_id)
+    seq = 0
+    for sekcja, params in wyniki.items():
+        stage = _SEKCJA_TO_STAGE.get(sekcja, sekcja)
+        # Build column values from kod_parametru (maps to v4 event columns)
+        col_values: dict = {}
+        for kod, row in params.items():
+            ecol = _KOD_TO_EVENT_COL.get(kod)
+            if ecol and row["wartosc"] is not None:
+                col_values[ecol] = row["wartosc"]
+
+        if col_values:
+            seq += 1
+            cols = ["batch_id", "dt", "stage", "event_type", "seq", "_source", "_ts_precision"]
+            vals = [batch_id, now, stage, "analiza", seq, "digital", "minute"]
+            for c, v in col_values.items():
+                cols.append(c)
+                vals.append(v)
+            placeholders = ", ".join(["?"] * len(vals))
+            col_names = ", ".join(cols)
+            db.execute(f"INSERT INTO events ({col_names}) VALUES ({placeholders})", vals)
+
+    # 3. If completed + has analiza_koncowa: UPSERT batch row with ak_* fields
+    if ebr["status"] == "completed" and "analiza_koncowa" in wyniki:
+        ak_values: dict = {}
+        for kod, row in wyniki["analiza_koncowa"].items():
+            ak_col = _KOD_TO_AK_COL.get(kod)
+            if ak_col and row["wartosc"] is not None:
+                ak_values[ak_col] = row["wartosc"]
+
+        if ak_values:
+            # Check if batch row exists
+            existing = db.execute(
+                "SELECT batch_id FROM batch WHERE batch_id = ?", (batch_id,)
+            ).fetchone()
+            if existing:
+                set_parts = [f"{c} = ?" for c in ak_values]
+                vals = list(ak_values.values()) + [batch_id]
+                db.execute(
+                    f"UPDATE batch SET {', '.join(set_parts)} WHERE batch_id = ?",
+                    vals,
+                )
+            else:
+                # Insert new batch row
+                cols = ["batch_id", "produkt", "nr_partii", "_source"]
+                vals = [batch_id, ebr["produkt"], ebr["nr_partii"], "digital"]
+                for c, v in ak_values.items():
+                    cols.append(c)
+                    vals.append(v)
+                placeholders = ", ".join(["?"] * len(vals))
+                col_names = ", ".join(cols)
+                db.execute(
+                    f"INSERT INTO batch ({col_names}) VALUES ({placeholders})", vals
+                )
+
+    db.commit()
