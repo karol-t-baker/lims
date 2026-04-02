@@ -6,7 +6,7 @@ import functools
 import os
 import socket
 
-from flask import Flask, redirect, url_for, request, session, render_template_string, flash
+from flask import Flask, redirect, url_for, request, session, render_template, flash
 
 from mbr.models import get_db, init_mbr_tables, verify_user
 
@@ -44,23 +44,9 @@ def role_required(rola):
 # Auth routes
 # ---------------------------------------------------------------------------
 
-LOGIN_HTML = """
-<!doctype html>
-<title>MBR — Logowanie</title>
-<h2>Logowanie</h2>
-{% with messages = get_flashed_messages() %}
-{% if messages %}<ul>{% for m in messages %}<li>{{ m }}</li>{% endfor %}</ul>{% endif %}
-{% endwith %}
-<form method="post">
-  <label>Login: <input name="login"></label><br>
-  <label>Hasło: <input name="password" type="password"></label><br>
-  <button type="submit">Zaloguj</button>
-</form>
-"""
-
-
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    error = None
     if request.method == "POST":
         login_val = request.form.get("login", "")
         password = request.form.get("password", "")
@@ -76,8 +62,8 @@ def login():
                 "imie_nazwisko": user.get("imie_nazwisko"),
             }
             return redirect(url_for("index"))
-        flash("Nieprawidłowy login lub hasło")
-    return render_template_string(LOGIN_HTML)
+        error = "Nieprawidłowy login lub hasło"
+    return render_template("login.html", error=error)
 
 
 @app.route("/logout")
@@ -106,6 +92,12 @@ def index():
 @role_required("technolog")
 def mbr_list():
     return "<h2>Szablony MBR</h2><p>TODO</p>"
+
+
+@app.route("/technolog/dashboard")
+@role_required("technolog")
+def tech_dashboard():
+    return "<h2>Dashboard</h2><p>TODO</p>"
 
 
 @app.route("/laborant/szarze")

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MBR — Logowanie</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="login-logo">KS</div>
+      <div class="login-title">Karty szarzowe</div>
+      <div class="login-sub">Zaloguj sie aby kontynuowac</div>
+
+      {% if error %}
+      <div class="login-error">{{ error }}</div>
+      {% endif %}
+
+      <form method="post">
+        <div class="login-field">
+          <label for="login">Login</label>
+          <input id="login" name="login" type="text" autocomplete="username" autofocus>
+        </div>
+        <div class="login-field">
+          <label for="password">Haslo</label>
+          <input id="password" name="password" type="password" autocomplete="current-password">
+        </div>
+        <button class="login-btn" type="submit">Zaloguj</button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>
