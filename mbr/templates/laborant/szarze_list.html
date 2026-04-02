@@ -13,7 +13,7 @@
   <div class="sb-list">
     {% for b in batches %}
     <div class="sb-item" onclick="location.href='{{ url_for('fast_entry', ebr_id=b.ebr_id) }}'">
-      <div class="sb-dot {% if b.out_of_limit > 0 %}wait{% elif b.last_entry %}wait{% else %}new{% endif %}"></div>
+      <div class="sb-dot {% if b.out_of_limit > 0 %}wait{% elif b.last_entry %}wait{% else %}new{% endif %} {% if b.typ == 'zbiornik' %}typ-zbiornik{% endif %}"></div>
       <div class="sb-info">
         <div class="sb-batch">{{ b.nr_partii }} — {{ b.produkt|short_product }}</div>
         <div class="sb-stage">
@@ -51,6 +51,23 @@
   {% endif %}
   {% endwith %}
 
+  {# ── Filtry ── #}
+  <div style="display:flex;gap:10px;margin-bottom:16px;align-items:center;">
+    <span class="form-label" style="margin:0;white-space:nowrap;">Produkt:</span>
+    <select class="form-select" onchange="applyFilters()" id="filter-produkt">
+      <option value="">Wszystkie</option>
+      {% for p in products %}
+      <option value="{{ p }}" {% if filter_produkt == p %}selected{% endif %}>{{ p|short_product }}</option>
+      {% endfor %}
+    </select>
+    <span class="form-label" style="margin:0;white-space:nowrap;">Typ:</span>
+    <select class="form-select" onchange="applyFilters()" id="filter-typ">
+      <option value="">Wszystkie</option>
+      <option value="szarza" {% if filter_typ == 'szarza' %}selected{% endif %}>Szarże</option>
+      <option value="zbiornik" {% if filter_typ == 'zbiornik' %}selected{% endif %}>Zbiorniki</option>
+    </select>
+  </div>
+
   <div class="section-title">Otwarte szarze <span class="section-count">{{ batches|length }}</span></div>
 
   {% if batches %}
@@ -59,10 +76,10 @@
       <tr>
         <th>Nr partii</th>
         <th>Produkt</th>
+        <th>Typ</th>
         <th>Amidator</th>
         <th>Start</th>
         <th>Status</th>
-        <th></th>
       </tr>
     </thead>
     <tbody>
@@ -70,6 +87,7 @@
       <tr{% if b.out_of_limit > 0 %} class="urgent"{% endif %} style="cursor:pointer;" onclick="location.href='{{ url_for('fast_entry', ebr_id=b.ebr_id) }}'">
         <td><span class="q-batch">{{ b.nr_partii }}</span></td>
         <td><span class="q-product">{{ b.produkt|short_product }}</span></td>
+        <td><span class="typ-badge {{ b.typ or 'szarza' }}">{{ b.typ or 'szarza' }}</span></td>
         <td class="q-time">{{ b.nr_amidatora or '---' }}</td>
         <td class="q-time">{{ b.dt_start | pl_date }}</td>
         <td>
@@ -81,7 +99,6 @@
             <span class="q-priority low">oczekuje</span>
           {% endif %}
         </td>
-        <td><button class="q-btn">Otworz &rarr;</button></td>
       </tr>
       {% endfor %}
     </tbody>
@@ -207,6 +224,16 @@
 
 {% block scripts %}
 <script>
+function applyFilters() {
+  const produkt = document.getElementById('filter-produkt').value;
+  const typ = document.getElementById('filter-typ').value;
+  const params = new URLSearchParams();
+  if (produkt) params.set('produkt', produkt);
+  if (typ) params.set('typ', typ);
+  const qs = params.toString();
+  location.href = '{{ url_for("szarze_list") }}' + (qs ? '?' + qs : '');
+}
+
 let currentTyp = 'szarza';
 
 function closeModal() {
