@@ -9,28 +9,38 @@
     <div class="sb-greeting">Witaj, {{ session.user.imie_nazwisko or session.user.login }}</div>
     <div class="sb-date">{{ today }}</div>
   </div>
-  <div class="sb-lab">Aktywne szarze <span style="margin-left:auto;font-size:10px;">{{ batches|length }}</span></div>
+  <div class="sb-lab">Aktywne szarże</div>
   <div class="sb-list">
     {% for b in batches %}
     <div class="sb-item" onclick="location.href='{{ url_for('fast_entry', ebr_id=b.ebr_id) }}'">
-      <div class="sb-dot {% if b.out_of_limit > 0 %}wait{% elif b.last_entry %}wait{% else %}new{% endif %} {% if b.typ == 'zbiornik' %}typ-zbiornik{% endif %}"></div>
+      <div class="sb-dot {% if b.out_of_limit > 0 %}wait{% elif b.last_entry %}ok{% else %}wait{% endif %} {% if b.typ == 'zbiornik' %}typ-zbiornik{% endif %}"></div>
       <div class="sb-info">
         <div class="sb-batch">{{ b.nr_partii }} — {{ b.produkt|short_product }}</div>
         <div class="sb-stage">
-          {% if b.out_of_limit > 0 %}{{ b.out_of_limit }} poza limitem
-          {% elif b.last_entry %}w toku
-          {% else %}oczekuje{% endif %}
+          {% if b.typ == 'zbiornik' %}Zbiornik
+          {% elif b.out_of_limit > 0 %}<span style="color:var(--red)">{{ b.out_of_limit }} poza limitem</span>
+          {% elif b.last_entry %}W toku
+          {% else %}Oczekuje na analizę{% endif %}
         </div>
       </div>
+      {% if b.typ != 'zbiornik' %}
       <div class="sb-dots">
-        <div class="sd done"></div><div class="sd done"></div><div class="sd curr"></div><div class="sd"></div><div class="sd"></div>
+        <div class="sd done"></div><div class="sd done"></div>
+        {% if b.last_entry %}<div class="sd done"></div><div class="sd curr"></div><div class="sd"></div><div class="sd"></div><div class="sd"></div>
+        {% else %}<div class="sd curr"></div><div class="sd"></div><div class="sd"></div><div class="sd"></div><div class="sd"></div>
+        {% endif %}
       </div>
+      {% else %}
+      <div class="sb-dots">
+        <div class="sd {% if b.last_entry %}done{% else %}curr{% endif %}"></div>
+      </div>
+      {% endif %}
     </div>
     {% endfor %}
   </div>
   <div class="sb-footer">
-    <div class="sb-footer-info">{{ batches|length }} szarz &bull; otwartych</div>
-    <button class="sb-new-btn" onclick="document.getElementById('reg-modal').classList.add('show')">+ Nowa szarza</button>
+    <div class="sb-footer-info">{{ batches|length }} szarż &bull; {{ batches|selectattr('last_entry')|list|length }} w toku</div>
+    <button class="sb-new-btn" onclick="document.getElementById('reg-modal').classList.add('show')">+ Nowa szarża</button>
   </div>
 </div>
 {% endblock %}

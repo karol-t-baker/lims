@@ -769,9 +769,11 @@ body {
 .sb-dot.wait { background: var(--amber); }
 .sb-dot.ok { background: var(--green); }
 .sb-dot.new { background: var(--border); border: 2px dashed var(--text-dim); }
-.sb-info { flex: 1; }
-.sb-item.active .sb-batch { color: var(--teal); font-weight: 600; }
-.sb-dots { display: flex; gap: 2px; }
+.sb-info { flex: 1; min-width: 0; }
+.sb-info .sb-batch { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sb-info .sb-stage { font-size: 10px; color: var(--text-dim); margin-top: 1px; }
+.sb-item.active .sb-info .sb-batch { color: var(--teal); font-weight: 600; }
+.sb-dots { display: flex; gap: 2px; flex-shrink: 0; }
 .sd { width: 8px; height: 3px; border-radius: 1px; background: var(--border); }
 .sd.done { background: var(--green); }
 .sd.curr { background: var(--teal); }
