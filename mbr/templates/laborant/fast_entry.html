@@ -137,7 +137,8 @@ const etapy = {{ (ebr.etapy_json if ebr.etapy_json is string else ebr.etapy_json
 const parametry = {{ (ebr.parametry_lab if ebr.parametry_lab is string else ebr.parametry_lab | tojson) | safe }};
 const wyniki = {{ wyniki | tojson | safe }};
 
-const TITR_TAGS = ['procent_sa', 'procent_nacl', 'procent_aa', 'procent_so3', 'procent_h2o2', 'lk', 'le_liczba_kwasowa'];
+// measurement_type is now read from pole data; legacy fallback kept for old templates
+const TITR_TAGS_LEGACY = ['procent_sa', 'procent_nacl', 'procent_aa', 'procent_so3', 'procent_h2o2', 'lk', 'le_liczba_kwasowa'];
 
 // Normalize: parametry[sekcja] may be {pola: [...]} or [...]
 function getPola(sekcja) {
@@ -308,30 +309,42 @@ function renderSections() {
             const existing = sekWyniki[pole.kod];
             const val = existing ? existing.wartosc : '';
             const komentarzVal = existing ? (existing.komentarz || '') : '';
-            const isTitr = TITR_TAGS.includes(pole.kod);
+            const isTitr = pole.measurement_type === 'titracja' || TITR_TAGS_LEGACY.includes(pole.kod);
+            const isObl = pole.measurement_type === 'obliczeniowy';
 
             let inputClass = '';
             if (existing) {
                 inputClass = existing.w_limicie === 1 ? 'ok' : 'err';
             }
+            if (isObl) inputClass += ' calc';
 
             const normText = (pole.min != null || pole.max != null)
                 ? `<span class="norm">${pole.min != null ? pole.min : ''}${pole.min != null && pole.max != null ? ' - ' : ''}${pole.max != null ? pole.max : ''}</span>`
                 : '';
 
+            // Build calc_method JSON for titracja onclick
+            let onclickAttr = '';
+            if (isTitr && !isReadonly) {
+                const cm = pole.calc_method ? JSON.stringify(pole.calc_method).replace(/"/g, '&quot;').replace(/'/g, "\\'") : 'null';
+                onclickAttr = `onclick="openCalc('${esc(pole.kod)}', '${esc(pole.kod)}', '${esc(sekcja)}', ${pole.calc_method ? JSON.stringify(pole.calc_method).replace(/'/g, "\\'") : 'null'})"`;
+            }
+
             fieldsHtml += `
-                <div class="ff${isTitr ? ' titr' : ''}">
-                    <label>${esc(pole.label)} ${normText}</label>
+                <div class="ff${isTitr ? ' titr' : ''}${isObl ? ' computed' : ''}">
+                    <label>${esc(pole.label)} ${normText}${isObl && pole.formula ? ' <span class="norm">[' + esc(pole.formula) + ']</span>' : ''}</label>
                     <input type="number" step="any"
                         data-kod="${esc(pole.kod)}"
                         data-sekcja="${esc(sekcja)}"
                         data-tag="${esc(pole.tag)}"
                         data-min="${pole.min != null ? pole.min : ''}"
                         data-max="${pole.max != null ? pole.max : ''}"
+                        data-measurement-type="${esc(pole.measurement_type || '')}"
+                        ${isObl && pole.formula ? `data-formula="${esc(pole.formula)}"` : ''}
                         value="${val !== '' && val !== null ? val : ''}"
-                        class="${inputClass}"
+                        class="${inputClass.trim()}"
                         ${isReadonly ? 'readonly' : ''}
-                        ${isTitr && !isReadonly ? `onclick="openCalc('${esc(pole.kod)}', '${esc(pole.kod)}', '${esc(sekcja)}')"` : ''}
+                        ${isObl && !isReadonly ? 'readonly' : ''}
+                        ${onclickAttr}
                         oninput="validateField(this)">
                     <textarea data-komentarz="${esc(pole.kod)}" data-sekcja="${esc(sekcja)}"
                         placeholder="Komentarz (wymagany przy przekroczeniu limitu)..."
@@ -454,7 +467,7 @@ function showRightPanel(view) {
 
 // ═══ CALCULATOR BRIDGE ═══
 
-function openCalc(tag, kod, sekcja) {
+function openCalc(tag, kod, sekcja, calcMethod) {
     showRightPanel('calc');
     // Highlight active titr field
     document.querySelectorAll('.ff.titr').forEach(f => f.classList.remove('active-calc'));
@@ -462,7 +475,68 @@ function openCalc(tag, kod, sekcja) {
         event.currentTarget.closest('.ff.titr')?.classList.add('active-calc');
     }
     if (typeof window.openCalculator === 'function') {
-        window.openCalculator(tag, kod, sekcja);
+        window.openCalculator(tag, kod, sekcja, calcMethod);
+    }
+}
+
+
+// ═══ OBLICZENIOWY (computed fields) ═══
+
+function setupComputedFields() {
+    // Find all computed fields and attach listeners to their dependencies
+    document.querySelectorAll('input[data-formula]').forEach(computedInput => {
+        const formula = computedInput.dataset.formula;
+        const sekcja = computedInput.dataset.sekcja;
+        // Parse simple formula like "sm - nacl - 0.6"
+        const deps = formula.match(/[a-z_]+/g) || [];
+        deps.forEach(depKod => {
+            const depInput = document.querySelector(
+                `input[data-kod="${depKod}"][data-sekcja="${sekcja}"]`
+            );
+            if (depInput && depInput !== computedInput) {
+                depInput.addEventListener('input', () => recomputeField(computedInput));
+            }
+        });
+        // Initial computation
+        recomputeField(computedInput);
+    });
+}
+
+function recomputeField(computedInput) {
+    const formula = computedInput.dataset.formula;
+    const sekcja = computedInput.dataset.sekcja;
+    if (!formula) return;
+
+    // Build evaluation context from sibling fields in same section
+    const context = {};
+    document.querySelectorAll(`input[data-sekcja="${sekcja}"]`).forEach(inp => {
+        if (inp.dataset.kod && inp.value !== '') {
+            context[inp.dataset.kod] = parseFloat(inp.value);
+        }
+    });
+
+    // Evaluate formula: replace variable names with values
+    try {
+        let expr = formula;
+        const vars = formula.match(/[a-z_]+/g) || [];
+        let allPresent = true;
+        vars.forEach(v => {
+            if (context[v] == null || isNaN(context[v])) {
+                allPresent = false;
+            } else {
+                expr = expr.replace(new RegExp('\\b' + v + '\\b'), context[v]);
+            }
+        });
+        if (allPresent) {
+            const result = Function('"use strict"; return (' + expr + ')')();
+            if (!isNaN(result)) {
+                computedInput.value = result.toFixed(2);
+                computedInput.readOnly = true;
+                validateField(computedInput);
+            }
+        }
+    } catch (e) {
+        // Formula evaluation failed — leave field empty
     }
 }
 
@@ -483,5 +557,6 @@ renderSidebar();
 renderSzarze();
 renderSections();
 renderReferences();
+setupComputedFields();
 </script>
 {% endblock %}

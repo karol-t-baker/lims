@@ -170,6 +170,32 @@ function renderParametry() {
 
     let rows = '';
     pola.forEach((p, j) => {
+      const mt = p.measurement_type || '';
+      const hasCm = mt === 'titracja' && p.calc_method;
+      const isObl = mt === 'obliczeniowy';
+      let extraCells = '';
+      if (mt === 'titracja') {
+        const cm = p.calc_method || {};
+        extraCells = `
+          <td>
+            <input type="text" value="${esc(cm.name || '')}" ${disabled} placeholder="Nazwa metody"
+              onchange="ensureCalcMethod('${esc(sek)}',${j});parametry['${esc(sek)}'][${j}].calc_method.name=this.value"
+              class="param-input" style="font-size:10px;min-width:100px;">
+            <input type="number" step="any" value="${cm.factor != null ? cm.factor : ''}" ${disabled} placeholder="Factor"
+              onchange="ensureCalcMethod('${esc(sek)}',${j});parametry['${esc(sek)}'][${j}].calc_method.factor=parseFloat(this.value)||1.0"
+              class="param-input param-input-center" style="font-size:10px;width:60px;margin-top:2px;">
+          </td>`;
+      } else if (isObl) {
+        extraCells = `
+          <td>
+            <input type="text" value="${esc(p.formula || '')}" ${disabled} placeholder="Formula"
+              onchange="parametry['${esc(sek)}'][${j}].formula=this.value"
+              class="param-input" style="font-size:10px;font-family:var(--mono);min-width:120px;">
+          </td>`;
+      } else {
+        extraCells = '<td></td>';
+      }
+
       rows += `<tr>
         <td><input type="text" value="${esc(p.kod)}" ${disabled} onchange="parametry['${esc(sek)}'][${j}].kod=this.value" class="param-input"></td>
         <td><input type="text" value="${esc(p.tag)}" ${disabled} onchange="parametry['${esc(sek)}'][${j}].tag=this.value" class="param-input"></td>
@@ -177,6 +203,14 @@ function renderParametry() {
         <td><input type="number" step="any" value="${p.min != null ? p.min : ''}" ${disabled} onchange="parametry['${esc(sek)}'][${j}].min=this.value?parseFloat(this.value):null" class="param-input param-input-center"></td>
         <td><input type="number" step="any" value="${p.max != null ? p.max : ''}" ${disabled} onchange="parametry['${esc(sek)}'][${j}].max=this.value?parseFloat(this.value):null" class="param-input param-input-center"></td>
         <td><input type="number" step="1" value="${p.precyzja != null ? p.precyzja : ''}" ${disabled} onchange="parametry['${esc(sek)}'][${j}].precyzja=this.value?parseInt(this.value):null" class="param-input param-input-center param-input-narrow"></td>
+        <td>
+          <select ${disabled} onchange="changeMeasurementType('${esc(sek)}',${j},this.value)" class="param-input" style="font-size:10px;min-width:90px;">
+            <option value="bezposredni" ${mt==='bezposredni'?'selected':''}>bezpośredni</option>
+            <option value="titracja" ${mt==='titracja'?'selected':''}>titracja</option>
+            <option value="obliczeniowy" ${mt==='obliczeniowy'?'selected':''}>obliczeniowy</option>
+          </select>
+        </td>
+        ${extraCells}
         ${IS_DRAFT ? `<td><button type="button" class="q-btn q-btn-sm" onclick="removePole('${esc(sek)}',${j})">x</button></td>` : ''}
       </tr>`;
     });
@@ -197,6 +231,8 @@ function renderParametry() {
               <th>Min</th>
               <th>Max</th>
               <th>Precyzja</th>
+              <th>Typ pomiaru</th>
+              <th>Metoda/Formula</th>
               ${IS_DRAFT ? '<th></th>' : ''}
             </tr>
           </thead>
@@ -211,8 +247,31 @@ function renderParametry() {
 
 function addPole(sek) {
   if (!parametry[sek]) parametry[sek] = [];
-  parametry[sek].push({ kod: '', tag: '', label: '', min: null, max: null, precyzja: 2 });
+  parametry[sek].push({ kod: '', tag: '', label: '', min: null, max: null, precyzja: 2, measurement_type: 'bezposredni' });
   renderParametry();
+}
+
+function changeMeasurementType(sek, j, newType) {
+  parametry[sek][j].measurement_type = newType;
+  if (newType === 'titracja') {
+    if (!parametry[sek][j].calc_method) {
+      parametry[sek][j].calc_method = {name: 'Do uzupełnienia', formula: 'TBD', factor: 1.0};
+    }
+    delete parametry[sek][j].formula;
+  } else if (newType === 'obliczeniowy') {
+    if (!parametry[sek][j].formula) parametry[sek][j].formula = '';
+    delete parametry[sek][j].calc_method;
+  } else {
+    delete parametry[sek][j].calc_method;
+    delete parametry[sek][j].formula;
+  }
+  renderParametry();
+}
+
+function ensureCalcMethod(sek, j) {
+  if (!parametry[sek][j].calc_method) {
+    parametry[sek][j].calc_method = {name: '', formula: '', factor: 1.0};
+  }
 }
 
 function removePole(sek, j) {

@@ -2,10 +2,12 @@
 seed_mbr.py — Create MBR templates for ALL factory products + 2 seed users.
 
 Run once:  python -m mbr.seed_mbr
-Idempotent: skips products that already exist.
+Update:    python -m mbr.seed_mbr --update   (updates parametry_lab in existing templates)
+Idempotent: skips products that already exist (unless --update).
 """
 
 import json
+import sys
 from datetime import datetime
 
 from mbr.models import get_db, init_mbr_tables, create_user
@@ -30,14 +32,49 @@ ETAPY_SIMPLE = [
 ]
 
 # ---------------------------------------------------------------------------
-# Helper to build pola entries
+# Helper to build pola entries with measurement_type
 # ---------------------------------------------------------------------------
 
-def _pole(kod, label, tag, mn, mx, precision=2):
-    return {"kod": kod, "label": label, "tag": tag, "typ": "float", "min": mn, "max": mx, "precision": precision}
+# Known titration calc methods
+_CALC_METHODS = {
+    "nacl":  {"name": "Argentometryczna Mohr", "formula": "% = (V * 0.00585 * 100) / m", "factor": 0.585},
+    "aa":    {"name": "Alkacymetria",          "formula": "% = (V * C * M) / (m * 10)",   "factor": 3.015},
+    "so3":   {"name": "Jodometryczna",         "formula": "% = (V * 0.004 * 100) / m",    "factor": 0.4},
+    "h2o2":  {"name": "Manganometryczna",      "formula": "% = (V * 0.0017 * 100) / m",   "factor": 0.17},
+    "lk":    {"name": "Alkacymetria KOH",      "formula": "LK = (V * C * 56.1) / m",      "factor": 5.61},
+}
+
+_TITR_TBD = {"name": "Do uzupełnienia", "formula": "TBD", "factor": 1.0}
+
+
+def _bezp(kod, label, tag, mn, mx, precision=2):
+    """Direct instrument reading (bezposredni)."""
+    return {"kod": kod, "label": label, "tag": tag, "typ": "float",
+            "min": mn, "max": mx, "precision": precision,
+            "measurement_type": "bezposredni"}
+
+
+def _titr(kod, label, tag, mn, mx, precision=2):
+    """Titration parameter (titracja). Uses known calc_method or TBD placeholder."""
+    entry = {"kod": kod, "label": label, "tag": tag, "typ": "float",
+             "min": mn, "max": mx, "precision": precision,
+             "measurement_type": "titracja",
+             "calc_method": _CALC_METHODS.get(kod, _TITR_TBD)}
+    return entry
+
+
+def _obl(kod, label, tag, mn, mx, precision=2, formula=""):
+    """Computed parameter (obliczeniowy)."""
+    return {"kod": kod, "label": label, "tag": tag, "typ": "float",
+            "min": mn, "max": mx, "precision": precision,
+            "measurement_type": "obliczeniowy",
+            "formula": formula}
+
 
 def _nastaw():
-    return {"kod": "nastaw", "label": "Nastaw", "tag": "nastaw", "typ": "float", "min": 0, "max": 9999, "precision": 0}
+    return {"kod": "nastaw", "label": "Nastaw", "tag": "nastaw", "typ": "float",
+            "min": 0, "max": 9999, "precision": 0,
+            "measurement_type": "bezposredni"}
 
 # ---------------------------------------------------------------------------
 # GRUPA 1: Original 4 Chegina betaines (2 lab sections)
@@ -53,23 +90,23 @@ PRODUCTS = [
             "przed_standaryzacja": {
                 "label": "Analiza przed standaryzacją",
                 "pola": [
-                    _pole("ph_10proc",   "pH 10%",    "ph_10proc",  4.0,   6.0,   2),
-                    _pole("nd20",        "nd20",       "nd20",       1.39,  1.42,  3),
-                    _pole("so3",         "%SO3",       "so3",        0,     0.030, 3),
-                    _pole("barwa_fau",   "Barwa FAU",  "barwa_fau",  0,     200,   0),
+                    _bezp("ph_10proc",   "pH 10%",    "ph_10proc",  4.0,   6.0,   2),
+                    _bezp("nd20",        "nd20",       "nd20",       1.39,  1.42,  3),
+                    _titr("so3",         "%SO3",       "so3",        0,     0.030, 3),
+                    _bezp("barwa_fau",   "Barwa FAU",  "barwa_fau",  0,     200,   0),
                 ],
             },
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("sm",          "S.Masa",     "sm",         44,    48,    1),
-                    _pole("nacl",        "NaCl",       "nacl",       5.8,   7.3,   2),
-                    _pole("ph_10proc",   "pH 10%",     "ph_10proc",  4.5,   5.5,   2),
-                    _pole("sa",          "%SA",         "sa",         37,    42,    2),
-                    _pole("aa",          "%AA",         "aa",         0,     0.5,   2),
-                    _pole("barwa_fau",   "Barwa FAU",   "barwa_fau",  0,     200,   0),
-                    _pole("barwa_hz",    "Barwa Hz",    "barwa_hz",   0,     100,   0),
-                    _pole("so3",         "SO3",         "so3",        0,     0.030, 3),
+                    _bezp("sm",          "S.Masa",     "sm",         44,    48,    1),
+                    _titr("nacl",        "NaCl",       "nacl",       5.8,   7.3,   2),
+                    _bezp("ph_10proc",   "pH 10%",     "ph_10proc",  4.5,   5.5,   2),
+                    _obl("sa",           "%SA",         "sa",         37,    42,    2, "sm - nacl - 0.6"),
+                    _titr("aa",          "%AA",         "aa",         0,     0.5,   2),
+                    _bezp("barwa_fau",   "Barwa FAU",   "barwa_fau",  0,     200,   0),
+                    _bezp("barwa_hz",    "Barwa Hz",    "barwa_hz",   0,     100,   0),
+                    _titr("so3",         "SO3",         "so3",        0,     0.030, 3),
                     _nastaw(),
                 ],
             },
@@ -83,23 +120,23 @@ PRODUCTS = [
             "przed_standaryzacja": {
                 "label": "Analiza przed standaryzacją",
                 "pola": [
-                    _pole("ph_10proc",   "pH 10%",    "ph_10proc",  4.0,   7.0,   2),
-                    _pole("nd20",        "nd20",       "nd20",       1.39,  1.42,  3),
-                    _pole("so3",         "%SO3",       "so3",        0,     0.030, 3),
-                    _pole("barwa_fau",   "Barwa FAU",  "barwa_fau",  0,     200,   0),
+                    _bezp("ph_10proc",   "pH 10%",    "ph_10proc",  4.0,   7.0,   2),
+                    _bezp("nd20",        "nd20",       "nd20",       1.39,  1.42,  3),
+                    _titr("so3",         "%SO3",       "so3",        0,     0.030, 3),
+                    _bezp("barwa_fau",   "Barwa FAU",  "barwa_fau",  0,     200,   0),
                 ],
             },
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("sm",          "S.Masa",     "sm",         44,    48,    1),
-                    _pole("nacl",        "NaCl",       "nacl",       5.8,   7.3,   2),
-                    _pole("ph_10proc",   "pH 10%",     "ph_10proc",  5.0,   7.0,   2),
-                    _pole("sa",          "%SA",         "sa",         37,    9999,  2),  # min 37%
-                    _pole("aa",          "%AA",         "aa",         0,     0.5,   2),
-                    _pole("gestosc",     "gęstość",     "gestosc",    1.05,  1.09,  3),
-                    _pole("barwa_fau",   "Barwa FAU",   "barwa_fau",  0,     200,   0),
-                    _pole("so3",         "SO3",         "so3",        0,     0.030, 3),
+                    _bezp("sm",          "S.Masa",     "sm",         44,    48,    1),
+                    _titr("nacl",        "NaCl",       "nacl",       5.8,   7.3,   2),
+                    _bezp("ph_10proc",   "pH 10%",     "ph_10proc",  5.0,   7.0,   2),
+                    _obl("sa",           "%SA",         "sa",         37,    9999,  2, "sm - nacl - 0.6"),  # min 37%
+                    _titr("aa",          "%AA",         "aa",         0,     0.5,   2),
+                    _bezp("gestosc",     "gęstość",     "gestosc",    1.05,  1.09,  3),
+                    _bezp("barwa_fau",   "Barwa FAU",   "barwa_fau",  0,     200,   0),
+                    _titr("so3",         "SO3",         "so3",        0,     0.030, 3),
                     _nastaw(),
                 ],
             },
@@ -113,23 +150,23 @@ PRODUCTS = [
             "przed_standaryzacja": {
                 "label": "Analiza przed standaryzacją",
                 "pola": [
-                    _pole("ph_10proc",   "pH 10%",    "ph_10proc",  4.0,   7.0,   2),
-                    _pole("nd20",        "nd20",       "nd20",       1.39,  1.42,  3),
-                    _pole("so3",         "%SO3",       "so3",        0,     0.030, 3),
-                    _pole("barwa_fau",   "Barwa FAU",  "barwa_fau",  0,     200,   0),
+                    _bezp("ph_10proc",   "pH 10%",    "ph_10proc",  4.0,   7.0,   2),
+                    _bezp("nd20",        "nd20",       "nd20",       1.39,  1.42,  3),
+                    _titr("so3",         "%SO3",       "so3",        0,     0.030, 3),
+                    _bezp("barwa_fau",   "Barwa FAU",  "barwa_fau",  0,     200,   0),
                 ],
             },
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("sm",          "S.Masa",     "sm",         44,    9999,  1),  # min 44.0%
-                    _pole("nacl",        "NaCl",       "nacl",       5.8,   7.3,   2),
-                    _pole("ph_10proc",   "pH 10%",     "ph_10proc",  4.5,   6.5,   2),
-                    _pole("sa",          "%SA",         "sa",         36,    42,    2),
-                    _pole("aa",          "%AA",         "aa",         0,     0.3,   2),
-                    _pole("h2o2",        "%H2O2",       "h2o2",       0,     0.010, 3),
-                    _pole("so3",         "SO3",         "so3",        0,     0.030, 3),
-                    _pole("barwa_fau",   "Barwa FAU",   "barwa_fau",  0,     200,   0),
+                    _bezp("sm",          "S.Masa",     "sm",         44,    9999,  1),  # min 44.0%
+                    _titr("nacl",        "NaCl",       "nacl",       5.8,   7.3,   2),
+                    _bezp("ph_10proc",   "pH 10%",     "ph_10proc",  4.5,   6.5,   2),
+                    _obl("sa",           "%SA",         "sa",         36,    42,    2, "sm - nacl - 0.6"),
+                    _titr("aa",          "%AA",         "aa",         0,     0.3,   2),
+                    _titr("h2o2",        "%H2O2",       "h2o2",       0,     0.010, 3),
+                    _titr("so3",         "SO3",         "so3",        0,     0.030, 3),
+                    _bezp("barwa_fau",   "Barwa FAU",   "barwa_fau",  0,     200,   0),
                     _nastaw(),
                 ],
             },
@@ -143,22 +180,22 @@ PRODUCTS = [
             "przed_standaryzacja": {
                 "label": "Analiza przed standaryzacją",
                 "pola": [
-                    _pole("ph_10proc",   "pH 10%",    "ph_10proc",  4.0,   6.0,   2),
-                    _pole("nd20",        "nd20",       "nd20",       1.39,  1.42,  3),
-                    _pole("so3",         "%SO3",       "so3",        0,     0.030, 3),
-                    _pole("barwa_fau",   "Barwa FAU",  "barwa_fau",  0,     200,   0),
+                    _bezp("ph_10proc",   "pH 10%",    "ph_10proc",  4.0,   6.0,   2),
+                    _bezp("nd20",        "nd20",       "nd20",       1.39,  1.42,  3),
+                    _titr("so3",         "%SO3",       "so3",        0,     0.030, 3),
+                    _bezp("barwa_fau",   "Barwa FAU",  "barwa_fau",  0,     200,   0),
                 ],
             },
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("sm",          "S.Masa",     "sm",         40,    48,    1),
-                    _pole("nacl",        "NaCl",       "nacl",       4.0,   8.0,   2),
-                    _pole("ph_10proc",   "pH 10%",     "ph_10proc",  4.0,   6.0,   2),
-                    _pole("nd20",        "nd20",       "nd20",       1.39,  1.42,  3),
-                    _pole("sa",          "%SA",         "sa",         30,    42,    2),
-                    _pole("barwa_fau",   "Barwa FAU",   "barwa_fau",  0,     200,   0),
-                    _pole("barwa_hz",    "Barwa Hz",    "barwa_hz",   0,     100,   0),
+                    _bezp("sm",          "S.Masa",     "sm",         40,    48,    1),
+                    _titr("nacl",        "NaCl",       "nacl",       4.0,   8.0,   2),
+                    _bezp("ph_10proc",   "pH 10%",     "ph_10proc",  4.0,   6.0,   2),
+                    _bezp("nd20",        "nd20",       "nd20",       1.39,  1.42,  3),
+                    _obl("sa",           "%SA",         "sa",         30,    42,    2, "sm - nacl - 0.6"),
+                    _bezp("barwa_fau",   "Barwa FAU",   "barwa_fau",  0,     200,   0),
+                    _bezp("barwa_hz",    "Barwa Hz",    "barwa_hz",   0,     100,   0),
                     _nastaw(),
                 ],
             },
@@ -174,12 +211,12 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("sm",          "SM",         "sm",         44.8,  9999,  1),  # min 44.8%
-                    _pole("nacl",        "NaCl",       "nacl",       5.8,   7.3,   2),
-                    _pole("ph_10proc",   "pH 10%",     "ph_10proc",  4.5,   6.5,   2),
-                    _pole("sa",          "%SA",         "sa",         36,    42,    2),
-                    _pole("aa",          "%AA",         "aa",         0,     0.5,   2),
-                    _pole("barwa_fau",   "Barwa FAU",   "barwa_fau",  0,     200,   0),
+                    _bezp("sm",          "SM",         "sm",         44.8,  9999,  1),  # min 44.8%
+                    _titr("nacl",        "NaCl",       "nacl",       5.8,   7.3,   2),
+                    _bezp("ph_10proc",   "pH 10%",     "ph_10proc",  4.5,   6.5,   2),
+                    _obl("sa",           "%SA",         "sa",         36,    42,    2, "sm - nacl - 0.6"),
+                    _titr("aa",          "%AA",         "aa",         0,     0.5,   2),
+                    _bezp("barwa_fau",   "Barwa FAU",   "barwa_fau",  0,     200,   0),
                     _nastaw(),
                 ],
             },
@@ -193,13 +230,13 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("sm",          "SM",              "sm",         44,    9999,  1),  # min 44.0%
-                    _pole("woda",        "zawartość wody",  "woda",       52,    56,    1),
-                    _pole("nacl",        "NaCl",            "nacl",       5.8,   7.3,   2),
-                    _pole("ph_10proc",   "pH 10%",          "ph_10proc",  4.5,   6.5,   2),
-                    _pole("sa",          "%SA",              "sa",         36,    42,    2),
-                    _pole("so3",         "SO3",              "so3",        0,     0.030, 3),
-                    _pole("barwa_fau",   "Barwa FAU",        "barwa_fau",  0,     200,   0),
+                    _bezp("sm",          "SM",              "sm",         44,    9999,  1),  # min 44.0%
+                    _bezp("woda",        "zawartość wody",  "woda",       52,    56,    1),
+                    _titr("nacl",        "NaCl",            "nacl",       5.8,   7.3,   2),
+                    _bezp("ph_10proc",   "pH 10%",          "ph_10proc",  4.5,   6.5,   2),
+                    _obl("sa",           "%SA",              "sa",         36,    42,    2, "sm - nacl - 0.6"),
+                    _titr("so3",         "SO3",              "so3",        0,     0.030, 3),
+                    _bezp("barwa_fau",   "Barwa FAU",        "barwa_fau",  0,     200,   0),
                     _nastaw(),
                 ],
             },
@@ -213,12 +250,12 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("sm",          "SM",         "sm",         40,    48,    1),
-                    _pole("nacl",        "NaCl",       "nacl",       4.0,   8.0,   2),
-                    _pole("ph_10proc",   "pH 10%",     "ph_10proc",  4.0,   7.0,   2),
-                    _pole("nd20",        "nd20",       "nd20",       1.39,  1.42,  3),
-                    _pole("sa",          "%SA",         "sa",         30,    42,    2),
-                    _pole("barwa_fau",   "Barwa FAU",   "barwa_fau",  0,     200,   0),
+                    _bezp("sm",          "SM",         "sm",         40,    48,    1),
+                    _titr("nacl",        "NaCl",       "nacl",       4.0,   8.0,   2),
+                    _bezp("ph_10proc",   "pH 10%",     "ph_10proc",  4.0,   7.0,   2),
+                    _bezp("nd20",        "nd20",       "nd20",       1.39,  1.42,  3),
+                    _obl("sa",           "%SA",         "sa",         30,    42,    2, "sm - nacl - 0.6"),
+                    _bezp("barwa_fau",   "Barwa FAU",   "barwa_fau",  0,     200,   0),
                     _nastaw(),
                 ],
             },
@@ -232,11 +269,11 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("woda",        "%H2O",       "woda",       52,    64,    1),
-                    _pole("sa",          "%SA",         "sa",         29.0,  31.0,  2),
-                    _pole("nacl",        "NaCl",       "nacl",       0,     5.5,   2),  # max 5.5
-                    _pole("sm",          "SM",         "sm",         36,    38,    1),
-                    _pole("nd20",        "nd20",       "nd20",       1.39,  1.42,  3),
+                    _bezp("woda",        "%H2O",       "woda",       52,    64,    1),
+                    _obl("sa",           "%SA",         "sa",         29.0,  31.0,  2, "sm - nacl - 0.6"),
+                    _titr("nacl",        "NaCl",       "nacl",       0,     5.5,   2),  # max 5.5
+                    _bezp("sm",          "SM",         "sm",         36,    38,    1),
+                    _bezp("nd20",        "nd20",       "nd20",       1.39,  1.42,  3),
                 ],
             },
         },
@@ -249,13 +286,13 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("sm",          "SM",         "sm",         40,    48,    1),
-                    _pole("nacl",        "NaCl",       "nacl",       4.0,   8.0,   2),
-                    _pole("ph_10proc",   "pH 10%",     "ph_10proc",  4.0,   6.0,   2),
-                    _pole("nd20",        "nd20",       "nd20",       1.39,  1.42,  3),
-                    _pole("sa",          "%SA",         "sa",         30,    42,    2),
-                    _pole("aa",          "%AA",         "aa",         0,     0.5,   2),
-                    _pole("barwa_fau",   "Barwa FAU",   "barwa_fau",  0,     200,   0),
+                    _bezp("sm",          "SM",         "sm",         40,    48,    1),
+                    _titr("nacl",        "NaCl",       "nacl",       4.0,   8.0,   2),
+                    _bezp("ph_10proc",   "pH 10%",     "ph_10proc",  4.0,   6.0,   2),
+                    _bezp("nd20",        "nd20",       "nd20",       1.39,  1.42,  3),
+                    _obl("sa",           "%SA",         "sa",         30,    42,    2, "sm - nacl - 0.6"),
+                    _titr("aa",          "%AA",         "aa",         0,     0.5,   2),
+                    _bezp("barwa_fau",   "Barwa FAU",   "barwa_fau",  0,     200,   0),
                     _nastaw(),
                 ],
             },
@@ -269,15 +306,15 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("woda",          "zaw.wody",        "woda",          60.0,  64.0,  1),
-                    _pole("nacl",          "NaCl",            "nacl",          4.0,   8.0,   2),
-                    _pole("sa",            "%SA",              "sa",            29,    33,    2),
-                    _pole("alkalicznosc",  "alkaliczność",     "alkalicznosc",  1.15,  1.30,  2),
-                    _pole("sm",            "SM",              "sm",            36.0,  40.0,  1),
-                    _pole("wolna_amina",   "wolna amina",     "wolna_amina",   0,     0.4,   2),
-                    _pole("la",            "L.aminowa",       "la",            0,     1.0,   2),
-                    _pole("lk",            "L.kwasowa",       "lk",            0,     1.0,   2),
-                    _pole("nd20",          "nd20",            "nd20",          1.39,  1.42,  3),
+                    _bezp("woda",          "zaw.wody",        "woda",          60.0,  64.0,  1),
+                    _titr("nacl",          "NaCl",            "nacl",          4.0,   8.0,   2),
+                    _obl("sa",             "%SA",              "sa",            29,    33,    2, "sm - nacl - 0.6"),
+                    _titr("alkalicznosc",  "alkaliczność",     "alkalicznosc",  1.15,  1.30,  2),
+                    _bezp("sm",            "SM",              "sm",            36.0,  40.0,  1),
+                    _titr("wolna_amina",   "wolna amina",     "wolna_amina",   0,     0.4,   2),
+                    _titr("la",            "L.aminowa",       "la",            0,     1.0,   2),
+                    _titr("lk",            "L.kwasowa",       "lk",            0,     1.0,   2),
+                    _bezp("nd20",          "nd20",            "nd20",          1.39,  1.42,  3),
                     _nastaw(),
                 ],
             },
@@ -291,10 +328,10 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("sm",            "SM",            "sm",           36.0,  40.0,  1),
-                    _pole("sa",            "%SA",            "sa",           29,    31.5,  2),
-                    _pole("wolna_amina",   "wolna amina",   "wolna_amina",  0,     1.0,   2),
-                    _pole("nacl",          "NaCl",          "nacl",         4.0,   8.0,   2),
+                    _bezp("sm",            "SM",            "sm",           36.0,  40.0,  1),
+                    _obl("sa",             "%SA",            "sa",           29,    31.5,  2, "sm - nacl - 0.6"),
+                    _titr("wolna_amina",   "wolna amina",   "wolna_amina",  0,     1.0,   2),
+                    _titr("nacl",          "NaCl",          "nacl",         4.0,   8.0,   2),
                     _nastaw(),
                 ],
             },
@@ -308,10 +345,10 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("lk",     "LK",     "lk",    0,     4.0,   2),
-                    _pole("nacl",   "NaCl",   "nacl",  4.0,   8.0,   2),
-                    _pole("nd20",   "nd20",   "nd20",  1.39,  1.42,  3),
-                    _pole("sa",     "%SA",     "sa",    28.0,  31.0,  2),
+                    _titr("lk",     "LK",     "lk",    0,     4.0,   2),
+                    _titr("nacl",   "NaCl",   "nacl",  4.0,   8.0,   2),
+                    _bezp("nd20",   "nd20",   "nd20",  1.39,  1.42,  3),
+                    _obl("sa",      "%SA",     "sa",    28.0,  31.0,  2, "sm - nacl - 0.6"),
                 ],
             },
         },
@@ -324,9 +361,9 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("nacl",        "NaCl",       "nacl",       4.0,   8.0,   2),
-                    _pole("barwa_fau",   "barwa",      "barwa_fau",  0,     200,   0),
-                    _pole("sa",          "%SA",         "sa",         30,    42,    2),
+                    _titr("nacl",        "NaCl",       "nacl",       4.0,   8.0,   2),
+                    _bezp("barwa_fau",   "barwa",      "barwa_fau",  0,     200,   0),
+                    _obl("sa",           "%SA",         "sa",         30,    42,    2, "sm - nacl - 0.6"),
                 ],
             },
         },
@@ -341,12 +378,12 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("sm",          "SM",         "sm",         32.8,  9999,  1),  # min 32.8%
-                    _pole("ph_10proc",   "pH 10%",     "ph_10proc",  5,     8,     2),
-                    _pole("h2o2",        "%H2O2",      "h2o2",       0,     0.010, 3),
-                    _pole("barwa_fau",   "barwa",      "barwa_fau",  0,     2,     0),
-                    _pole("nd20",        "nd20",       "nd20",       1.39,  1.42,  3),
-                    _pole("gestosc",     "gęstość",    "gestosc",    0.99,  1.00,  3),
+                    _bezp("sm",          "SM",         "sm",         32.8,  9999,  1),  # min 32.8%
+                    _bezp("ph_10proc",   "pH 10%",     "ph_10proc",  5,     8,     2),
+                    _titr("h2o2",        "%H2O2",      "h2o2",       0,     0.010, 3),
+                    _bezp("barwa_fau",   "barwa",      "barwa_fau",  0,     2,     0),
+                    _bezp("nd20",        "nd20",       "nd20",       1.39,  1.42,  3),
+                    _bezp("gestosc",     "gęstość",    "gestosc",    0.99,  1.00,  3),
                 ],
             },
         },
@@ -359,12 +396,12 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("sm",          "SM",         "sm",         34,    9999,  1),  # min 34%
-                    _pole("ph_10proc",   "pH 10%",     "ph_10proc",  5,     8,     2),
-                    _pole("h2o2",        "%H2O2",      "h2o2",       0,     0.010, 3),
-                    _pole("barwa_fau",   "barwa",      "barwa_fau",  0,     2,     0),
-                    _pole("nd20",        "nd20",       "nd20",       1.39,  1.42,  3),
-                    _pole("gestosc",     "gęstość",    "gestosc",    0.99,  1.00,  3),
+                    _bezp("sm",          "SM",         "sm",         34,    9999,  1),  # min 34%
+                    _bezp("ph_10proc",   "pH 10%",     "ph_10proc",  5,     8,     2),
+                    _titr("h2o2",        "%H2O2",      "h2o2",       0,     0.010, 3),
+                    _bezp("barwa_fau",   "barwa",      "barwa_fau",  0,     2,     0),
+                    _bezp("nd20",        "nd20",       "nd20",       1.39,  1.42,  3),
+                    _bezp("gestosc",     "gęstość",    "gestosc",    0.99,  1.00,  3),
                 ],
             },
         },
@@ -377,12 +414,12 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("tlenek_aminowy", "zaw.tlenku aminowego", "tlenek_aminowy", 28,  32,    1),
-                    _pole("ph_10proc",      "pH 10%",               "ph_10proc",      6,   8,     2),
-                    _pole("h2o2",           "%H2O2",                "h2o2",            0,   0.010, 3),
-                    _pole("barwa_fau",      "barwa",                "barwa_fau",       0,   1,     0),
-                    _pole("wolna_amina",    "wolna amina",          "wolna_amina",     0,   0.5,   2),
-                    _pole("nd20",           "nd20",                 "nd20",            1.39, 1.42, 3),
+                    _titr("tlenek_aminowy", "zaw.tlenku aminowego", "tlenek_aminowy", 28,  32,    1),
+                    _bezp("ph_10proc",      "pH 10%",               "ph_10proc",      6,   8,     2),
+                    _titr("h2o2",           "%H2O2",                "h2o2",            0,   0.010, 3),
+                    _bezp("barwa_fau",      "barwa",                "barwa_fau",       0,   1,     0),
+                    _titr("wolna_amina",    "wolna amina",          "wolna_amina",     0,   0.5,   2),
+                    _bezp("nd20",           "nd20",                 "nd20",            1.39, 1.42, 3),
                 ],
             },
         },
@@ -397,12 +434,12 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("sm",          "SM",              "sm",          40,   9999, 1),  # min 40%
-                    _pole("lk",          "LK",              "lk",          0,    6,    2),
-                    _pole("siarczynow",  "zaw.siarczynów",  "siarczynow",  0,    0.1,  3),
-                    _pole("h2o2",        "H2O2",            "h2o2",        0,    0.15, 3),
-                    _pole("sa",          "%SA",              "sa",          26,   9999, 2),  # min 26%
-                    _pole("barwa_fau",   "barwa",           "barwa_fau",   0,    10,   0),
+                    _bezp("sm",          "SM",              "sm",          40,   9999, 1),  # min 40%
+                    _titr("lk",          "LK",              "lk",          0,    6,    2),
+                    _titr("siarczynow",  "zaw.siarczynów",  "siarczynow",  0,    0.1,  3),
+                    _titr("h2o2",        "H2O2",            "h2o2",        0,    0.15, 3),
+                    _obl("sa",           "%SA",              "sa",          26,   9999, 2, "sm - nacl - 0.6"),  # min 26%
+                    _bezp("barwa_fau",   "barwa",           "barwa_fau",   0,    10,   0),
                 ],
             },
         },
@@ -415,13 +452,13 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("sm",          "SM",              "sm",          38,   42,   1),
-                    _pole("siarczynow",  "zaw.siarczynów",  "siarczynow",  0,    0.1,  3),
-                    _pole("ph_10proc",   "pH 10%",          "ph_10proc",   5.5,  7,    2),
-                    _pole("sa",          "%SA",              "sa",          31,   9999, 2),  # min 31%
-                    _pole("barwa_fau",   "barwa",           "barwa_fau",   0,    5,    0),
-                    _pole("lk",          "LK",              "lk",          0,    8,    2),
-                    _pole("nd20",        "nd20",            "nd20",        1.39, 1.42, 3),
+                    _bezp("sm",          "SM",              "sm",          38,   42,   1),
+                    _titr("siarczynow",  "zaw.siarczynów",  "siarczynow",  0,    0.1,  3),
+                    _bezp("ph_10proc",   "pH 10%",          "ph_10proc",   5.5,  7,    2),
+                    _obl("sa",           "%SA",              "sa",          31,   9999, 2, "sm - nacl - 0.6"),  # min 31%
+                    _bezp("barwa_fau",   "barwa",           "barwa_fau",   0,    5,    0),
+                    _titr("lk",          "LK",              "lk",          0,    8,    2),
+                    _bezp("nd20",        "nd20",            "nd20",        1.39, 1.42, 3),
                 ],
             },
         },
@@ -436,12 +473,12 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("barwa_fau",   "barwa",       "barwa_fau",  0,    6,    0),
-                    _pole("wkt",         "%WKT",        "wkt",        0,    0.5,  2),
-                    _pole("lk",          "LK",          "lk",         0,    1.4,  2),
-                    _pole("mea",         "%MEA",        "mea",        0,    1.5,  2),
-                    _pole("estry",       "%estry",      "estry",      0,    6,    2),
-                    _pole("gliceryny",   "%gliceryny",  "gliceryny",  0,    10,   2),
+                    _bezp("barwa_fau",   "barwa",       "barwa_fau",  0,    6,    0),
+                    _titr("wkt",         "%WKT",        "wkt",        0,    0.5,  2),
+                    _titr("lk",          "LK",          "lk",         0,    1.4,  2),
+                    _titr("mea",         "%MEA",        "mea",        0,    1.5,  2),
+                    _titr("estry",       "%estry",      "estry",      0,    6,    2),
+                    _bezp("gliceryny",   "%gliceryny",  "gliceryny",  0,    10,   2),
                 ],
             },
         },
@@ -454,12 +491,12 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("barwa_fau",   "barwa",          "barwa_fau",  0,    8,    0),
-                    _pole("wkt",         "%WKT",           "wkt",        0,    10,   2),
-                    _pole("mea",         "%MEA",           "mea",        0,    5,    2),
-                    _pole("estry",       "%estry",         "estry",      0,    10,   2),
-                    _pole("gliceryny",   "%gliceryny",     "gliceryny",  0,    10,   2),
-                    _pole("t_topn",      "T.topnienia",    "t_topn",     45,   70,   1),
+                    _bezp("barwa_fau",   "barwa",          "barwa_fau",  0,    8,    0),
+                    _titr("wkt",         "%WKT",           "wkt",        0,    10,   2),
+                    _titr("mea",         "%MEA",           "mea",        0,    5,    2),
+                    _titr("estry",       "%estry",         "estry",      0,    10,   2),
+                    _bezp("gliceryny",   "%gliceryny",     "gliceryny",  0,    10,   2),
+                    _bezp("t_topn",      "T.topnienia",    "t_topn",     45,   70,   1),
                 ],
             },
         },
@@ -472,12 +509,12 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("barwa_fau",   "barwa",          "barwa_fau",  0,     4,    0),
-                    _pole("wkt",         "%WKT",           "wkt",        0,     0.5,  2),
-                    _pole("mea",         "%MEA",           "mea",        0.3,   1.3,  2),
-                    _pole("estry",       "estry",          "estry",      0,     6,    2),
-                    _pole("lz",          "L.zmydlenia",    "lz",         0,     999,  2),
-                    _pole("t_kropl",     "T.kroplenia",    "t_kropl",    45,    70,   1),
+                    _bezp("barwa_fau",   "barwa",          "barwa_fau",  0,     4,    0),
+                    _titr("wkt",         "%WKT",           "wkt",        0,     0.5,  2),
+                    _titr("mea",         "%MEA",           "mea",        0.3,   1.3,  2),
+                    _titr("estry",       "estry",          "estry",      0,     6,    2),
+                    _titr("lz",          "L.zmydlenia",    "lz",         0,     999,  2),
+                    _bezp("t_kropl",     "T.kroplenia",    "t_kropl",    45,    70,   1),
                 ],
             },
         },
@@ -490,11 +527,11 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("lk",          "LK",             "lk",         0,     10,   2),
-                    _pole("la",          "L.aminowa",      "la",         0,     200,  2),
-                    _pole("wkt",         "%WKT",           "wkt",        0,     2.0,  2),
-                    _pole("mea",         "%MEA",           "mea",        0,     2.0,  2),
-                    _pole("t_kropl",     "T.kroplenia",    "t_kropl",    45,    70,   1),
+                    _titr("lk",          "LK",             "lk",         0,     10,   2),
+                    _titr("la",          "L.aminowa",      "la",         0,     200,  2),
+                    _titr("wkt",         "%WKT",           "wkt",        0,     2.0,  2),
+                    _titr("mea",         "%MEA",           "mea",        0,     2.0,  2),
+                    _bezp("t_kropl",     "T.kroplenia",    "t_kropl",    45,    70,   1),
                 ],
             },
         },
@@ -507,10 +544,10 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("lk",          "LK",             "lk",         0,     5,    2),
-                    _pole("wolna_amina", "wolna amina",    "wolna_amina", 0,    3,    2),
-                    _pole("t_kropl",     "T.kroplenia",    "t_kropl",    85,    92,   1),
-                    _pole("barwa_fau",   "barwa",          "barwa_fau",  0,     5,    0),
+                    _titr("lk",          "LK",             "lk",         0,     5,    2),
+                    _titr("wolna_amina", "wolna amina",    "wolna_amina", 0,    3,    2),
+                    _bezp("t_kropl",     "T.kroplenia",    "t_kropl",    85,    92,   1),
+                    _bezp("barwa_fau",   "barwa",          "barwa_fau",  0,     5,    0),
                 ],
             },
         },
@@ -525,12 +562,12 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("lk",          "LK",              "lk",    0,     6,    2),
-                    _pole("wge",         "WGE",             "wge",   0,     100,  2),
-                    _pole("lh",          "L.hydroksylowa",  "lh",    0,     54,   2),
-                    _pole("lz",          "L.zmydlenia",     "lz",    188,   200,  2),
-                    _pole("t_kropl",     "T.kroplenia",     "t_kropl", 58,  64,   1),
-                    _pole("wkt",         "WKT",             "wkt",   0,     5,    2),
+                    _titr("lk",          "LK",              "lk",    0,     6,    2),
+                    _titr("wge",         "WGE",             "wge",   0,     100,  2),
+                    _titr("lh",          "L.hydroksylowa",  "lh",    0,     54,   2),
+                    _titr("lz",          "L.zmydlenia",     "lz",    188,   200,  2),
+                    _bezp("t_kropl",     "T.kroplenia",     "t_kropl", 58,  64,   1),
+                    _titr("wkt",         "WKT",             "wkt",   0,     5,    2),
                 ],
             },
         },
@@ -543,11 +580,11 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("lk",          "LK",              "lk",         0,     3,    2),
-                    _pole("lz",          "L.zmydlenia",     "lz",         150,   170,  2),
-                    _pole("li",          "L.jodowa",        "li",         63,    83,   2),
-                    _pole("monoestry",   "zaw.monoestrów",  "monoestry",  30,    9999, 2),  # min 30%
-                    _pole("barwa_fau",   "barwa",           "barwa_fau",  0,     10,   0),
+                    _titr("lk",          "LK",              "lk",         0,     3,    2),
+                    _titr("lz",          "L.zmydlenia",     "lz",         150,   170,  2),
+                    _titr("li",          "L.jodowa",        "li",         63,    83,   2),
+                    _titr("monoestry",   "zaw.monoestrów",  "monoestry",  30,    9999, 2),  # min 30%
+                    _bezp("barwa_fau",   "barwa",           "barwa_fau",  0,     10,   0),
                 ],
             },
         },
@@ -560,13 +597,13 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("lk",             "LK",              "lk",             0,     3,    2),
-                    _pole("t_kropl",        "T.kroplenia",     "t_kropl",        54,    60,   1),
-                    _pole("lz",             "L.zmydlenia",     "lz",             145,   185,  2),
-                    _pole("li",             "L.jodowa",        "li",             0,     5,    2),
-                    _pole("gliceryny",      "%gliceryny",      "gliceryny",      0,     10,   2),
-                    _pole("monoglicerydy",  "%monoglicerydów", "monoglicerydy",  0,     100,  2),
-                    _pole("barwa_fau",      "barwa",           "barwa_fau",      0,     10,   0),
+                    _titr("lk",             "LK",              "lk",             0,     3,    2),
+                    _bezp("t_kropl",        "T.kroplenia",     "t_kropl",        54,    60,   1),
+                    _titr("lz",             "L.zmydlenia",     "lz",             145,   185,  2),
+                    _titr("li",             "L.jodowa",        "li",             0,     5,    2),
+                    _bezp("gliceryny",      "%gliceryny",      "gliceryny",      0,     10,   2),
+                    _titr("monoglicerydy",  "%monoglicerydów", "monoglicerydy",  0,     100,  2),
+                    _bezp("barwa_fau",      "barwa",           "barwa_fau",      0,     10,   0),
                 ],
             },
         },
@@ -581,12 +618,12 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("barwa_fau",   "barwa",           "barwa_fau",  0,     2,    0),
-                    _pole("lk",          "LK",              "lk",         0,     2,    2),
-                    _pole("lz",          "L.zmydlenia",     "lz",         0,     2,    2),
-                    _pole("t_kropl",     "T.kroplenia",     "t_kropl",    47,    55,   1),
-                    _pole("lh",          "L.hydroksylowa",  "lh",         0,     300,  2),
-                    _pole("li",          "L.jodowa",        "li",         0,     2,    2),
+                    _bezp("barwa_fau",   "barwa",           "barwa_fau",  0,     2,    0),
+                    _titr("lk",          "LK",              "lk",         0,     2,    2),
+                    _titr("lz",          "L.zmydlenia",     "lz",         0,     2,    2),
+                    _bezp("t_kropl",     "T.kroplenia",     "t_kropl",    47,    55,   1),
+                    _titr("lh",          "L.hydroksylowa",  "lh",         0,     300,  2),
+                    _titr("li",          "L.jodowa",        "li",         0,     2,    2),
                 ],
             },
         },
@@ -599,10 +636,10 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("lk",          "LK",          "lk",         0,     4,    2),
-                    _pole("wkt",         "WKT",         "wkt",        0,     5,    2),
-                    _pole("la",          "L.aminowa",   "la",         165,   185,  2),
-                    _pole("barwa_fau",   "barwa",       "barwa_fau",  0,     4,    0),
+                    _titr("lk",          "LK",          "lk",         0,     4,    2),
+                    _titr("wkt",         "WKT",         "wkt",        0,     5,    2),
+                    _titr("la",          "L.aminowa",   "la",         165,   185,  2),
+                    _bezp("barwa_fau",   "barwa",       "barwa_fau",  0,     4,    0),
                 ],
             },
         },
@@ -615,11 +652,11 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("barwa_fau",   "barwa",          "barwa_fau",  0,     10,   0),
-                    _pole("lk",          "LK",             "lk",         0,     15,   2),
-                    _pole("la",          "L.aminowa",      "la",         130,   160,  2),
-                    _pole("wkt",         "WKT",            "wkt",        0,     8,    2),
-                    _pole("t_kropl",     "T.kroplenia",    "t_kropl",    45,    70,   1),
+                    _bezp("barwa_fau",   "barwa",          "barwa_fau",  0,     10,   0),
+                    _titr("lk",          "LK",             "lk",         0,     15,   2),
+                    _titr("la",          "L.aminowa",      "la",         130,   160,  2),
+                    _titr("wkt",         "WKT",            "wkt",        0,     8,    2),
+                    _bezp("t_kropl",     "T.kroplenia",    "t_kropl",    45,    70,   1),
                 ],
             },
         },
@@ -634,12 +671,12 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("lk",          "LK",              "lk",    0,     0.2,  2),
-                    _pole("lz",          "L.zmydlenia",     "lz",    0,     1.2,  2),
-                    _pole("li",          "L.jodowa",        "li",    0,     1.0,  2),
-                    _pole("barwa_fau",   "barwa",           "barwa_fau", 0, 10,   0),
-                    _pole("nd20",        "nd20",            "nd20",  1.39,  1.50, 3),
-                    _pole("lh",          "L.hydroksylowa",  "lh",    210,   220,  2),
+                    _titr("lk",          "LK",              "lk",    0,     0.2,  2),
+                    _titr("lz",          "L.zmydlenia",     "lz",    0,     1.2,  2),
+                    _titr("li",          "L.jodowa",        "li",    0,     1.0,  2),
+                    _bezp("barwa_fau",   "barwa",           "barwa_fau", 0, 10,   0),
+                    _bezp("nd20",        "nd20",            "nd20",  1.39,  1.50, 3),
+                    _titr("lh",          "L.hydroksylowa",  "lh",    210,   220,  2),
                 ],
             },
         },
@@ -652,9 +689,9 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("lh",          "L.hydroksylowa",  "lh",         45,    55,   2),
-                    _pole("ph_10proc",   "pH 1%",           "ph_10proc",  5,     7,    2),
-                    _pole("nd20",        "nd20",            "nd20",       1.39,  1.50, 3),
+                    _titr("lh",          "L.hydroksylowa",  "lh",         45,    55,   2),
+                    _bezp("ph_10proc",   "pH 1%",           "ph_10proc",  5,     7,    2),
+                    _bezp("nd20",        "nd20",            "nd20",       1.39,  1.50, 3),
                 ],
             },
         },
@@ -667,11 +704,11 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("lk",          "LK",              "lk",         0,     20,   2),
-                    _pole("lz",          "L.zmydlenia",     "lz",         90,    100,  2),
-                    _pole("lh",          "L.hydroksylowa",  "lh",         145,   160,  2),
-                    _pole("ph_10proc",   "pH 20%",          "ph_10proc",  5,     8,    2),
-                    _pole("t_topn",      "T.topnienia",     "t_topn",     49,    52,   1),
+                    _titr("lk",          "LK",              "lk",         0,     20,   2),
+                    _titr("lz",          "L.zmydlenia",     "lz",         90,    100,  2),
+                    _titr("lh",          "L.hydroksylowa",  "lh",         145,   160,  2),
+                    _bezp("ph_10proc",   "pH 20%",          "ph_10proc",  5,     8,    2),
+                    _bezp("t_topn",      "T.topnienia",     "t_topn",     49,    52,   1),
                 ],
             },
         },
@@ -684,8 +721,8 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("lk",   "LK",           "lk",  0,    4,    2),
-                    _pole("lz",   "L.zmydlenia",  "lz",  90,   120,  2),
+                    _titr("lk",   "LK",           "lk",  0,    4,    2),
+                    _titr("lz",   "L.zmydlenia",  "lz",  90,   120,  2),
                 ],
             },
         },
@@ -700,10 +737,10 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("lk",          "LK",           "lk",        0,      2,     2),
-                    _pole("gestosc",     "gęstość",      "gestosc",   0.960,  0.970, 3),
-                    _pole("barwa_fau",   "barwa",        "barwa_fau", 0,      2,     0),
-                    _pole("lz",          "L.zmydlenia",  "lz",        410,    450,   2),
+                    _titr("lk",          "LK",           "lk",        0,      2,     2),
+                    _bezp("gestosc",     "gęstość",      "gestosc",   0.960,  0.970, 3),
+                    _bezp("barwa_fau",   "barwa",        "barwa_fau", 0,      2,     0),
+                    _titr("lz",          "L.zmydlenia",  "lz",        410,    450,   2),
                 ],
             },
         },
@@ -716,8 +753,8 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("dietanolamina", "%dietanolaminy", "dietanolamina", 80,  9999, 1),  # min 80%
-                    _pole("gliceryny",     "%gliceryny",     "gliceryny",     0,   9.5,  2),
+                    _titr("dietanolamina", "%dietanolaminy", "dietanolamina", 80,  9999, 1),  # min 80%
+                    _bezp("gliceryny",     "%gliceryny",     "gliceryny",     0,   9.5,  2),
                 ],
             },
         },
@@ -730,10 +767,10 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("lk",           "LK",              "lk",          0,    3,    2),
-                    _pole("wolny_glikol", "wolny glikol",    "wolny_glikol", 0,   3,    2),
-                    _pole("lh",           "L.hydroksylowa",  "lh",          70,   130,  2),
-                    _pole("monoestry",    "monoestry",       "monoestry",   47,   55,   2),
+                    _titr("lk",           "LK",              "lk",          0,    3,    2),
+                    _titr("wolny_glikol", "wolny glikol",    "wolny_glikol", 0,   3,    2),
+                    _titr("lh",           "L.hydroksylowa",  "lh",          70,   130,  2),
+                    _titr("monoestry",    "monoestry",       "monoestry",   47,   55,   2),
                 ],
             },
         },
@@ -746,8 +783,8 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("lk",       "LK",           "lk",      0,    1,    2),
-                    _pole("t_kropl",  "T.kroplenia",  "t_kropl", 48,   52,   1),
+                    _titr("lk",       "LK",           "lk",      0,    1,    2),
+                    _bezp("t_kropl",  "T.kroplenia",  "t_kropl", 48,   52,   1),
                 ],
             },
         },
@@ -760,9 +797,9 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("lk",       "LK",              "lk",       208,   212,  2),
-                    _pole("t_krzep",  "T.krzepnięcia",   "t_krzep",  54,    56,   1),
-                    _pole("li",       "L.jodowa",        "li",       0,     1,    2),
+                    _titr("lk",       "LK",              "lk",       208,   212,  2),
+                    _bezp("t_krzep",  "T.krzepnięcia",   "t_krzep",  54,    56,   1),
+                    _titr("li",       "L.jodowa",        "li",       0,     1,    2),
                 ],
             },
         },
@@ -775,8 +812,8 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("sm",          "SM",      "sm",         43,   9999, 1),  # min 43%
-                    _pole("ph_10proc",   "pH 10%",  "ph_10proc",  5,    8,    2),
+                    _bezp("sm",          "SM",      "sm",         43,   9999, 1),  # min 43%
+                    _bezp("ph_10proc",   "pH 10%",  "ph_10proc",  5,    8,    2),
                 ],
             },
         },
@@ -789,9 +826,9 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("barwa_fau",   "barwa",   "barwa_fau",  0,     2,    0),
-                    _pole("sa",          "%SA",      "sa",         25,    28,   2),
-                    _pole("ph_10proc",   "pH 3%",   "ph_10proc",  6.5,   7.5,  2),
+                    _bezp("barwa_fau",   "barwa",   "barwa_fau",  0,     2,    0),
+                    _obl("sa",           "%SA",      "sa",         25,    28,   2, "sm - nacl - 0.6"),
+                    _bezp("ph_10proc",   "pH 3%",   "ph_10proc",  6.5,   7.5,  2),
                 ],
             },
         },
@@ -804,11 +841,11 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _pole("lh",          "L.hydroksylowa",  "lh",        210,   220,  2),
-                    _pole("lk",          "LK",              "lk",        0,     0.1,  2),
-                    _pole("lz",          "L.zmydlenia",     "lz",        0,     1.0,  2),
-                    _pole("li",          "L.jodowa",        "li",        0,     1.0,  2),
-                    _pole("nd20",        "nd20",            "nd20",      1.39,  1.50, 3),
+                    _titr("lh",          "L.hydroksylowa",  "lh",        210,   220,  2),
+                    _titr("lk",          "LK",              "lk",        0,     0.1,  2),
+                    _titr("lz",          "L.zmydlenia",     "lz",        0,     1.0,  2),
+                    _titr("li",          "L.jodowa",        "li",        0,     1.0,  2),
+                    _bezp("nd20",        "nd20",            "nd20",      1.39,  1.50, 3),
                 ],
             },
         },
@@ -825,7 +862,7 @@ SEED_USERS = [
 ]
 
 
-def seed():
+def seed(update=False):
     db = get_db()
     try:
         init_mbr_tables(db)
@@ -845,16 +882,13 @@ def seed():
         # --- MBR templates ---
         created = 0
         skipped = 0
+        updated = 0
         for prod in PRODUCTS:
             produkt = prod["produkt"]
             exists = db.execute(
                 "SELECT 1 FROM mbr_templates WHERE produkt = ? AND wersja = 1",
                 (produkt,),
             ).fetchone()
-            if exists:
-                print(f"  . MBR: {produkt} v1 already exists")
-                skipped += 1
-                continue
 
             etapy_json = json.dumps(prod["etapy"], ensure_ascii=False)
             parametry_json = json.dumps(prod["parametry_lab"], ensure_ascii=False)
@@ -862,21 +896,36 @@ def seed():
                 {"nr_aparatu": prod["template_id"]} if prod["template_id"] else {},
                 ensure_ascii=False,
             )
-            db.execute(
-                """INSERT INTO mbr_templates
-                   (produkt, wersja, status, etapy_json, parametry_lab,
-                    utworzony_przez, dt_utworzenia, dt_aktywacji, notatki)
-                   VALUES (?, 1, 'active', ?, ?, 'seed', ?, ?, ?)""",
-                (produkt, etapy_json, parametry_json, now, now, notatki),
-            )
-            print(f"  + MBR: {produkt} v1 (active)")
-            created += 1
+
+            if exists and update:
+                db.execute(
+                    """UPDATE mbr_templates
+                       SET parametry_lab = ?, etapy_json = ?
+                       WHERE produkt = ? AND wersja = 1""",
+                    (parametry_json, etapy_json, produkt),
+                )
+                print(f"  ~ MBR: {produkt} v1 updated (parametry_lab + etapy)")
+                updated += 1
+            elif exists:
+                print(f"  . MBR: {produkt} v1 already exists")
+                skipped += 1
+            else:
+                db.execute(
+                    """INSERT INTO mbr_templates
+                       (produkt, wersja, status, etapy_json, parametry_lab,
+                        utworzony_przez, dt_utworzenia, dt_aktywacji, notatki)
+                       VALUES (?, 1, 'active', ?, ?, 'seed', ?, ?, ?)""",
+                    (produkt, etapy_json, parametry_json, now, now, notatki),
+                )
+                print(f"  + MBR: {produkt} v1 (active)")
+                created += 1
 
         db.commit()
-        print(f"\nSeed complete: {created} created, {skipped} skipped.")
+        print(f"\nSeed complete: {created} created, {updated} updated, {skipped} skipped.")
     finally:
         db.close()
 
 
 if __name__ == "__main__":
-    seed()
+    do_update = "--update" in sys.argv
+    seed(update=do_update)

@@ -1,6 +1,6 @@
 /**
  * calculator.js — Titration calculator for lab fast-entry.
- * Methods: Epton, Mohr, Alkacymetria, Jodometryczna, Manganometryczna, Alkacymetria KOH
+ * Supports any parameter with calc_method (dynamic), plus legacy hardcoded fallbacks.
  */
 
 const CALC_METHODS = {
@@ -17,16 +17,29 @@ let _calcState = {
     tag: null,
     kod: null,
     sekcja: null,
+    method: null,
     samples: [{m: '', v: ''}, {m: '', v: ''}],
 };
 
-function openCalculator(tag, kod, sekcja) {
-    const method = CALC_METHODS[tag];
+function openCalculator(tag, kod, sekcja, calcMethod) {
+    // If calcMethod provided (from pole.calc_method), use it. Otherwise fall back to CALC_METHODS.
+    let method;
+    if (calcMethod && calcMethod.factor) {
+        method = {
+            name: calcMethod.name || kod,
+            method: calcMethod.name || '',
+            formula: calcMethod.formula || '',
+            factor: calcMethod.factor,
+        };
+    } else {
+        method = CALC_METHODS[tag] || CALC_METHODS[kod];
+    }
     if (!method) return;
 
     _calcState.tag = tag;
     _calcState.kod = kod;
     _calcState.sekcja = sekcja;
+    _calcState.method = method;
     _calcState.samples = [{m: '', v: ''}, {m: '', v: ''}];
 
     renderCalculator();
@@ -34,7 +47,7 @@ function openCalculator(tag, kod, sekcja) {
 
 function renderCalculator() {
     const container = document.getElementById('calc-container');
-    const method = CALC_METHODS[_calcState.tag];
+    const method = _calcState.method || CALC_METHODS[_calcState.tag];
     if (!method) {
         container.innerHTML = '<div style="color:var(--text-dim);font-size:12px;">Kliknij pole miareczkowe aby otworzyc kalkulator.</div>';
         return;
@@ -132,7 +145,7 @@ function addSample() {
 }
 
 function acceptCalc() {
-    const method = CALC_METHODS[_calcState.tag];
+    const method = _calcState.method || CALC_METHODS[_calcState.tag];
     if (!method) return;
 
     const results = _calcState.samples
@@ -158,7 +171,7 @@ function acceptCalc() {
 }
 
 // Aliases matching spec naming
-function openCalc(tag, kod, sekcja) { openCalculator(tag, kod, sekcja); }
+function openCalc(tag, kod, sekcja, calcMethod) { openCalculator(tag, kod, sekcja, calcMethod); }
 function recalc() { renderCalculator(); }
 
 // Export
