@@ -3,110 +3,161 @@
 {% block title %}Dashboard{% endblock %}
 {% block nav_dashboard %}active{% endblock %}
 
-{% block topbar_title %}Dashboard{% endblock %}
-{% block topbar_right %}{{ open_batches|length }} otwartych | {{ completed|length }} zamknietych{% endblock %}
-
-{% block content %}
-<div class="col-main">
-
-  {# ═══ LIVE — Aktywne szarze ═══ #}
-  <div class="section" style="margin-bottom:24px;">
-    <div class="sec-head">
-      <div class="sec-icon teal">L</div>
-      <div class="sec-title">Widok Live — Aktywne szarze</div>
-    </div>
-
-    {% if open_batches %}
-    <table style="width:100%;border-collapse:collapse;">
-      <thead>
-        <tr style="border-bottom:1px solid var(--border);">
-          <th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Nr partii</th>
-          <th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Produkt</th>
-          <th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Amidator</th>
-          <th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Start</th>
-          <th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Status</th>
-          <th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Ostatni wpis</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for b in open_batches %}
-        <tr style="border-bottom:1px solid var(--surface-alt);">
-          <td style="padding:10px 16px;font-size:13px;font-weight:600;">{{ b.nr_partii }}</td>
-          <td style="padding:10px 16px;font-size:12px;color:var(--text-sec);">{{ b.produkt }}</td>
-          <td style="padding:10px 16px;font-size:12px;color:var(--text-sec);font-family:var(--mono);">{{ b.nr_amidatora or '---' }}</td>
-          <td style="padding:10px 16px;font-size:12px;color:var(--text-sec);font-family:var(--mono);">{{ b.dt_start }}</td>
-          <td style="padding:10px 16px;">
-            {% if b.out_of_limit > 0 %}
-              <span class="en-badge" style="background:var(--red-bg);color:var(--red);">{{ b.out_of_limit }} poza limitem</span>
-            {% elif b.last_entry %}
-              <span class="en-badge b-ok">w toku</span>
-            {% else %}
-              <span class="en-badge b-wait">oczekuje</span>
-            {% endif %}
-          </td>
-          <td style="padding:10px 16px;font-size:12px;color:var(--text-sec);font-family:var(--mono);">{{ b.last_entry or '---' }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <div style="padding:24px 18px;color:var(--text-dim);font-size:13px;">Brak otwartych szarz.</div>
-    {% endif %}
+{% block sidebar %}
+<div class="sidebar">
+  <div class="sb-head">
+    <div class="sb-greeting">Witaj, {{ session.user.imie_nazwisko or session.user.login }}</div>
+    <div class="sb-date"></div>
   </div>
-
-  {# ═══ HISTORIA — Zamkniete szarze ═══ #}
-  <div class="section">
-    <div class="sec-head">
-      <div class="sec-icon amber">H</div>
-      <div class="sec-title">Widok Historia — Zamkniete szarze</div>
-      <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
-        <form method="GET" action="{{ url_for('tech_dashboard') }}" style="display:flex;gap:8px;align-items:center;">
-          <select name="produkt" class="sb-sel" style="width:auto;padding:6px 10px;font-size:12px;" onchange="this.form.submit()">
-            <option value="">Wszystkie produkty</option>
-            {% for p in ['Chegina K7', 'Chegina K40GL', 'Chegina K40GLO', 'Chegina K40GLOL'] %}
-            <option value="{{ p }}" {% if request.args.get('produkt') == p %}selected{% endif %}>{{ p }}</option>
-            {% endfor %}
-          </select>
-        </form>
-        <a href="{{ url_for('tech_export', produkt=request.args.get('produkt', '')) }}" class="btn btn-o" style="padding:6px 14px;font-size:11px;">Eksport CSV</a>
+  <div class="sb-lab">Aktywne szarze <span style="margin-left:auto;font-size:10px;">{{ open_batches|length }}</span></div>
+  <div class="sb-list">
+    {% for b in open_batches %}
+    <div class="sb-item">
+      <div class="sb-dot {% if b.out_of_limit > 0 %}wait{% elif b.last_entry %}wait{% else %}new{% endif %}"></div>
+      <div class="sb-info">
+        <div class="sb-batch">{{ b.nr_partii }} — {{ b.produkt|replace('Chegina ', '') }}</div>
+        <div class="sb-stage">
+          {% if b.out_of_limit > 0 %}{{ b.out_of_limit }} poza limitem
+          {% elif b.last_entry %}w toku
+          {% else %}oczekuje{% endif %}
+        </div>
+      </div>
+      <div class="sb-dots">
+        <div class="sd done"></div><div class="sd done"></div><div class="sd curr"></div><div class="sd"></div><div class="sd"></div>
       </div>
     </div>
-
-    {% if completed %}
-    <table style="width:100%;border-collapse:collapse;">
-      <thead>
-        <tr style="border-bottom:1px solid var(--border);">
-          <th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Nr partii</th>
-          <th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Produkt</th>
-          <th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Data zakonczenia</th>
-          <th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Poza limitem</th>
-          <th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">PDF</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for b in completed %}
-        <tr style="border-bottom:1px solid var(--surface-alt);">
-          <td style="padding:10px 16px;font-size:13px;font-weight:600;">{{ b.nr_partii }}</td>
-          <td style="padding:10px 16px;font-size:12px;color:var(--text-sec);">{{ b.produkt }}</td>
-          <td style="padding:10px 16px;font-size:12px;color:var(--text-sec);font-family:var(--mono);">{{ b.dt_end or '---' }}</td>
-          <td style="padding:10px 16px;">
-            {% if b.out_of_limit > 0 %}
-              <span class="en-badge" style="background:var(--red-bg);color:var(--red);">{{ b.out_of_limit }}</span>
-            {% else %}
-              <span class="en-badge b-ok">OK</span>
-            {% endif %}
-          </td>
-          <td style="padding:10px 16px;">
-            <a href="{{ url_for('pdf_ebr', ebr_id=b.ebr_id) }}" class="btn btn-o" style="padding:6px 14px;font-size:11px;" target="_blank">PDF</a>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <div style="padding:24px 18px;color:var(--text-dim);font-size:13px;">Brak zakonczonych szarz.</div>
-    {% endif %}
+    {% endfor %}
   </div>
+  <div class="sb-footer">
+    <div class="sb-footer-info">{{ open_batches|length }} szarz &bull; {{ completed|length }} zakonczonych</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block topbar_title %}Dashboard{% endblock %}
+{% block topbar_right %}{{ open_batches|length }} otwartych | {{ completed|length }} zakonczonych{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+
+  {# ═══ KPI ROW ═══ #}
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="kpi-label">Aktywne szarze</div>
+      <div class="kpi-value">{{ open_batches|length }}</div>
+      <div class="kpi-sub">w produkcji</div>
+    </div>
+    <div class="kpi highlight">
+      <div class="kpi-label">Oczekuja analiz</div>
+      <div class="kpi-value">{{ open_batches|selectattr('last_entry', 'none')|list|length }}</div>
+      <div class="kpi-sub">probki do analizy</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Poza limitem</div>
+      <div class="kpi-value">{{ open_batches|rejectattr('out_of_limit', 'equalto', 0)|list|length }}</div>
+      <div class="kpi-sub">szarze z przekroczeniami</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Wykonane dzis</div>
+      <div class="kpi-value">{{ completed|length }}</div>
+      <div class="kpi-sub">zamkniete szarze</div>
+    </div>
+  </div>
+
+  {# ═══ QUEUE: Aktywne szarze ═══ #}
+  <div class="section-title">Aktywne szarze <span class="section-count">{{ open_batches|length }}</span></div>
+
+  {% if open_batches %}
+  <table class="queue-table">
+    <thead>
+      <tr>
+        <th>Nr partii</th>
+        <th>Produkt</th>
+        <th>Amidator</th>
+        <th>Start</th>
+        <th>Status</th>
+        <th>Ostatni wpis</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for b in open_batches %}
+      <tr{% if b.out_of_limit > 0 %} class="urgent"{% endif %}>
+        <td><span class="q-batch">{{ b.nr_partii }}</span></td>
+        <td><span class="q-product">{{ b.produkt }}</span></td>
+        <td class="q-time">{{ b.nr_amidatora or '---' }}</td>
+        <td class="q-time">{{ b.dt_start }}</td>
+        <td>
+          {% if b.out_of_limit > 0 %}
+            <span class="q-priority urgent">{{ b.out_of_limit }} poza limitem</span>
+          {% elif b.last_entry %}
+            <span class="q-priority normal">w toku</span>
+          {% else %}
+            <span class="q-priority low">oczekuje</span>
+          {% endif %}
+        </td>
+        <td class="q-time">{{ b.last_entry or '---' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="kpi" style="margin-bottom:24px;">
+    <div class="kpi-sub">Brak otwartych szarz.</div>
+  </div>
+  {% endif %}
+
+  {# ═══ RECENT: Zamkniete szarze ═══ #}
+  <div class="section-title">
+    Ostatnie wyniki
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+      <form method="GET" action="{{ url_for('tech_dashboard') }}" style="display:flex;gap:8px;align-items:center;">
+        <select name="produkt" class="form-select" style="width:auto;padding:6px 10px;font-size:12px;" onchange="this.form.submit()">
+          <option value="">Wszystkie produkty</option>
+          {% for p in ['Chegina K7', 'Chegina K40GL', 'Chegina K40GLO', 'Chegina K40GLOL'] %}
+          <option value="{{ p }}" {% if request.args.get('produkt') == p %}selected{% endif %}>{{ p }}</option>
+          {% endfor %}
+        </select>
+      </form>
+      <a href="{{ url_for('tech_export', produkt=request.args.get('produkt', '')) }}" class="q-btn">Eksport CSV</a>
+    </div>
+  </div>
+
+  {% if completed %}
+  <table class="recent-table">
+    <thead>
+      <tr>
+        <th>Nr partii</th>
+        <th>Produkt</th>
+        <th>Data zakonczenia</th>
+        <th>Poza limitem</th>
+        <th>PDF</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for b in completed %}
+      <tr>
+        <td><span class="q-batch">{{ b.nr_partii }}</span></td>
+        <td>{{ b.produkt }}</td>
+        <td class="q-time">{{ b.dt_end or '---' }}</td>
+        <td>
+          {% if b.out_of_limit > 0 %}
+            <span class="r-status r-warn">{{ b.out_of_limit }}</span>
+          {% else %}
+            <span class="r-status r-ok">OK</span>
+          {% endif %}
+        </td>
+        <td>
+          <a href="{{ url_for('pdf_ebr', ebr_id=b.ebr_id) }}" class="q-btn" target="_blank">PDF</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="kpi">
+    <div class="kpi-sub">Brak zakonczonych szarz.</div>
+  </div>
+  {% endif %}
 
 </div>
 {% endblock %}

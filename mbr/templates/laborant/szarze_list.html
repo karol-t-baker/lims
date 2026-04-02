@@ -3,11 +3,43 @@
 {% block title %}Szarze EBR{% endblock %}
 {% block nav_szarze %}active{% endblock %}
 
+{% block sidebar %}
+<div class="sidebar">
+  <div class="sb-head">
+    <div class="sb-greeting">Witaj, {{ session.user.imie_nazwisko or session.user.login }}</div>
+    <div class="sb-date"></div>
+  </div>
+  <div class="sb-lab">Aktywne szarze <span style="margin-left:auto;font-size:10px;">{{ batches|length }}</span></div>
+  <div class="sb-list">
+    {% for b in batches %}
+    <div class="sb-item" onclick="location.href='{{ url_for('fast_entry', ebr_id=b.ebr_id) }}'">
+      <div class="sb-dot {% if b.out_of_limit > 0 %}wait{% elif b.last_entry %}wait{% else %}new{% endif %}"></div>
+      <div class="sb-info">
+        <div class="sb-batch">{{ b.nr_partii }} — {{ b.produkt|replace('Chegina ', '') }}</div>
+        <div class="sb-stage">
+          {% if b.out_of_limit > 0 %}{{ b.out_of_limit }} poza limitem
+          {% elif b.last_entry %}w toku
+          {% else %}oczekuje{% endif %}
+        </div>
+      </div>
+      <div class="sb-dots">
+        <div class="sd done"></div><div class="sd done"></div><div class="sd curr"></div><div class="sd"></div><div class="sd"></div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="sb-footer">
+    <div class="sb-footer-info">{{ batches|length }} szarz &bull; otwartych</div>
+    <button class="sb-new-btn" onclick="document.getElementById('reg-modal').classList.add('show')">+ Nowa szarza</button>
+  </div>
+</div>
+{% endblock %}
+
 {% block topbar_title %}Szarze EBR{% endblock %}
 {% block topbar_right %}{{ batches|length }} otwartych{% endblock %}
 
 {% block content %}
-<div class="col-main">
+<div class="dashboard">
 
   {% with messages = get_flashed_messages() %}
   {% if messages %}
@@ -19,91 +51,115 @@
   {% endif %}
   {% endwith %}
 
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-    <h3 style="font-size:15px;font-weight:600;">Otwarte szarze</h3>
-    <button class="btn btn-p" onclick="document.getElementById('modal-new').style.display='flex'">+ Nowa szarza</button>
-  </div>
+  <div class="section-title">Otwarte szarze <span class="section-count">{{ batches|length }}</span></div>
 
   {% if batches %}
-  <div class="section">
-    <table style="width:100%;border-collapse:collapse;">
-      <thead>
-        <tr style="border-bottom:1px solid var(--border);">
-          <th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Nr partii</th>
-          <th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Produkt</th>
-          <th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Amidator</th>
-          <th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Start</th>
-          <th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for b in batches %}
-        <tr style="border-bottom:1px solid var(--surface-alt);cursor:pointer;" onclick="location.href='{{ url_for('fast_entry', ebr_id=b.ebr_id) }}'">
-          <td style="padding:10px 16px;font-size:13px;font-weight:600;">{{ b.nr_partii }}</td>
-          <td style="padding:10px 16px;font-size:12px;color:var(--text-sec);">{{ b.produkt }}</td>
-          <td style="padding:10px 16px;font-size:12px;color:var(--text-sec);font-family:var(--mono);">{{ b.nr_amidatora or '---' }}</td>
-          <td style="padding:10px 16px;font-size:12px;color:var(--text-sec);font-family:var(--mono);">{{ b.dt_start }}</td>
-          <td style="padding:10px 16px;">
-            {% if b.out_of_limit > 0 %}
-              <span class="en-badge" style="background:var(--red-bg);color:var(--red);">{{ b.out_of_limit }} poza limitem</span>
-            {% elif b.last_entry %}
-              <span class="en-badge b-ok">w toku</span>
-            {% else %}
-              <span class="en-badge b-wait">oczekuje</span>
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+  <table class="queue-table">
+    <thead>
+      <tr>
+        <th>Nr partii</th>
+        <th>Produkt</th>
+        <th>Amidator</th>
+        <th>Start</th>
+        <th>Status</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for b in batches %}
+      <tr{% if b.out_of_limit > 0 %} class="urgent"{% endif %} style="cursor:pointer;" onclick="location.href='{{ url_for('fast_entry', ebr_id=b.ebr_id) }}'">
+        <td><span class="q-batch">{{ b.nr_partii }}</span></td>
+        <td><span class="q-product">{{ b.produkt }}</span></td>
+        <td class="q-time">{{ b.nr_amidatora or '---' }}</td>
+        <td class="q-time">{{ b.dt_start }}</td>
+        <td>
+          {% if b.out_of_limit > 0 %}
+            <span class="q-priority urgent">{{ b.out_of_limit }} poza limitem</span>
+          {% elif b.last_entry %}
+            <span class="q-priority normal">w toku</span>
+          {% else %}
+            <span class="q-priority low">oczekuje</span>
+          {% endif %}
+        </td>
+        <td><button class="q-btn">Otworz &rarr;</button></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
   {% else %}
-  <div class="section">
-    <div style="padding:24px 18px;color:var(--text-dim);font-size:13px;">Brak otwartych szarz. Kliknij "+ Nowa szarza" aby rozpoczac.</div>
+  <div class="kpi" style="margin-bottom:24px;">
+    <div class="kpi-sub">Brak otwartych szarz. Kliknij "+ Nowa szarza" aby rozpoczac.</div>
   </div>
   {% endif %}
 
 </div>
 
 {# ═══ MODAL: Nowa szarza ═══ #}
-<div id="modal-new" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;">
-  <div style="background:var(--surface);border-radius:12px;padding:28px 24px;width:400px;max-width:90vw;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
-      <h3 style="font-size:16px;font-weight:600;">Nowa szarza</h3>
-      <span style="cursor:pointer;font-size:18px;color:var(--text-dim);" onclick="document.getElementById('modal-new').style.display='none'">&times;</span>
+<div class="modal-overlay" id="reg-modal" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-icon">+</div>
+      <div>
+        <div class="modal-title">Nowa szarza</div>
+        <div class="modal-subtitle">Zarejestruj nowa szarze produkcyjna</div>
+      </div>
+      <button class="modal-close" onclick="document.getElementById('reg-modal').classList.remove('show')">&times;</button>
     </div>
-    <form method="POST" action="{{ url_for('szarze_new') }}">
-      <div class="login-field">
-        <label>Produkt</label>
-        <select name="produkt" required style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:14px;font-family:var(--font);color:var(--text);background:white;">
-          {% for p in products %}
-          <option value="{{ p }}">{{ p }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="login-field">
-        <label>Nr partii</label>
-        <input type="text" name="nr_partii" required placeholder="np. 65/2026" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:14px;font-family:var(--font);color:var(--text);">
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div class="login-field">
-          <label>Nr amidatora</label>
-          <input type="text" name="nr_amidatora" placeholder="np. A-1" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:14px;font-family:var(--font);color:var(--text);">
+
+    <div class="modal-body">
+      <form method="POST" action="{{ url_for('szarze_new') }}" id="new-batch-form">
+        <div class="form-row">
+          <div class="form-label">Produkt</div>
+          <div class="product-grid">
+            {% for p in products %}
+            <div class="product-option" onclick="selectProduct(this, '{{ p }}')">
+              <span class="po-check">&#10003;</span>
+              <div class="po-name">{{ p|replace('Chegina ', '') }}</div>
+              <div class="po-desc">{{ p }}</div>
+            </div>
+            {% endfor %}
+          </div>
+          <input type="hidden" name="produkt" id="produkt-input" required>
         </div>
-        <div class="login-field">
-          <label>Nr mieszalnika</label>
-          <input type="text" name="nr_mieszalnika" placeholder="np. M-3" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:14px;font-family:var(--font);color:var(--text);">
+
+        <div class="form-row">
+          <div class="form-label">Nr partii</div>
+          <input class="form-input" type="text" name="nr_partii" required placeholder="np. 65/2026">
         </div>
-      </div>
-      <div class="login-field">
-        <label>Wielkosc szarzy [kg]</label>
-        <input type="number" step="any" name="wielkosc_kg" placeholder="np. 4000" style="width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:14px;font-family:var(--font);color:var(--text);">
-      </div>
-      <div style="display:flex;gap:10px;margin-top:16px;">
-        <button type="submit" class="btn btn-p" style="flex:1;">Utworz szarze</button>
-        <button type="button" class="btn btn-o" onclick="document.getElementById('modal-new').style.display='none'">Anuluj</button>
-      </div>
-    </form>
+
+        <div class="form-row-inline">
+          <div class="form-row" style="margin:0">
+            <div class="form-label">Nr amidatora</div>
+            <input class="form-input" type="text" name="nr_amidatora" placeholder="np. A-1">
+          </div>
+          <div class="form-row" style="margin:0">
+            <div class="form-label">Nr mieszalnika</div>
+            <input class="form-input" type="text" name="nr_mieszalnika" placeholder="np. M-3">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-label">Wielkosc szarzy [kg]</div>
+          <input class="form-input" type="number" step="any" name="wielkosc_kg" placeholder="np. 4000">
+        </div>
+
+        <div class="modal-footer" style="padding:14px 0 0;border-top:none;">
+          <div class="m-sp"></div>
+          <button type="button" class="m-btn m-btn-o" onclick="document.getElementById('reg-modal').classList.remove('show')">Anuluj</button>
+          <button type="submit" class="m-btn m-btn-p">Utworz szarze</button>
+        </div>
+      </form>
+    </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function selectProduct(el, product) {
+  document.querySelectorAll('.product-option').forEach(function(p) { p.classList.remove('selected'); });
+  el.classList.add('selected');
+  document.getElementById('produkt-input').value = product;
+}
+</script>
 {% endblock %}
