@@ -13,7 +13,7 @@
   <div class="sb-list">
     {% for b in open_batches %}
     <div class="sb-item">
-      <div class="sb-dot {% if b.out_of_limit > 0 %}wait{% elif b.last_entry %}wait{% else %}new{% endif %}"></div>
+      <div class="sb-dot {% if b.typ == 'zbiornik' %}typ-zbiornik{% elif b.out_of_limit > 0 %}wait{% elif b.last_entry %}wait{% else %}new{% endif %}"></div>
       <div class="sb-info">
         <div class="sb-batch">{{ b.nr_partii }} — {{ b.produkt|short_product }}</div>
         <div class="sb-stage">
@@ -39,6 +39,23 @@
 
 {% block content %}
 <div class="dashboard">
+
+  {# ═══ FILTER BAR ═══ #}
+  <form method="GET" action="{{ url_for('tech_dashboard') }}" style="display:flex; gap:10px; margin-bottom:16px; align-items:center; flex-wrap:wrap;">
+    <label class="form-label" style="margin:0; font-size:12px; font-weight:600;">Produkt:</label>
+    <select name="produkt" class="form-select" style="width:auto; padding:6px 10px; font-size:12px;" onchange="this.form.submit()">
+      <option value="">Wszystkie</option>
+      {% for p in ['Chegina_K7', 'Chegina_K40GL', 'Chegina_K40GLO', 'Chegina_K40GLOL'] %}
+      <option value="{{ p }}" {% if filter_produkt == p %}selected{% endif %}>{{ p|short_product }}</option>
+      {% endfor %}
+    </select>
+    <label class="form-label" style="margin:0; font-size:12px; font-weight:600;">Typ:</label>
+    <select name="typ" class="form-select" style="width:auto; padding:6px 10px; font-size:12px;" onchange="this.form.submit()">
+      <option value="">Wszystkie</option>
+      <option value="szarza" {% if filter_typ == 'szarza' %}selected{% endif %}>Szarze</option>
+      <option value="zbiornik" {% if filter_typ == 'zbiornik' %}selected{% endif %}>Zbiorniki</option>
+    </select>
+  </form>
 
   {# ═══ KPI ROW ═══ #}
   <div class="kpi-row">
@@ -73,6 +90,7 @@
       <tr>
         <th>Nr partii</th>
         <th>Produkt</th>
+        <th>Typ</th>
         <th>Amidator</th>
         <th>Start</th>
         <th>Status</th>
@@ -84,6 +102,11 @@
       <tr{% if b.out_of_limit > 0 %} class="urgent"{% endif %}>
         <td><span class="q-batch">{{ b.nr_partii }}</span></td>
         <td><span class="q-product">{{ b.produkt|short_product }}</span></td>
+        <td>
+          <span class="typ-badge {{ b.typ or 'szarza' }}">
+            {{ 'Zbiornik' if b.typ == 'zbiornik' else 'Szarza' }}
+          </span>
+        </td>
         <td class="q-time">{{ b.nr_amidatora or '---' }}</td>
         <td class="q-time">{{ b.dt_start | pl_date }}</td>
         <td>
@@ -110,15 +133,7 @@
   <div class="section-title">
     Ostatnie wyniki
     <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
-      <form method="GET" action="{{ url_for('tech_dashboard') }}" style="display:flex;gap:8px;align-items:center;">
-        <select name="produkt" class="form-select" style="width:auto;padding:6px 10px;font-size:12px;" onchange="this.form.submit()">
-          <option value="">Wszystkie produkty</option>
-          {% for p in ['Chegina K7', 'Chegina K40GL', 'Chegina K40GLO', 'Chegina K40GLOL'] %}
-          <option value="{{ p }}" {% if request.args.get('produkt') == p %}selected{% endif %}>{{ p }}</option>
-          {% endfor %}
-        </select>
-      </form>
-      <a href="{{ url_for('tech_export', produkt=request.args.get('produkt', '')) }}" class="q-btn">Eksport CSV</a>
+      <a href="{{ url_for('tech_export', produkt=filter_produkt or '', typ=filter_typ or '') }}" class="q-btn">Eksport CSV</a>
     </div>
   </div>
 
@@ -128,6 +143,7 @@
       <tr>
         <th>Nr partii</th>
         <th>Produkt</th>
+        <th>Typ</th>
         <th>Data zakonczenia</th>
         <th>Poza limitem</th>
         <th>PDF</th>
@@ -138,6 +154,11 @@
       <tr>
         <td><span class="q-batch">{{ b.nr_partii }}</span></td>
         <td>{{ b.produkt|short_product }}</td>
+        <td>
+          <span class="typ-badge {{ b.typ or 'szarza' }}">
+            {{ 'Zbiornik' if b.typ == 'zbiornik' else 'Szarza' }}
+          </span>
+        </td>
         <td class="q-time">{{ b.dt_end | pl_date if b.dt_end else '---' }}</td>
         <td>
           {% if b.out_of_limit > 0 %}

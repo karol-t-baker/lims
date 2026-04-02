@@ -816,6 +816,14 @@ body {
 .q-btn { padding: 5px 12px; border-radius: 5px; border: 1px solid var(--teal); color: var(--teal); background: white; font-size: 11px; cursor: pointer; font-weight: 500; }
 .q-btn:hover { background: var(--teal-bg); }
 
+/* Type badges */
+.typ-badge { font-size: 9px; padding: 1px 6px; border-radius: 8px; font-weight: 600; letter-spacing: 0.3px; text-transform: uppercase; display: inline-block; vertical-align: middle; }
+.typ-badge.szarza { background: var(--teal-bg); color: var(--teal); }
+.typ-badge.zbiornik { background: var(--blue-bg); color: var(--blue); }
+
+/* Sidebar type dots */
+.sb-dot.typ-zbiornik { background: var(--blue); }
+
 /* Recent results table */
 .recent-table { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; border-collapse: separate; border-spacing: 0; overflow: hidden; }
 .recent-table th { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); font-weight: 600; padding: 10px 14px; text-align: left; background: var(--surface-alt); border-bottom: 1px solid var(--border); }

@@ -281,9 +281,11 @@ def clone_mbr(db: sqlite3.Connection, mbr_id: int, user: str) -> int | None:
 # EBR Dashboard queries
 # ---------------------------------------------------------------------------
 
-def list_ebr_open(db: sqlite3.Connection) -> list[dict]:
+def list_ebr_open(
+    db: sqlite3.Connection, produkt: str | None = None, typ: str | None = None
+) -> list[dict]:
     """List open EBR batches with last entry time and out-of-limit count."""
-    rows = db.execute("""
+    sql = """
         SELECT
             eb.ebr_id,
             eb.batch_id,
@@ -292,6 +294,7 @@ def list_ebr_open(db: sqlite3.Connection) -> list[dict]:
             eb.nr_amidatora,
             eb.dt_start,
             eb.status,
+            eb.typ,
             (SELECT MAX(ew.dt_wpisu) FROM ebr_wyniki ew WHERE ew.ebr_id = eb.ebr_id)
                 AS last_entry,
             (SELECT COUNT(*) FROM ebr_wyniki ew WHERE ew.ebr_id = eb.ebr_id AND ew.w_limicie = 0)
@@ -299,15 +302,23 @@ def list_ebr_open(db: sqlite3.Connection) -> list[dict]:
         FROM ebr_batches eb
         JOIN mbr_templates mt ON mt.mbr_id = eb.mbr_id
         WHERE eb.status = 'open'
-        ORDER BY eb.dt_start DESC
-    """).fetchall()
+    """
+    params: list = []
+    if produkt:
+        sql += " AND mt.produkt = ?"
+        params.append(produkt)
+    if typ:
+        sql += " AND eb.typ = ?"
+        params.append(typ)
+    sql += " ORDER BY eb.dt_start DESC"
+    rows = db.execute(sql, params).fetchall()
     return [dict(r) for r in rows]
 
 
 def list_ebr_completed(
-    db: sqlite3.Connection, produkt: str | None = None, limit: int = 50
+    db: sqlite3.Connection, produkt: str | None = None, typ: str | None = None, limit: int = 50
 ) -> list[dict]:
-    """List completed batches, optionally filtered by produkt."""
+    """List completed batches, optionally filtered by produkt and typ."""
     sql = """
         SELECT
             eb.ebr_id,
@@ -315,6 +326,7 @@ def list_ebr_completed(
             eb.nr_partii,
             mt.produkt,
             eb.dt_end,
+            eb.typ,
             (SELECT COUNT(*) FROM ebr_wyniki ew WHERE ew.ebr_id = eb.ebr_id AND ew.w_limicie = 0)
                 AS out_of_limit
         FROM ebr_batches eb
@@ -325,6 +337,9 @@ def list_ebr_completed(
     if produkt:
         sql += " AND mt.produkt = ?"
         params.append(produkt)
+    if typ:
+        sql += " AND eb.typ = ?"
+        params.append(typ)
     sql += " ORDER BY eb.dt_end DESC LIMIT ?"
     params.append(limit)
     rows = db.execute(sql, params).fetchall()

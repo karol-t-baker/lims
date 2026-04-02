@@ -219,15 +219,19 @@ def mbr_clone(mbr_id):
 @role_required("technolog")
 def tech_dashboard():
     db = get_db()
+    produkt = request.args.get("produkt")
+    typ = request.args.get("typ")
     try:
-        open_batches = list_ebr_open(db)
-        completed = list_ebr_completed(db, request.args.get("produkt"))
+        open_batches = list_ebr_open(db, produkt=produkt, typ=typ)
+        completed = list_ebr_completed(db, produkt=produkt, typ=typ)
     finally:
         db.close()
     return render_template(
         "technolog/dashboard.html",
         open_batches=open_batches,
         completed=completed,
+        filter_produkt=produkt,
+        filter_typ=typ,
     )
 
 
