@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<style>
+@page { size: A4; margin: 15mm 12mm; }
+@page :first { margin-top: 10mm; }
+body { font-family: 'Times New Roman', serif; font-size: 10pt; color: black; }
+table { width: 100%; border-collapse: collapse; margin-bottom: 8pt; }
+th, td { border: 1px solid black; padding: 3pt 5pt; text-align: left; font-size: 9pt; }
+th { background: #eee; font-weight: bold; }
+.header { display: flex; justify-content: space-between; border-bottom: 2px solid black; padding-bottom: 6pt; margin-bottom: 10pt; }
+h1 { text-align: center; font-size: 14pt; margin: 6pt 0; }
+h2 { font-size: 11pt; margin: 10pt 0 4pt; text-transform: uppercase; }
+.val { font-family: 'Courier New', monospace; font-weight: bold; }
+.empty { color: #999; }
+.out-of-limit { color: red; font-weight: bold; }
+.page-break { page-break-before: always; }
+.signatures td { border: none; padding-top: 30pt; }
+</style>
+</head>
+<body>
+
+<!-- PAGE 1 -->
+<div class="header">
+  <div style="font-weight:bold;font-size:14pt">CHEMCO</div>
+  <div style="text-align:center;flex:1">
+    <h1>KARTA SZARZOWA nr.....</h1>
+    <div style="font-size:14pt;font-weight:bold">{{ mbr.produkt }}</div>
+  </div>
+  <div style="border:1px solid black;padding:4pt 8pt;font-size:8pt;text-align:right">
+    MBR v{{ mbr.wersja }}<br>
+    {% if ebr %}Szarza: {{ ebr.nr_partii }}{% endif %}
+  </div>
+</div>
+
+<!-- Batch info -->
+<table>
+  <tr>
+    <td>Nr aparatu: <span class="val">{{ ebr.nr_amidatora if ebr else '........' }}</span></td>
+    <td>Nr mieszalnika: <span class="val">{{ ebr.nr_mieszalnika if ebr else '........' }}</span></td>
+    <td>Nr partii: <span class="val">{{ ebr.nr_partii if ebr else '........' }}</span></td>
+  </tr>
+  <tr>
+    <td>Data rozpoczecia: <span class="val">{{ ebr.dt_start[:10] if ebr and ebr.dt_start else '........' }}</span></td>
+    <td>Data zakonczenia: <span class="val">{{ ebr.dt_end[:10] if ebr and ebr.dt_end else '........' }}</span></td>
+    <td>Wielkosc szarzy: <span class="val">{{ ebr.wielkosc_szarzy_kg if ebr else '........' }}</span> kg</td>
+  </tr>
+</table>
+
+<!-- Zaladunku surowcow -->
+<h2>Zaladunek surowcow</h2>
+<table>
+  <tr><th>Lp.</th><th>Nazwa surowca</th><th>Ilosc recepturowa [kg]</th><th>Ilosc zaladowana [kg]</th><th>Nr partii</th><th>Pulpa</th></tr>
+  {% for i in range(8) %}<tr><td>{{ i+1 }}</td><td></td><td></td><td></td><td></td><td></td></tr>{% endfor %}
+</table>
+
+<!-- Standaryzowanie -->
+<h2>Standaryzowanie produktu</h2>
+<table>
+  <tr><th>Dodatek</th><th>Ilosc [kg]</th><th>Data i godzina</th><th>Nr partii</th><th>Pulpa</th></tr>
+  {% for i in range(6) %}<tr><td></td><td></td><td></td><td></td><td></td></tr>{% endfor %}
+</table>
+
+<!-- PAGE 2-3 -->
+<div class="page-break"></div>
+<h2>Przebieg i parametry procesu</h2>
+<table>
+  <tr><th style="width:30%">Operacja</th><th>Data</th><th>Temperatura</th><th>Proznia</th><th>Pulpa</th><th>Uwagi</th></tr>
+  {% for etap in etapy %}
+  {% if etap.read_only %}
+  <tr><td colspan="6" style="font-weight:bold;background:#eee">{{ etap.nr }}. {{ etap.nazwa }}</td></tr>
+  <tr><td colspan="6" style="font-size:8pt;color:#666">{{ etap.instrukcja }}</td></tr>
+  {% for i in range(4) %}<tr><td></td><td></td><td></td><td></td><td></td><td></td></tr>{% endfor %}
+  {% endif %}
+  {% endfor %}
+</table>
+
+<!-- PAGE 4 -->
+<div class="page-break"></div>
+{% for sekcja_key, sekcja_def in parametry.items() %}
+<h2>{{ sekcja_def.label }}</h2>
+<table>
+  <tr><th>Parametr</th><th>Wynik</th><th>Norma</th></tr>
+  {% for pole in sekcja_def.pola %}
+  <tr>
+    <td>{{ pole.label }}</td>
+    <td class="val {% if wyniki.get(sekcja_key, {}).get(pole.kod) and not wyniki[sekcja_key][pole.kod].w_limicie %}out-of-limit{% endif %}">
+      {% if wyniki.get(sekcja_key, {}).get(pole.kod) %}{{ wyniki[sekcja_key][pole.kod].wartosc }}{% else %}<span class="empty">&mdash;</span>{% endif %}
+    </td>
+    <td>{{ pole.min }} &ndash; {{ pole.max }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endfor %}
+
+<!-- Przepompowanie -->
+<h2>Przepompowanie produktu</h2>
+<table>
+  <tr><td>Rozpoczecie: ........</td><td>Zakonczenie: ........</td></tr>
+  <tr><td>Temperatura max: ........&deg;C</td><td>Zbiornik: ........</td></tr>
+  <tr><td>Wsk. od: ........</td><td>Wsk. do: ........</td></tr>
+</table>
+
+<!-- Podpisy -->
+<table class="signatures">
+  <tr><td style="width:33%">Operator: ................</td><td style="width:33%">Laborant: ................</td><td>Technolog: ................</td></tr>
+</table>
+
+</body>
+</html>

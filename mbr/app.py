@@ -6,7 +6,7 @@ import functools
 import os
 import socket
 
-from flask import Flask, redirect, url_for, request, session, render_template, flash, jsonify
+from flask import Flask, Response, redirect, url_for, request, session, render_template, flash, jsonify, abort
 
 from mbr.models import (
     get_db, init_mbr_tables, verify_user,
@@ -275,6 +275,47 @@ def complete_entry(ebr_id):
     finally:
         db.close()
     return redirect(url_for("szarze_list"))
+
+
+# ---------------------------------------------------------------------------
+# PDF routes
+# ---------------------------------------------------------------------------
+
+from mbr.pdf_gen import generate_pdf
+
+
+@app.route("/pdf/mbr/<int:mbr_id>")
+@login_required
+def pdf_mbr(mbr_id):
+    """Empty card from MBR template."""
+    db = get_db()
+    try:
+        mbr = get_mbr(db, mbr_id)
+    finally:
+        db.close()
+    if not mbr:
+        abort(404)
+    pdf_bytes = generate_pdf(mbr)
+    return Response(pdf_bytes, mimetype="application/pdf",
+                    headers={"Content-Disposition": f"inline; filename=MBR_{mbr['produkt']}_v{mbr['wersja']}.pdf"})
+
+
+@app.route("/pdf/ebr/<int:ebr_id>")
+@login_required
+def pdf_ebr(ebr_id):
+    """Filled card from EBR + MBR."""
+    db = get_db()
+    try:
+        ebr = get_ebr(db, ebr_id)
+        if not ebr:
+            abort(404)
+        mbr = get_mbr(db, ebr["mbr_id"])
+        wyniki = get_ebr_wyniki(db, ebr_id)
+    finally:
+        db.close()
+    pdf_bytes = generate_pdf(mbr, ebr, wyniki)
+    return Response(pdf_bytes, mimetype="application/pdf",
+                    headers={"Content-Disposition": f"inline; filename=EBR_{ebr['batch_id']}.pdf"})
 
 
 # ---------------------------------------------------------------------------
