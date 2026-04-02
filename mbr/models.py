@@ -11,7 +11,28 @@ import bcrypt
 
 DB_PATH = Path(__file__).parent.parent / "data" / "batch_db_v4.sqlite"
 
-PRODUCTS = ["Chegina_K7", "Chegina_K40GL", "Chegina_K40GLO", "Chegina_K40GLOL"]
+PRODUCTS = [
+    # Grupa 1: Chegina betainy (2 sekcje lab)
+    "Chegina_K40GL", "Chegina_K40GLO", "Chegina_K40GLOL", "Chegina_K7",
+    # Grupa 2: Pozostałe Cheginy
+    "Chegina_K40GLOS", "Chegina_K40GLOL_HQ", "Chegina_K7GLO", "Chegina_K7B",
+    "Chegina_KK", "Chegina_CC", "Chegina_CCR", "Chegina_L9", "Chegina",
+    # Grupa 3: Cheminoxy
+    "Cheminox_K", "Cheminox_K35", "Cheminox_LA",
+    # Grupa 4: Chemipole
+    "Chemipol_ML", "Chemipol_OL",
+    # Grupa 5: Monamidy
+    "Monamid_KO", "Monamid_KO_Revada", "Monamid_K", "Monamid_L", "Monamid_S",
+    # Grupa 6: Distery i Monestery
+    "Dister_E", "Monester_O", "Monester_S",
+    # Grupa 7: Alkinole i Alstermidy
+    "Alkinol", "Alstermid_K", "Alstermid",
+    # Grupa 8: Chemale
+    "Chemal_CS3070", "Chemal_EO20", "Chemal_SE12", "Chemal_PC",
+    # Grupa 9: Inne
+    "Polcet_A", "Chelamid_DK", "Glikoster_P", "Citrowax",
+    "Kwas_stearynowy", "Perlico_45", "SLES", "HSH_CS3070",
+]
 
 
 def get_db() -> sqlite3.Connection:
