@@ -69,6 +69,7 @@
           {% else %}
             <a href="{{ url_for('mbr_edit', mbr_id=mbr.mbr_id) }}" class="btn btn-o" style="padding:6px 14px;font-size:11px;">Podglad</a>
           {% endif %}
+          <a href="{{ url_for('pdf_mbr', mbr_id=mbr.mbr_id) }}" class="btn btn-o" style="padding:6px 14px;font-size:11px;" target="_blank">PDF</a>
           <form method="POST" action="{{ url_for('mbr_clone', mbr_id=mbr.mbr_id) }}" style="display:inline;">
             <button type="submit" class="btn btn-o" style="padding:6px 14px;font-size:11px;">Klonuj</button>
           </form>

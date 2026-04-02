@@ -97,7 +97,7 @@
             {% endif %}
           </td>
           <td style="padding:10px 16px;">
-            <span style="font-size:11px;color:var(--text-dim);">---</span>
+            <a href="{{ url_for('pdf_ebr', ebr_id=b.ebr_id) }}" class="btn btn-o" style="padding:6px 14px;font-size:11px;" target="_blank">PDF</a>
           </td>
         </tr>
         {% endfor %}

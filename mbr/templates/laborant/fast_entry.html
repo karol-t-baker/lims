@@ -81,6 +81,11 @@
     <button type="submit" class="btn btn-p">Zatwierdz karte</button>
   </form>
 </div>
+{% else %}
+<div class="footer">
+  <div class="f-sp"></div>
+  <a href="{{ url_for('pdf_ebr', ebr_id=ebr.ebr_id) }}" class="btn btn-p" target="_blank">PDF</a>
+</div>
 {% endif %}
 {% endblock %}
 
