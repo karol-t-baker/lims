@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+
+{% block topbar_title %}Dashboard{% endblock %}
+{% block topbar_right %}{{ open_batches|length }} otwartych | {{ completed|length }} zamknietych{% endblock %}
+
+{% block content %}
+<div class="col-main">
+
+  {# ═══ LIVE — Aktywne szarze ═══ #}
+  <div class="section" style="margin-bottom:24px;">
+    <div class="sec-head">
+      <div class="sec-icon teal">L</div>
+      <div class="sec-title">Widok Live — Aktywne szarze</div>
+    </div>
+
+    {% if open_batches %}
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr style="border-bottom:1px solid var(--border);">
+          <th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Nr partii</th>
+          <th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Produkt</th>
+          <th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Amidator</th>
+          <th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Start</th>
+          <th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Status</th>
+          <th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Ostatni wpis</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in open_batches %}
+        <tr style="border-bottom:1px solid var(--surface-alt);">
+          <td style="padding:10px 16px;font-size:13px;font-weight:600;">{{ b.nr_partii }}</td>
+          <td style="padding:10px 16px;font-size:12px;color:var(--text-sec);">{{ b.produkt }}</td>
+          <td style="padding:10px 16px;font-size:12px;color:var(--text-sec);font-family:var(--mono);">{{ b.nr_amidatora or '---' }}</td>
+          <td style="padding:10px 16px;font-size:12px;color:var(--text-sec);font-family:var(--mono);">{{ b.dt_start }}</td>
+          <td style="padding:10px 16px;">
+            {% if b.out_of_limit > 0 %}
+              <span class="en-badge" style="background:var(--red-bg);color:var(--red);">{{ b.out_of_limit }} poza limitem</span>
+            {% elif b.last_entry %}
+              <span class="en-badge b-ok">w toku</span>
+            {% else %}
+              <span class="en-badge b-wait">oczekuje</span>
+            {% endif %}
+          </td>
+          <td style="padding:10px 16px;font-size:12px;color:var(--text-sec);font-family:var(--mono);">{{ b.last_entry or '---' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div style="padding:24px 18px;color:var(--text-dim);font-size:13px;">Brak otwartych szarz.</div>
+    {% endif %}
+  </div>
+
+  {# ═══ HISTORIA — Zamkniete szarze ═══ #}
+  <div class="section">
+    <div class="sec-head">
+      <div class="sec-icon amber">H</div>
+      <div class="sec-title">Widok Historia — Zamkniete szarze</div>
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+        <form method="GET" action="{{ url_for('tech_dashboard') }}" style="display:flex;gap:8px;align-items:center;">
+          <select name="produkt" class="sb-sel" style="width:auto;padding:6px 10px;font-size:12px;" onchange="this.form.submit()">
+            <option value="">Wszystkie produkty</option>
+            {% for p in ['Chegina K7', 'Chegina K40GL', 'Chegina K40GLO', 'Chegina K40GLOL'] %}
+            <option value="{{ p }}" {% if request.args.get('produkt') == p %}selected{% endif %}>{{ p }}</option>
+            {% endfor %}
+          </select>
+        </form>
+        <a href="{{ url_for('tech_export', produkt=request.args.get('produkt', '')) }}" class="btn btn-o" style="padding:6px 14px;font-size:11px;">Eksport CSV</a>
+      </div>
+    </div>
+
+    {% if completed %}
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr style="border-bottom:1px solid var(--border);">
+          <th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Nr partii</th>
+          <th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Produkt</th>
+          <th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Data zakonczenia</th>
+          <th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">Poza limitem</th>
+          <th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-dim);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;">PDF</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in completed %}
+        <tr style="border-bottom:1px solid var(--surface-alt);">
+          <td style="padding:10px 16px;font-size:13px;font-weight:600;">{{ b.nr_partii }}</td>
+          <td style="padding:10px 16px;font-size:12px;color:var(--text-sec);">{{ b.produkt }}</td>
+          <td style="padding:10px 16px;font-size:12px;color:var(--text-sec);font-family:var(--mono);">{{ b.dt_end or '---' }}</td>
+          <td style="padding:10px 16px;">
+            {% if b.out_of_limit > 0 %}
+              <span class="en-badge" style="background:var(--red-bg);color:var(--red);">{{ b.out_of_limit }}</span>
+            {% else %}
+              <span class="en-badge b-ok">OK</span>
+            {% endif %}
+          </td>
+          <td style="padding:10px 16px;">
+            <span style="font-size:11px;color:var(--text-dim);">---</span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div style="padding:24px 18px;color:var(--text-dim);font-size:13px;">Brak zakonczonych szarz.</div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

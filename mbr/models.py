@@ -221,3 +221,91 @@ def clone_mbr(db: sqlite3.Connection, mbr_id: int, user: str) -> int | None:
     )
     db.commit()
     return cur.lastrowid
+
+
+# ---------------------------------------------------------------------------
+# EBR Dashboard queries
+# ---------------------------------------------------------------------------
+
+def list_ebr_open(db: sqlite3.Connection) -> list[dict]:
+    """List open EBR batches with last entry time and out-of-limit count."""
+    rows = db.execute("""
+        SELECT
+            eb.ebr_id,
+            eb.batch_id,
+            eb.nr_partii,
+            mt.produkt,
+            eb.nr_amidatora,
+            eb.dt_start,
+            eb.status,
+            (SELECT MAX(ew.dt_wpisu) FROM ebr_wyniki ew WHERE ew.ebr_id = eb.ebr_id)
+                AS last_entry,
+            (SELECT COUNT(*) FROM ebr_wyniki ew WHERE ew.ebr_id = eb.ebr_id AND ew.w_limicie = 0)
+                AS out_of_limit
+        FROM ebr_batches eb
+        JOIN mbr_templates mt ON mt.mbr_id = eb.mbr_id
+        WHERE eb.status = 'open'
+        ORDER BY eb.dt_start DESC
+    """).fetchall()
+    return [dict(r) for r in rows]
+
+
+def list_ebr_completed(
+    db: sqlite3.Connection, produkt: str | None = None, limit: int = 50
+) -> list[dict]:
+    """List completed batches, optionally filtered by produkt."""
+    sql = """
+        SELECT
+            eb.ebr_id,
+            eb.batch_id,
+            eb.nr_partii,
+            mt.produkt,
+            eb.dt_end,
+            (SELECT COUNT(*) FROM ebr_wyniki ew WHERE ew.ebr_id = eb.ebr_id AND ew.w_limicie = 0)
+                AS out_of_limit
+        FROM ebr_batches eb
+        JOIN mbr_templates mt ON mt.mbr_id = eb.mbr_id
+        WHERE eb.status = 'completed'
+    """
+    params: list = []
+    if produkt:
+        sql += " AND mt.produkt = ?"
+        params.append(produkt)
+    sql += " ORDER BY eb.dt_end DESC LIMIT ?"
+    params.append(limit)
+    rows = db.execute(sql, params).fetchall()
+    return [dict(r) for r in rows]
+
+
+def export_wyniki_csv(
+    db: sqlite3.Connection, produkt: str | None = None
+) -> list[dict]:
+    """Export all completed EBR wyniki for CSV download."""
+    sql = """
+        SELECT
+            eb.batch_id,
+            mt.produkt,
+            eb.nr_partii,
+            ew.sekcja,
+            ew.kod_parametru,
+            ew.tag,
+            ew.wartosc,
+            ew.min_limit,
+            ew.max_limit,
+            ew.w_limicie,
+            ew.komentarz,
+            ew.is_manual,
+            ew.dt_wpisu,
+            ew.wpisal
+        FROM ebr_wyniki ew
+        JOIN ebr_batches eb ON eb.ebr_id = ew.ebr_id
+        JOIN mbr_templates mt ON mt.mbr_id = eb.mbr_id
+        WHERE eb.status = 'completed'
+    """
+    params: list = []
+    if produkt:
+        sql += " AND mt.produkt = ?"
+        params.append(produkt)
+    sql += " ORDER BY eb.batch_id, ew.sekcja, ew.kod_parametru"
+    rows = db.execute(sql, params).fetchall()
+    return [dict(r) for r in rows]

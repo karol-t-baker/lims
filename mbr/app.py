@@ -11,6 +11,7 @@ from flask import Flask, redirect, url_for, request, session, render_template, f
 from mbr.models import (
     get_db, init_mbr_tables, verify_user,
     list_mbr, get_mbr, save_mbr, activate_mbr, clone_mbr,
+    list_ebr_open, list_ebr_completed, export_wyniki_csv,
 )
 
 app = Flask(__name__)
@@ -159,7 +160,42 @@ def mbr_clone(mbr_id):
 @app.route("/technolog/dashboard")
 @role_required("technolog")
 def tech_dashboard():
-    return "<h2>Dashboard</h2><p>TODO</p>"
+    db = get_db()
+    try:
+        open_batches = list_ebr_open(db)
+        completed = list_ebr_completed(db, request.args.get("produkt"))
+    finally:
+        db.close()
+    return render_template(
+        "technolog/dashboard.html",
+        open_batches=open_batches,
+        completed=completed,
+    )
+
+
+@app.route("/technolog/export")
+@role_required("technolog")
+def tech_export():
+    import csv
+    import io
+    from flask import Response
+
+    db = get_db()
+    try:
+        rows = export_wyniki_csv(db, request.args.get("produkt"))
+    finally:
+        db.close()
+    if not rows:
+        return "Brak danych", 404
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=rows[0].keys())
+    writer.writeheader()
+    writer.writerows(rows)
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=wyniki_ebr.csv"},
+    )
 
 
 @app.route("/laborant/szarze")
