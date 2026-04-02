@@ -923,3 +923,8 @@ body {
 .param-input-text { font-family: var(--font); }
 .param-input-center { text-align: center; }
 .param-input-narrow { width: 70px; }
+
+/* Utility classes */
+.inline-form { display: inline; }
+.text-right { text-align: right; }
+.mono { font-family: var(--mono); }

@@ -6,7 +6,7 @@
 {% block topbar_title %}
   <a href="{{ url_for('szarze_list') }}" class="tp-breadcrumb">Szarze</a>
   <span class="tp-sep">/</span>
-  {{ ebr.batch_id }} <span class="tp-acc">{{ ebr.produkt }}</span>
+  {{ ebr.produkt | short_product }} &mdash; {{ ebr.nr_partii }}
 {% endblock %}
 {% block topbar_right %}
   {% if ebr.status == 'open' %}
@@ -43,8 +43,8 @@
       <strong>{{ ebr.batch_id }}</strong> &mdash; {{ ebr.produkt }}<br>
       Amidator: {{ ebr.nr_amidatora or '---' }} &bull;
       Mieszalnik: {{ ebr.nr_mieszalnika or '---' }}<br>
-      {{ ebr.wielkosc_szarzy_kg or '---' }} kg &bull;
-      Start: {{ ebr.dt_start }}
+      {{ ebr.wielkosc_szarzy_kg | fmt_kg }} kg &bull;
+      Start: {{ ebr.dt_start | pl_date }}
     </div>
     <div class="sb-progress" id="sb-progress">
       {# filled by JS #}

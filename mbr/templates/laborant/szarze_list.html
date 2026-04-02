@@ -7,7 +7,7 @@
 <div class="sidebar">
   <div class="sb-head">
     <div class="sb-greeting">Witaj, {{ session.user.imie_nazwisko or session.user.login }}</div>
-    <div class="sb-date"></div>
+    <div class="sb-date">{{ today }}</div>
   </div>
   <div class="sb-lab">Aktywne szarze <span style="margin-left:auto;font-size:10px;">{{ batches|length }}</span></div>
   <div class="sb-list">
@@ -71,7 +71,7 @@
         <td><span class="q-batch">{{ b.nr_partii }}</span></td>
         <td><span class="q-product">{{ b.produkt }}</span></td>
         <td class="q-time">{{ b.nr_amidatora or '---' }}</td>
-        <td class="q-time">{{ b.dt_start }}</td>
+        <td class="q-time">{{ b.dt_start | pl_date }}</td>
         <td>
           {% if b.out_of_limit > 0 %}
             <span class="q-priority urgent">{{ b.out_of_limit }} poza limitem</span>
