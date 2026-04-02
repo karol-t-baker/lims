@@ -15,7 +15,7 @@
     <div class="sb-item">
       <div class="sb-dot {% if b.out_of_limit > 0 %}wait{% elif b.last_entry %}wait{% else %}new{% endif %}"></div>
       <div class="sb-info">
-        <div class="sb-batch">{{ b.nr_partii }} — {{ b.produkt|replace('Chegina ', '') }}</div>
+        <div class="sb-batch">{{ b.nr_partii }} — {{ b.produkt|short_product }}</div>
         <div class="sb-stage">
           {% if b.out_of_limit > 0 %}{{ b.out_of_limit }} poza limitem
           {% elif b.last_entry %}w toku
@@ -83,7 +83,7 @@
       {% for b in open_batches %}
       <tr{% if b.out_of_limit > 0 %} class="urgent"{% endif %}>
         <td><span class="q-batch">{{ b.nr_partii }}</span></td>
-        <td><span class="q-product">{{ b.produkt }}</span></td>
+        <td><span class="q-product">{{ b.produkt|short_product }}</span></td>
         <td class="q-time">{{ b.nr_amidatora or '---' }}</td>
         <td class="q-time">{{ b.dt_start | pl_date }}</td>
         <td>
@@ -137,7 +137,7 @@
       {% for b in completed %}
       <tr>
         <td><span class="q-batch">{{ b.nr_partii }}</span></td>
-        <td>{{ b.produkt }}</td>
+        <td>{{ b.produkt|short_product }}</td>
         <td class="q-time">{{ b.dt_end | pl_date if b.dt_end else '---' }}</td>
         <td>
           {% if b.out_of_limit > 0 %}

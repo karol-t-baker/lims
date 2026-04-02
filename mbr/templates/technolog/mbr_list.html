@@ -32,7 +32,7 @@
       {% set product_count = mbrs | selectattr('produkt', 'equalto', mbr.produkt) | list | length %}
 
       <div class="section-title">
-        {{ mbr.produkt }}
+        {{ mbr.produkt|short_product }}
         <span class="section-count">{{ product_count }}</span>
       </div>
 

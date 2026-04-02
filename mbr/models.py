@@ -61,7 +61,9 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             dt_end              TEXT,
             status              TEXT NOT NULL DEFAULT 'open'
                                 CHECK(status IN ('open', 'completed', 'cancelled')),
-            operator            TEXT
+            operator            TEXT,
+            typ                 TEXT NOT NULL DEFAULT 'szarza'
+                                CHECK(typ IN ('szarza', 'zbiornik'))
         );
 
         CREATE TABLE IF NOT EXISTS ebr_wyniki (
@@ -82,6 +84,56 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
         );
     """)
     db.commit()
+
+    # Migration: add typ column if missing (SQLite doesn't support ALTER TABLE ADD with CHECK)
+    try:
+        db.execute("ALTER TABLE ebr_batches ADD COLUMN typ TEXT NOT NULL DEFAULT 'szarza'")
+        db.commit()
+    except Exception:
+        pass  # column already exists
+
+
+# ---------------------------------------------------------------------------
+# Auto-numbering
+# ---------------------------------------------------------------------------
+
+def next_nr_partii(db: sqlite3.Connection, produkt: str) -> str:
+    """Get next available nr_partii for a product in current year.
+    Checks both ebr_batches AND v4 batch table for highest number.
+    Returns e.g. '57/2026'."""
+    year = datetime.now().year
+    suffix = f"/{year}"
+
+    # Check ebr_batches
+    row1 = db.execute("""
+        SELECT nr_partii FROM ebr_batches
+        WHERE batch_id LIKE ? AND nr_partii LIKE ?
+        ORDER BY ebr_id DESC
+    """, (f"{produkt}%", f"%{suffix}")).fetchall()
+
+    # Check v4 batch table (product with spaces)
+    row2 = db.execute("""
+        SELECT nr_partii FROM batch
+        WHERE produkt = ? AND nr_partii LIKE ?
+    """, (produkt.replace('_', ' '), f"%{suffix}")).fetchall()
+
+    # Also check with underscore variant
+    row3 = db.execute("""
+        SELECT nr_partii FROM batch
+        WHERE produkt = ? AND nr_partii LIKE ?
+    """, (produkt, f"%{suffix}")).fetchall()
+
+    max_num = 0
+    for rows in [row1, row2, row3]:
+        for r in rows:
+            try:
+                num = int(r["nr_partii"].split("/")[0])
+                if num > max_num:
+                    max_num = num
+            except (ValueError, IndexError):
+                pass
+
+    return f"{max_num + 1}/{year}"
 
 
 # ---------------------------------------------------------------------------
@@ -325,6 +377,7 @@ def create_ebr(
     nr_mieszalnika: str,
     wielkosc_kg: float | None,
     operator: str,
+    typ: str = 'szarza',
 ) -> int | None:
     """Create new EBR from active MBR. Returns ebr_id or None if no active MBR."""
     mbr = get_active_mbr(db, produkt)
@@ -334,10 +387,10 @@ def create_ebr(
     now = datetime.now().isoformat(timespec="seconds")
     cur = db.execute(
         "INSERT INTO ebr_batches (mbr_id, batch_id, nr_partii, nr_amidatora, "
-        "nr_mieszalnika, wielkosc_szarzy_kg, dt_start, operator) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        "nr_mieszalnika, wielkosc_szarzy_kg, dt_start, operator, typ) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (mbr["mbr_id"], batch_id, nr_partii, nr_amidatora,
-         nr_mieszalnika, wielkosc_kg, now, operator),
+         nr_mieszalnika, wielkosc_kg, now, operator, typ),
     )
     db.commit()
     return cur.lastrowid

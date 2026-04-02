@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}EBR {{ ebr.batch_id }}{% endblock %}
+{% block title %}EBR {{ ebr.produkt|short_product }} {{ ebr.nr_partii }}{% endblock %}
 {% block nav_szarze %}active{% endblock %}
 
 {% block topbar_title %}
@@ -9,6 +9,9 @@
   {{ ebr.produkt | short_product }} &mdash; {{ ebr.nr_partii }}
 {% endblock %}
 {% block topbar_right %}
+  {% if ebr.typ == 'zbiornik' %}
+    <span class="en-badge" style="background:var(--blue-bg, #e8f0fe);color:var(--blue, #1a73e8);margin-right:6px;">Zbiornik</span>
+  {% endif %}
   {% if ebr.status == 'open' %}
     <span class="en-badge b-wait">open</span>
   {% else %}
@@ -40,10 +43,12 @@
   {# Context header (batch info) #}
   <div class="sb-batch">
     <div class="sb-meta">
-      <strong>{{ ebr.batch_id }}</strong> &mdash; {{ ebr.produkt }}<br>
+      <strong>{{ ebr.nr_partii }}</strong> &mdash; {{ ebr.produkt|short_product }}<br>
+      {% if ebr.typ|default('szarza') == 'szarza' %}
       Amidator: {{ ebr.nr_amidatora or '---' }} &bull;
       Mieszalnik: {{ ebr.nr_mieszalnika or '---' }}<br>
       {{ ebr.wielkosc_szarzy_kg | fmt_kg }} kg &bull;
+      {% endif %}
       Start: {{ ebr.dt_start | pl_date }}
     </div>
     <div class="sb-progress" id="sb-progress">
@@ -127,6 +132,7 @@
 <script>
 const ebrId = {{ ebr.ebr_id }};
 const ebrStatus = "{{ ebr.status }}";
+const ebrTyp = "{{ ebr.typ|default('szarza') }}";
 const etapy = {{ (ebr.etapy_json if ebr.etapy_json is string else ebr.etapy_json | tojson) | safe }};
 const parametry = {{ (ebr.parametry_lab if ebr.parametry_lab is string else ebr.parametry_lab | tojson) | safe }};
 const wyniki = {{ wyniki | tojson | safe }};
@@ -169,6 +175,9 @@ function renderSidebar() {
         const hasPola = sekcja && getPola(sekcja).length > 0;
         const hasWyniki = sekcja && wyniki[sekcja] && Object.keys(wyniki[sekcja]).length > 0;
         const isDone = hasWyniki;
+
+        // Zbiornik mode: only show analiza_koncowa
+        if (ebrTyp === 'zbiornik' && sekcja !== 'analiza_koncowa') return;
 
         // Progress dot
         const dot = document.createElement('div');
@@ -223,8 +232,8 @@ function renderSzarze() {
     bi.className = 'bi active';
     bi.innerHTML = `
         <div class="bi-top">
-            <span class="bi-batch">${esc('{{ ebr.batch_id }}')}</span>
-            <span class="bi-product">${esc('{{ ebr.produkt }}')}</span>
+            <span class="bi-batch">${esc('{{ ebr.nr_partii }}')}</span>
+            <span class="bi-product">${esc('{{ ebr.produkt|short_product }}')}</span>
             <div class="bi-priority normal"></div>
         </div>
         <div class="bi-stage">${esc(etapy.find(e => !e.read_only && e.sekcja_lab && getPola(e.sekcja_lab).length > 0)?.nazwa || '---')}</div>
@@ -257,6 +266,9 @@ function renderSections() {
         if (etap.read_only === true) return;
         const pola = getPola(sekcja);
         if (pola.length === 0) return;
+
+        // Zbiornik mode: only render analiza_koncowa
+        if (ebrTyp === 'zbiornik' && sekcja !== 'analiza_koncowa') return;
 
         const sekWyniki = wyniki[sekcja] || {};
         const hasSomeResults = Object.keys(sekWyniki).length > 0;
@@ -353,6 +365,9 @@ function renderReferences() {
         if (!sekcja || etap.read_only === true) return;
         const pola = getPola(sekcja);
         if (pola.length === 0) return;
+
+        // Zbiornik mode: only show analiza_koncowa references
+        if (ebrTyp === 'zbiornik' && sekcja !== 'analiza_koncowa') return;
 
         let html = `<div class="ref norms"><div class="ref-t">${esc(etap.nazwa)}</div>`;
         pola.forEach(pole => {

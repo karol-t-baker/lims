@@ -15,7 +15,7 @@
     <div class="sb-item" onclick="location.href='{{ url_for('fast_entry', ebr_id=b.ebr_id) }}'">
       <div class="sb-dot {% if b.out_of_limit > 0 %}wait{% elif b.last_entry %}wait{% else %}new{% endif %}"></div>
       <div class="sb-info">
-        <div class="sb-batch">{{ b.nr_partii }} — {{ b.produkt|replace('Chegina ', '') }}</div>
+        <div class="sb-batch">{{ b.nr_partii }} — {{ b.produkt|short_product }}</div>
         <div class="sb-stage">
           {% if b.out_of_limit > 0 %}{{ b.out_of_limit }} poza limitem
           {% elif b.last_entry %}w toku
@@ -69,7 +69,7 @@
       {% for b in batches %}
       <tr{% if b.out_of_limit > 0 %} class="urgent"{% endif %} style="cursor:pointer;" onclick="location.href='{{ url_for('fast_entry', ebr_id=b.ebr_id) }}'">
         <td><span class="q-batch">{{ b.nr_partii }}</span></td>
-        <td><span class="q-product">{{ b.produkt }}</span></td>
+        <td><span class="q-product">{{ b.produkt|short_product }}</span></td>
         <td class="q-time">{{ b.nr_amidatora or '---' }}</td>
         <td class="q-time">{{ b.dt_start | pl_date }}</td>
         <td>
@@ -95,58 +95,109 @@
 </div>
 
 {# ═══ MODAL: Nowa szarza ═══ #}
-<div class="modal-overlay" id="reg-modal" onclick="if(event.target===this)this.classList.remove('show')">
+<div class="modal-overlay" id="reg-modal" onclick="if(event.target===this)closeModal()">
   <div class="modal">
     <div class="modal-head">
       <div class="modal-icon">+</div>
       <div>
         <div class="modal-title">Nowa szarza</div>
-        <div class="modal-subtitle">Zarejestruj nowa szarze produkcyjna</div>
+        <div class="modal-subtitle" id="modal-subtitle">Wybierz typ rejestracji</div>
       </div>
-      <button class="modal-close" onclick="document.getElementById('reg-modal').classList.remove('show')">&times;</button>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
     </div>
 
     <div class="modal-body">
       <form method="POST" action="{{ url_for('szarze_new') }}" id="new-batch-form">
-        <div class="form-row">
-          <div class="form-label">Produkt</div>
+        <input type="hidden" name="typ" id="typ-input" value="szarza">
+        <input type="hidden" name="produkt" id="produkt-input" required>
+
+        {# Step 1: Type selection #}
+        <div id="step-1">
           <div class="product-grid">
-            {% for p in products %}
-            <div class="product-option" onclick="selectProduct(this, '{{ p }}')">
+            <div class="product-option" onclick="selectTyp('szarza')">
               <span class="po-check">&#10003;</span>
-              <div class="po-name">{{ p|replace('Chegina ', '') }}</div>
-              <div class="po-desc">{{ p }}</div>
+              <div class="po-name" style="font-size:24px;">&#9879;</div>
+              <div class="po-name">Szarza produkcyjna</div>
+              <div class="po-desc">Nowa szarza z pelnym procesem</div>
             </div>
-            {% endfor %}
-          </div>
-          <input type="hidden" name="produkt" id="produkt-input" required>
-        </div>
-
-        <div class="form-row">
-          <div class="form-label">Nr partii</div>
-          <input class="form-input" type="text" name="nr_partii" required placeholder="np. 65/2026">
-        </div>
-
-        <div class="form-row-inline">
-          <div class="form-row" style="margin:0">
-            <div class="form-label">Nr amidatora</div>
-            <input class="form-input" type="text" name="nr_amidatora" placeholder="np. A-1">
-          </div>
-          <div class="form-row" style="margin:0">
-            <div class="form-label">Nr mieszalnika</div>
-            <input class="form-input" type="text" name="nr_mieszalnika" placeholder="np. M-3">
+            <div class="product-option" onclick="selectTyp('zbiornik')">
+              <span class="po-check">&#10003;</span>
+              <div class="po-name" style="font-size:24px;">&#127981;</div>
+              <div class="po-name">Analiza zbiornika</div>
+              <div class="po-desc">Analiza mieszaniny w zbiorniku magazynowym</div>
+            </div>
           </div>
         </div>
 
-        <div class="form-row">
-          <div class="form-label">Wielkosc szarzy [kg]</div>
-          <input class="form-input" type="number" step="any" name="wielkosc_kg" placeholder="np. 4000">
+        {# Step 2a: Szarza form #}
+        <div id="step-2a" style="display:none;">
+          <div class="form-row">
+            <div class="form-label">Produkt</div>
+            <div class="product-grid" id="product-grid-szarza">
+              {% for p in products %}
+              <div class="product-option" onclick="selectProduct(this, '{{ p }}', 'szarza')">
+                <span class="po-check">&#10003;</span>
+                <div class="po-name">{{ p|short_product }}</div>
+                <div class="po-desc">{{ p }}</div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-label">Nr partii</div>
+            <input class="form-input" type="text" name="nr_partii" id="nr-partii-input" required readonly placeholder="Wybierz produkt...">
+          </div>
+
+          <div class="form-row-inline">
+            <div class="form-row" style="margin:0">
+              <div class="form-label">Nr amidatora</div>
+              <input class="form-input" type="text" name="nr_amidatora" placeholder="np. A-1">
+            </div>
+            <div class="form-row" style="margin:0">
+              <div class="form-label">Nr mieszalnika</div>
+              <input class="form-input" type="text" name="nr_mieszalnika" placeholder="np. M-3">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-label">Wielkosc szarzy [kg]</div>
+            <input class="form-input" type="number" step="any" name="wielkosc_kg" placeholder="np. 4000">
+          </div>
         </div>
 
-        <div class="modal-footer" style="padding:14px 0 0;border-top:none;">
+        {# Step 2b: Zbiornik form #}
+        <div id="step-2b" style="display:none;">
+          <div class="form-row">
+            <div class="form-label">Produkt</div>
+            <div class="product-grid" id="product-grid-zbiornik">
+              {% for p in products %}
+              <div class="product-option" onclick="selectProduct(this, '{{ p }}', 'zbiornik')">
+                <span class="po-check">&#10003;</span>
+                <div class="po-name">{{ p|short_product }}</div>
+                <div class="po-desc">{{ p }}</div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-label">Nr partii</div>
+            <input class="form-input" type="text" id="nr-partii-input-zb" readonly placeholder="Wybierz produkt...">
+          </div>
+
+          <div class="form-row">
+            <div class="form-label">Nr zbiornika</div>
+            <input class="form-input" type="text" name="nr_zbiornika" placeholder="np. Z-5">
+          </div>
+        </div>
+
+        {# Footer (hidden in step 1) #}
+        <div class="modal-footer" id="modal-footer" style="padding:14px 0 0;border-top:none;display:none;">
+          <button type="button" class="m-btn m-btn-o" onclick="backToStep1()">Wstecz</button>
           <div class="m-sp"></div>
-          <button type="button" class="m-btn m-btn-o" onclick="document.getElementById('reg-modal').classList.remove('show')">Anuluj</button>
-          <button type="submit" class="m-btn m-btn-p">Utworz szarze</button>
+          <button type="button" class="m-btn m-btn-o" onclick="closeModal()">Anuluj</button>
+          <button type="submit" class="m-btn m-btn-p">Utworz</button>
         </div>
       </form>
     </div>
@@ -156,10 +207,70 @@
 
 {% block scripts %}
 <script>
-function selectProduct(el, product) {
-  document.querySelectorAll('.product-option').forEach(function(p) { p.classList.remove('selected'); });
+let currentTyp = 'szarza';
+
+function closeModal() {
+  document.getElementById('reg-modal').classList.remove('show');
+  // Reset to step 1 after close
+  setTimeout(backToStep1, 300);
+}
+
+function selectTyp(typ) {
+  currentTyp = typ;
+  document.getElementById('typ-input').value = typ;
+  document.getElementById('step-1').style.display = 'none';
+  document.getElementById('modal-footer').style.display = 'flex';
+
+  if (typ === 'szarza') {
+    document.getElementById('step-2a').style.display = 'block';
+    document.getElementById('step-2b').style.display = 'none';
+    document.getElementById('modal-subtitle').textContent = 'Nowa szarza produkcyjna';
+  } else {
+    document.getElementById('step-2a').style.display = 'none';
+    document.getElementById('step-2b').style.display = 'block';
+    document.getElementById('modal-subtitle').textContent = 'Analiza zbiornika magazynowego';
+  }
+}
+
+function backToStep1() {
+  document.getElementById('step-1').style.display = 'block';
+  document.getElementById('step-2a').style.display = 'none';
+  document.getElementById('step-2b').style.display = 'none';
+  document.getElementById('modal-footer').style.display = 'none';
+  document.getElementById('modal-subtitle').textContent = 'Wybierz typ rejestracji';
+  // Clear selections
+  document.querySelectorAll('#step-1 .product-option').forEach(function(p) { p.classList.remove('selected'); });
+}
+
+function selectProduct(el, product, context) {
+  // Clear selections within the same grid
+  const grid = el.closest('.product-grid');
+  grid.querySelectorAll('.product-option').forEach(function(p) { p.classList.remove('selected'); });
   el.classList.add('selected');
   document.getElementById('produkt-input').value = product;
+
+  // Auto-fill nr_partii
+  fetch('/api/next-nr/' + encodeURIComponent(product))
+    .then(r => r.json())
+    .then(data => {
+      if (context === 'szarza') {
+        document.getElementById('nr-partii-input').value = data.nr_partii;
+      } else {
+        document.getElementById('nr-partii-input-zb').value = data.nr_partii;
+      }
+    });
 }
+
+// Sync zbiornik nr_partii to the actual form field before submit
+document.getElementById('new-batch-form').addEventListener('submit', function() {
+  if (currentTyp === 'zbiornik') {
+    // Copy zbiornik nr_partii to the real input
+    var zbVal = document.getElementById('nr-partii-input-zb').value;
+    document.getElementById('nr-partii-input').value = zbVal;
+    // Ensure nr_partii name is set
+    document.getElementById('nr-partii-input-zb').setAttribute('name', '');
+    document.getElementById('nr-partii-input').removeAttribute('readonly');
+  }
+});
 </script>
 {% endblock %}

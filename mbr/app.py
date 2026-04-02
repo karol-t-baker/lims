@@ -13,7 +13,7 @@ from mbr.models import (
     list_mbr, get_mbr, save_mbr, activate_mbr, clone_mbr,
     list_ebr_open, list_ebr_completed, export_wyniki_csv,
     create_ebr, get_ebr, get_ebr_wyniki, save_wyniki, complete_ebr,
-    sync_ebr_to_v4, PRODUCTS,
+    sync_ebr_to_v4, next_nr_partii, PRODUCTS,
 )
 
 app = Flask(__name__)
@@ -256,6 +256,17 @@ def tech_export():
     )
 
 
+@app.route("/api/next-nr/<produkt>")
+@login_required
+def api_next_nr(produkt):
+    db = get_db()
+    try:
+        nr = next_nr_partii(db, produkt)
+    finally:
+        db.close()
+    return jsonify({"nr_partii": nr})
+
+
 @app.route("/laborant/szarze")
 @role_required("laborant")
 def szarze_list():
@@ -270,17 +281,19 @@ def szarze_list():
 @app.route("/laborant/szarze/new", methods=["POST"])
 @role_required("laborant")
 def szarze_new():
-    produkt = request.form.get("produkt", "")
-    nr_partii = request.form.get("nr_partii", "")
-    nr_amidatora = request.form.get("nr_amidatora", "")
-    nr_mieszalnika = request.form.get("nr_mieszalnika", "")
-    wielkosc_raw = request.form.get("wielkosc_kg", "")
-    wielkosc_kg = float(wielkosc_raw) if wielkosc_raw else None
-    operator = session["user"]["login"]
-
     db = get_db()
     try:
-        ebr_id = create_ebr(db, produkt, nr_partii, nr_amidatora, nr_mieszalnika, wielkosc_kg, operator)
+        typ = request.form.get("typ", "szarza")
+        ebr_id = create_ebr(
+            db,
+            produkt=request.form["produkt"],
+            nr_partii=request.form["nr_partii"],
+            nr_amidatora=request.form.get("nr_amidatora", ""),
+            nr_mieszalnika=request.form.get("nr_mieszalnika", ""),
+            wielkosc_kg=float(request.form.get("wielkosc_kg", 0) or 0),
+            operator=session["user"]["login"],
+            typ=typ,
+        )
     finally:
         db.close()
 

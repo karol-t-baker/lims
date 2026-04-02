@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
-{% block title %}MBR {{ mbr.produkt }} v{{ mbr.wersja }}{% endblock %}
+{% block title %}MBR {{ mbr.produkt|short_product }} v{{ mbr.wersja }}{% endblock %}
 {% block nav_mbr %}active{% endblock %}
 
 {% block topbar_title %}
   <a href="{{ url_for('mbr_list') }}" class="tp-r" style="text-decoration:none;">Szablony MBR</a>
   <span class="tp-r">/</span>
-  {{ mbr.produkt }} <span class="tp-acc">v{{ mbr.wersja }}</span>
+  {{ mbr.produkt|short_product }} <span class="tp-acc">v{{ mbr.wersja }}</span>
 {% endblock %}
 {% block topbar_right %}
   {% if mbr.status == 'draft' %}
