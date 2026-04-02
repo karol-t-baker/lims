@@ -157,5 +157,12 @@ function acceptCalc() {
     }
 }
 
-// Export for bridge
+// Aliases matching spec naming
+function openCalc(tag, kod, sekcja) { openCalculator(tag, kod, sekcja); }
+function recalc() { renderCalculator(); }
+
+// Export
 window.openCalculator = openCalculator;
+window.openCalc = openCalc;
+window.recalc = recalc;
+window.acceptCalc = acceptCalc;
