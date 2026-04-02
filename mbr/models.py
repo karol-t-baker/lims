@@ -7,7 +7,7 @@ from pathlib import Path
 
 import bcrypt
 
-DB_PATH = Path("data/batch_db_v4.sqlite")
+DB_PATH = Path(__file__).parent.parent / "data" / "batch_db_v4.sqlite"
 
 
 def get_db() -> sqlite3.Connection:
