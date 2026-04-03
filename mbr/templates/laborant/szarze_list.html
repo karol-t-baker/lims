@@ -18,17 +18,23 @@
 
   /* Wide: icons + text labels */
   .rail-wide {
-    width: 180px !important;
-    min-width: 180px !important;
+    width: 210px !important;
+    min-width: 210px !important;
     align-items: flex-start !important;
-    padding: 12px 8px !important;
+    padding: 16px 10px !important;
   }
   .rail-wide .rail-logo {
-    width: auto; height: auto; padding: 8px 12px; margin-bottom: 16px;
-    font-size: 14px; letter-spacing: -0.3px;
+    width: calc(100% - 4px); height: auto;
+    padding: 12px 14px; margin: 0 2px 20px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.08);
+    font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
   }
   .rail-wide .rail-logo-short { display: none !important; }
-  .rail-wide .rail-logo-full { display: inline !important; font-size: 14px; font-weight: 700; }
+  .rail-wide .rail-logo-full {
+    display: inline !important;
+    font-size: 13px; font-weight: 700; letter-spacing: 0.5px; text-transform: none;
+  }
   .rail-wide .rail-btn {
     width: 100%; height: auto; padding: 10px 12px;
     justify-content: flex-start; gap: 10px; border-radius: 8px;
