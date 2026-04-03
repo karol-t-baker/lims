@@ -860,7 +860,20 @@ def sync_ebr_to_v4(db: sqlite3.Connection, ebr_id: int, ebr: dict | None = None)
     # 2. Insert events for each sekcja
     wyniki = get_ebr_wyniki(db, ebr_id)
     seq = 0
-    for sekcja, params in sorted(wyniki.items()):
+
+    def _sekcja_sort_key(item: tuple) -> tuple:
+        """Sort sekcjas in round-interleaved order: analiza__1, standaryzacja__1, analiza__2, ..."""
+        sek = item[0]
+        if sek.startswith("analiza__"):
+            n = int(sek.split("__")[1])
+            return (n, 0, sek)
+        if sek.startswith("standaryzacja__"):
+            n = int(sek.split("__")[1])
+            return (n, 1, sek)
+        # Legacy / other: append at end in alphabetical order
+        return (9999, 0, sek)
+
+    for sekcja, params in sorted(wyniki.items(), key=_sekcja_sort_key):
         # Derive stage and runda from sekcja key
         if "__" in sekcja:
             base, runda_str = sekcja.split("__", 1)

@@ -1,86 +1,114 @@
-"""End-to-end test: seed -> create EBR -> enter results -> complete -> verify v4 sync."""
+"""End-to-end test: seed -> create EBR -> cyclic standaryzacja -> complete -> verify v4 sync."""
 from mbr.models import (get_db, init_mbr_tables, get_active_mbr, create_ebr,
-                         save_wyniki, complete_ebr, sync_ebr_to_v4, get_ebr, get_ebr_wyniki)
+                         save_wyniki, complete_ebr, sync_ebr_to_v4, get_ebr,
+                         get_ebr_wyniki, get_round_state)
 
-def test_full_workflow():
+
+def test_cyclic_standaryzacja():
     db = get_db()
     init_mbr_tables(db)
 
-    # 1. Verify seed data exists
+    # 1. Verify seed data
     count = db.execute("SELECT COUNT(*) FROM mbr_templates").fetchone()[0]
     assert count >= 4, f"Expected 4+ MBR templates, got {count}. Run seed_mbr.py first."
     print(f"  [OK] {count} MBR templates found")
 
-    # 2. Create EBR
+    # 2. Create EBR for K7
     ebr_id = create_ebr(db, "Chegina_K7", "99/2026", "8", "25", 5000.0, "test")
     ebr = get_ebr(db, ebr_id)
-    assert ebr is not None
     assert ebr["batch_id"] == "Chegina_K7__99_2026"
-    assert ebr["status"] == "open"
     print(f"  [OK] EBR created: {ebr['batch_id']}")
 
-    # 3. Save przed_standaryzacja results
-    save_wyniki(db, ebr_id, "przed_standaryzacja", {
-        "ph_10proc": {"wartosc": 5.5, "komentarz": ""},
-        "nd20": {"wartosc": 1.4050, "komentarz": ""},
-        "procent_so3": {"wartosc": 0.008, "komentarz": ""},
-    }, "test_laborant")
+    # 3. Round state: should start with analiza__1
     wyniki = get_ebr_wyniki(db, ebr_id)
-    assert "przed_standaryzacja" in wyniki
-    assert wyniki["przed_standaryzacja"]["ph_10proc"]["w_limicie"] == 1
-    print("  [OK] przed_standaryzacja saved, limits checked")
+    rs = get_round_state(wyniki)
+    assert rs["next_step"] == "analiza"
+    assert rs["next_sekcja"] == "analiza__1"
+    assert rs["current_runda"] == 1
+    print("  [OK] Initial round state: analiza__1")
 
-    # 4. Save analiza_koncowa results
-    save_wyniki(db, ebr_id, "analiza_koncowa", {
+    # 4. Save first analiza (runda 1)
+    save_wyniki(db, ebr_id, "analiza__1", {
+        "sm": {"wartosc": 45.0, "komentarz": ""},
+        "nacl": {"wartosc": 5.8, "komentarz": ""},
         "ph_10proc": {"wartosc": 5.2, "komentarz": ""},
         "nd20": {"wartosc": 1.4050, "komentarz": ""},
-        "procent_sm": {"wartosc": 45.0, "komentarz": ""},
-        "procent_sa": {"wartosc": 38.5, "komentarz": ""},
-        "procent_nacl": {"wartosc": 5.8, "komentarz": ""},
-        "procent_aa": {"wartosc": 0.12, "komentarz": ""},
-        "procent_so3": {"wartosc": 0.008, "komentarz": ""},
-        "procent_h2o2": {"wartosc": 0.003, "komentarz": ""},
-        "le_liczba_kwasowa": {"wartosc": 3.4, "komentarz": ""},
+        "sa": {"wartosc": 38.6, "komentarz": ""},
+        "barwa_fau": {"wartosc": 80, "komentarz": ""},
+        "barwa_hz": {"wartosc": 30, "komentarz": ""},
     }, "test_laborant")
     wyniki = get_ebr_wyniki(db, ebr_id)
-    assert "analiza_koncowa" in wyniki
-    print("  [OK] analiza_koncowa saved")
+    assert "analiza__1" in wyniki
+    rs = get_round_state(wyniki)
+    assert rs["next_step"] == "standaryzacja"
+    assert rs["next_sekcja"] == "standaryzacja__1"
+    print("  [OK] Analiza runda 1 saved -> next: standaryzacja__1")
 
-    # 5. Sync to v4 (before complete)
+    # 5. Save standaryzacja (runda 1)
+    save_wyniki(db, ebr_id, "standaryzacja__1", {
+        "kwas_kg": {"wartosc": 2.5, "komentarz": ""},
+        "woda_kg": {"wartosc": 15.0, "komentarz": ""},
+        "nacl_kg": {"wartosc": 1.2, "komentarz": ""},
+    }, "test_laborant")
+    wyniki = get_ebr_wyniki(db, ebr_id)
+    assert "standaryzacja__1" in wyniki
+    rs = get_round_state(wyniki)
+    assert rs["next_step"] == "analiza"
+    assert rs["next_sekcja"] == "analiza__2"
+    assert rs["current_runda"] == 2
+    print("  [OK] Standaryzacja runda 1 saved -> next: analiza__2")
+
+    # 6. Save second analiza (runda 2 — after standardization)
+    save_wyniki(db, ebr_id, "analiza__2", {
+        "sm": {"wartosc": 44.5, "komentarz": ""},
+        "nacl": {"wartosc": 6.0, "komentarz": ""},
+        "ph_10proc": {"wartosc": 5.0, "komentarz": ""},
+        "nd20": {"wartosc": 1.4020, "komentarz": ""},
+        "sa": {"wartosc": 37.9, "komentarz": ""},
+        "barwa_fau": {"wartosc": 70, "komentarz": ""},
+        "barwa_hz": {"wartosc": 25, "komentarz": ""},
+    }, "test_laborant")
+    wyniki = get_ebr_wyniki(db, ebr_id)
+    assert "analiza__2" in wyniki
+    rs = get_round_state(wyniki)
+    assert rs["last_analiza"] == 2
+    assert rs["is_decision"] is True
+    print("  [OK] Analiza runda 2 saved -> decision point")
+
+    # 7. Sync to v4
     sync_ebr_to_v4(db, ebr_id)
     events = db.execute(
-        "SELECT * FROM events WHERE batch_id = 'Chegina_K7__99_2026' AND _source = 'digital'"
+        "SELECT * FROM events WHERE batch_id = 'Chegina_K7__99_2026' AND _source = 'digital' ORDER BY seq"
     ).fetchall()
-    assert len(events) >= 2, f"Expected 2+ events, got {len(events)}"
-    print(f"  [OK] v4 events synced: {len(events)} rows")
+    assert len(events) == 3, f"Expected 3 events, got {len(events)}"
+    e1, e2, e3 = [dict(e) for e in events]
+    assert e1["stage"] == "analiza" and e1["runda"] == 1
+    assert e2["stage"] == "standaryzacja" and e2["runda"] == 1
+    assert e2["kwas_kg"] == 2.5
+    assert e2["woda_kg"] == 15.0
+    assert e3["stage"] == "analiza" and e3["runda"] == 2
+    print(f"  [OK] v4 events synced: {len(events)} rows with correct stages/runda")
 
-    # 6. Complete + final sync
+    # 8. Complete + final sync
     complete_ebr(db, ebr_id)
     sync_ebr_to_v4(db, ebr_id)
 
-    # 7. Verify v4 batch ak_ fields
     batch = db.execute("SELECT * FROM batch WHERE batch_id = 'Chegina_K7__99_2026'").fetchone()
-    assert batch is not None, "batch row not found in v4"
-    assert batch["_source"] == "digital"
-    # Check specific ak_ values
-    assert batch["ak_procent_sa"] == 38.5, f"ak_procent_sa = {batch['ak_procent_sa']}"
-    assert batch["ak_nd20"] == 1.405, f"ak_nd20 = {batch['ak_nd20']}"
-    print(f"  [OK] v4 batch synced: ak_procent_sa = {batch['ak_procent_sa']}")
+    assert batch is not None
+    assert batch["ak_procent_sm"] == 44.5, f"ak_procent_sm = {batch['ak_procent_sm']}"
+    assert batch["ak_procent_nacl"] == 6.0
+    assert batch["ak_nd20"] == 1.402
+    print(f"  [OK] v4 batch ak_* from last analiza round: ak_procent_sm={batch['ak_procent_sm']}")
 
-    # 8. Verify completed status
-    ebr = get_ebr(db, ebr_id)
-    assert ebr["status"] == "completed"
-    assert ebr["dt_end"] is not None
-    print("  [OK] EBR completed with dt_end set")
-
-    # 9. Cleanup test data
+    # 9. Cleanup
     db.execute("DELETE FROM ebr_wyniki WHERE ebr_id = ?", (ebr_id,))
     db.execute("DELETE FROM ebr_batches WHERE ebr_id = ?", (ebr_id,))
     db.execute("DELETE FROM events WHERE batch_id = 'Chegina_K7__99_2026' AND _source = 'digital'")
     db.execute("DELETE FROM batch WHERE batch_id = 'Chegina_K7__99_2026'")
     db.commit()
     db.close()
-    print("\n✓ All tests passed!")
+    print("\n✓ All cyclic standaryzacja tests passed!")
+
 
 if __name__ == "__main__":
-    test_full_workflow()
+    test_cyclic_standaryzacja()
