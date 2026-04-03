@@ -108,6 +108,108 @@ body {
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+/* SPA sidebar states */
+.sidebar.sidebar-full {
+  width: 240px;
+  min-width: 240px;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              min-width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.sidebar.sidebar-mini {
+  width: 52px;
+  min-width: 52px;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              min-width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Mini view */
+.sb-mini-view {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 8px 0; gap: 2px;
+  position: absolute; top: 0; left: 0; bottom: 0; width: 52px;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 2;
+}
+.sidebar-mini .sb-mini-view { opacity: 1; pointer-events: auto; }
+
+/* Full view */
+.sb-full-view {
+  width: 240px; min-width: 240px;
+  opacity: 1;
+  transition: opacity 0.2s ease;
+  display: flex; flex-direction: column; height: 100%; overflow: hidden;
+}
+.sidebar-mini .sb-full-view { opacity: 0; pointer-events: none; }
+
+/* Mini batch indicators */
+.sb-mini-item {
+  width: 36px; height: 36px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; position: relative;
+  font-family: var(--mono); font-size: 10px; font-weight: 700;
+  color: var(--text-sec);
+  transition: all 0.12s;
+}
+.sb-mini-item:hover { background: var(--surface-alt); }
+.sb-mini-item.active { background: var(--teal-bg); color: var(--teal); }
+
+/* Status dot on mini item */
+.sb-mini-item::after {
+  content: '';
+  position: absolute; top: 4px; right: 4px;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--amber);
+}
+.sb-mini-item.status-in_progress::after { background: var(--teal); }
+.sb-mini-item.status-done::after { background: var(--green); }
+.sb-mini-item.status-alert::after { background: var(--red); }
+.sb-mini-item.typ-zbiornik {
+  border-left: 2px solid var(--blue);
+  border-radius: 0 8px 8px 0;
+}
+
+/* Mini + button */
+.sb-mini-add {
+  width: 36px; height: 36px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 18px; color: var(--teal);
+  background: var(--teal-bg); border: 1px dashed var(--teal);
+  margin-top: 4px;
+  transition: all 0.12s;
+}
+.sb-mini-add:hover { background: var(--teal); color: white; border-style: solid; }
+
+/* Toggle / back button */
+.sb-toggle-expand {
+  width: 36px; height: 36px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 14px; color: var(--text-dim);
+  background: transparent; border: none; margin-bottom: 6px;
+  transition: all 0.15s;
+}
+.sb-toggle-expand:hover { background: var(--surface-alt); color: var(--teal); }
+
+/* Detail workspace layout (when loaded via AJAX) */
+#detail-workspace {
+  display: flex; gap: 0; flex: 1; overflow: hidden;
+}
+#detail-workspace .col-main { flex: 1; min-width: 0; overflow-y: auto; padding: 20px 24px; }
+#detail-workspace .col-right {
+  width: 280px; flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+
+/* Panel detail needs to fill workspace */
+#panel-detail {
+  flex: 1; display: flex; flex-direction: column; overflow: hidden;
 }
 
 /* 3-way toggle */

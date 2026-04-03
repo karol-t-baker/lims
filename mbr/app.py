@@ -285,9 +285,23 @@ def fast_entry(ebr_id):
         ebr = get_ebr(db, ebr_id)
         if ebr is None:
             return "Nie znaleziono szarzy", 404
+        # Serve the SPA shell — JS will detect URL and load partial via AJAX
+        batches = list_ebr_open(db)
+        recent = list_ebr_recent(db, days=7)
+    return render_template("laborant/szarze_list.html", batches=batches, recent=recent,
+                           products=PRODUCTS)
+
+
+@app.route("/laborant/ebr/<int:ebr_id>/partial")
+@login_required
+def fast_entry_partial(ebr_id):
+    """Return just the fast-entry form HTML (no base.html shell) for AJAX loading."""
+    with db_session() as db:
+        ebr = get_ebr(db, ebr_id)
+        if ebr is None:
+            return "Nie znaleziono", 404
         wyniki = get_ebr_wyniki(db, ebr_id)
-        all_open = list_ebr_open(db)
-    return render_template("laborant/fast_entry.html", ebr=ebr, wyniki=wyniki, all_open=all_open)
+    return render_template("laborant/_fast_entry_content.html", ebr=ebr, wyniki=wyniki)
 
 
 @app.route("/laborant/ebr/<int:ebr_id>/save", methods=["POST"])
@@ -313,6 +327,9 @@ def complete_entry(ebr_id):
     with db_session() as db:
         complete_ebr(db, ebr_id)
         sync_ebr_to_v4(db, ebr_id)
+    # Support AJAX calls from SPA
+    if request.is_json or request.headers.get("Content-Type", "").startswith("application/json"):
+        return jsonify({"ok": True})
     return redirect(url_for("szarze_list"))
 
 

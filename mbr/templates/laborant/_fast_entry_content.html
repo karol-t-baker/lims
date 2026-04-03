@@ -1,0 +1,426 @@
+{# Partial: fast entry content loaded via AJAX — no base.html wrapper #}
+
+<div id="detail-topbar">
+  <span class="tp-t">
+    <a href="javascript:void(0)" class="tp-breadcrumb" onclick="showDashboard()">Szarze</a>
+    <span class="tp-sep">/</span>
+    {{ ebr.produkt | short_product }} &mdash; {{ ebr.nr_partii }}
+  </span>
+  <span class="tp-r">
+    {% if ebr.typ == 'zbiornik' %}
+      <span class="en-badge" style="background:var(--blue-bg, #e8f0fe);color:var(--blue, #1a73e8);margin-right:6px;">Zbiornik</span>
+    {% endif %}
+    {% if ebr.status == 'open' %}
+      <span class="en-badge b-wait">open</span>
+    {% else %}
+      <span class="en-badge b-ok">completed</span>
+    {% endif %}
+  </span>
+</div>
+
+<div id="detail-workspace">
+  <div class="col-main" id="sections-container">
+    {# filled by JS #}
+  </div>
+  <div class="col-right">
+    <div class="rp-tabs">
+      <div class="rp-tab active" onclick="showRightPanel('ref')" id="tab-ref">Referencje</div>
+      <div class="rp-tab" onclick="showRightPanel('calc')" id="tab-calc">Kalkulator</div>
+    </div>
+    <div class="rp-body">
+      <div class="rp-view active" id="rp-ref">
+        <div id="ref-container"></div>
+      </div>
+      <div class="rp-view" id="rp-calc">
+        <div id="calc-container">
+          <div class="calc-method">Kliknij pole miareczkowe aby otworzyc kalkulator.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if ebr.status == 'open' %}
+<div id="detail-footer" class="footer">
+  <span class="f-hint">Zapisz sekcje pojedynczo lub zatwierdz cala karte.</span>
+  <div class="f-sp"></div>
+  <button type="button" class="btn btn-p" onclick="completeEntry()">Zatwierdz karte</button>
+</div>
+{% else %}
+<div id="detail-footer" class="footer">
+  <div class="f-sp"></div>
+  <a href="/pdf/ebr/{{ ebr.ebr_id }}" class="btn btn-p" target="_blank">PDF</a>
+</div>
+{% endif %}
+
+<script>
+{# Set globals for this batch #}
+window.ebrId = {{ ebr.ebr_id }};
+const ebrId = {{ ebr.ebr_id }};
+const ebrStatus = "{{ ebr.status }}";
+const ebrTyp = "{{ ebr.typ|default('szarza') }}";
+const etapy = {{ (ebr.etapy_json if ebr.etapy_json is string else ebr.etapy_json | tojson) | safe }};
+const parametry = {{ (ebr.parametry_lab if ebr.parametry_lab is string else ebr.parametry_lab | tojson) | safe }};
+const wyniki = {{ wyniki | tojson | safe }};
+
+const TITR_TAGS_LEGACY = ['procent_sa', 'procent_nacl', 'procent_aa', 'procent_so3', 'procent_h2o2', 'lk', 'le_liczba_kwasowa'];
+
+function getPola(sekcja) {
+    const s = parametry[sekcja];
+    if (!s) return [];
+    if (Array.isArray(s)) return s;
+    if (s.pola && Array.isArray(s.pola)) return s.pola;
+    return [];
+}
+
+function renderSections() {
+    const container = document.getElementById('sections-container');
+    container.innerHTML = '';
+
+    etapy.forEach((etap, i) => {
+        const sekcja = etap.sekcja_lab || '';
+        if (!sekcja) return;
+        if (etap.read_only === true) return;
+        const pola = getPola(sekcja);
+        if (pola.length === 0) return;
+
+        if (ebrTyp === 'zbiornik' && sekcja !== 'analiza_koncowa') return;
+
+        const sekWyniki = wyniki[sekcja] || {};
+        const hasSomeResults = Object.keys(sekWyniki).length > 0;
+        const allInLimit = hasSomeResults && Object.values(sekWyniki).every(w => w.w_limicie === 1);
+        const isReadonly = ebrStatus !== 'open';
+
+        const isFirst = !container.querySelector('.section.current') && !hasSomeResults;
+
+        const section = document.createElement('div');
+        section.className = 'section' + (isFirst ? ' current' : '');
+        section.id = 'sec-' + sekcja;
+
+        let badgeHtml = '';
+        if (hasSomeResults) {
+            if (allInLimit) {
+                badgeHtml = '<span class="sec-badge b-ok">OK</span>';
+            } else {
+                badgeHtml = '<span class="sec-badge" style="background:var(--red-bg);color:var(--red);">Poza limitem</span>';
+            }
+        } else {
+            badgeHtml = '<span class="sec-badge b-wait">Oczekuje</span>';
+        }
+
+        let headHtml = `
+            <div class="sec-head">
+                <div class="sec-icon teal">${i + 1}</div>
+                <span class="sec-title">${esc(etap.nazwa)}</span>
+                ${badgeHtml}
+            </div>
+        `;
+
+        let fieldsHtml = '<div class="fg wide">';
+        pola.forEach(pole => {
+            const existing = sekWyniki[pole.kod];
+            const val = existing ? existing.wartosc : '';
+            const komentarzVal = existing ? (existing.komentarz || '') : '';
+            const isTitr = pole.measurement_type === 'titracja' || TITR_TAGS_LEGACY.includes(pole.kod);
+            const isObl = pole.measurement_type === 'obliczeniowy';
+
+            let inputClass = '';
+            if (existing) {
+                inputClass = existing.w_limicie === 1 ? 'ok' : 'err';
+            }
+            if (isObl) inputClass += ' calc';
+
+            const normText = (pole.min != null || pole.max != null)
+                ? `<span class="norm">${pole.min != null ? pole.min : ''}${pole.min != null && pole.max != null ? ' - ' : ''}${pole.max != null ? pole.max : ''}</span>`
+                : '';
+
+            let calcMethodAttr = '';
+            if (isTitr && !isReadonly && pole.calc_method) {
+                calcMethodAttr = `data-calc-method='${JSON.stringify(pole.calc_method).replace(/'/g, "&#39;")}'`;
+            }
+
+            fieldsHtml += `
+                <div class="ff${isTitr ? ' titr' : ''}${isObl ? ' computed' : ''}" ${isTitr && !isReadonly ? `data-kod="${esc(pole.kod)}" data-tag="${esc(pole.tag)}" data-sekcja="${esc(sekcja)}"` : ''} ${calcMethodAttr}>
+                    <label>${esc(pole.label)} ${normText}${isObl && pole.formula ? ' <span class="norm">[' + esc(pole.formula) + ']</span>' : ''}</label>
+                    <input type="number" step="any"
+                        data-kod="${esc(pole.kod)}"
+                        data-sekcja="${esc(sekcja)}"
+                        data-tag="${esc(pole.tag)}"
+                        data-min="${pole.min != null ? pole.min : ''}"
+                        data-max="${pole.max != null ? pole.max : ''}"
+                        data-measurement-type="${esc(pole.measurement_type || '')}"
+                        ${isObl && pole.formula ? `data-formula="${esc(pole.formula)}"` : ''}
+                        value="${val !== '' && val !== null ? val : ''}"
+                        class="${inputClass.trim()}"
+                        ${isReadonly ? 'readonly' : ''}
+                        ${isObl && !isReadonly ? 'readonly' : ''}
+                        oninput="validateField(this)">
+                    <textarea data-komentarz="${esc(pole.kod)}" data-sekcja="${esc(sekcja)}"
+                        placeholder="Komentarz (wymagany przy przekroczeniu limitu)..."
+                        style="display:${existing && existing.w_limicie === 0 ? 'block' : 'none'};width:100%;margin-top:4px;padding:6px 8px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:11px;font-family:var(--font);color:var(--text);min-height:36px;resize:vertical;"
+                        ${isReadonly ? 'readonly' : ''}>${komentarzVal}</textarea>
+                </div>
+            `;
+        });
+        fieldsHtml += '</div>';
+
+        let saveBtn = '';
+        if (!isReadonly) {
+            saveBtn = `<div style="margin-top:14px;text-align:right;"><button class="btn btn-p" onclick="saveSection('${esc(sekcja)}')">Zapisz ${esc(etap.nazwa)}</button></div>`;
+        }
+
+        section.innerHTML = headHtml + '<div class="sec-body">' + fieldsHtml + saveBtn + '</div>';
+        container.appendChild(section);
+    });
+}
+
+
+function renderReferences() {
+    const container = document.getElementById('ref-container');
+    container.innerHTML = '';
+
+    etapy.forEach(etap => {
+        const sekcja = etap.sekcja_lab || '';
+        if (!sekcja || etap.read_only === true) return;
+        const pola = getPola(sekcja);
+        if (pola.length === 0) return;
+
+        if (ebrTyp === 'zbiornik' && sekcja !== 'analiza_koncowa') return;
+
+        const sekWyniki = wyniki[sekcja] || {};
+
+        let html = `<div class="ref"><div class="ref-t">${esc(etap.nazwa)}</div>`;
+        pola.forEach(pole => {
+            const normText = (pole.min != null || pole.max != null)
+                ? `(${pole.min != null ? pole.min : '...'} - ${pole.max != null ? pole.max : '...'})`
+                : '';
+            const existing = sekWyniki[pole.kod];
+            const currentInput = document.querySelector(`input[data-kod="${pole.kod}"][data-sekcja="${sekcja}"]`);
+            const liveVal = currentInput && currentInput.value !== '' ? currentInput.value : null;
+            const savedVal = existing ? existing.wartosc : null;
+            const displayVal = liveVal || savedVal;
+
+            let valHtml;
+            if (displayVal != null && displayVal !== '') {
+                valHtml = `<strong>${displayVal}</strong> <span style="color:var(--text-dim)">${normText}</span>`;
+            } else {
+                valHtml = `\u2014 <span style="color:var(--text-dim)">${normText}</span>`;
+            }
+            html += `<div class="rr"><span class="rr-k">${esc(pole.label)}</span><span class="rr-v">${valHtml}</span></div>`;
+        });
+        html += '</div>';
+
+        container.innerHTML += html;
+    });
+
+    container.innerHTML += `<div class="ref norms">
+        <div class="ref-t">Typowe wartosci (historyczne)</div>
+        <div style="font-size:11px;color:var(--text-dim);padding:8px 0;">
+            Dane pojawia sie po zebraniu wystarczajacej liczby szarz.
+        </div>
+    </div>`;
+}
+
+
+function validateField(input) {
+    const val = parseFloat(input.value);
+    const min = input.dataset.min !== '' ? parseFloat(input.dataset.min) : null;
+    const max = input.dataset.max !== '' ? parseFloat(input.dataset.max) : null;
+    const komentarz = document.querySelector(`textarea[data-komentarz="${input.dataset.kod}"][data-sekcja="${input.dataset.sekcja}"]`);
+
+    input.classList.remove('ok', 'err');
+
+    if (input.value === '' || isNaN(val)) {
+        if (komentarz) komentarz.style.display = 'none';
+        return;
+    }
+
+    let inLimit = true;
+    if (min !== null && val < min) inLimit = false;
+    if (max !== null && val > max) inLimit = false;
+
+    input.classList.add(inLimit ? 'ok' : 'err');
+    if (komentarz) {
+        komentarz.style.display = inLimit ? 'none' : 'block';
+    }
+}
+
+
+async function saveSection(sekcja) {
+    const fields = document.querySelectorAll(`input[data-sekcja="${sekcja}"]`);
+    const values = {};
+    fields.forEach(f => {
+        if (f.value && f.dataset.kod) {
+            const komentarz = document.querySelector(`textarea[data-komentarz="${f.dataset.kod}"][data-sekcja="${sekcja}"]`);
+            values[f.dataset.kod] = {
+                wartosc: f.value,
+                komentarz: komentarz ? komentarz.value : ""
+            };
+        }
+    });
+    if (Object.keys(values).length === 0) return;
+
+    const resp = await fetch(`/laborant/ebr/${ebrId}/save`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({sekcja, values})
+    });
+    if (resp.ok) {
+        // Reload the partial content in SPA mode
+        if (typeof loadBatch === 'function' && typeof currentView !== 'undefined' && currentView === 'detail') {
+            loadBatch(ebrId);
+        } else {
+            location.reload();
+        }
+    }
+}
+
+
+async function completeEntry() {
+    if (!confirm('Zatwierdzic karte? Nie bedzie mozna edytowac.')) return;
+    const resp = await fetch(`/laborant/ebr/${ebrId}/complete`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"}
+    });
+    if (resp.ok || resp.redirected) {
+        if (typeof showDashboard === 'function') {
+            showDashboard();
+            // Reload dashboard content
+            location.href = '/laborant/szarze';
+        } else {
+            location.href = '/laborant/szarze';
+        }
+    }
+}
+
+
+function scrollToSection(sekcja) {
+    const el = document.getElementById('sec-' + sekcja);
+    if (el) el.scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+
+function showRightPanel(view) {
+    document.querySelectorAll('.rp-tab').forEach((t, i) => {
+        t.classList.toggle('active', (view === 'ref' && i === 0) || (view === 'calc' && i === 1));
+    });
+    document.getElementById('rp-ref').classList.toggle('active', view === 'ref');
+    document.getElementById('rp-calc').classList.toggle('active', view === 'calc');
+}
+
+
+// Calculator bridge
+document.addEventListener('click', function _calcBridge(e) {
+    const ff = e.target.closest('.ff.titr[data-kod]');
+    if (!ff) return;
+    const kod = ff.dataset.kod;
+    const tag = ff.dataset.tag || kod;
+    const sekcja = ff.dataset.sekcja;
+    let calcMethod = null;
+    try {
+        const raw = ff.dataset.calcMethod;
+        if (raw) calcMethod = JSON.parse(raw);
+    } catch(ex) {}
+
+    const calcView = document.getElementById('rp-calc');
+    if (!calcView || !calcView.classList.contains('active')) {
+        showRightPanel('calc');
+    }
+    window.openCalculator(tag, kod, sekcja, calcMethod);
+});
+
+document.addEventListener('click', function _refBridge(e) {
+    const ff = e.target.closest('.ff:not(.titr):not(.computed)');
+    if (!ff) return;
+    const input = ff.querySelector('input[data-kod]');
+    if (!input) return;
+    const refView = document.getElementById('rp-ref');
+    if (refView && !refView.classList.contains('active')) {
+        showRightPanel('ref');
+    }
+    renderReferences();
+});
+
+
+// Computed fields
+function setupComputedFields() {
+    document.querySelectorAll('input[data-formula]').forEach(computedInput => {
+        const formula = computedInput.dataset.formula;
+        const sekcja = computedInput.dataset.sekcja;
+        const deps = formula.match(/[a-z_]+/g) || [];
+        deps.forEach(depKod => {
+            const depInput = document.querySelector(
+                `input[data-kod="${depKod}"][data-sekcja="${sekcja}"]`
+            );
+            if (depInput && depInput !== computedInput) {
+                depInput.addEventListener('input', () => recomputeField(computedInput));
+            }
+        });
+        recomputeField(computedInput);
+    });
+}
+
+function recomputeField(computedInput) {
+    const formula = computedInput.dataset.formula;
+    const sekcja = computedInput.dataset.sekcja;
+    if (!formula) return;
+
+    const context = {};
+    document.querySelectorAll(`input[data-sekcja="${sekcja}"]`).forEach(inp => {
+        if (inp.dataset.kod && inp.value !== '') {
+            context[inp.dataset.kod] = parseFloat(inp.value);
+        }
+    });
+
+    try {
+        let expr = formula;
+        const vars = formula.match(/[a-z_]+/g) || [];
+        let allPresent = true;
+        vars.forEach(v => {
+            if (context[v] == null || isNaN(context[v])) {
+                allPresent = false;
+            } else {
+                expr = expr.replace(new RegExp('\\b' + v + '\\b'), context[v]);
+            }
+        });
+        if (allPresent) {
+            const result = Function('"use strict"; return (' + expr + ')')();
+            if (!isNaN(result)) {
+                computedInput.value = result.toFixed(2);
+                computedInput.readOnly = true;
+                validateField(computedInput);
+            }
+        }
+    } catch (e) {}
+}
+
+
+function esc(s) {
+    if (s == null) return '';
+    const d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML.replace(/"/g, '&quot;');
+}
+
+
+// Disable scroll + arrow keys on number inputs
+document.addEventListener('wheel', function(e) {
+    if (e.target.matches('input[type="number"]')) {
+        e.target.blur();
+    }
+}, {passive: true});
+
+document.addEventListener('keydown', function(e) {
+    if (e.target.matches('input[type="number"]') && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+        e.preventDefault();
+    }
+});
+
+
+// Init
+renderSections();
+renderReferences();
+setupComputedFields();
+</script>
+
+<script src="/static/calculator.js"></script>

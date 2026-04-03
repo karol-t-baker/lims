@@ -4,211 +4,378 @@
 {% block title %}Szarze EBR{% endblock %}
 {% block nav_szarze %}active{% endblock %}
 
+{% block head %}
+<style>
+  .tp-breadcrumb { color: var(--text-dim); text-decoration: none; font-size: 13px; }
+  .tp-breadcrumb:hover { color: var(--text-sec); }
+  .tp-sep { color: var(--text-dim); margin: 0 6px; }
+</style>
+{% endblock %}
+
 {% block sidebar %}
-<div class="sidebar">
-  <!-- Header -->
-  <div class="sb-head">
-    <div class="sb-greeting">Witaj, {{ session.get('user', {}).get('imie_nazwisko') or session.get('user', {}).get('login', '') }}</div>
-    <div class="sb-date">{{ today }}</div>
-  </div>
+<div class="sidebar sidebar-full" id="sidebar">
 
-  <!-- Search -->
-  <div class="sb-search">
-    <input type="text" placeholder="Szukaj szarzy..." oninput="filterBatchCards(this.value)">
-  </div>
-
-  <!-- Filter pills (segmented control) -->
-  <div class="sb-filters">
-    <div class="sb-seg">
-      <div class="sb-pill active" onclick="filterByType('all')">Wszystkie <span class="pill-count">{{ batches|length }}</span></div>
-      <div class="sb-pill" onclick="filterByType('szarza')">Szarze <span class="pill-count">{{ batches|rejectattr('typ', 'equalto', 'zbiornik')|list|length }}</span></div>
-      <div class="sb-pill" onclick="filterByType('zbiornik')">Zbiorniki <span class="pill-count">{{ batches|selectattr('typ', 'equalto', 'zbiornik')|list|length }}</span></div>
-    </div>
-  </div>
-
-  <!-- Batch cards list -->
-  <div class="sb-list">
+  {# -- MINI VIEW (shown when sidebar-mini) -- #}
+  <div class="sb-mini-view" id="sb-mini-view">
+    <button class="sb-toggle-expand" onclick="showDashboard()" title="Powrot do listy">&#9664;</button>
     {% for b in batches %}
-    {{ batch_card(b, onclick_url=url_for('fast_entry', ebr_id=b.ebr_id)) }}
+    <div class="sb-mini-item {{ 'status-in_progress' if b.stage_status == 'in_progress' else ('status-done' if b.stage_status == 'done' else ('status-alert' if b.out_of_limit > 0 else '')) }} {{ 'typ-zbiornik' if b.typ == 'zbiornik' }}"
+         data-ebr-id="{{ b.ebr_id }}"
+         title="{{ b.nr_partii }} {{ b.produkt|short_product }} — {{ b.stage_name|default('Oczekuje') }}"
+         onclick="loadBatch({{ b.ebr_id }})">
+      {{ b.nr_partii.split('/')[0] }}
+    </div>
     {% endfor %}
+    <div style="flex:1"></div>
+    <div class="sb-mini-add" onclick="openNewBatchModal()" title="Nowa szarza">+</div>
   </div>
 
-  <!-- Footer -->
-  <div class="sb-footer">
-    <div class="sb-stats">
-      <span><span class="sb-stat-value">{{ batches|rejectattr('typ', 'equalto', 'zbiornik')|list|length }}</span> szarz</span>
-      <span><span class="sb-stat-value">{{ batches|selectattr('typ', 'equalto', 'zbiornik')|list|length }}</span> zbiornikow</span>
-      <span style="color:var(--amber)"><span class="sb-stat-value" style="color:var(--amber)">{{ batches|selectattr('last_entry', 'none')|list|length }}</span> oczekuje</span>
+  {# -- FULL VIEW (shown when sidebar-full) -- #}
+  <div class="sb-full-view" id="sb-full-view">
+    {# Header #}
+    <div class="sb-head">
+      <div class="sb-greeting">Witaj, {{ session.get('user', {}).get('imie_nazwisko') or session.get('user', {}).get('login', '') }}</div>
+      <div class="sb-date">{{ today }}</div>
     </div>
-    <button class="sb-new-btn" onclick="document.getElementById('reg-modal').classList.add('show')">+ Nowa szarza</button>
+
+    {# Search #}
+    <div class="sb-search">
+      <input type="text" placeholder="Szukaj szarzy..." oninput="filterBatchCards(this.value)">
+    </div>
+
+    {# Filter pills #}
+    <div class="sb-filters">
+      <div class="sb-seg">
+        <div class="sb-pill active" onclick="filterByType('all')">Wszystkie <span class="pill-count">{{ batches|length }}</span></div>
+        <div class="sb-pill" onclick="filterByType('szarza')">Szarze <span class="pill-count">{{ batches|rejectattr('typ', 'equalto', 'zbiornik')|list|length }}</span></div>
+        <div class="sb-pill" onclick="filterByType('zbiornik')">Zbiorniki <span class="pill-count">{{ batches|selectattr('typ', 'equalto', 'zbiornik')|list|length }}</span></div>
+      </div>
+    </div>
+
+    {# Batch cards list #}
+    <div class="sb-list">
+      {% for b in batches %}
+      {{ batch_card(b, onclick_url=url_for('fast_entry', ebr_id=b.ebr_id)) }}
+      {% endfor %}
+    </div>
+
+    {# Footer #}
+    <div class="sb-footer">
+      <div class="sb-stats">
+        <span><span class="sb-stat-value">{{ batches|rejectattr('typ', 'equalto', 'zbiornik')|list|length }}</span> szarz</span>
+        <span><span class="sb-stat-value">{{ batches|selectattr('typ', 'equalto', 'zbiornik')|list|length }}</span> zbiornikow</span>
+        <span style="color:var(--amber)"><span class="sb-stat-value" style="color:var(--amber)">{{ batches|selectattr('last_entry', 'none')|list|length }}</span> oczekuje</span>
+      </div>
+      <button class="sb-new-btn" onclick="openNewBatchModal()">+ Nowa szarza</button>
+    </div>
   </div>
 </div>
 {% endblock %}
 
-{% block topbar_title %}Szarze EBR{% endblock %}
-{% block topbar_right %}{{ batches|length }} otwartych{% endblock %}
+{% block topbar %}
+<div class="topbar" id="topbar">
+  <span class="tp-t" id="topbar-title">Szarze EBR</span>
+  <span class="tp-r" id="topbar-right">{{ batches|length }} otwartych</span>
+</div>
+{% endblock %}
 
 {% block content %}
-<div class="dashboard">
+{# Dashboard panel — visible by default #}
+<div id="panel-dashboard">
+  <div class="dashboard">
 
-  {% with messages = get_flashed_messages() %}
-  {% if messages %}
-  <div style="margin-bottom:16px;">
-    {% for msg in messages %}
-    <div style="background:var(--amber-bg);color:var(--amber);padding:8px 14px;border-radius:var(--radius);font-size:12px;margin-bottom:4px;">{{ msg }}</div>
-    {% endfor %}
-  </div>
-  {% endif %}
-  {% endwith %}
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+    <div style="margin-bottom:16px;">
+      {% for msg in messages %}
+      <div style="background:var(--amber-bg);color:var(--amber);padding:8px 14px;border-radius:var(--radius);font-size:12px;margin-bottom:4px;">{{ msg }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
 
-  {# ── KPI ── #}
-  {% set szarze_only = batches|rejectattr('typ', 'equalto', 'zbiornik')|list %}
-  {% set zbiorniki_only = batches|selectattr('typ', 'equalto', 'zbiornik')|list %}
-  {% set oczekujace = batches|selectattr('stage_status', 'equalto', 'waiting')|list %}
-  {% set w_trakcie = batches|selectattr('stage_status', 'equalto', 'in_progress')|list %}
-  {% set gotowe = batches|selectattr('stage_status', 'equalto', 'done')|list %}
-  {% set poza_limitem = batches|selectattr('out_of_limit', 'gt', 0)|list %}
-  <div class="kpi-row">
-    <div class="kpi {{ 'highlight' if oczekujace }}">
-      <div class="kpi-label">Oczekujące</div>
-      <div class="kpi-value">{{ oczekujace|length }}</div>
-      <div class="kpi-sub">
-        {% set prod_counts = {} %}
-        {% for b in oczekujace %}{% if prod_counts.update({b.produkt|short_product: (prod_counts.get(b.produkt|short_product, 0) + 1)}) %}{% endif %}{% endfor %}
-        {{ prod_counts.items()|map('join', ': ')|join(', ') or 'brak' }}
+    {# KPI #}
+    {% set szarze_only = batches|rejectattr('typ', 'equalto', 'zbiornik')|list %}
+    {% set zbiorniki_only = batches|selectattr('typ', 'equalto', 'zbiornik')|list %}
+    {% set oczekujace = batches|selectattr('stage_status', 'equalto', 'waiting')|list %}
+    {% set w_trakcie = batches|selectattr('stage_status', 'equalto', 'in_progress')|list %}
+    {% set gotowe = batches|selectattr('stage_status', 'equalto', 'done')|list %}
+    {% set poza_limitem = batches|selectattr('out_of_limit', 'gt', 0)|list %}
+    <div class="kpi-row">
+      <div class="kpi {{ 'highlight' if oczekujace }}">
+        <div class="kpi-label">Oczekujace</div>
+        <div class="kpi-value">{{ oczekujace|length }}</div>
+        <div class="kpi-sub">
+          {% set prod_counts = {} %}
+          {% for b in oczekujace %}{% if prod_counts.update({b.produkt|short_product: (prod_counts.get(b.produkt|short_product, 0) + 1)}) %}{% endif %}{% endfor %}
+          {{ prod_counts.items()|map('join', ': ')|join(', ') or 'brak' }}
+        </div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Aktywne szarze</div>
+        <div class="kpi-value">{{ szarze_only|length }}</div>
+        <div class="kpi-sub">
+          {% set sp = {} %}
+          {% for b in szarze_only %}{% if sp.update({b.produkt|short_product: (sp.get(b.produkt|short_product, 0) + 1)}) %}{% endif %}{% endfor %}
+          {{ sp.items()|map('join', ': ')|join(', ') or 'brak' }}
+        </div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Zbiorniki</div>
+        <div class="kpi-value">{{ zbiorniki_only|length }}</div>
+        <div class="kpi-sub">{{ gotowe|length }} gotowych do zatwierdzenia</div>
+      </div>
+      <div class="kpi {{ 'highlight' if poza_limitem }}">
+        <div class="kpi-label">Poza limitem</div>
+        <div class="kpi-value" {% if poza_limitem %}style="color:var(--red)"{% endif %}>{{ poza_limitem|length }}</div>
+        <div class="kpi-sub">{{ recent|length }} ukonczonych (7 dni)</div>
       </div>
     </div>
-    <div class="kpi">
-      <div class="kpi-label">Aktywne szarże</div>
-      <div class="kpi-value">{{ szarze_only|length }}</div>
-      <div class="kpi-sub">
-        {% set sp = {} %}
-        {% for b in szarze_only %}{% if sp.update({b.produkt|short_product: (sp.get(b.produkt|short_product, 0) + 1)}) %}{% endif %}{% endfor %}
-        {{ sp.items()|map('join', ': ')|join(', ') or 'brak' }}
-      </div>
+
+    {# Filtry #}
+    <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap;">
+      <span class="form-label" style="margin:0;white-space:nowrap;">Produkt:</span>
+      <select class="form-select" onchange="applyTableFilters()" id="filter-produkt" style="width:auto;min-width:120px;">
+        <option value="">Wszystkie</option>
+        {% set active_products = [] %}
+        {% for b in batches %}{% if b.produkt not in active_products %}{% if active_products.append(b.produkt) %}{% endif %}{% endif %}{% endfor %}
+        {% for b in recent %}{% if b.produkt not in active_products %}{% if active_products.append(b.produkt) %}{% endif %}{% endif %}{% endfor %}
+        {% for p in active_products|sort %}
+        <option value="{{ p }}">{{ p|short_product }}</option>
+        {% endfor %}
+      </select>
+      <span class="form-label" style="margin:0;white-space:nowrap;">Typ:</span>
+      <select class="form-select" onchange="applyTableFilters()" id="filter-typ" style="width:auto;min-width:100px;">
+        <option value="">Wszystkie</option>
+        <option value="szarza">Szarze</option>
+        <option value="zbiornik">Zbiorniki</option>
+      </select>
+      <span class="form-label" style="margin:0;white-space:nowrap;">Nr:</span>
+      <input class="form-input" type="text" placeholder="nr szarzy/zbiornika..." id="filter-nr" oninput="applyTableFilters()" style="width:120px;">
+      <button type="button" class="filter-clear-btn" id="filter-clear-btn" onclick="clearFilters()" title="Wyczysc filtry" style="display:none;">&#10005; Wyczysc</button>
     </div>
-    <div class="kpi">
-      <div class="kpi-label">Zbiorniki</div>
-      <div class="kpi-value">{{ zbiorniki_only|length }}</div>
-      <div class="kpi-sub">{{ gotowe|length }} gotowych do zatwierdzenia</div>
+
+    <div class="section-title">Otwarte szarze <span class="section-count">{{ batches|length }}</span></div>
+
+    {% if batches %}
+    <div class="table-scroll-5">
+    <table class="queue-table">
+      <thead>
+        <tr>
+          <th>Nr partii</th>
+          <th>Produkt</th>
+          <th>Typ</th>
+          <th>Etap</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in batches %}
+        <tr class="filterable-row{% if b.out_of_limit > 0 %} urgent{% endif %}"
+            data-produkt="{{ b.produkt }}" data-typ="{{ b.typ or 'szarza' }}" data-nr="{{ b.nr_partii }}"
+            data-ebr-id="{{ b.ebr_id }}"
+            style="cursor:pointer;" onclick="loadBatch({{ b.ebr_id }})">
+          <td><span class="q-batch">{{ b.nr_partii }}</span></td>
+          <td><span class="q-product">{{ b.produkt|short_product }}</span></td>
+          <td><span class="typ-badge {{ b.typ or 'szarza' }}">{{ b.typ or 'szarza' }}</span></td>
+          <td class="q-stage">{{ b.stage_name|default('—') }}</td>
+          <td>
+            {% if b.out_of_limit > 0 %}
+              <span class="q-priority urgent">{{ b.out_of_limit }} poza limitem</span>
+            {% elif b.stage_status == 'in_progress' %}
+              <span class="q-priority normal">&#9881; W trakcie</span>
+            {% elif b.stage_status == 'done' %}
+              <span class="q-priority" style="background:var(--green-bg);color:var(--green);">Gotowy</span>
+            {% else %}
+              <span class="q-priority low">Oczekuje</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
     </div>
-    <div class="kpi {{ 'highlight' if poza_limitem }}">
-      <div class="kpi-label">Poza limitem</div>
-      <div class="kpi-value" {% if poza_limitem %}style="color:var(--red)"{% endif %}>{{ poza_limitem|length }}</div>
-      <div class="kpi-sub">{{ recent|length }} ukończonych (7 dni)</div>
+    {% else %}
+    <div class="kpi" style="margin-bottom:24px;">
+      <div class="kpi-sub">Brak otwartych szarz. Kliknij "+ Nowa szarza" aby rozpoczac.</div>
     </div>
+    {% endif %}
+
+    {# Ostatnio ukonczone #}
+    {% if recent %}
+    <div class="section-title" style="margin-top:24px;">Ostatnio ukonczone <span class="section-count">{{ recent|length }} / 7 dni</span></div>
+    <table class="queue-table">
+      <thead>
+        <tr>
+          <th>Nr partii</th>
+          <th>Produkt</th>
+          <th>Typ</th>
+          <th>Zakonczona</th>
+          <th>Wyniki</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in recent %}
+        <tr class="filterable-row" data-produkt="{{ r.produkt }}" data-typ="{{ r.typ or 'szarza' }}" data-nr="{{ r.nr_partii }}"
+            data-ebr-id="{{ r.ebr_id }}"
+            style="cursor:pointer;" onclick="loadBatch({{ r.ebr_id }})">
+          <td><span class="q-batch">{{ r.nr_partii }}</span></td>
+          <td><span class="q-product">{{ r.produkt|short_product }}</span></td>
+          <td><span class="typ-badge {{ r.typ or 'szarza' }}">{{ r.typ or 'szarza' }}</span></td>
+          <td class="q-time">{{ r.dt_end | pl_date }}</td>
+          <td>
+            {% if r.out_of_limit > 0 %}
+              <span class="q-priority urgent">{{ r.out_of_limit }} poza limitem</span>
+            {% else %}
+              <span class="q-priority low">OK ({{ r.total_wyniki }})</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
   </div>
-
-  {# ── Filtry (client-side) ── #}
-  <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap;">
-    <span class="form-label" style="margin:0;white-space:nowrap;">Produkt:</span>
-    <select class="form-select" onchange="applyTableFilters()" id="filter-produkt" style="width:auto;min-width:120px;">
-      <option value="">Wszystkie</option>
-      {# Only show products that have open or recent batches #}
-      {% set active_products = [] %}
-      {% for b in batches %}{% if b.produkt not in active_products %}{% if active_products.append(b.produkt) %}{% endif %}{% endif %}{% endfor %}
-      {% for b in recent %}{% if b.produkt not in active_products %}{% if active_products.append(b.produkt) %}{% endif %}{% endif %}{% endfor %}
-      {% for p in active_products|sort %}
-      <option value="{{ p }}">{{ p|short_product }}</option>
-      {% endfor %}
-    </select>
-    <span class="form-label" style="margin:0;white-space:nowrap;">Typ:</span>
-    <select class="form-select" onchange="applyTableFilters()" id="filter-typ" style="width:auto;min-width:100px;">
-      <option value="">Wszystkie</option>
-      <option value="szarza">Szarże</option>
-      <option value="zbiornik">Zbiorniki</option>
-    </select>
-    <span class="form-label" style="margin:0;white-space:nowrap;">Nr:</span>
-    <input class="form-input" type="text" placeholder="nr szarzy/zbiornika..." id="filter-nr" oninput="applyTableFilters()" style="width:120px;">
-    <button type="button" class="filter-clear-btn" id="filter-clear-btn" onclick="clearFilters()" title="Wyczysc filtry" style="display:none;">&#10005; Wyczysc</button>
-  </div>
-
-  <div class="section-title">Otwarte szarze <span class="section-count">{{ batches|length }}</span></div>
-
-  {% if batches %}
-  <div class="table-scroll-5">
-  <table class="queue-table">
-    <thead>
-      <tr>
-        <th>Nr partii</th>
-        <th>Produkt</th>
-        <th>Typ</th>
-        <th>Etap</th>
-        <th>Status</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for b in batches %}
-      <tr class="filterable-row{% if b.out_of_limit > 0 %} urgent{% endif %}"
-          data-produkt="{{ b.produkt }}" data-typ="{{ b.typ or 'szarza' }}" data-nr="{{ b.nr_partii }}"
-          style="cursor:pointer;" onclick="location.href='{{ url_for('fast_entry', ebr_id=b.ebr_id) }}'">
-        <td><span class="q-batch">{{ b.nr_partii }}</span></td>
-        <td><span class="q-product">{{ b.produkt|short_product }}</span></td>
-        <td><span class="typ-badge {{ b.typ or 'szarza' }}">{{ b.typ or 'szarza' }}</span></td>
-        <td class="q-stage">{{ b.stage_name|default('—') }}</td>
-        <td>
-          {% if b.out_of_limit > 0 %}
-            <span class="q-priority urgent">{{ b.out_of_limit }} poza limitem</span>
-          {% elif b.stage_status == 'in_progress' %}
-            <span class="q-priority normal">&#9881; W trakcie</span>
-          {% elif b.stage_status == 'done' %}
-            <span class="q-priority" style="background:var(--green-bg);color:var(--green);">Gotowy</span>
-          {% else %}
-            <span class="q-priority low">Oczekuje</span>
-          {% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  </div>
-  {% else %}
-  <div class="kpi" style="margin-bottom:24px;">
-    <div class="kpi-sub">Brak otwartych szarz. Kliknij "+ Nowa szarza" aby rozpoczac.</div>
-  </div>
-  {% endif %}
-
-  {# ── Ostatnio ukonczone (7 dni) ── #}
-  {% if recent %}
-  <div class="section-title" style="margin-top:24px;">Ostatnio ukonczone <span class="section-count">{{ recent|length }} / 7 dni</span></div>
-  <table class="queue-table">
-    <thead>
-      <tr>
-        <th>Nr partii</th>
-        <th>Produkt</th>
-        <th>Typ</th>
-        <th>Zakonczona</th>
-        <th>Wyniki</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for r in recent %}
-      <tr class="filterable-row" data-produkt="{{ r.produkt }}" data-typ="{{ r.typ or 'szarza' }}" data-nr="{{ r.nr_partii }}"
-          style="cursor:pointer;" onclick="location.href='{{ url_for('fast_entry', ebr_id=r.ebr_id) }}'">
-        <td><span class="q-batch">{{ r.nr_partii }}</span></td>
-        <td><span class="q-product">{{ r.produkt|short_product }}</span></td>
-        <td><span class="typ-badge {{ r.typ or 'szarza' }}">{{ r.typ or 'szarza' }}</span></td>
-        <td class="q-time">{{ r.dt_end | pl_date }}</td>
-        <td>
-          {% if r.out_of_limit > 0 %}
-            <span class="q-priority urgent">{{ r.out_of_limit }} poza limitem</span>
-          {% else %}
-            <span class="q-priority low">OK ({{ r.total_wyniki }})</span>
-          {% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% endif %}
-
 </div>
+
+{# Detail panel — hidden, filled by AJAX #}
+<div id="panel-detail" style="display:none;"></div>
 
 {% include "laborant/_modal_nowa_szarza.html" %}
 {% endblock %}
 
+{% block footer %}
+<div id="spa-footer"></div>
+{% endblock %}
+
 {% block scripts %}
 <script>
+let currentView = 'dashboard';
+let currentEbrId = null;
+
+// ═══ SPA NAVIGATION ═══
+
+async function loadBatch(ebrId) {
+  const resp = await fetch(`/laborant/ebr/${ebrId}/partial`);
+  if (!resp.ok) return;
+  const html = await resp.text();
+
+  // Inject into detail panel
+  const detailPanel = document.getElementById('panel-detail');
+  detailPanel.innerHTML = html;
+
+  // Switch panels
+  document.getElementById('panel-dashboard').style.display = 'none';
+  detailPanel.style.display = '';
+
+  // Update topbar from the loaded content
+  const detailTopbar = detailPanel.querySelector('#detail-topbar');
+  if (detailTopbar) {
+    const topbarTitle = document.getElementById('topbar-title');
+    const topbarRight = document.getElementById('topbar-right');
+    const dtTitle = detailTopbar.querySelector('.tp-t');
+    const dtRight = detailTopbar.querySelector('.tp-r');
+    if (topbarTitle && dtTitle) topbarTitle.innerHTML = dtTitle.innerHTML;
+    if (topbarRight && dtRight) topbarRight.innerHTML = dtRight.innerHTML;
+    detailTopbar.style.display = 'none';
+  }
+
+  // Move footer content
+  const detailFooter = detailPanel.querySelector('#detail-footer');
+  const spaFooter = document.getElementById('spa-footer');
+  if (detailFooter && spaFooter) {
+    spaFooter.innerHTML = detailFooter.outerHTML;
+    detailFooter.style.display = 'none';
+  }
+
+  // Style detail workspace
+  const detailWorkspace = detailPanel.querySelector('#detail-workspace');
+  if (detailWorkspace) {
+    detailWorkspace.style.display = 'flex';
+    detailWorkspace.style.gap = '0';
+    detailWorkspace.style.flex = '1';
+    detailWorkspace.style.overflow = 'hidden';
+  }
+
+  // Animate sidebar to mini
+  document.getElementById('sidebar').classList.remove('sidebar-full');
+  document.getElementById('sidebar').classList.add('sidebar-mini');
+
+  // Highlight active batch in mini view
+  document.querySelectorAll('.sb-mini-item').forEach(i => i.classList.remove('active'));
+  const active = document.querySelector(`.sb-mini-item[data-ebr-id="${ebrId}"]`);
+  if (active) active.classList.add('active');
+
+  // Update URL without reload
+  history.pushState({view: 'detail', ebrId}, '', `/laborant/ebr/${ebrId}`);
+  currentView = 'detail';
+  currentEbrId = ebrId;
+
+  // Execute scripts in the loaded HTML
+  detailPanel.querySelectorAll('script').forEach(s => {
+    const ns = document.createElement('script');
+    if (s.src) {
+      ns.src = s.src;
+    } else {
+      ns.textContent = s.textContent;
+    }
+    s.replaceWith(ns);
+  });
+}
+
+function showDashboard() {
+  document.getElementById('panel-dashboard').style.display = '';
+  document.getElementById('panel-detail').style.display = 'none';
+  document.getElementById('panel-detail').innerHTML = '';
+
+  // Restore topbar
+  document.getElementById('topbar-title').textContent = 'Szarze EBR';
+  document.getElementById('topbar-right').textContent = '{{ batches|length }} otwartych';
+
+  // Clear footer
+  const spaFooter = document.getElementById('spa-footer');
+  if (spaFooter) spaFooter.innerHTML = '';
+
+  // Animate sidebar to full
+  document.getElementById('sidebar').classList.remove('sidebar-mini');
+  document.getElementById('sidebar').classList.add('sidebar-full');
+
+  // Clear active in mini
+  document.querySelectorAll('.sb-mini-item').forEach(i => i.classList.remove('active'));
+
+  history.pushState({view: 'dashboard'}, '', '/laborant/szarze');
+  currentView = 'dashboard';
+  currentEbrId = null;
+}
+
+// Handle browser back/forward
+window.addEventListener('popstate', (e) => {
+  if (e.state && e.state.view === 'detail' && e.state.ebrId) {
+    loadBatch(e.state.ebrId);
+  } else {
+    showDashboard();
+  }
+});
+
+// On page load: if URL is /laborant/ebr/N, load that batch
+const _detailMatch = window.location.pathname.match(/\/laborant\/ebr\/(\d+)/);
+if (_detailMatch) {
+  loadBatch(parseInt(_detailMatch[1]));
+}
+
+// Also handle batch card clicks via event delegation
+document.addEventListener('click', (e) => {
+  const card = e.target.closest('.batch-card[data-ebr-id]');
+  if (card) {
+    e.preventDefault();
+    e.stopPropagation();
+    loadBatch(parseInt(card.dataset.ebrId));
+  }
+});
+
+// ═══ DASHBOARD FUNCTIONS ═══
+
 function filterBatchCards(query) {
   const q = query.toLowerCase();
   document.querySelectorAll('.batch-card').forEach(card => {
@@ -241,7 +408,6 @@ function applyTableFilters() {
   var nr = (document.getElementById('filter-nr').value || '').toLowerCase().replace(/\s/g, '');
   var hasFilter = !!(produkt || typ || nr);
 
-  // Show/hide clear button
   var clearBtn = document.getElementById('filter-clear-btn');
   if (clearBtn) clearBtn.style.display = hasFilter ? '' : 'none';
 

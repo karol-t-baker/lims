@@ -40,9 +40,9 @@
 {# ═══ MAIN ═══ #}
 <div class="main">
   {% block topbar %}
-  <div class="topbar">
-    <span class="tp-t">{% block topbar_title %}{% endblock %}</span>
-    <span class="tp-r">{% block topbar_right %}{% endblock %}</span>
+  <div class="topbar" id="topbar">
+    <span class="tp-t" id="topbar-title">{% block topbar_title %}{% endblock %}</span>
+    <span class="tp-r" id="topbar-right">{% block topbar_right %}{% endblock %}</span>
   </div>
   {% endblock %}
 

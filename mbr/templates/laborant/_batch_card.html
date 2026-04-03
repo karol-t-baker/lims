@@ -5,6 +5,7 @@
 {% macro batch_card(b, active=false, onclick_url='') %}
 <div class="batch-card {{ 'typ-zbiornik' if b.typ == 'zbiornik' else '' }} {{ 'status-alert' if b.out_of_limit > 0 else '' }} {{ 'active' if active else '' }}"
      data-typ="{{ b.typ or 'szarza' }}" data-produkt="{{ b.produkt }}" data-nr="{{ b.nr_partii }}"
+     data-ebr-id="{{ b.ebr_id }}"
      {% if onclick_url %}onclick="location.href='{{ onclick_url }}'"{% endif %}>
   <div class="bc-top">
     <span class="bc-nr">{{ b.nr_partii }}</span>
