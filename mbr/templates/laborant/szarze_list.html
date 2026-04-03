@@ -126,6 +126,7 @@
   <div class="section-title">Otwarte szarze <span class="section-count">{{ batches|length }}</span></div>
 
   {% if batches %}
+  <div class="table-scroll-5">
   <table class="queue-table">
     <thead>
       <tr>
@@ -160,6 +161,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
   {% else %}
   <div class="kpi" style="margin-bottom:24px;">
     <div class="kpi-sub">Brak otwartych szarz. Kliknij "+ Nowa szarza" aby rozpoczac.</div>

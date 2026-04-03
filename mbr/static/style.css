@@ -821,6 +821,11 @@ body {
 .section-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-sec); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
 .section-count { font-size: 10px; padding: 2px 8px; border-radius: 10px; background: var(--amber-bg); color: var(--amber); font-weight: 600; }
 
+/* Scrollable table wrapper — shows N rows, rest scrollable */
+.table-scroll-5 { max-height: 245px; overflow-y: auto; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 24px; }
+.table-scroll-5 .queue-table { margin-bottom: 0; border: none; border-radius: 0; }
+.table-scroll-5 .queue-table thead th { position: sticky; top: 0; z-index: 1; }
+
 .queue-table { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; border-collapse: separate; border-spacing: 0; overflow: hidden; margin-bottom: 24px; }
 .queue-table th { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); font-weight: 600; padding: 10px 14px; text-align: left; background: var(--surface-alt); border-bottom: 1px solid var(--border); }
 .queue-table td { padding: 10px 14px; border-bottom: 1px solid var(--surface-alt); font-size: 13px; }
