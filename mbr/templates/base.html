@@ -74,7 +74,7 @@
       <div id="shift-worker-list" class="sw-list">Ladowanie...</div>
     </div>
     <div class="modal-footer">
-      <a href="{{ url_for('logout') }}" class="m-btn m-btn-o" style="font-size:11px;color:var(--text-dim);">Wyloguj</a>
+      <a href="{{ url_for('logout') }}" class="m-btn m-btn-o" style="font-size:11px;color:var(--text-dim);" onclick="return confirm('Na pewno wylogowac?')">Wyloguj</a>
       <div class="m-sp"></div>
       <button class="m-btn m-btn-o" onclick="closeShiftModal()">Anuluj</button>
       <button class="m-btn m-btn-p" onclick="saveShift()">Potwierdz zmiane</button>
