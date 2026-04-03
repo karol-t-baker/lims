@@ -385,8 +385,10 @@ def save_entry(ebr_id):
 @app.route("/laborant/ebr/<int:ebr_id>/complete", methods=["POST"])
 @login_required
 def complete_entry(ebr_id):
+    data = request.get_json(silent=True) or {}
+    zbiorniki = data.get("zbiorniki")
     with db_session() as db:
-        complete_ebr(db, ebr_id)
+        complete_ebr(db, ebr_id, zbiorniki=zbiorniki)
         sync_ebr_to_v4(db, ebr_id)
     # Support AJAX calls from SPA
     if request.is_json or request.headers.get("Content-Type", "").startswith("application/json"):

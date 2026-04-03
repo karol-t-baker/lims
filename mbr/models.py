@@ -95,7 +95,8 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             operator            TEXT,
             typ                 TEXT NOT NULL DEFAULT 'szarza'
                                 CHECK(typ IN ('szarza', 'zbiornik')),
-            nastaw              INTEGER
+            nastaw              INTEGER,
+            przepompowanie_json TEXT
         );
 
         CREATE TABLE IF NOT EXISTS ebr_wyniki (
@@ -152,11 +153,13 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     except Exception:
         pass  # column already exists
 
-    # Migration: add nastaw column if not exists
+    # Migration: add nastaw + przepompowanie columns if not exists
     cols = [r[1] for r in db.execute("PRAGMA table_info(ebr_batches)").fetchall()]
     if "nastaw" not in cols:
         db.execute("ALTER TABLE ebr_batches ADD COLUMN nastaw INTEGER")
-        db.commit()
+    if "przepompowanie_json" not in cols:
+        db.execute("ALTER TABLE ebr_batches ADD COLUMN przepompowanie_json TEXT")
+    db.commit()
 
     # Migration: add avatar columns to workers if not exists
     wcols = [r[1] for r in db.execute("PRAGMA table_info(workers)").fetchall()]
@@ -868,12 +871,13 @@ def save_wyniki(
     db.commit()
 
 
-def complete_ebr(db: sqlite3.Connection, ebr_id: int) -> None:
-    """Set status='completed', dt_end=now."""
+def complete_ebr(db: sqlite3.Connection, ebr_id: int, zbiorniki: list | None = None) -> None:
+    """Set status='completed', dt_end=now. Optionally save pump-out targets."""
     now = datetime.now().isoformat(timespec="seconds")
+    zbiorniki_json = json.dumps(zbiorniki, ensure_ascii=False) if zbiorniki else None
     db.execute(
-        "UPDATE ebr_batches SET status = 'completed', dt_end = ? WHERE ebr_id = ?",
-        (now, ebr_id),
+        "UPDATE ebr_batches SET status = 'completed', dt_end = ?, przepompowanie_json = ? WHERE ebr_id = ?",
+        (now, zbiorniki_json, ebr_id),
     )
     db.commit()
 
