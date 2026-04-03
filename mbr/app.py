@@ -218,20 +218,20 @@ def tech_dashboard():
     )
 
 
-@app.route("/technolog/narzedzia")
-@role_required("technolog")
+@app.route("/narzedzia")
+@login_required
 def narzedzia():
     return render_template("technolog/narzedzia.html", today=date.today().isoformat())
 
 
-@app.route("/technolog/narzedzia/wniosek-dojazd")
-@role_required("technolog")
+@app.route("/narzedzia/wniosek-dojazd")
+@login_required
 def wniosek_dojazd():
     return render_template("technolog/wniosek_dojazd.html", today=date.today().isoformat())
 
 
-@app.route("/technolog/narzedzia/wniosek-dojazd/pdf", methods=["POST"])
-@role_required("technolog")
+@app.route("/narzedzia/wniosek-dojazd/pdf", methods=["POST"])
+@login_required
 def wniosek_dojazd_pdf():
     from mbr.pdf_gen import generate_wniosek_dojazd_pdf
     data = {
