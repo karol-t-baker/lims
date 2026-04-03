@@ -105,7 +105,16 @@
 var shiftWorkerIds = {{ session.get('shift_workers', []) | tojson }};
 var _shiftWorkers = []; // cached worker list
 
-var AVATARS = ['🧪', '🔬', '⚗️', '🧫', '🧬', '🌡️', '💊', '🔩', '⚙️', '🛠️', '🌸', '🌻', '🍀', '☕', '🫖', '🧁'];
+var AVATAR_COLORS = [
+  {bg:'#e0f2f1', fg:'#0d7367'},  // teal
+  {bg:'#fef3c7', fg:'#92400e'},  // amber
+  {bg:'#ede9fe', fg:'#5b21b6'},  // violet
+  {bg:'#fce7f3', fg:'#9d174d'},  // rose
+  {bg:'#dbeafe', fg:'#1e40af'},  // blue
+  {bg:'#d1fae5', fg:'#065f46'},  // emerald
+  {bg:'#fae8ff', fg:'#86198f'},  // fuchsia
+  {bg:'#fed7aa', fg:'#9a3412'},  // orange
+];
 
 async function openShiftModal() {
   document.getElementById('shift-overlay').classList.add('show');
@@ -124,10 +133,10 @@ function renderShiftList() {
   }
   list.innerHTML = _shiftWorkers.map(function(w) {
     var active = shiftWorkerIds.indexOf(w.id) >= 0;
-    var displayEmoji = AVATARS[(w.id - 1) % AVATARS.length];
+    var c = AVATAR_COLORS[(w.id - 1) % AVATAR_COLORS.length];
     var display = w.nickname || (w.imie + ' ' + w.nazwisko);
     return '<div class="sw-card' + (active ? ' active' : '') + '" data-wid="' + w.id + '">' +
-      '<div class="sw-avatar" onclick="toggleShiftWorker(this.parentElement,' + w.id + ')">' + displayEmoji + '</div>' +
+      '<div class="sw-avatar" style="background:' + c.bg + ';color:' + c.fg + ';" onclick="toggleShiftWorker(this.parentElement,' + w.id + ')">' + w.inicjaly + '</div>' +
       '<div class="sw-info" onclick="toggleShiftWorker(this.parentElement,' + w.id + ')">' +
         '<div class="sw-name">' + display + '</div>' +
         '<div class="sw-sub">' + w.inicjaly + ' &middot; ' + w.imie + ' ' + w.nazwisko + '</div>' +
@@ -158,32 +167,24 @@ function editWorkerNick(wid) {
 
   // Build inline editor
   var currentNick = w.nickname || '';
+  var c = AVATAR_COLORS[(w.id - 1) % AVATAR_COLORS.length];
   var html = '<div class="sw-editor">' +
-    '<div class="sw-editor-title">Personalizacja — ' + w.imie + ' ' + w.nazwisko + '</div>' +
+    '<div class="sw-editor-header">' +
+      '<div class="sw-avatar" style="background:' + c.bg + ';color:' + c.fg + ';width:48px;height:48px;font-size:17px;border-radius:12px;">' + w.inicjaly + '</div>' +
+      '<div><div class="sw-editor-title">' + w.imie + ' ' + w.nazwisko + '</div>' +
+      '<div style="font-size:11px;color:var(--text-dim);">Inicjaly: ' + w.inicjaly + '</div></div>' +
+    '</div>' +
     '<div class="sw-editor-section">' +
-      '<label class="sw-editor-label">Nickname</label>' +
+      '<label class="sw-editor-label">Wyswietlany nick</label>' +
       '<input class="form-input sw-nick-input" id="nick-edit-input" value="' + currentNick + '" placeholder="np. Ania, Kasia..." style="width:100%;">' +
+      '<div style="font-size:10px;color:var(--text-dim);margin-top:4px;">Jezeli ustawisz nick, bedzie wyswietlany zamiast imienia i nazwiska.</div>' +
     '</div>' +
-    '<div class="sw-editor-section">' +
-      '<label class="sw-editor-label">Avatar</label>' +
-      '<div class="sw-emoji-grid">' +
-        AVATARS.map(function(em) {
-          var sel = em === AVATARS[(w.id - 1) % AVATARS.length] ? ' selected' : '';
-          return '<button type="button" class="sw-emoji' + sel + '" onclick="pickEmoji(this)">' + em + '</button>';
-        }).join('') +
-      '</div>' +
-    '</div>' +
-    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">' +
       '<button class="m-btn m-btn-o" onclick="renderShiftList()">Anuluj</button>' +
       '<button class="m-btn m-btn-p" onclick="saveWorkerNick(' + wid + ')">Zapisz</button>' +
     '</div>' +
   '</div>';
   list.innerHTML = html;
-}
-
-function pickEmoji(btn) {
-  btn.parentElement.querySelectorAll('.sw-emoji').forEach(function(b) { b.classList.remove('selected'); });
-  btn.classList.add('selected');
 }
 
 async function saveWorkerNick(wid) {
@@ -267,10 +268,10 @@ setInterval(checkShiftReminder, 60000);
 .sw-avatar {
   width: 36px; height: 36px; border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 18px; background: var(--surface-alt, #f0ede8);
-  flex-shrink: 0;
+  font-size: 13px; font-weight: 700; letter-spacing: -0.3px;
+  flex-shrink: 0; transition: transform 0.12s;
 }
-.sw-card.active .sw-avatar { background: white; }
+.sw-card.active .sw-avatar { transform: scale(1.05); box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
 .sw-info { flex: 1; min-width: 0; }
 .sw-name { font-size: 13px; font-weight: 600; color: var(--text); }
 .sw-sub { font-size: 10px; color: var(--text-dim); margin-top: 1px; }
@@ -293,19 +294,11 @@ setInterval(checkShiftReminder, 60000);
 
 /* Inline editor */
 .sw-editor { padding: 20px; }
-.sw-editor-title { font-size: 14px; font-weight: 600; margin-bottom: 16px; }
+.sw-editor-header { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.sw-editor-title { font-size: 15px; font-weight: 600; }
 .sw-editor-section { margin-bottom: 14px; }
 .sw-editor-label { font-size: 11px; font-weight: 600; color: var(--text-dim); display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.3px; }
 .sw-nick-input { font-size: 14px !important; padding: 10px 12px !important; }
-.sw-emoji-grid { display: flex; flex-wrap: wrap; gap: 6px; }
-.sw-emoji {
-  width: 36px; height: 36px; border-radius: 8px; border: 1.5px solid var(--border);
-  background: var(--surface); cursor: pointer; font-size: 18px;
-  display: flex; align-items: center; justify-content: center;
-  transition: all 0.12s;
-}
-.sw-emoji:hover { border-color: var(--teal); transform: scale(1.1); }
-.sw-emoji.selected { border-color: var(--teal); background: var(--teal-bg); box-shadow: 0 0 0 2px rgba(13,148,136,0.2); }
 </style>
 </body>
 </html>
