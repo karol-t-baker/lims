@@ -119,37 +119,62 @@
     {% endif %}
     {% endwith %}
 
-    {# KPI #}
+    {# Data #}
     {% set szarze_only = batches|rejectattr('typ', 'equalto', 'zbiornik')|list %}
     {% set zbiorniki_only = batches|selectattr('typ', 'equalto', 'zbiornik')|list %}
     {% set w_trakcie = batches|selectattr('stage_status', 'equalto', 'in_progress')|list %}
     {% set poza_limitem = batches|selectattr('out_of_limit', 'gt', 0)|list %}
-    {# Count batches per stage #}
-    {% set stage_counts = {} %}
-    {% for b in szarze_only %}{% if stage_counts.update({b.stage_name|default('?'): (stage_counts.get(b.stage_name|default('?'), 0) + 1)}) %}{% endif %}{% endfor %}
+    {% set sc = {} %}
+    {% for b in szarze_only %}{% if sc.update({b.stage_name|default('?'): (sc.get(b.stage_name|default('?'), 0) + 1)}) %}{% endif %}{% endfor %}
+
+    {# KPI row #}
     <div class="kpi-row" style="grid-template-columns: repeat(3, 1fr);">
       <div class="kpi">
         <div class="kpi-label">Aktywne szarze</div>
         <div class="kpi-value">{{ szarze_only|length }}</div>
-        <div class="kpi-sub">
-          {% for stage, cnt in stage_counts.items() %}
-          <span style="display:inline-block;margin-right:8px;">{{ stage }}: <strong>{{ cnt }}</strong></span>
-          {% endfor %}
-          {% if not stage_counts %}brak{% endif %}
-        </div>
+        <div class="kpi-sub">{{ w_trakcie|length }} w trakcie analizy</div>
       </div>
       <div class="kpi">
         <div class="kpi-label">Zbiorniki</div>
         <div class="kpi-value">{{ zbiorniki_only|length }}</div>
         <div class="kpi-sub">{{ zbiorniki_only|selectattr('stage_status', 'equalto', 'in_progress')|list|length + zbiorniki_only|selectattr('stage_status', 'equalto', 'waiting')|list|length }} do analizy koncowej</div>
       </div>
-      <div class="kpi {{ 'highlight' if w_trakcie }}">
-        <div class="kpi-label">W trakcie analizy</div>
-        <div class="kpi-value">{{ w_trakcie|length }}</div>
-        <div class="kpi-sub">
-          {% if poza_limitem %}<span style="color:var(--red)">{{ poza_limitem|length }} poza limitem</span>{% else %}wszystko w normie{% endif %}
-          &bull; {{ recent|length }} ukonczonych (7 dni)
+      <div class="kpi {{ 'highlight' if poza_limitem }}">
+        <div class="kpi-label">Poza limitem</div>
+        <div class="kpi-value" {% if poza_limitem %}style="color:var(--red)"{% endif %}>{{ poza_limitem|length }}</div>
+        <div class="kpi-sub">{{ recent|length }} ukonczonych (7 dni)</div>
+      </div>
+    </div>
+
+    {# Pipeline #}
+    {% set stages = [
+      ('Amidowanie', 's-amid', sc.get('Amidowanie', 0)),
+      ('Czwartorzędowanie', 's-czwart', sc.get('Czwartorzędowanie', 0)),
+      ('Sulfonowanie', 's-sulfon', sc.get('Sulfonowanie', 0)),
+      ('Utlenienie', 's-utlen', sc.get('Utlenienie', 0)),
+      ('Standaryzacja', 's-stand', sc.get('Standaryzacja', 0)),
+      ('Analiza końcowa', 's-koncowa', sc.get('Analiza końcowa', 0) + sc.get('Przed standaryzacją', 0)),
+    ] %}
+    <div class="pipeline-card">
+      <div class="pipeline-header">
+        <span class="pipeline-title">Pipeline produkcji</span>
+        <span class="pipeline-total">{{ szarze_only|length }} szarz</span>
+      </div>
+      <div class="pipeline-flow">
+        {% for name, cls, cnt in stages %}
+        {% if not loop.first %}
+        <div class="pf-arrow {{ 'active' if cnt > 0 or stages[loop.index0 - 1][2] > 0 }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg></div>
+        {% endif %}
+        <div class="pf-node {{ cls }} {{ 'empty' if cnt == 0 }}">
+          <div class="pf-bubble">{{ cnt }}<span class="pf-tooltip">{{ name }}: {{ cnt }} szarz</span></div>
+          <div class="pf-label">{{ name }}</div>
         </div>
+        {% endfor %}
+      </div>
+      <div class="pipeline-bar">
+        {% for name, cls, cnt in stages %}{% if cnt > 0 %}
+        <div class="pb-seg {{ cls }}" style="flex:{{ cnt }}"></div>
+        {% endif %}{% endfor %}
       </div>
     </div>
 
