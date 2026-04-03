@@ -127,25 +127,6 @@
     {% set sc = {} %}
     {% for b in szarze_only %}{% if sc.update({b.stage_name|default('?'): (sc.get(b.stage_name|default('?'), 0) + 1)}) %}{% endif %}{% endfor %}
 
-    {# KPI row #}
-    <div class="kpi-row" style="grid-template-columns: repeat(3, 1fr);">
-      <div class="kpi">
-        <div class="kpi-label">Aktywne szarze</div>
-        <div class="kpi-value">{{ szarze_only|length }}</div>
-        <div class="kpi-sub">{{ w_trakcie|length }} w trakcie analizy</div>
-      </div>
-      <div class="kpi">
-        <div class="kpi-label">Zbiorniki</div>
-        <div class="kpi-value">{{ zbiorniki_only|length }}</div>
-        <div class="kpi-sub">{{ zbiorniki_only|selectattr('stage_status', 'equalto', 'in_progress')|list|length + zbiorniki_only|selectattr('stage_status', 'equalto', 'waiting')|list|length }} do analizy koncowej</div>
-      </div>
-      <div class="kpi {{ 'highlight' if poza_limitem }}">
-        <div class="kpi-label">Poza limitem</div>
-        <div class="kpi-value" {% if poza_limitem %}style="color:var(--red)"{% endif %}>{{ poza_limitem|length }}</div>
-        <div class="kpi-sub">{{ recent|length }} ukonczonych (7 dni)</div>
-      </div>
-    </div>
-
     {# Pipeline #}
     {% set stages = [
       ('Amidowanie', 's-amid', sc.get('Amidowanie', 0)),
