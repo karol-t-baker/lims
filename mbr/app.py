@@ -10,6 +10,8 @@ from datetime import datetime, date
 
 from flask import Flask, Response, redirect, url_for, request, session, render_template, flash, jsonify, abort
 
+from flask import send_file
+
 from mbr.models import (
     get_db, db_session, init_mbr_tables, verify_user,
     list_mbr, get_mbr, save_mbr, activate_mbr, clone_mbr,
@@ -18,6 +20,7 @@ from mbr.models import (
     sync_ebr_to_v4, next_nr_partii, PRODUCTS,
     list_completed_registry, get_registry_columns, list_completed_products,
     list_workers, update_worker_profile, update_worker_nickname,
+    create_swiadectwo, list_swiadectwa,
 )
 
 app = Flask(__name__)
@@ -485,6 +488,97 @@ def api_feedback():
         db.execute("INSERT INTO feedback (text, who, dt) VALUES (?, ?, ?)", (text, who, now))
         db.commit()
     return jsonify({"ok": True})
+
+
+# ---------------------------------------------------------------------------
+# Certificate API
+# ---------------------------------------------------------------------------
+
+@app.route("/api/cert/templates")
+@login_required
+def api_cert_templates():
+    produkt = request.args.get("produkt", "")
+    if not produkt:
+        return jsonify({"templates": []})
+    from mbr.cert_gen import list_templates_for_product
+    templates = list_templates_for_product(produkt)
+    return jsonify({"templates": templates})
+
+
+@app.route("/api/cert/generate", methods=["POST"])
+@login_required
+def api_cert_generate():
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
+    ebr_id = data.get("ebr_id")
+    template_name = data.get("template_name")
+    if not ebr_id or not template_name:
+        return jsonify({"error": "ebr_id and template_name required"}), 400
+
+    from mbr.cert_gen import generate_certificate_pdf, save_certificate_pdf
+
+    with db_session() as db:
+        ebr = get_ebr(db, ebr_id)
+        if ebr is None:
+            return jsonify({"error": "EBR not found"}), 404
+        wyniki = get_ebr_wyniki(db, ebr_id)
+
+        # Flatten wyniki: latest value per kod across all sekcjas
+        wyniki_flat = {}
+        for sekcja_data in wyniki.values():
+            for kod, row in sekcja_data.items():
+                wyniki_flat[kod] = row
+
+        # Resolve wystawil: shift workers or session login
+        shift_ids = session.get("shift_workers", [])
+        if shift_ids:
+            placeholders = ",".join("?" * len(shift_ids))
+            workers = db.execute(
+                f"SELECT inicjaly, nickname FROM workers WHERE id IN ({placeholders})",
+                shift_ids
+            ).fetchall()
+            wystawil = ", ".join(w["nickname"] or w["inicjaly"] for w in workers)
+        else:
+            wystawil = session["user"]["login"]
+
+        pdf_bytes = generate_certificate_pdf(template_name, dict(ebr), wyniki_flat)
+        pdf_path = save_certificate_pdf(
+            pdf_bytes, ebr["produkt"], template_name, ebr["nr_partii"]
+        )
+        cert_id = create_swiadectwo(
+            db, ebr_id, template_name, ebr["nr_partii"], pdf_path, wystawil
+        )
+
+    return jsonify({"ok": True, "cert_id": cert_id, "pdf_path": pdf_path})
+
+
+@app.route("/api/cert/<int:cert_id>/pdf")
+@login_required
+def api_cert_pdf(cert_id):
+    with db_session() as db:
+        row = db.execute(
+            "SELECT * FROM swiadectwa WHERE id = ?", (cert_id,)
+        ).fetchone()
+    if row is None:
+        return "Nie znaleziono świadectwa", 404
+    from pathlib import Path
+    project_root = Path(__file__).parent.parent
+    pdf_path = project_root / row["pdf_path"]
+    if not pdf_path.exists():
+        return "Plik PDF nie istnieje", 404
+    return send_file(str(pdf_path), mimetype="application/pdf")
+
+
+@app.route("/api/cert/list")
+@login_required
+def api_cert_list():
+    ebr_id = request.args.get("ebr_id", type=int)
+    if not ebr_id:
+        return jsonify({"certs": []})
+    with db_session() as db:
+        certs = list_swiadectwa(db, ebr_id)
+    return jsonify({"certs": certs})
 
 
 # ---------------------------------------------------------------------------
