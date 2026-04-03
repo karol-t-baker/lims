@@ -97,6 +97,14 @@
     cursor: pointer; font-size: 16px; border-radius: 4px; flex-shrink: 0;
 }
 .cd-remove:hover { color: var(--red); background: var(--red-bg); }
+.cd-remaining {
+    min-width: 70px; text-align: center; font-size: 13px; font-weight: 600;
+    font-family: var(--mono); color: var(--teal); flex-shrink: 0;
+}
+.cd-total {
+    font-size: 10px; color: var(--text-dim); text-align: right;
+    font-family: var(--mono); margin-top: 2px;
+}
 .cd-add {
     background: none; border: none; color: var(--teal); font-size: 11px; font-weight: 600;
     cursor: pointer; padding: 4px 0; font-family: var(--font); margin-bottom: 14px;
@@ -193,6 +201,7 @@ window.ebrId = {{ ebr.ebr_id }};
 var ebrId = {{ ebr.ebr_id }};
 var ebrStatus = "{{ ebr.status }}";
 var ebrTyp = "{{ ebr.typ|default('szarza') }}";
+var ebrNastaw = {{ ebr.wielkosc_szarzy_kg or ebr.nastaw or 0 }};
 var etapy = {{ (ebr.etapy_json if ebr.etapy_json is string else ebr.etapy_json | tojson) | safe }};
 var parametry = {{ (ebr.parametry_lab if ebr.parametry_lab is string else ebr.parametry_lab | tojson) | safe }};
 var wyniki = {{ wyniki | tojson | safe }};
@@ -661,15 +670,38 @@ function completePompuj() {
 }
 
 function renderPompTargets() {
+    var multi = _pompTargets.length > 1;
     var html = '';
+
+    if (multi && ebrNastaw > 0) {
+        // Calculate remaining for last target
+        var usedKg = 0;
+        for (var j = 0; j < _pompTargets.length - 1; j++) {
+            usedKg += parseFloat(_pompTargets[j].kg) || 0;
+        }
+        var remaining = Math.max(0, ebrNastaw - usedKg);
+        _pompTargets[_pompTargets.length - 1].kg = remaining > 0 ? remaining.toFixed(0) : '';
+    }
+
     _pompTargets.forEach(function(t, i) {
-        var showKg = _pompTargets.length > 1;
+        var isLast = multi && i === _pompTargets.length - 1;
         html += '<div class="cd-target">' +
-            '<input class="cd-input" type="text" placeholder="Nr zbiornika" value="' + (t.nr || '') + '" oninput="_pompTargets[' + i + '].nr=this.value">' +
-            (showKg ? '<input class="cd-input cd-input-sm" type="number" step="any" placeholder="kg" value="' + (t.kg || '') + '" oninput="_pompTargets[' + i + '].kg=this.value">' : '') +
-            (_pompTargets.length > 1 ? '<button class="cd-remove" onclick="removePompTarget(' + i + ')" title="Usuń">&times;</button>' : '') +
-        '</div>';
+            '<input class="cd-input" type="text" placeholder="Nr zbiornika" value="' + (t.nr || '') + '" oninput="_pompTargets[' + i + '].nr=this.value">';
+        if (multi) {
+            if (isLast) {
+                html += '<span class="cd-remaining">' + (t.kg || '—') + ' kg</span>';
+            } else {
+                html += '<input class="cd-input cd-input-sm" type="number" step="any" placeholder="kg" value="' + (t.kg || '') + '" oninput="_pompTargets[' + i + '].kg=this.value; renderPompTargets()">';
+            }
+            html += '<button class="cd-remove" onclick="removePompTarget(' + i + ')" title="Usuń">&times;</button>';
+        }
+        html += '</div>';
     });
+
+    if (multi && ebrNastaw > 0) {
+        html += '<div class="cd-total">Nastaw: ' + ebrNastaw + ' kg</div>';
+    }
+
     document.getElementById('cd-targets').innerHTML = html;
 }
 
