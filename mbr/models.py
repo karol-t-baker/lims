@@ -4,6 +4,7 @@ models.py — Database helpers and user CRUD for MBR/EBR webapp.
 
 import json
 import sqlite3
+from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 
@@ -41,6 +42,15 @@ def get_db() -> sqlite3.Connection:
     db.row_factory = sqlite3.Row
     db.execute("PRAGMA foreign_keys=ON")
     return db
+
+
+@contextmanager
+def db_session():
+    db = get_db()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 def init_mbr_tables(db: sqlite3.Connection) -> None:
@@ -104,6 +114,7 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             UNIQUE(ebr_id, sekcja, kod_parametru)
         );
     """)
+    db.execute("CREATE INDEX IF NOT EXISTS idx_wyniki_ebr_limicie ON ebr_wyniki(ebr_id, w_limicie, dt_wpisu)")
     db.commit()
 
     # Migration: add typ column if missing (SQLite doesn't support ALTER TABLE ADD with CHECK)
@@ -492,12 +503,14 @@ def save_wyniki(
     sekcja: str,
     values: dict,
     user: str,
+    ebr: dict | None = None,
 ) -> None:
     """Save lab results. values = {kod: {wartosc, komentarz}}.
     Looks up pole definition from MBR parametry_lab to get tag, min, max.
     Uses INSERT ... ON CONFLICT ... DO UPDATE for upsert.
     Auto-computes w_limicie."""
-    ebr = get_ebr(db, ebr_id)
+    if ebr is None:
+        ebr = get_ebr(db, ebr_id)
     if ebr is None:
         return
     parametry = json.loads(ebr["parametry_lab"]) if isinstance(ebr["parametry_lab"], str) else ebr["parametry_lab"]
@@ -585,13 +598,14 @@ _SEKCJA_TO_STAGE = {
 }
 
 
-def sync_ebr_to_v4(db: sqlite3.Connection, ebr_id: int) -> None:
+def sync_ebr_to_v4(db: sqlite3.Connection, ebr_id: int, ebr: dict | None = None) -> None:
     """Sync EBR data to v4 events and batch tables.
     1. Delete old digital events for this batch
     2. For each sekcja in wyniki: INSERT into events table
     3. If completed + has analiza_koncowa: UPSERT batch row with ak_* fields
     """
-    ebr = get_ebr(db, ebr_id)
+    if ebr is None:
+        ebr = get_ebr(db, ebr_id)
     if ebr is None:
         return
     batch_id = ebr["batch_id"]

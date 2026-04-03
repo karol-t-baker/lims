@@ -64,7 +64,7 @@ function showSaveStatus(status) {
 
 async function doSaveSamples() {
     try {
-        await fetch(`/api/ebr/${_calcState.ebrId}/samples`, {
+        const resp = await fetch(`/api/ebr/${_calcState.ebrId}/samples`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
@@ -74,6 +74,10 @@ async function doSaveSamples() {
                 samples: _calcState.samples
             })
         });
+        if (!resp.ok) {
+            showSaveStatus('error');
+            return;
+        }
     } catch(e) {
         showSaveStatus('error');
     }

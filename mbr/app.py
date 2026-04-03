@@ -11,7 +11,7 @@ from datetime import datetime
 from flask import Flask, Response, redirect, url_for, request, session, render_template, flash, jsonify, abort
 
 from mbr.models import (
-    get_db, init_mbr_tables, verify_user,
+    get_db, db_session, init_mbr_tables, verify_user,
     list_mbr, get_mbr, save_mbr, activate_mbr, clone_mbr,
     list_ebr_open, list_ebr_completed, list_ebr_recent, export_wyniki_csv,
     create_ebr, get_ebr, get_ebr_wyniki, save_wyniki, complete_ebr,
@@ -111,11 +111,8 @@ def login():
     if request.method == "POST":
         login_val = request.form.get("login", "")
         password = request.form.get("password", "")
-        db = get_db()
-        try:
+        with db_session() as db:
             user = verify_user(db, login_val, password)
-        finally:
-            db.close()
         if user:
             session["user"] = {
                 "login": user["login"],
@@ -152,19 +149,15 @@ def index():
 @app.route("/technolog/mbr")
 @role_required("technolog")
 def mbr_list():
-    db = get_db()
-    try:
+    with db_session() as db:
         mbrs = list_mbr(db)
-    finally:
-        db.close()
     return render_template("technolog/mbr_list.html", mbrs=mbrs)
 
 
 @app.route("/technolog/mbr/<int:mbr_id>", methods=["GET", "POST"])
 @role_required("technolog")
 def mbr_edit(mbr_id):
-    db = get_db()
-    try:
+    with db_session() as db:
         if request.method == "POST":
             etapy_json = request.form.get("etapy_json", "[]")
             parametry_lab = request.form.get("parametry_lab", "{}")
@@ -176,8 +169,6 @@ def mbr_edit(mbr_id):
                 flash("Zapisano.")
             return redirect(url_for("mbr_edit", mbr_id=mbr_id))
         mbr = get_mbr(db, mbr_id)
-    finally:
-        db.close()
     if mbr is None:
         return "Nie znaleziono szablonu", 404
     return render_template("technolog/mbr_edit.html", mbr=mbr)
@@ -186,11 +177,8 @@ def mbr_edit(mbr_id):
 @app.route("/technolog/mbr/<int:mbr_id>/activate", methods=["POST"])
 @role_required("technolog")
 def mbr_activate(mbr_id):
-    db = get_db()
-    try:
+    with db_session() as db:
         ok = activate_mbr(db, mbr_id)
-    finally:
-        db.close()
     if not ok:
         flash("Nie udalo sie aktywowac szablonu.")
     else:
@@ -201,12 +189,9 @@ def mbr_activate(mbr_id):
 @app.route("/technolog/mbr/<int:mbr_id>/clone", methods=["POST"])
 @role_required("technolog")
 def mbr_clone(mbr_id):
-    db = get_db()
-    try:
+    with db_session() as db:
         user = session["user"]["login"]
         new_id = clone_mbr(db, mbr_id, user)
-    finally:
-        db.close()
     if new_id is None:
         flash("Nie udalo sie sklonowac szablonu.")
         return redirect(url_for("mbr_list"))
@@ -217,14 +202,11 @@ def mbr_clone(mbr_id):
 @app.route("/technolog/dashboard")
 @role_required("technolog")
 def tech_dashboard():
-    db = get_db()
     produkt = request.args.get("produkt")
     typ = request.args.get("typ")
-    try:
+    with db_session() as db:
         open_batches = list_ebr_open(db, produkt=produkt, typ=typ)
         completed = list_ebr_completed(db, produkt=produkt, typ=typ)
-    finally:
-        db.close()
     return render_template(
         "technolog/dashboard.html",
         open_batches=open_batches,
@@ -240,11 +222,8 @@ def tech_export():
     import csv
     import io
 
-    db = get_db()
-    try:
+    with db_session() as db:
         rows = export_wyniki_csv(db, request.args.get("produkt"))
-    finally:
-        db.close()
     if not rows:
         return "Brak danych", 404
     output = io.StringIO()
@@ -261,23 +240,17 @@ def tech_export():
 @app.route("/api/next-nr/<produkt>")
 @login_required
 def api_next_nr(produkt):
-    db = get_db()
-    try:
+    with db_session() as db:
         nr = next_nr_partii(db, produkt)
-    finally:
-        db.close()
     return jsonify({"nr_partii": nr})
 
 
 @app.route("/laborant/szarze")
 @role_required("laborant")
 def szarze_list():
-    db = get_db()
-    try:
+    with db_session() as db:
         batches = list_ebr_open(db)
         recent = list_ebr_recent(db, days=7)
-    finally:
-        db.close()
     return render_template("laborant/szarze_list.html", batches=batches, recent=recent,
                            products=PRODUCTS)
 
@@ -285,8 +258,7 @@ def szarze_list():
 @app.route("/laborant/szarze/new", methods=["POST"])
 @role_required("laborant")
 def szarze_new():
-    db = get_db()
-    try:
+    with db_session() as db:
         typ = request.form.get("typ", "szarza")
         ebr_id = create_ebr(
             db,
@@ -298,8 +270,6 @@ def szarze_new():
             operator=session["user"]["login"],
             typ=typ,
         )
-    finally:
-        db.close()
 
     if ebr_id is None:
         flash("Brak aktywnego szablonu MBR dla tego produktu.")
@@ -311,15 +281,12 @@ def szarze_new():
 @app.route("/laborant/ebr/<int:ebr_id>")
 @login_required
 def fast_entry(ebr_id):
-    db = get_db()
-    try:
+    with db_session() as db:
         ebr = get_ebr(db, ebr_id)
         if ebr is None:
             return "Nie znaleziono szarzy", 404
         wyniki = get_ebr_wyniki(db, ebr_id)
         all_open = list_ebr_open(db)
-    finally:
-        db.close()
     return render_template("laborant/fast_entry.html", ebr=ebr, wyniki=wyniki, all_open=all_open)
 
 
@@ -333,24 +300,19 @@ def save_entry(ebr_id):
     values = data.get("values", {})
     user = session["user"]["login"]
 
-    db = get_db()
-    try:
-        save_wyniki(db, ebr_id, sekcja, values, user)
-        sync_ebr_to_v4(db, ebr_id)
-    finally:
-        db.close()
+    with db_session() as db:
+        ebr = get_ebr(db, ebr_id)
+        save_wyniki(db, ebr_id, sekcja, values, user, ebr=ebr)
+        sync_ebr_to_v4(db, ebr_id, ebr=ebr)
     return jsonify({"ok": True})
 
 
 @app.route("/laborant/ebr/<int:ebr_id>/complete", methods=["POST"])
 @login_required
 def complete_entry(ebr_id):
-    db = get_db()
-    try:
+    with db_session() as db:
         complete_ebr(db, ebr_id)
         sync_ebr_to_v4(db, ebr_id)
-    finally:
-        db.close()
     return redirect(url_for("szarze_list"))
 
 
@@ -365,8 +327,7 @@ def save_samples(ebr_id):
     data = request.get_json(silent=True)
     if not data:
         return jsonify({"error": "Invalid JSON"}), 400
-    db = get_db()
-    try:
+    with db_session() as db:
         samples_json = json.dumps(data["samples"])
         db.execute("""
             INSERT INTO ebr_wyniki (ebr_id, sekcja, kod_parametru, tag, wartosc,
@@ -380,8 +341,6 @@ def save_samples(ebr_id):
               samples_json, datetime.now().isoformat(timespec="seconds"),
               session["user"]["login"]))
         db.commit()
-    finally:
-        db.close()
     return jsonify({"ok": True})
 
 
@@ -389,14 +348,11 @@ def save_samples(ebr_id):
 @login_required
 def get_samples(ebr_id, sekcja, kod):
     """Get saved titration samples for a parameter."""
-    db = get_db()
-    try:
+    with db_session() as db:
         row = db.execute(
             "SELECT samples_json FROM ebr_wyniki WHERE ebr_id = ? AND sekcja = ? AND kod_parametru = ?",
             (ebr_id, sekcja, kod)
         ).fetchone()
-    finally:
-        db.close()
     samples = json.loads(row["samples_json"]) if row and row["samples_json"] else []
     return jsonify({"samples": samples})
 
@@ -412,11 +368,8 @@ from mbr.pdf_gen import generate_pdf
 @login_required
 def pdf_mbr(mbr_id):
     """Empty card from MBR template."""
-    db = get_db()
-    try:
+    with db_session() as db:
         mbr = get_mbr(db, mbr_id)
-    finally:
-        db.close()
     if not mbr:
         abort(404)
     pdf_bytes = generate_pdf(mbr)
@@ -428,15 +381,12 @@ def pdf_mbr(mbr_id):
 @login_required
 def pdf_ebr(ebr_id):
     """Filled card from EBR + MBR."""
-    db = get_db()
-    try:
+    with db_session() as db:
         ebr = get_ebr(db, ebr_id)
         if not ebr:
             abort(404)
         mbr = get_mbr(db, ebr["mbr_id"])
         wyniki = get_ebr_wyniki(db, ebr_id)
-    finally:
-        db.close()
     pdf_bytes = generate_pdf(mbr, ebr, wyniki)
     return Response(pdf_bytes, mimetype="application/pdf",
                     headers={"Content-Disposition": f"inline; filename=EBR_{ebr['batch_id']}.pdf"})
@@ -447,11 +397,8 @@ def pdf_ebr(ebr_id):
 # ---------------------------------------------------------------------------
 
 with app.app_context():
-    db = get_db()
-    try:
+    with db_session() as db:
         init_mbr_tables(db)
-    finally:
-        db.close()
 
 
 def _get_local_ip() -> str:
