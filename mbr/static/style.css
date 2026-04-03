@@ -79,9 +79,12 @@ body {
   border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
   color: rgba(255,255,255,0.35);
-  cursor: pointer; font-size: 15px;
+  cursor: pointer; font-size: 13px;
   text-decoration: none;
-  transition: background 0.1s, color 0.1s;
+  transition: all 0.15s;
+  border: none; background: none;
+  font-family: var(--font);
+  padding: 0;
 }
 .rail-btn:hover {
   background: rgba(255,255,255,0.08);
@@ -121,7 +124,9 @@ body {
   font-size: 11px; font-weight: 600;
   cursor: pointer;
   text-decoration: none;
+  transition: all 0.15s;
 }
+.rail-av:hover { background: rgba(255,255,255,0.25); }
 
 
 /* ═══ SIDEBAR ═══ */
