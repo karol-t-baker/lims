@@ -1175,6 +1175,15 @@ body {
   display: flex; align-items: center; gap: 8px;
   background: var(--surface-alt);
 }
+.field-error {
+  font-size: 11px; color: var(--red, #dc2626); margin-top: 4px;
+  animation: shakeIn 0.3s ease;
+}
+.form-input.invalid {
+  border-color: var(--red, #dc2626) !important;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.15);
+}
+@keyframes shakeIn { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
 .m-btn {
   padding: 10px 22px; border-radius: 8px; font-size: 13px;
   border: none; cursor: pointer; font-weight: 600; font-family: var(--font);

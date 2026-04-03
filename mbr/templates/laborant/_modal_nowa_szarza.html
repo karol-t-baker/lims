@@ -313,13 +313,40 @@ document.querySelectorAll('.product-search').forEach(function(input) {
 
 // Validate + sync before submit
 document.getElementById('new-batch-form').addEventListener('submit', function(e) {
-  // Validate produkt is selected
+  // Clear previous validation errors
+  document.querySelectorAll('.field-error').forEach(function(el) { el.remove(); });
+  document.querySelectorAll('.form-input.invalid').forEach(function(el) { el.classList.remove('invalid'); });
+
+  var errors = [];
+
+  // Validate produkt
   var produkt = document.getElementById('produkt-input').value;
   if (!produkt) {
+    errors.push({msg: 'Wybierz produkt', target: currentTyp === 'szarza' ? '#quick-pick-szarza' : '#quick-pick-zbiornik'});
+  }
+
+  // Validate wielkosc (szarza only)
+  if (currentTyp === 'szarza') {
+    var wInput = document.querySelector('#step-2a input[name="wielkosc_kg"]');
+    if (wInput && (!wInput.value || parseFloat(wInput.value) <= 0)) {
+      errors.push({msg: 'Podaj wielkość szarży', el: wInput});
+    }
+  }
+
+  if (errors.length > 0) {
     e.preventDefault();
-    alert('Wybierz produkt.');
+    errors.forEach(function(err) {
+      var anchor = err.el || document.querySelector(err.target);
+      if (!anchor) return;
+      if (err.el) err.el.classList.add('invalid');
+      var hint = document.createElement('div');
+      hint.className = 'field-error';
+      hint.textContent = err.msg;
+      anchor.parentElement.appendChild(hint);
+    });
     return false;
   }
+
   // Sync zbiornik nr_partii
   if (currentTyp === 'zbiornik') {
     var zbVal = document.getElementById('nr-partii-input-zb').value;

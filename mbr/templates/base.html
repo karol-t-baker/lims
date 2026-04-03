@@ -72,16 +72,23 @@
 
 <!-- Shift modal -->
 <div class="modal-overlay" id="shift-overlay" onclick="if(event.target===this)closeShiftModal()">
-  <div class="modal" style="max-width:380px;">
-    <div class="modal-header">
-      <span class="modal-title">Kto jest na zmianie?</span>
+  <div class="modal shift-modal">
+    <div class="modal-head">
+      <div class="modal-icon" style="background:linear-gradient(135deg, #fef3c7, #fde68a); color:#92400e;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" style="width:20px;height:20px;"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+      </div>
+      <div class="modal-titles">
+        <div class="modal-title">Zmiana</div>
+        <div class="modal-subtitle">Kto dzisiaj pracuje?</div>
+      </div>
       <button class="modal-close" onclick="closeShiftModal()">&times;</button>
     </div>
-    <div class="modal-body" id="shift-worker-list" style="padding:16px;">
-      Ladowanie...
+    <div class="modal-body" style="padding:0;">
+      <div id="shift-worker-list" class="sw-list">Ladowanie...</div>
     </div>
-    <div class="modal-footer" style="padding:12px 16px;">
-      <button class="btn btn-p" onclick="saveShift()">Potwierdz</button>
+    <div class="modal-footer" style="justify-content:flex-end;">
+      <button class="m-btn m-btn-o" onclick="closeShiftModal()">Anuluj</button>
+      <button class="m-btn m-btn-p" onclick="saveShift()">Potwierdz zmiane</button>
     </div>
   </div>
 </div>
@@ -96,34 +103,108 @@
 
 <script>
 var shiftWorkerIds = {{ session.get('shift_workers', []) | tojson }};
+var _shiftWorkers = []; // cached worker list
+
+var AVATARS = ['🧪', '🔬', '⚗️', '🧫', '🧬', '🌡️', '💊', '🔩', '⚙️', '🛠️', '🌸', '🌻', '🍀', '☕', '🫖', '🧁'];
 
 async function openShiftModal() {
   document.getElementById('shift-overlay').classList.add('show');
   document.getElementById('shift-reminder').style.display = 'none';
   var resp = await fetch('/api/workers');
   var data = await resp.json();
+  _shiftWorkers = data.workers;
+  renderShiftList();
+}
+
+function renderShiftList() {
   var list = document.getElementById('shift-worker-list');
-  if (data.workers.length === 0) {
-    list.innerHTML = '<div style="color:var(--text-dim);font-size:12px;">Brak pracownikow. Dodaj w bazie danych.</div>';
+  if (_shiftWorkers.length === 0) {
+    list.innerHTML = '<div style="padding:24px;text-align:center;color:var(--text-dim);font-size:12px;">Brak pracownikow w systemie.</div>';
     return;
   }
-  list.innerHTML = data.workers.map(function(w) {
-    var checked = shiftWorkerIds.indexOf(w.id) >= 0 ? 'checked' : '';
+  list.innerHTML = _shiftWorkers.map(function(w) {
+    var active = shiftWorkerIds.indexOf(w.id) >= 0;
+    var avatar = w.nickname ? w.nickname.charAt(0) : '';
+    var displayEmoji = AVATARS[(w.id - 1) % AVATARS.length];
     var display = w.nickname || (w.imie + ' ' + w.nazwisko);
-    return '<label style="display:flex;align-items:center;gap:10px;padding:8px 0;cursor:pointer;border-bottom:1px solid var(--border,#eee);">' +
-      '<input type="checkbox" class="shift-cb" value="' + w.id + '" ' + checked + ' style="width:16px;height:16px;">' +
-      '<span style="font-weight:600;font-size:13px;min-width:28px;">' + w.inicjaly + '</span>' +
-      '<span style="color:var(--text-dim);font-size:12px;">' + display + '</span></label>';
+    return '<div class="sw-card' + (active ? ' active' : '') + '" data-wid="' + w.id + '" onclick="toggleShiftWorker(this,' + w.id + ')">' +
+      '<div class="sw-avatar">' + displayEmoji + '</div>' +
+      '<div class="sw-info">' +
+        '<div class="sw-name">' + display + '</div>' +
+        '<div class="sw-sub">' + w.inicjaly + ' &middot; ' + w.imie + ' ' + w.nazwisko + '</div>' +
+      '</div>' +
+      '<div class="sw-actions" onclick="event.stopPropagation()">' +
+        '<button class="sw-edit-btn" onclick="event.stopPropagation();editWorkerNick(' + w.id + ')" title="Zmien nick / avatar">✏️</button>' +
+      '</div>' +
+      '<div class="sw-check">' + (active ? '✓' : '') + '</div>' +
+    '</div>';
   }).join('');
+}
+
+function toggleShiftWorker(card, wid) {
+  var idx = shiftWorkerIds.indexOf(wid);
+  if (idx >= 0) {
+    shiftWorkerIds.splice(idx, 1);
+    card.classList.remove('active');
+    card.querySelector('.sw-check').textContent = '';
+  } else {
+    shiftWorkerIds.push(wid);
+    card.classList.add('active');
+    card.querySelector('.sw-check').textContent = '✓';
+  }
+}
+
+function editWorkerNick(wid) {
+  var w = _shiftWorkers.find(function(x) { return x.id === wid; });
+  if (!w) return;
+  var list = document.getElementById('shift-worker-list');
+
+  // Build inline editor
+  var currentNick = w.nickname || '';
+  var html = '<div class="sw-editor">' +
+    '<div class="sw-editor-title">Personalizacja — ' + w.imie + ' ' + w.nazwisko + '</div>' +
+    '<div class="sw-editor-section">' +
+      '<label class="sw-editor-label">Nickname</label>' +
+      '<input class="form-input sw-nick-input" id="nick-edit-input" value="' + currentNick + '" placeholder="np. Ania, Kasia..." style="width:100%;">' +
+    '</div>' +
+    '<div class="sw-editor-section">' +
+      '<label class="sw-editor-label">Avatar</label>' +
+      '<div class="sw-emoji-grid">' +
+        AVATARS.map(function(em) {
+          var sel = em === AVATARS[(w.id - 1) % AVATARS.length] ? ' selected' : '';
+          return '<button type="button" class="sw-emoji' + sel + '" onclick="pickEmoji(this)">' + em + '</button>';
+        }).join('') +
+      '</div>' +
+    '</div>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">' +
+      '<button class="m-btn m-btn-o" onclick="renderShiftList()">Anuluj</button>' +
+      '<button class="m-btn m-btn-p" onclick="saveWorkerNick(' + wid + ')">Zapisz</button>' +
+    '</div>' +
+  '</div>';
+  list.innerHTML = html;
+}
+
+function pickEmoji(btn) {
+  btn.parentElement.querySelectorAll('.sw-emoji').forEach(function(b) { b.classList.remove('selected'); });
+  btn.classList.add('selected');
+}
+
+async function saveWorkerNick(wid) {
+  var nick = document.getElementById('nick-edit-input').value.trim();
+  await fetch('/api/worker/' + wid + '/nickname', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({nickname: nick})
+  });
+  // Update cached data
+  var w = _shiftWorkers.find(function(x) { return x.id === wid; });
+  if (w) w.nickname = nick;
+  renderShiftList();
 }
 
 function closeShiftModal() { document.getElementById('shift-overlay').classList.remove('show'); }
 
 async function saveShift() {
-  var ids = [];
-  document.querySelectorAll('.shift-cb:checked').forEach(function(cb) { ids.push(parseInt(cb.value)); });
-  shiftWorkerIds = ids;
-  await fetch('/api/shift', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({worker_ids: ids}) });
+  await fetch('/api/shift', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({worker_ids: shiftWorkerIds}) });
   updateShiftDisplay();
   closeShiftModal();
   localStorage.setItem('lastShiftConfirm', Date.now().toString());
@@ -132,7 +213,15 @@ async function saveShift() {
 function updateShiftDisplay() {
   var el = document.getElementById('shift-initials');
   if (!el) return;
-  el.textContent = shiftWorkerIds.length > 0 ? shiftWorkerIds.length + ' os.' : '--';
+  if (shiftWorkerIds.length > 0 && _shiftWorkers.length > 0) {
+    var names = shiftWorkerIds.map(function(id) {
+      var w = _shiftWorkers.find(function(x) { return x.id === id; });
+      return w ? (w.nickname || w.inicjaly) : '?';
+    });
+    el.textContent = names.join(', ');
+  } else {
+    el.textContent = shiftWorkerIds.length > 0 ? shiftWorkerIds.length + ' os.' : '--';
+  }
 }
 
 function checkShiftReminder() {
@@ -166,7 +255,60 @@ setInterval(checkShiftReminder, 60000);
   font-size: 10px;
 }
 #shift-overlay.show { display: flex; }
-#shift-overlay .modal { max-width: 380px; }
+.shift-modal { max-width: 420px; }
+
+/* Worker list */
+.sw-list { max-height: 50vh; overflow-y: auto; }
+.sw-card {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 20px; cursor: pointer;
+  border-bottom: 1px solid var(--border-subtle, #f0ede8);
+  transition: background 0.12s;
+}
+.sw-card:hover { background: var(--surface-alt, #f8f6f3); }
+.sw-card.active { background: var(--teal-bg, #e0f2f1); }
+.sw-avatar {
+  width: 36px; height: 36px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; background: var(--surface-alt, #f0ede8);
+  flex-shrink: 0;
+}
+.sw-card.active .sw-avatar { background: white; }
+.sw-info { flex: 1; min-width: 0; }
+.sw-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.sw-sub { font-size: 10px; color: var(--text-dim); margin-top: 1px; }
+.sw-actions { flex-shrink: 0; }
+.sw-edit-btn {
+  background: none; border: none; font-size: 14px; cursor: pointer;
+  padding: 4px; border-radius: 6px; opacity: 0; transition: opacity 0.15s;
+}
+.sw-card:hover .sw-edit-btn { opacity: 0.6; }
+.sw-edit-btn:hover { opacity: 1 !important; background: var(--surface-alt); }
+.sw-check {
+  width: 22px; height: 22px; border-radius: 6px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: var(--teal, #0d9488);
+  border: 1.5px solid var(--border);
+}
+.sw-card.active .sw-check {
+  background: var(--teal, #0d9488); color: white; border-color: var(--teal);
+}
+
+/* Inline editor */
+.sw-editor { padding: 20px; }
+.sw-editor-title { font-size: 14px; font-weight: 600; margin-bottom: 16px; }
+.sw-editor-section { margin-bottom: 14px; }
+.sw-editor-label { font-size: 11px; font-weight: 600; color: var(--text-dim); display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.3px; }
+.sw-nick-input { font-size: 14px !important; padding: 10px 12px !important; }
+.sw-emoji-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.sw-emoji {
+  width: 36px; height: 36px; border-radius: 8px; border: 1.5px solid var(--border);
+  background: var(--surface); cursor: pointer; font-size: 18px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.12s;
+}
+.sw-emoji:hover { border-color: var(--teal); transform: scale(1.1); }
+.sw-emoji.selected { border-color: var(--teal); background: var(--teal-bg); box-shadow: 0 0 0 2px rgba(13,148,136,0.2); }
 </style>
 </body>
 </html>
