@@ -88,7 +88,25 @@ body {
   color: #5eead4;
 }
 .rail-label { display: none; }
+.rail-sep { width: 28px; height: 1px; background: rgba(255,255,255,0.1); margin: 4px 0; }
 .rail-sp { flex: 1; }
+
+/* User dropdown menu */
+.rail-user-menu {
+  display: none; position: absolute; bottom: 100%; left: 50%;
+  transform: translateX(-50%); margin-bottom: 8px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+  min-width: 140px; z-index: 100; overflow: hidden;
+}
+.rail-user-menu.show { display: block; }
+.rail-user-menu a {
+  display: block; padding: 10px 14px; font-size: 12px;
+  color: var(--text); text-decoration: none;
+}
+.rail-user-menu a:hover { background: var(--surface-alt); }
+.rail-wide .rail-user-menu { left: 0; transform: none; }
+.rail-wide .rail-sep { width: 100%; margin: 6px 0; }
 .rail-av {
   width: 30px; height: 30px;
   border-radius: 50%;

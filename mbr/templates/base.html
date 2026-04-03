@@ -20,19 +20,29 @@
 
   {% if session.get('user', {}).get('rola') == 'laborant' %}
   <a class="rail-btn {% block nav_szarze %}{% endblock %}" href="{{ url_for('szarze_list') }}" title="Szarze">&#9883;<span class="rail-label">Szarze</span></a>
+  <button class="rail-btn" onclick="if(typeof openNewBatchModal==='function')openNewBatchModal()" title="Nowa szarza">&#10010;<span class="rail-label">+ Nowa</span></button>
+  <div class="rail-sep"></div>
+  <button class="rail-btn" onclick="" title="Notatki">&#128221;<span class="rail-label">Notatki</span></button>
+  <button class="rail-btn" onclick="" title="Feedback">&#128172;<span class="rail-label">Feedback</span></button>
   {% endif %}
 
   <div class="rail-sp"></div>
 
-  <a class="rail-av" href="{{ url_for('logout') }}" title="Wyloguj: {{ session.get('user', {}).get('login', '') }}">
+  {# User menu #}
+  <button class="rail-btn" onclick="" title="Zmiana">&#128101;<span class="rail-label">Zmiana</span></button>
+  <button class="rail-btn" onclick="" title="Motyw">&#127912;<span class="rail-label">Motyw</span></button>
+  <div class="rail-av" onclick="document.getElementById('user-menu').classList.toggle('show')" title="{{ session.get('user', {}).get('login', '') }}" style="cursor:pointer;position:relative;">
     {%- set parts = (session.get('user', {}).get('imie_nazwisko') or session.get('user', {}).get('login') or '??').split() -%}
     {%- if parts|length >= 2 -%}
       {{ parts[0][0] }}{{ parts[1][0] }}
     {%- else -%}
       {{ parts[0][:2]|upper }}
     {%- endif -%}
-    <span class="rail-label">Wyloguj</span>
-  </a>
+    <span class="rail-label">{{ session.get('user', {}).get('imie_nazwisko') or session.get('user', {}).get('login', '') }}</span>
+    <div class="rail-user-menu" id="user-menu">
+      <a href="{{ url_for('logout') }}">Wyloguj</a>
+    </div>
+  </div>
 </div>
 
 {# ═══ SIDEBAR (optional) ═══ #}
