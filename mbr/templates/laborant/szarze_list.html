@@ -13,62 +13,19 @@
 {% endblock %}
 
 {% block sidebar %}
-<div class="sidebar sidebar-full" id="sidebar">
+{# Dashboard mode: no separate sidebar — rail handles batch switching #}
+{# Fast entry mode: rail shows mini batch items #}
 
-  {# -- MINI VIEW (shown when sidebar-mini) -- #}
-  <div class="sb-mini-view" id="sb-mini-view">
-    <button class="sb-toggle-expand" onclick="showDashboard()" title="Powrot do listy">&#9664;</button>
-    {% for b in batches %}
-    <div class="sb-mini-item {{ 'status-in_progress' if b.stage_status == 'in_progress' else ('status-done' if b.stage_status == 'done' else ('status-alert' if b.out_of_limit > 0 else '')) }} {{ 'typ-zbiornik' if b.typ == 'zbiornik' }}"
-         data-ebr-id="{{ b.ebr_id }}"
-         title="{{ b.nr_partii }} {{ b.produkt|short_product }} — {{ b.stage_name|default('Oczekuje') }}"
-         onclick="loadBatch({{ b.ebr_id }})">
-      {{ b.nr_partii.split('/')[0] }}
-    </div>
-    {% endfor %}
-    <div style="flex:1"></div>
-    <div class="sb-mini-add" onclick="openNewBatchModal()" title="Nowa szarza">+</div>
+{# Hidden mini-items data for JS to inject into rail #}
+<div id="rail-batch-items" style="display:none;">
+  {% for b in batches %}
+  <div class="sb-mini-item {{ 'status-in_progress' if b.stage_status == 'in_progress' else ('status-done' if b.stage_status == 'done' else ('status-alert' if b.out_of_limit > 0 else '')) }} {{ 'typ-zbiornik' if b.typ == 'zbiornik' }}"
+       data-ebr-id="{{ b.ebr_id }}"
+       title="{{ b.nr_partii }} {{ b.produkt|short_product }} — {{ b.stage_name|default('Oczekuje') }}"
+       onclick="loadBatch({{ b.ebr_id }})">
+    {{ b.nr_partii.split('/')[0] }}
   </div>
-
-  {# -- FULL VIEW (shown when sidebar-full) -- #}
-  <div class="sb-full-view" id="sb-full-view">
-    {# Header #}
-    <div class="sb-head">
-      <div class="sb-greeting">Witaj, {{ session.get('user', {}).get('imie_nazwisko') or session.get('user', {}).get('login', '') }}</div>
-      <div class="sb-date">{{ today }}</div>
-    </div>
-
-    {# Search #}
-    <div class="sb-search">
-      <input type="text" placeholder="Szukaj szarzy..." oninput="filterBatchCards(this.value)">
-    </div>
-
-    {# Filter pills #}
-    <div class="sb-filters">
-      <div class="sb-seg">
-        <div class="sb-pill active" onclick="filterByType('all')">Wszystkie <span class="pill-count">{{ batches|length }}</span></div>
-        <div class="sb-pill" onclick="filterByType('szarza')">Szarze <span class="pill-count">{{ batches|rejectattr('typ', 'equalto', 'zbiornik')|list|length }}</span></div>
-        <div class="sb-pill" onclick="filterByType('zbiornik')">Zbiorniki <span class="pill-count">{{ batches|selectattr('typ', 'equalto', 'zbiornik')|list|length }}</span></div>
-      </div>
-    </div>
-
-    {# Batch cards list #}
-    <div class="sb-list">
-      {% for b in batches %}
-      {{ batch_card(b, onclick_url=url_for('fast_entry', ebr_id=b.ebr_id)) }}
-      {% endfor %}
-    </div>
-
-    {# Footer #}
-    <div class="sb-footer">
-      <div class="sb-stats">
-        <span><span class="sb-stat-value">{{ batches|rejectattr('typ', 'equalto', 'zbiornik')|list|length }}</span> szarz</span>
-        <span><span class="sb-stat-value">{{ batches|selectattr('typ', 'equalto', 'zbiornik')|list|length }}</span> zbiornikow</span>
-        <span style="color:var(--amber)"><span class="sb-stat-value" style="color:var(--amber)">{{ batches|selectattr('last_entry', 'none')|list|length }}</span> oczekuje</span>
-      </div>
-      <button class="sb-new-btn" onclick="openNewBatchModal()">+ Nowa szarza</button>
-    </div>
-  </div>
+  {% endfor %}
 </div>
 {% endblock %}
 
@@ -253,8 +210,43 @@
 <script>
 let currentView = 'dashboard';
 let currentEbrId = null;
+let _railOriginalHTML = null;
 
 // ═══ SPA NAVIGATION ═══
+
+function _saveRailContent() {
+  if (!_railOriginalHTML) {
+    const rail = document.querySelector('.rail');
+    _railOriginalHTML = rail.innerHTML;
+  }
+}
+
+function _switchRailToMini(activeEbrId) {
+  _saveRailContent();
+  const rail = document.querySelector('.rail');
+  const items = document.getElementById('rail-batch-items');
+
+  let html = '<a class="rail-logo" href="/laborant/szarze" onclick="event.preventDefault();showDashboard();">&#9664;</a>';
+  if (items) {
+    items.querySelectorAll('.sb-mini-item').forEach(el => {
+      const clone = el.cloneNode(true);
+      if (parseInt(el.dataset.ebrId) === activeEbrId) {
+        clone.classList.add('active');
+      }
+      html += clone.outerHTML;
+    });
+  }
+  html += '<div class="rail-sp"></div>';
+  html += '<div class="sb-mini-add" onclick="openNewBatchModal()" title="Nowa szarza">+</div>';
+
+  rail.innerHTML = html;
+}
+
+function _restoreRail() {
+  if (_railOriginalHTML) {
+    document.querySelector('.rail').innerHTML = _railOriginalHTML;
+  }
+}
 
 async function loadBatch(ebrId) {
   const resp = await fetch(`/laborant/ebr/${ebrId}/partial`);
@@ -269,7 +261,7 @@ async function loadBatch(ebrId) {
   document.getElementById('panel-dashboard').style.display = 'none';
   detailPanel.style.display = '';
 
-  // Update topbar from the loaded content
+  // Update topbar
   const detailTopbar = detailPanel.querySelector('#detail-topbar');
   if (detailTopbar) {
     const topbarTitle = document.getElementById('topbar-title');
@@ -281,7 +273,7 @@ async function loadBatch(ebrId) {
     detailTopbar.style.display = 'none';
   }
 
-  // Move footer content
+  // Move footer
   const detailFooter = detailPanel.querySelector('#detail-footer');
   const spaFooter = document.getElementById('spa-footer');
   if (detailFooter && spaFooter) {
@@ -298,28 +290,18 @@ async function loadBatch(ebrId) {
     detailWorkspace.style.overflow = 'hidden';
   }
 
-  // Animate sidebar to mini
-  document.getElementById('sidebar').classList.remove('sidebar-full');
-  document.getElementById('sidebar').classList.add('sidebar-mini');
+  // Switch rail to mini batch switcher
+  _switchRailToMini(ebrId);
 
-  // Highlight active batch in mini view
-  document.querySelectorAll('.sb-mini-item').forEach(i => i.classList.remove('active'));
-  const active = document.querySelector(`.sb-mini-item[data-ebr-id="${ebrId}"]`);
-  if (active) active.classList.add('active');
-
-  // Update URL without reload
   history.pushState({view: 'detail', ebrId}, '', `/laborant/ebr/${ebrId}`);
   currentView = 'detail';
   currentEbrId = ebrId;
 
-  // Execute scripts in the loaded HTML
+  // Execute scripts
   detailPanel.querySelectorAll('script').forEach(s => {
     const ns = document.createElement('script');
-    if (s.src) {
-      ns.src = s.src;
-    } else {
-      ns.textContent = s.textContent;
-    }
+    if (s.src) ns.src = s.src;
+    else ns.textContent = s.textContent;
     s.replaceWith(ns);
   });
 }
@@ -334,15 +316,11 @@ function showDashboard() {
   document.getElementById('topbar-right').textContent = '{{ batches|length }} otwartych';
 
   // Clear footer
-  const spaFooter = document.getElementById('spa-footer');
+  var spaFooter = document.getElementById('spa-footer');
   if (spaFooter) spaFooter.innerHTML = '';
 
-  // Animate sidebar to full
-  document.getElementById('sidebar').classList.remove('sidebar-mini');
-  document.getElementById('sidebar').classList.add('sidebar-full');
-
-  // Clear active in mini
-  document.querySelectorAll('.sb-mini-item').forEach(i => i.classList.remove('active'));
+  // Restore rail to normal nav
+  _restoreRail();
 
   history.pushState({view: 'dashboard'}, '', '/laborant/szarze');
   currentView = 'dashboard';
@@ -364,7 +342,7 @@ if (_detailMatch) {
   loadBatch(parseInt(_detailMatch[1]));
 }
 
-// Also handle batch card clicks via event delegation
+// Batch card clicks via event delegation
 document.addEventListener('click', (e) => {
   const card = e.target.closest('.batch-card[data-ebr-id]');
   if (card) {
