@@ -138,7 +138,6 @@
         <th>Typ</th>
         <th>Zakonczona</th>
         <th>Wyniki</th>
-        <th>PDF</th>
       </tr>
     </thead>
     <tbody>
@@ -156,7 +155,6 @@
             <span class="q-priority low">OK ({{ r.total_wyniki }})</span>
           {% endif %}
         </td>
-        <td><a href="{{ url_for('pdf_ebr', ebr_id=r.ebr_id) }}" class="q-btn" target="_blank" onclick="event.stopPropagation()">PDF</a></td>
       </tr>
       {% endfor %}
     </tbody>
