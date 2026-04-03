@@ -535,7 +535,8 @@ def get_registry_columns(db: sqlite3.Connection, produkt: str) -> list:
     if not mbr:
         return []
     parametry = json.loads(mbr["parametry_lab"]) if isinstance(mbr["parametry_lab"], str) else mbr["parametry_lab"]
-    sekcja = parametry.get("analiza_koncowa", {})
+    # New cyclic schema uses "analiza", legacy uses "analiza_koncowa"
+    sekcja = parametry.get("analiza") or parametry.get("analiza_koncowa", {})
     pola = sekcja.get("pola", sekcja) if isinstance(sekcja, dict) else sekcja
     if not isinstance(pola, list):
         return []

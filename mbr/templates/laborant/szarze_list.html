@@ -467,7 +467,11 @@ function renderSidebarEtapy() {
     let detail = '';
 
     if (etap.read_only) {
-      status = 'done'; // locked stages treated as done (upstream)
+      // Locked stages before the first lab stage are done (upstream process)
+      // Locked stages after the last lab stage are pending (downstream)
+      const labStageIndices = etapy.map((e, j) => e.sekcja_lab && !e.read_only ? j : -1).filter(j => j >= 0);
+      const lastLabIdx = labStageIndices.length > 0 ? labStageIndices[labStageIndices.length - 1] : -1;
+      status = i <= lastLabIdx ? 'done' : 'pending';
     } else if (hasCycle && rs) {
       // Cyclic: determine status from round state
       if (etap.sekcja_lab === 'standaryzacja') {
