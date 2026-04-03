@@ -71,7 +71,7 @@
 {% block scripts %}{% endblock %}
 
 <!-- Shift modal -->
-<div class="modal-overlay" id="shift-overlay" style="display:none;" onclick="if(event.target===this)closeShiftModal()">
+<div class="modal-overlay" id="shift-overlay" onclick="if(event.target===this)closeShiftModal()">
   <div class="modal" style="max-width:380px;">
     <div class="modal-header">
       <span class="modal-title">Kto jest na zmianie?</span>
@@ -98,7 +98,7 @@
 var shiftWorkerIds = {{ session.get('shift_workers', []) | tojson }};
 
 async function openShiftModal() {
-  document.getElementById('shift-overlay').style.display = 'flex';
+  document.getElementById('shift-overlay').classList.add('show');
   document.getElementById('shift-reminder').style.display = 'none';
   var resp = await fetch('/api/workers');
   var data = await resp.json();
@@ -117,7 +117,7 @@ async function openShiftModal() {
   }).join('');
 }
 
-function closeShiftModal() { document.getElementById('shift-overlay').style.display = 'none'; }
+function closeShiftModal() { document.getElementById('shift-overlay').classList.remove('show'); }
 
 async function saveShift() {
   var ids = [];
@@ -165,22 +165,8 @@ setInterval(checkShiftReminder, 60000);
   background: var(--surface-alt); border: 1.5px solid var(--border);
   font-size: 10px;
 }
-.modal-overlay {
-  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.4); z-index: 9998;
-  display: flex; align-items: center; justify-content: center;
-}
-.modal {
-  background: var(--surface, #fff); border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.15); width: 90%; overflow: hidden;
-}
-.modal-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 16px; border-bottom: 1px solid var(--border);
-}
-.modal-title { font-size: 14px; font-weight: 600; }
-.modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-dim); padding: 0 4px; }
-.modal-footer { border-top: 1px solid var(--border); display: flex; justify-content: flex-end; }
+#shift-overlay.show { display: flex; }
+#shift-overlay .modal { max-width: 380px; }
 </style>
 </body>
 </html>
