@@ -478,6 +478,12 @@ body {
   color: var(--text);
   text-align: center;
   background: white;
+  -moz-appearance: textfield;
+}
+.ff input::-webkit-outer-spin-button,
+.ff input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 .ff input:focus, .ff select:focus {
   outline: none;
@@ -589,6 +595,12 @@ body {
   color: var(--text);
   text-align: center;
   background: white;
+  -moz-appearance: textfield;
+}
+.cs-field input::-webkit-outer-spin-button,
+.cs-field input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 .cs-field input:focus {
   outline: none;
@@ -923,7 +935,9 @@ body {
 .form-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); font-weight: 600; margin-bottom: 6px; }
 .form-select { width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 6px; font-size: 13px; font-family: var(--font); color: var(--text); background: white; appearance: auto; }
 .form-select:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-bg); }
-.form-input { width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 6px; font-size: 13px; font-family: var(--font); color: var(--text); }
+.form-input { width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 6px; font-size: 13px; font-family: var(--font); color: var(--text); -moz-appearance: textfield; }
+.form-input::-webkit-outer-spin-button,
+.form-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .form-input:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-bg); }
 .form-hint { font-size: 10px; color: var(--text-dim); margin-top: 4px; }
 .form-row-inline { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }

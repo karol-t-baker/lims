@@ -131,6 +131,7 @@
 {% block scripts %}
 <script>
 const ebrId = {{ ebr.ebr_id }};
+window.ebrId = ebrId;
 const ebrStatus = "{{ ebr.status }}";
 const ebrTyp = "{{ ebr.typ|default('szarza') }}";
 const etapy = {{ (ebr.etapy_json if ebr.etapy_json is string else ebr.etapy_json | tojson) | safe }};
@@ -602,5 +603,19 @@ renderSzarze();
 renderSections();
 renderReferences();
 setupComputedFields();
+
+// ═══ DISABLE SCROLL + ARROW KEYS ON NUMBER INPUTS ═══
+// Prevents accidental value changes from scroll wheel or arrow keys
+document.addEventListener('wheel', function(e) {
+    if (e.target.matches('input[type="number"]')) {
+        e.target.blur();
+    }
+}, {passive: true});
+
+document.addEventListener('keydown', function(e) {
+    if (e.target.matches('input[type="number"]') && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+        e.preventDefault();
+    }
+});
 </script>
 {% endblock %}
