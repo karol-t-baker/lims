@@ -46,7 +46,7 @@
     <div class="sb-meta">
       <strong>{{ ebr.nr_partii }}</strong> &mdash; {{ ebr.produkt|short_product }}<br>
       {% if ebr.typ|default('szarza') == 'szarza' %}
-      Amidator: {{ ebr.nr_amidatora or '---' }} &bull;
+      Amider: {{ ebr.nr_amidatora or '---' }} &bull;
       Mieszalnik: {{ ebr.nr_mieszalnika or '---' }}<br>
       {{ ebr.wielkosc_szarzy_kg | fmt_kg }} kg &bull;
       {% endif %}
