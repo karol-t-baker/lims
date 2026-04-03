@@ -11,9 +11,9 @@
       <span class="en-badge" style="background:var(--blue-bg, #e8f0fe);color:var(--blue, #1a73e8);margin-right:6px;">Zbiornik</span>
     {% endif %}
     {% if ebr.status == 'open' %}
-      <span class="en-badge b-wait">open</span>
+      <span class="en-badge b-wait">otwarta</span>
     {% else %}
-      <span class="en-badge b-ok">completed</span>
+      <span class="en-badge b-ok">zakończona</span>
     {% endif %}
   </span>
 </div>
@@ -24,11 +24,11 @@
   </div>
   <div class="col-right">
     <div class="rp-tabs">
-      <div class="rp-tab active" id="tab-hist" onclick="showRightPanel('hist')">Wartości typowe</div>
-      <div class="rp-tab" id="tab-calc" onclick="showRightPanel('calc')">Kalkulator</div>
+      <div class="rp-tab" id="tab-hist" onclick="showRightPanel('hist')">Wartości typowe</div>
+      <div class="rp-tab active" id="tab-calc" onclick="showRightPanel('calc')">Kalkulator</div>
     </div>
     <div class="rp-body">
-      <div class="rp-view active" id="rp-hist">
+      <div class="rp-view" id="rp-hist">
         <div style="padding:16px 12px;">
           <div style="font-size:12px; font-weight:600; color:var(--text-dim); margin-bottom:8px;">Wartości typowe (historyczne)</div>
           <div style="font-size:11px; color:var(--text-dim); line-height:1.6;">
@@ -36,7 +36,7 @@
           </div>
         </div>
       </div>
-      <div class="rp-view" id="rp-calc">
+      <div class="rp-view active" id="rp-calc">
         <div id="calc-container">
           <div class="calc-method">Kliknij pole miareczkowe aby otworzyc kalkulator.</div>
         </div>
@@ -128,7 +128,9 @@
     font-size: 13px;
     margin-left: 4px;
 }
-.section.readonly-past { opacity: 0.75; }
+.section.readonly-past { opacity: 0.65; }
+.section.readonly-past .sec-head { background: var(--surface); }
+.section.readonly-past .ff { background: transparent; }
 .post-stand-bar {
     display: flex;
     gap: 10px;
@@ -412,7 +414,7 @@ function renderOneSection(container, opts) {
         if (isObl) inputClass += ' calc';
 
         var normText = (pole.min != null || pole.max != null)
-            ? '<span class="norm">' + (pole.min != null ? pole.min : '') + (pole.min != null && pole.max != null ? ' - ' : '') + (pole.max != null ? pole.max : '') + '</span>'
+            ? '<span class="norm">' + (pole.min != null ? pole.min : '') + (pole.min != null && pole.max != null ? ' – ' : '') + (pole.max != null ? pole.max : '') + '</span>'
             : '';
 
         var highlightWarn = isHighlighted ? '<span class="hl-warn">\u26A0</span>' : '';
@@ -422,11 +424,20 @@ function renderOneSection(container, opts) {
             calcMethodAttr = 'data-calc-method=\'' + JSON.stringify(pole.calc_method).replace(/'/g, "&#39;") + '\'';
         }
 
+        // Humanize formula: replace kods with labels
+        var formulaDisplay = '';
+        if (isObl && pole.formula) {
+            formulaDisplay = pole.formula;
+            pola.forEach(function(p) {
+                formulaDisplay = formulaDisplay.replace(new RegExp('\\b' + p.kod + '\\b', 'g'), p.label);
+            });
+        }
+
         fieldsHtml +=
             '<div class="ff' + (isTitr ? ' titr' : '') + (isObl ? ' computed' : '') + (isHighlighted ? ' highlight-prev' : '') + '" ' +
                 (isTitr && !isReadonly ? 'data-kod="' + esc(pole.kod) + '" data-tag="' + esc(pole.tag) + '" data-sekcja="' + esc(sekcja) + '"' : '') + ' ' + calcMethodAttr + '>' +
                 '<label>' + esc(pole.label) + ' ' + normText +
-                    (isObl && pole.formula ? ' <span class="norm">[' + esc(pole.formula) + ']</span>' : '') +
+                    (formulaDisplay ? ' <span class="norm">[' + esc(formulaDisplay) + ']</span>' : '') +
                     highlightWarn +
                 '</label>' +
                 '<input type="number" step="any"' +

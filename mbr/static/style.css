@@ -562,21 +562,22 @@ body {
   box-shadow: 0 0 0 3px var(--blue-bg);
 }
 .sec-head {
-  padding: 12px 18px;
+  padding: 14px 18px;
   border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface-alt);
 }
 .sec-icon {
-  width: 28px; height: 28px;
-  border-radius: 50%;
+  width: 26px; height: 26px;
+  border-radius: 7px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 12px; font-weight: 700;
+  font-size: 11px; font-weight: 700;
   color: white;
 }
 .sec-icon.teal { background: var(--teal); }
 .sec-icon.amber { background: var(--amber-bg); color: var(--amber); }
 .sec-icon.blue { background: var(--blue); }
-.sec-title { font-size: 14px; font-weight: 600; }
+.sec-title { font-size: 13px; font-weight: 700; letter-spacing: -0.2px; }
 .sec-badge {
   margin-left: auto;
   font-size: 10px; padding: 3px 10px;
@@ -593,14 +594,22 @@ body {
 }
 
 /* Form grid */
-.fg { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+.fg { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
 .fg.wide { grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); }
-.ff { position: relative; }
+.ff {
+  position: relative;
+  padding: 8px;
+  border-radius: 6px;
+  background: var(--bg);
+  border: 1px solid transparent;
+  transition: border-color 0.15s;
+}
+.ff:focus-within { border-color: var(--teal); background: var(--surface); }
 .ff label {
   display: block;
   font-size: 10px; text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-dim); margin-bottom: 4px; font-weight: 500;
+  letter-spacing: 0.4px;
+  color: var(--text-sec); margin-bottom: 5px; font-weight: 600;
 }
 .ff .norm { font-family: var(--mono); font-size: 9px; font-weight: 400; }
 .ff input, .ff select {
