@@ -68,6 +68,30 @@
     width: 260px; min-width: 260px;
   }
   #detail-sidebar .sb-inner { width: 260px; min-width: 260px; display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+
+  /* Etapy timeline in sidebar */
+  #sidebar-etapy { overflow-y: auto; }
+  .sb-etap {
+    display: flex; align-items: flex-start; gap: 10px; padding: 8px 4px;
+    position: relative;
+  }
+  .sb-etap + .sb-etap::before {
+    content: ''; position: absolute; left: 15px; top: -4px; width: 1.5px; height: 12px;
+    background: var(--border);
+  }
+  .se-icon {
+    width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 10px; flex-shrink: 0; border: 1.5px solid var(--border); background: var(--surface);
+    color: var(--text-dim);
+  }
+  .se-done .se-icon { background: var(--green-bg, #e8f5e9); color: var(--green, #16a34a); border-color: var(--green, #16a34a); }
+  .se-active .se-icon { background: var(--teal-bg, #e0f2f1); color: var(--teal, #0d9488); border-color: var(--teal, #0d9488); font-weight: 700; }
+  .se-pending .se-icon { opacity: 0.5; }
+  .se-body { min-width: 0; }
+  .se-name { font-size: 12px; font-weight: 500; color: var(--text); line-height: 1.4; }
+  .se-active .se-name { color: var(--teal, #0d9488); font-weight: 600; }
+  .se-pending .se-name { color: var(--text-dim); }
+  .se-detail { font-size: 10px; color: var(--text-dim); margin-top: 1px; }
 </style>
 {% endblock %}
 
@@ -80,12 +104,15 @@
     </div>
     <div class="sb-filters">
       <div class="sb-seg">
-        <div class="sb-pill active" onclick="filterSidebarByType('all',this)">Wszystkie</div>
-        <div class="sb-pill" onclick="filterSidebarByType('szarza',this)">Szarze</div>
-        <div class="sb-pill" onclick="filterSidebarByType('zbiornik',this)">Zbiorniki</div>
+        <div class="sb-pill active" onclick="switchSidebarTab('etapy',this)">Etapy</div>
+        <div class="sb-pill" onclick="switchSidebarTab('szarze',this)">Szarze</div>
+        <div class="sb-pill" onclick="switchSidebarTab('zbiorniki',this)">Zbiorniki</div>
       </div>
     </div>
-    <div class="sb-list" id="sidebar-batch-list">
+    <div class="sb-list" id="sidebar-etapy" style="display:flex; flex-direction:column; gap:0; padding:8px 10px;">
+      <div class="sb-etapy-placeholder" style="color:var(--text-dim);font-size:11px;padding:16px 4px;">Wybierz szarżę aby zobaczyć etapy.</div>
+    </div>
+    <div class="sb-list" id="sidebar-batch-list" style="display:none;">
       {% for b in batches %}
       {{ batch_card(b) }}
       {% endfor %}
@@ -346,6 +373,9 @@ async function loadBatch(ebrId) {
     if (s.src) ns.src = s.src; else ns.textContent = s.textContent;
     s.replaceWith(ns);
   });
+
+  // Update sidebar etapy view (after scripts set globals)
+  setTimeout(() => renderSidebarEtapy(), 50);
 }
 
 function showDashboard() {
@@ -384,22 +414,121 @@ document.addEventListener('click', (e) => {
   if (card) { e.preventDefault(); e.stopPropagation(); loadBatch(parseInt(card.dataset.ebrId)); }
 });
 
-// ═══ SIDEBAR FILTERS (detail mode) ═══
+// ═══ SIDEBAR TABS & FILTERS ═══
+
+let currentSidebarTab = 'etapy';
+
+function switchSidebarTab(tab, btn) {
+  btn.parentElement.querySelectorAll('.sb-pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  currentSidebarTab = tab;
+
+  const etapyPanel = document.getElementById('sidebar-etapy');
+  const listPanel = document.getElementById('sidebar-batch-list');
+
+  if (tab === 'etapy') {
+    etapyPanel.style.display = 'flex';
+    listPanel.style.display = 'none';
+  } else {
+    etapyPanel.style.display = 'none';
+    listPanel.style.display = '';
+    // Filter batch list by type
+    document.querySelectorAll('#sidebar-batch-list .batch-card').forEach(c => {
+      if (tab === 'szarze') c.style.display = c.dataset.typ === 'szarza' ? '' : 'none';
+      else if (tab === 'zbiorniki') c.style.display = c.dataset.typ === 'zbiornik' ? '' : 'none';
+    });
+  }
+}
 
 function filterSidebarCards(q) {
   q = q.toLowerCase();
-  document.querySelectorAll('#sidebar-batch-list .batch-card').forEach(c => {
-    c.style.display = c.textContent.toLowerCase().includes(q) ? '' : 'none';
-  });
+  if (currentSidebarTab !== 'etapy') {
+    document.querySelectorAll('#sidebar-batch-list .batch-card').forEach(c => {
+      c.style.display = c.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  }
 }
 
-function filterSidebarByType(typ, btn) {
-  btn.parentElement.querySelectorAll('.sb-pill').forEach(p => p.classList.remove('active'));
-  btn.classList.add('active');
-  document.querySelectorAll('#sidebar-batch-list .batch-card').forEach(c => {
-    if (typ === 'all') c.style.display = '';
-    else c.style.display = c.dataset.typ === typ ? '' : 'none';
+function renderSidebarEtapy() {
+  const container = document.getElementById('sidebar-etapy');
+  // Read globals set by _fast_entry_content.html
+  if (typeof window.ebrId === 'undefined' || typeof etapy === 'undefined') {
+    container.innerHTML = '<div style="color:var(--text-dim);font-size:11px;padding:16px 4px;">Wybierz szarżę aby zobaczyć etapy.</div>';
+    return;
+  }
+
+  const rs = typeof roundState !== 'undefined' ? roundState : null;
+  const hasCycle = typeof parametry !== 'undefined' && parametry.analiza && parametry.dodatki;
+
+  let html = '';
+  etapy.forEach((etap, i) => {
+    const isLab = etap.sekcja_lab && !etap.read_only;
+    let status = 'pending'; // pending | active | done
+    let detail = '';
+
+    if (etap.read_only) {
+      status = 'done'; // locked stages treated as done (upstream)
+    } else if (hasCycle && rs) {
+      // Cyclic: determine status from round state
+      if (etap.sekcja_lab === 'standaryzacja') {
+        // Standaryzacja etap: active if filling analiza or dodatki
+        if (rs.last_analiza === 0) {
+          status = 'active';
+          detail = 'Analiza';
+        } else if (rs.last_analiza === 1 && rs.last_dodatki === 0) {
+          status = 'active';
+          detail = 'Dodatki';
+        } else if (rs.last_dodatki > 0 && rs.last_analiza <= rs.last_dodatki) {
+          status = 'done';
+        } else if (rs.is_decision && rs.last_analiza > 1) {
+          // After correction decision, could be back in standaryzacja
+          status = 'done';
+        } else {
+          status = 'done';
+        }
+      } else if (etap.sekcja_lab === 'analiza_koncowa') {
+        if (rs.last_dodatki > 0 && rs.next_step === 'analiza' && rs.last_analiza <= rs.last_dodatki) {
+          status = 'active';
+        } else if (rs.is_decision) {
+          status = 'active';
+          detail = 'Decyzja';
+        } else if (rs.last_analiza <= 1) {
+          status = 'pending';
+        } else {
+          status = 'done';
+        }
+      }
+    } else {
+      // Non-cyclic (zbiornik, simple)
+      const sekWyn = typeof wyniki !== 'undefined' ? wyniki[etap.sekcja_lab] : null;
+      if (sekWyn && Object.keys(sekWyn).length > 0) {
+        status = 'done';
+      } else if (isLab) {
+        // First unfilled lab section is active
+        status = 'active';
+      }
+    }
+
+    const statusIcon = status === 'done' ? '✓' : status === 'active' ? '●' : '○';
+    const statusCls = 'se-' + status;
+
+    html += '<div class="sb-etap ' + statusCls + '">' +
+      '<div class="se-icon">' + statusIcon + '</div>' +
+      '<div class="se-body">' +
+        '<div class="se-name">' + etap.nazwa + '</div>' +
+        (detail ? '<div class="se-detail">' + detail + '</div>' : '') +
+      '</div>' +
+    '</div>';
   });
+
+  // Add correction rounds if any
+  if (hasCycle && rs && rs.last_dodatki > 1) {
+    for (let k = 2; k <= rs.last_dodatki; k++) {
+      html += '<div class="sb-etap se-done"><div class="se-icon">✓</div><div class="se-body"><div class="se-name">Korekta ' + (k-1) + '</div></div></div>';
+    }
+  }
+
+  container.innerHTML = html;
 }
 
 // ═══ TABLE FILTERS ═══
