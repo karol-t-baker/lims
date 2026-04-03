@@ -59,7 +59,20 @@
 <div id="detail-footer" class="footer">
   <span class="f-hint">Pola zapisuja sie automatycznie po wpisaniu wartosci.</span>
   <div class="f-sp"></div>
-  <button type="button" class="btn btn-p" onclick="{% if ebr.typ == 'zbiornik' %}completeSimple(){% else %}completePompuj(){% endif %}">Zatwierdz karte</button>
+  {% if ebr.typ == 'zbiornik' %}
+  <button type="button" class="btn btn-p" onclick="completeSimple()">Zatwierdz karte</button>
+  {% else %}
+  <div class="ft-pump" id="ft-pump">
+    <button type="button" class="btn btn-p" onclick="showPumpInline()">Zatwierdz karte</button>
+  </div>
+  <div class="ft-pump-form" id="ft-pump-form" style="display:none;">
+    <span class="ft-label">Zbiornik</span>
+    <span class="ft-m">M</span>
+    <input class="ft-nr" type="number" min="1" max="30" id="ft-zbiornik-nr" placeholder="nr">
+    <button class="btn btn-p ft-go" onclick="doCompleteFt()">Przepompuj</button>
+    <button class="ft-cancel" onclick="hidePumpInline()" title="Anuluj">&times;</button>
+  </div>
+  {% endif %}
 </div>
 {% else %}
 <div id="detail-footer" class="footer">
@@ -69,73 +82,49 @@
 {% endif %}
 
 <style>
-.confirm-dialog {
-    background: var(--surface, #fff); border-radius: 14px;
-    box-shadow: 0 8px 40px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
-    animation: modalIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-    max-width: 360px; width: 90%; overflow: hidden;
+/* Inline pump form in footer */
+.ft-pump-form {
+    display: flex; align-items: center; gap: 6px;
+    animation: fadeSlide 0.2s ease;
 }
-.cd-header {
-    display: flex; align-items: center; gap: 12px;
-    padding: 18px 20px 14px;
+@keyframes fadeSlide {
+    from { opacity: 0; transform: translateX(8px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+.ft-label { font-size: 11px; color: var(--text-dim); font-weight: 500; }
+.ft-m { font-size: 14px; font-weight: 700; color: var(--text-sec); }
+.ft-nr {
+    width: 48px; padding: 6px 4px; border: 1.5px solid var(--border); border-radius: 6px;
+    font-size: 16px; font-family: var(--mono); font-weight: 700; color: var(--text);
+    text-align: center; background: var(--surface); -moz-appearance: textfield;
+    transition: border-color 0.12s;
+}
+.ft-nr::-webkit-outer-spin-button, .ft-nr::-webkit-inner-spin-button { -webkit-appearance: none; }
+.ft-nr:focus { outline: none; border-color: var(--teal); }
+.ft-go { margin-left: 4px; }
+.ft-cancel {
+    background: none; border: none; font-size: 18px; color: var(--text-dim);
+    cursor: pointer; padding: 2px 6px; border-radius: 4px;
+}
+.ft-cancel:hover { color: var(--text); background: var(--surface-alt); }
+
+/* Simple confirm dialog (zbiornik) */
+.confirm-dialog {
+    background: var(--surface, #fff); border-radius: 14px; padding: 24px 28px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.12); text-align: center;
+    animation: modalIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    max-width: 300px; width: 90%;
 }
 .cd-icon {
-    width: 40px; height: 40px; border-radius: 10px;
-    background: var(--green-bg, #e8f5ec); color: var(--green, #1a7a3a);
+    width: 44px; height: 44px; border-radius: 12px;
+    background: var(--green-bg); color: var(--green);
     display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
+    margin: 0 auto 12px;
 }
-.cd-text { font-size: 15px; font-weight: 700; }
-.cd-sub { font-size: 12px; color: var(--text-dim); margin-bottom: 14px; line-height: 1.5; text-align: center; padding: 0 20px; }
-.cd-sub-inline { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
-.cd-nastaw { font-family: var(--mono); font-weight: 600; color: var(--text-sec); }
-.cd-warning {
-    display: flex; align-items: center; gap: 8px;
-    margin: 0 20px 12px; padding: 8px 12px;
-    background: var(--amber-bg); border-radius: 6px;
-    font-size: 11px; font-weight: 500; color: var(--amber);
-}
-.cd-warn-icon {
-    width: 18px; height: 18px; border-radius: 50%;
-    background: var(--amber); color: #fff;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 10px; font-weight: 700; flex-shrink: 0;
-}
-#cd-targets { display: flex; flex-direction: column; gap: 6px; padding: 0 20px 12px; }
-.cd-target { display: flex; gap: 6px; align-items: center; }
-.cd-prefix {
-    font-size: 14px; font-weight: 700; color: var(--text-sec); flex-shrink: 0;
-}
-.cd-input {
-    padding: 9px 10px; border: 1.5px solid var(--border); border-radius: 6px;
-    font-size: 13px; font-family: var(--font); color: var(--text); background: var(--bg, #f7f5f0);
-    transition: border-color 0.12s; -moz-appearance: textfield;
-}
-.cd-input::-webkit-outer-spin-button, .cd-input::-webkit-inner-spin-button { -webkit-appearance: none; }
-.cd-input:focus { outline: none; border-color: var(--teal); background: var(--surface); }
-.cd-input-nr { width: 52px; text-align: center; font-weight: 700; font-family: var(--mono); font-size: 16px; }
-.cd-input-kg { width: 100px; text-align: right; font-family: var(--mono); font-size: 15px; font-weight: 600; flex-shrink: 0; }
-.cd-unit { font-size: 11px; color: var(--text-dim); flex-shrink: 0; }
-.cd-remaining {
-    font-size: 14px; font-weight: 600; font-family: var(--mono);
-    color: var(--text-dim); flex-shrink: 0; margin-left: auto;
-}
-.cd-total {
-    font-size: 10px; color: var(--text-dim); text-align: right;
-    font-family: var(--mono); margin-top: 2px; padding: 0 20px;
-}
-.cd-footer {
-    display: flex; gap: 8px; align-items: center;
-    padding: 14px 20px; border-top: 1px solid var(--border-subtle, #f0ece4);
-    background: var(--surface-alt, #f0ece4);
-}
-.cd-link {
-    font-size: 10px; color: var(--teal); text-decoration: none; font-weight: 500;
-}
-.cd-link:hover { text-decoration: underline; }
+.cd-text { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.cd-sub { font-size: 12px; color: var(--text-dim); margin-bottom: 18px; }
 .cd-btns { display: flex; gap: 8px; justify-content: center; }
-.cd-confirm { background: var(--green, #1a7a3a) !important; }
-.cd-confirm:hover { filter: brightness(1.1); }
+.cd-confirm { background: var(--green) !important; }
 
 .decision-bar {
     display: flex;
@@ -662,120 +651,47 @@ function doSaveField(input, sekcja, kod) {
 }
 
 
-var _pompTargets = [{nr: '', kg: ''}];
-
-function completePompuj() {
-    // Count unfilled fields
-    var allInputs = document.querySelectorAll('#sections-container .ff input[data-kod]:not([readonly])');
-    var emptyCount = 0;
-    allInputs.forEach(function(inp) { if (!inp.value) emptyCount++; });
-
-    _pompTargets = [{nr: '', kg: ebrNastaw ? String(Math.round(ebrNastaw)) : ''}];
-    var overlay = document.getElementById('confirm-complete');
-    if (overlay) overlay.remove();
-
-    var warningHtml = '';
-    if (emptyCount > 0) {
-        warningHtml = '<div class="cd-warning">' +
-            '<span class="cd-warn-icon">!</span>' +
-            emptyCount + ' ' + (emptyCount === 1 ? 'pole niewypełnione' : 'pól niewypełnionych') +
-        '</div>';
-    }
-
-    var div = document.createElement('div');
-    div.innerHTML =
-        '<div class="modal-overlay" id="confirm-complete" onclick="if(event.target===this)this.classList.remove(\'show\')">' +
-            '<div class="confirm-dialog cd-pump">' +
-                '<div class="cd-header">' +
-                    '<div class="cd-icon">' +
-                        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" style="width:22px;height:22px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 12 15 16 10"/></svg>' +
-                    '</div>' +
-                    '<div>' +
-                        '<div class="cd-text">Przepompowanie</div>' +
-                        '<div class="cd-sub-inline">Na jaki zbiornik?' + (ebrNastaw ? ' <span class="cd-nastaw">' + Math.round(ebrNastaw) + ' kg</span>' : '') + '</div>' +
-                    '</div>' +
-                '</div>' +
-                warningHtml +
-                '<div id="cd-targets"></div>' +
-                '<div class="cd-footer">' +
-                    '<a href="javascript:void(0)" class="cd-link" onclick="addPompTarget()">podziel na zbiorniki</a>' +
-                    '<div style="flex:1"></div>' +
-                    '<button class="m-btn m-btn-o" onclick="document.getElementById(\'confirm-complete\').classList.remove(\'show\')">Anuluj</button>' +
-                    '<button class="m-btn m-btn-p cd-confirm" onclick="doComplete()">Zatwierdź</button>' +
-                '</div>' +
-            '</div>' +
-        '</div>';
-    document.body.appendChild(div.firstChild);
-    renderPompTargets();
-    document.getElementById('confirm-complete').classList.add('show');
+function showPumpInline() {
+    document.getElementById('ft-pump').style.display = 'none';
+    document.getElementById('ft-pump-form').style.display = 'flex';
+    var inp = document.getElementById('ft-zbiornik-nr');
+    inp.value = '';
+    setTimeout(function() { inp.focus(); }, 50);
 }
 
-function renderPompTargets() {
-    var multi = _pompTargets.length > 1;
-    var html = '';
+function hidePumpInline() {
+    document.getElementById('ft-pump').style.display = '';
+    document.getElementById('ft-pump-form').style.display = 'none';
+}
 
-    // Auto-calc last target's kg
-    if (multi && ebrNastaw > 0) {
-        var usedKg = 0;
-        for (var j = 0; j < _pompTargets.length - 1; j++) {
-            usedKg += parseFloat(_pompTargets[j].kg) || 0;
-        }
-        var remaining = Math.round(Math.max(0, ebrNastaw - usedKg));
-        _pompTargets[_pompTargets.length - 1].kg = String(remaining);
+async function doCompleteFt() {
+    var nr = document.getElementById('ft-zbiornik-nr').value.trim();
+    if (!nr) {
+        document.getElementById('ft-zbiornik-nr').style.borderColor = 'var(--red)';
+        document.getElementById('ft-zbiornik-nr').focus();
+        return;
     }
-
-    _pompTargets.forEach(function(t, i) {
-        var isLast = multi && (i === _pompTargets.length - 1);
-        html += '<div class="cd-target">';
-        // Nr zbiornika: "M" prefix + small number input
-        html += '<span class="cd-prefix">M</span>';
-        html += '<input class="cd-input cd-input-nr" type="number" min="1" max="30" placeholder="nr" value="' + (t.nr || '') + '" oninput="_pompTargets[' + i + '].nr=this.value">';
-        // Kg field
-        if (multi) {
-            if (isLast) {
-                html += '<span class="cd-remaining">' + (t.kg || '—') + ' kg</span>';
-            } else {
-                html += '<input class="cd-input cd-input-kg" type="number" step="1" placeholder="kg" value="' + (t.kg || '') + '" oninput="_pompTargets[' + i + '].kg=this.value; updatePompRemaining()">';
-                html += '<span class="cd-unit">kg</span>';
-            }
-        } else if (ebrNastaw) {
-            html += '<span class="cd-remaining">' + Math.round(ebrNastaw) + ' kg</span>';
-        }
-        html += '</div>';
+    var btn = document.querySelector('.ft-go');
+    btn.textContent = '...';
+    btn.disabled = true;
+    var targets = [{nr: 'M' + nr, kg: ebrNastaw ? Math.round(ebrNastaw) : null}];
+    var resp = await fetch('/laborant/ebr/' + ebrId + '/complete', {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({zbiorniki: targets})
     });
-
-    if (multi) {
-        html += '<div class="cd-total">Nastaw: ' + Math.round(ebrNastaw) + ' kg</div>';
+    if (resp.ok || resp.redirected) {
+        if (typeof showDashboard === 'function') {
+            showDashboard();
+            location.href = '/laborant/szarze';
+        } else {
+            location.href = '/laborant/szarze';
+        }
     }
-
-    document.getElementById('cd-targets').innerHTML = html;
-    // Focus first empty nr input
-    var firstEmpty = document.querySelector('#cd-targets .cd-input-nr:not([value])') || document.querySelector('#cd-targets .cd-input-nr');
-    if (firstEmpty && !firstEmpty.value) setTimeout(function() { firstEmpty.focus(); }, 50);
 }
 
-function updatePompRemaining() {
-    if (_pompTargets.length < 2 || !ebrNastaw) return;
-    var usedKg = 0;
-    for (var j = 0; j < _pompTargets.length - 1; j++) {
-        usedKg += parseFloat(_pompTargets[j].kg) || 0;
-    }
-    var remaining = Math.round(Math.max(0, ebrNastaw - usedKg));
-    _pompTargets[_pompTargets.length - 1].kg = String(remaining);
-    // Update only the last remaining span
-    var spans = document.querySelectorAll('#cd-targets .cd-remaining');
-    var lastSpan = spans[spans.length - 1];
-    if (lastSpan) lastSpan.textContent = remaining + ' kg';
-}
-
-function addPompTarget() {
-    // First target gets empty kg (user fills), rest auto-calc
-    if (_pompTargets.length === 1) {
-        _pompTargets[0].kg = '';
-    }
-    _pompTargets.push({nr: '', kg: ''});
-    renderPompTargets();
-}
+// Keep completePompuj as alias for decision-bar buttons
+function completePompuj() { showPumpInline(); }
 
 function completeSimple() {
     // Simple confirm for zbiornik — no tank selection needed
@@ -808,33 +724,6 @@ async function doCompleteSimple() {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({})
-    });
-    if (resp.ok || resp.redirected) {
-        if (typeof showDashboard === 'function') {
-            showDashboard();
-            location.href = '/laborant/szarze';
-        } else {
-            location.href = '/laborant/szarze';
-        }
-    }
-}
-
-async function doComplete() {
-    // Validate at least one zbiornik
-    var targets = _pompTargets.filter(function(t) { return String(t.nr).trim(); }).map(function(t) {
-        return {nr: 'M' + String(t.nr).trim(), kg: t.kg ? parseFloat(t.kg) : null};
-    });
-    if (targets.length === 0) {
-        var input = document.querySelector('#cd-targets .cd-input-nr');
-        if (input) { input.style.borderColor = 'var(--red)'; input.focus(); }
-        return;
-    }
-    var btn = document.querySelector('.cd-confirm');
-    if (btn) { btn.textContent = 'Zatwierdzanie...'; btn.disabled = true; }
-    var resp = await fetch('/laborant/ebr/' + ebrId + '/complete', {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({zbiorniki: targets})
     });
     if (resp.ok || resp.redirected) {
         if (typeof showDashboard === 'function') {
