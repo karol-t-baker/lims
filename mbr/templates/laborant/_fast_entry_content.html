@@ -83,34 +83,33 @@
 }
 .cd-text { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
 .cd-sub { font-size: 12px; color: var(--text-dim); margin-bottom: 14px; line-height: 1.5; }
-#cd-targets { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+#cd-targets { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
 .cd-target { display: flex; gap: 6px; align-items: center; }
+.cd-prefix {
+    font-size: 14px; font-weight: 700; color: var(--text-sec); flex-shrink: 0;
+}
 .cd-input {
-    flex: 1; padding: 8px 10px; border: 1.5px solid var(--border); border-radius: 6px;
+    padding: 8px 10px; border: 1.5px solid var(--border); border-radius: 6px;
     font-size: 13px; font-family: var(--font); color: var(--text); background: var(--surface);
-    transition: border-color 0.12s;
+    transition: border-color 0.12s; -moz-appearance: textfield;
 }
+.cd-input::-webkit-outer-spin-button, .cd-input::-webkit-inner-spin-button { -webkit-appearance: none; }
 .cd-input:focus { outline: none; border-color: var(--teal); }
-.cd-input-sm { width: 80px; flex: none; text-align: center; font-family: var(--mono); }
-.cd-remove {
-    width: 24px; height: 24px; border: none; background: none; color: var(--text-dim);
-    cursor: pointer; font-size: 16px; border-radius: 4px; flex-shrink: 0;
-}
-.cd-remove:hover { color: var(--red); background: var(--red-bg); }
+.cd-input-nr { width: 52px; text-align: center; font-weight: 600; font-family: var(--mono); font-size: 15px; }
+.cd-input-kg { width: 90px; text-align: right; font-family: var(--mono); font-size: 15px; font-weight: 600; flex-shrink: 0; }
+.cd-unit { font-size: 11px; color: var(--text-dim); flex-shrink: 0; }
 .cd-remaining {
-    min-width: 70px; text-align: center; font-size: 13px; font-weight: 600;
-    font-family: var(--mono); color: var(--teal); flex-shrink: 0;
+    font-size: 14px; font-weight: 600; font-family: var(--mono);
+    color: var(--text-dim); flex-shrink: 0; margin-left: auto;
 }
 .cd-total {
     font-size: 10px; color: var(--text-dim); text-align: right;
     font-family: var(--mono); margin-top: 2px;
 }
-.cd-add {
-    background: none; border: none; color: var(--teal); font-size: 11px; font-weight: 600;
-    cursor: pointer; padding: 4px 0; font-family: var(--font); margin-bottom: 14px;
-    text-align: left;
+.cd-link {
+    font-size: 11px; color: var(--teal); text-decoration: none; font-weight: 500;
 }
-.cd-add:hover { text-decoration: underline; }
+.cd-link:hover { text-decoration: underline; }
 .cd-btns { display: flex; gap: 8px; justify-content: center; }
 .cd-confirm { background: var(--green, #1a7a3a) !important; }
 .cd-confirm:hover { filter: brightness(1.1); }
@@ -643,7 +642,7 @@ function doSaveField(input, sekcja, kod) {
 var _pompTargets = [{nr: '', kg: ''}];
 
 function completePompuj() {
-    _pompTargets = [{nr: '', kg: ''}];
+    _pompTargets = [{nr: '', kg: ebrNastaw ? String(Math.round(ebrNastaw)) : ''}];
     var overlay = document.getElementById('confirm-complete');
     if (!overlay) {
         var div = document.createElement('div');
@@ -654,10 +653,11 @@ function completePompuj() {
                         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" style="width:24px;height:24px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 12 15 16 10"/></svg>' +
                     '</div>' +
                     '<div class="cd-text">Przepompowanie</div>' +
-                    '<div class="cd-sub">Na jaki zbiornik idzie szarża?</div>' +
+                    '<div class="cd-sub">Na jaki zbiornik idzie szarża?' + (ebrNastaw ? ' (' + Math.round(ebrNastaw) + ' kg)' : '') + '</div>' +
                     '<div id="cd-targets"></div>' +
-                    '<button type="button" class="cd-add" onclick="addPompTarget()">+ dodaj zbiornik</button>' +
                     '<div class="cd-btns">' +
+                        '<a href="javascript:void(0)" class="cd-link" onclick="addPompTarget()">podziel na zbiorniki</a>' +
+                        '<div style="flex:1"></div>' +
                         '<button class="m-btn m-btn-o" onclick="document.getElementById(\'confirm-complete\').classList.remove(\'show\')">Anuluj</button>' +
                         '<button class="m-btn m-btn-p cd-confirm" onclick="doComplete()">Zatwierdź</button>' +
                     '</div>' +
@@ -673,54 +673,62 @@ function renderPompTargets() {
     var multi = _pompTargets.length > 1;
     var html = '';
 
+    // Auto-calc last target's kg
     if (multi && ebrNastaw > 0) {
-        // Calculate remaining for last target
         var usedKg = 0;
         for (var j = 0; j < _pompTargets.length - 1; j++) {
             usedKg += parseFloat(_pompTargets[j].kg) || 0;
         }
-        var remaining = Math.max(0, ebrNastaw - usedKg);
-        _pompTargets[_pompTargets.length - 1].kg = remaining > 0 ? remaining.toFixed(0) : '';
+        var remaining = Math.round(Math.max(0, ebrNastaw - usedKg));
+        _pompTargets[_pompTargets.length - 1].kg = String(remaining);
     }
 
     _pompTargets.forEach(function(t, i) {
-        var isLast = multi && i === _pompTargets.length - 1;
-        html += '<div class="cd-target">' +
-            '<input class="cd-input" type="text" placeholder="Nr zbiornika" value="' + (t.nr || '') + '" oninput="_pompTargets[' + i + '].nr=this.value">';
+        var isLast = multi && (i === _pompTargets.length - 1);
+        html += '<div class="cd-target">';
+        // Nr zbiornika: "M" prefix + small number input
+        html += '<span class="cd-prefix">M</span>';
+        html += '<input class="cd-input cd-input-nr" type="number" min="1" max="30" placeholder="nr" value="' + (t.nr || '') + '" oninput="_pompTargets[' + i + '].nr=this.value">';
+        // Kg field
         if (multi) {
             if (isLast) {
                 html += '<span class="cd-remaining">' + (t.kg || '—') + ' kg</span>';
             } else {
-                html += '<input class="cd-input cd-input-sm" type="number" step="any" placeholder="kg" value="' + (t.kg || '') + '" oninput="_pompTargets[' + i + '].kg=this.value; renderPompTargets()">';
+                html += '<input class="cd-input cd-input-kg" type="number" step="1" placeholder="kg" value="' + (t.kg || '') + '" oninput="_pompTargets[' + i + '].kg=this.value; renderPompTargets()">';
+                html += '<span class="cd-unit">kg</span>';
             }
-            html += '<button class="cd-remove" onclick="removePompTarget(' + i + ')" title="Usuń">&times;</button>';
+        } else if (ebrNastaw) {
+            html += '<span class="cd-remaining">' + Math.round(ebrNastaw) + ' kg</span>';
         }
         html += '</div>';
     });
 
-    if (multi && ebrNastaw > 0) {
-        html += '<div class="cd-total">Nastaw: ' + ebrNastaw + ' kg</div>';
+    if (multi) {
+        html += '<div class="cd-total">Nastaw: ' + Math.round(ebrNastaw) + ' kg</div>';
     }
 
     document.getElementById('cd-targets').innerHTML = html;
+    // Focus first empty nr input
+    var firstEmpty = document.querySelector('#cd-targets .cd-input-nr:not([value])') || document.querySelector('#cd-targets .cd-input-nr');
+    if (firstEmpty && !firstEmpty.value) setTimeout(function() { firstEmpty.focus(); }, 50);
 }
 
 function addPompTarget() {
+    // First target gets empty kg (user fills), rest auto-calc
+    if (_pompTargets.length === 1) {
+        _pompTargets[0].kg = '';
+    }
     _pompTargets.push({nr: '', kg: ''});
-    renderPompTargets();
-}
-
-function removePompTarget(i) {
-    _pompTargets.splice(i, 1);
-    if (_pompTargets.length === 0) _pompTargets = [{nr: '', kg: ''}];
     renderPompTargets();
 }
 
 async function doComplete() {
     // Validate at least one zbiornik
-    var targets = _pompTargets.filter(function(t) { return t.nr.trim(); });
+    var targets = _pompTargets.filter(function(t) { return String(t.nr).trim(); }).map(function(t) {
+        return {nr: 'M' + String(t.nr).trim(), kg: t.kg ? parseFloat(t.kg) : null};
+    });
     if (targets.length === 0) {
-        var input = document.querySelector('#cd-targets .cd-input');
+        var input = document.querySelector('#cd-targets .cd-input-nr');
         if (input) { input.style.borderColor = 'var(--red)'; input.focus(); }
         return;
     }
