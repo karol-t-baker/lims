@@ -497,7 +497,7 @@ def list_ebr_recent(db: sqlite3.Connection, days: int = 7) -> list[dict]:
 
 
 def list_completed_registry(
-    db: sqlite3.Connection, produkt: str | None = None, limit: int = 100
+    db: sqlite3.Connection, produkt: str | None = None, limit: int = 100, typ: str | None = None
 ) -> list[dict]:
     """Get completed batches with all wyniki for registry table view."""
     sql = """
@@ -510,6 +510,9 @@ def list_completed_registry(
     if produkt:
         sql += " AND mt.produkt = ?"
         params.append(produkt)
+    if typ:
+        sql += " AND eb.typ = ?"
+        params.append(typ)
     sql += " ORDER BY eb.dt_end DESC LIMIT ?"
     params.append(limit)
     rows = db.execute(sql, params).fetchall()

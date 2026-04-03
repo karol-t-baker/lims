@@ -287,6 +287,12 @@
       </div>
       {% endif %}
     </div>
+    <div class="ch-typ-filter" style="padding:0 16px 8px;">
+      <div class="sb-seg" style="width:fit-content;">
+        <div class="sb-pill active" data-regtyp="szarza" onclick="filterRegistryType('szarza',this)">Szarze</div>
+        <div class="sb-pill" data-regtyp="zbiornik" onclick="filterRegistryType('zbiornik',this)">Zbiorniki</div>
+      </div>
+    </div>
   </div>
   <div class="registry-wrap">
     <div class="registry" id="reg-table-wrap">
@@ -559,6 +565,17 @@ function applyTableFilters() {
 
 // ═══ REGISTRY (Ukonczone) ═══
 
+let registryTyp = 'szarza';
+
+function filterRegistryType(typ, btn) {
+  registryTyp = typ;
+  btn.parentElement.querySelectorAll('.sb-pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  var activeTab = document.querySelector('#ch-tabs .ch-tab.active');
+  var produkt = activeTab ? activeTab.dataset.product : 'Chegina_K7';
+  loadRegistry(produkt);
+}
+
 async function showRegistry(produkt, skipHistory) {
   produkt = produkt || 'Chegina_K7';
   document.getElementById('panel-dashboard').style.display = 'none';
@@ -567,6 +584,9 @@ async function showRegistry(produkt, skipHistory) {
   document.getElementById('panel-registry').style.display = 'flex';
   document.getElementById('topbar').style.display = 'none';
   var sf = document.getElementById('spa-footer'); if (sf) sf.innerHTML = '';
+  registryTyp = 'szarza';
+  var typBtns = document.querySelectorAll('.ch-typ-filter .sb-pill');
+  typBtns.forEach(function(b) { b.classList.toggle('active', b.dataset.regtyp === 'szarza'); });
 
   narrowRail();
   document.getElementById('detail-sidebar').classList.remove('open');
@@ -580,7 +600,7 @@ async function showRegistry(produkt, skipHistory) {
 }
 
 async function loadRegistry(produkt) {
-  var resp = await fetch('/api/registry?produkt=' + encodeURIComponent(produkt));
+  var resp = await fetch('/api/registry?produkt=' + encodeURIComponent(produkt) + (registryTyp ? '&typ=' + registryTyp : ''));
   var data = await resp.json();
 
   // Update count

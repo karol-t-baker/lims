@@ -250,8 +250,9 @@ def api_next_nr(produkt):
 @login_required
 def api_registry():
     produkt = request.args.get("produkt", "Chegina_K7")
+    typ = request.args.get("typ", "")
     with db_session() as db:
-        batches = list_completed_registry(db, produkt=produkt)
+        batches = list_completed_registry(db, produkt=produkt, typ=typ or None)
         columns = get_registry_columns(db, produkt)
     return jsonify({"batches": batches, "columns": columns, "produkt": produkt})
 
