@@ -229,30 +229,50 @@ function renderSzarze() {
     const container = document.getElementById('sb-szarze');
     container.innerHTML = '';
 
-    // Current batch as the only item (we only have data for the current EBR)
-    const bi = document.createElement('div');
-    bi.className = 'bi active';
-    bi.innerHTML = `
-        <div class="bi-top">
-            <span class="bi-batch">${esc('{{ ebr.nr_partii }}')}</span>
-            <span class="bi-product">${esc('{{ ebr.produkt|short_product }}')}</span>
-            <div class="bi-priority normal"></div>
-        </div>
-        <div class="bi-stage">${esc(etapy.find(e => !e.read_only && e.sekcja_lab && getPola(e.sekcja_lab).length > 0)?.nazwa || '---')}</div>
-        <div class="bi-dots" id="bi-dots-current"></div>
-    `;
-    container.appendChild(bi);
-
-    // Fill progress dots
-    const dotsContainer = document.getElementById('bi-dots-current');
+    // Count progress for current batch
+    let totalSections = 0, doneSections = 0;
     etapy.forEach(etap => {
         const sekcja = etap.sekcja_lab || '';
         if (!sekcja || etap.read_only) return;
-        const hasW = wyniki[sekcja] && Object.keys(wyniki[sekcja]).length > 0;
-        const bd = document.createElement('div');
-        bd.className = 'bd' + (hasW ? ' done' : '');
-        dotsContainer.appendChild(bd);
+        if (ebrTyp === 'zbiornik' && sekcja !== 'analiza_koncowa') return;
+        totalSections++;
+        if (wyniki[sekcja] && Object.keys(wyniki[sekcja]).length > 0) doneSections++;
     });
+    const pctWidth = totalSections > 0 ? Math.round((doneSections / totalSections) * 100) : 0;
+    const isZbiornik = ebrTyp === 'zbiornik';
+
+    const nrPartii = {{ ebr.nr_partii | tojson }};
+    const shortProduct = {{ ebr.produkt|short_product | tojson }};
+    const nrAmidatora = {{ (ebr.nr_amidatora or '?') | tojson }};
+    const nrMieszalnika = {{ (ebr.nr_mieszalnika or '?') | tojson }};
+    const dtStart = {{ (ebr.dt_start | pl_date) | tojson }};
+
+    const equipHtml = isZbiornik
+        ? '<span>Zbiornik</span>'
+        : '<span class="bc-equip">A-' + esc(nrAmidatora) + ' / M-' + esc(nrMieszalnika) + '</span>';
+    const statusCls = doneSections === totalSections && totalSections > 0 ? 'done' : doneSections > 0 ? 'progress' : 'waiting';
+    const statusText = doneSections === totalSections && totalSections > 0 ? 'Gotowy' : doneSections > 0 ? 'W toku' : 'Oczekuje na analize';
+
+    const card = document.createElement('div');
+    card.className = 'batch-card active' + (isZbiornik ? ' typ-zbiornik' : '');
+    card.innerHTML =
+        '<div class="bc-top">' +
+            '<span class="bc-nr">' + esc(nrPartii) + '</span>' +
+            '<span class="bc-product">' + esc(shortProduct) + '</span>' +
+            '<span class="bc-typ-icon" title="' + (isZbiornik ? 'Zbiornik' : 'Szarza') + '">' + (isZbiornik ? '&#9648;' : '&#9879;') + '</span>' +
+        '</div>' +
+        '<div class="bc-meta">' +
+            equipHtml +
+            '<span class="bc-time">' + esc(dtStart) + '</span>' +
+        '</div>' +
+        '<div class="bc-progress">' +
+            '<div class="bc-bar"><div class="bc-bar-fill" style="width:' + pctWidth + '%"></div></div>' +
+            '<span class="bc-pct">' + doneSections + '/' + totalSections + '</span>' +
+        '</div>' +
+        '<div class="bc-status ' + statusCls + '">' +
+            '<span class="bc-status-dot"></span> ' + statusText +
+        '</div>';
+    container.appendChild(card);
 }
 
 
