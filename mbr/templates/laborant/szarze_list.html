@@ -72,26 +72,29 @@
   /* Etapy timeline in sidebar */
   #sidebar-etapy { overflow-y: auto; }
   .sb-etap {
-    display: flex; align-items: flex-start; gap: 10px; padding: 8px 4px;
+    display: flex; align-items: flex-start; gap: 10px; padding: 10px 6px;
     position: relative;
   }
-  .sb-etap + .sb-etap::before {
-    content: ''; position: absolute; left: 15px; top: -4px; width: 1.5px; height: 12px;
-    background: var(--border);
+  .sb-etap + .sb-etap {
+    border-top: 1px solid var(--border-subtle, #f0ece4);
   }
   .se-icon {
-    width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
     font-size: 10px; flex-shrink: 0; border: 1.5px solid var(--border); background: var(--surface);
-    color: var(--text-dim);
+    color: var(--text-dim); margin-top: 1px;
   }
   .se-done .se-icon { background: var(--green-bg, #e8f5e9); color: var(--green, #16a34a); border-color: var(--green, #16a34a); }
   .se-active .se-icon { background: var(--teal-bg, #e0f2f1); color: var(--teal, #0d9488); border-color: var(--teal, #0d9488); font-weight: 700; }
+  .se-active.se-stg-stand .se-icon { background: var(--amber-bg); color: var(--amber); border-color: var(--amber); }
+  .se-active.se-stg-koncowa .se-icon { background: #fef3c7; color: #d97706; border-color: #d97706; }
   .se-pending .se-icon { opacity: 0.5; }
   .se-body { min-width: 0; }
-  .se-name { font-size: 12px; font-weight: 500; color: var(--text); line-height: 1.4; }
-  .se-active .se-name { color: var(--teal, #0d9488); font-weight: 600; }
-  .se-pending .se-name { color: var(--text-dim); }
-  .se-detail { font-size: 10px; color: var(--text-dim); margin-top: 1px; }
+  .se-name { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.4; }
+  .se-active .se-name { color: var(--teal, #0d9488); font-weight: 700; }
+  .se-active.se-stg-stand .se-name { color: var(--amber); }
+  .se-active.se-stg-koncowa .se-name { color: #d97706; }
+  .se-pending .se-name { color: var(--text-dim); font-weight: 500; }
+  .se-detail { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
 </style>
 {% endblock %}
 
@@ -520,8 +523,9 @@ function renderSidebarEtapy() {
 
     const statusIcon = status === 'done' ? '✓' : status === 'active' ? '●' : '○';
     const statusCls = 'se-' + status;
+    const stageCls = etap.sekcja_lab === 'standaryzacja' ? 'se-stg-stand' : etap.sekcja_lab === 'analiza_koncowa' ? 'se-stg-koncowa' : '';
 
-    html += '<div class="sb-etap ' + statusCls + '">' +
+    html += '<div class="sb-etap ' + statusCls + ' ' + stageCls + '">' +
       '<div class="se-icon">' + statusIcon + '</div>' +
       '<div class="se-body">' +
         '<div class="se-name">' + etap.nazwa + '</div>' +

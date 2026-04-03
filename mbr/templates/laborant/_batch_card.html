@@ -2,8 +2,15 @@
    Usage: {% from "laborant/_batch_card.html" import batch_card %}
           {{ batch_card(b, active=(b.ebr_id == current_id), onclick_url=url) }}
 #}
+{%- macro _stage_cls(name) -%}
+{%- if 'Standaryzacja' in name|default('') and 'Analiza' not in name|default('') -%}stg-stand
+{%- elif 'końcowa' in name|default('') or 'Przed' in name|default('') -%}stg-koncowa
+{%- elif 'Gotowy' in name|default('') -%}stg-done
+{%- else -%}stg-default{%- endif -%}
+{%- endmacro -%}
+
 {% macro batch_card(b, active=false, onclick_url='') %}
-<div class="batch-card {{ 'typ-zbiornik' if b.typ == 'zbiornik' else '' }} {{ 'status-alert' if b.out_of_limit > 0 else '' }} {{ 'active' if active else '' }}"
+<div class="batch-card {{ 'typ-zbiornik' if b.typ == 'zbiornik' else '' }} {{ 'status-alert' if b.out_of_limit > 0 else '' }} {{ 'active' if active else '' }} {{ _stage_cls(b.stage_name) }}"
      data-typ="{{ b.typ or 'szarza' }}" data-produkt="{{ b.produkt }}" data-nr="{{ b.nr_partii }}"
      data-ebr-id="{{ b.ebr_id }}"
      {% if onclick_url %}onclick="location.href='{{ onclick_url }}'"{% endif %}>
@@ -22,7 +29,7 @@
       <span class="bc-badge bc-b-err">!!</span>
     {% elif b.stage_status == 'in_progress' %}
       <span>{{ b.stage_name|default('W toku') }}</span>
-      <span class="bc-badge bc-b-ok">w toku</span>
+      <span class="bc-badge bc-b-progress">w toku</span>
     {% elif b.stage_status == 'done' %}
       <span>{{ b.stage_name|default('Gotowy') }}</span>
       <span class="bc-badge bc-b-done">OK</span>
