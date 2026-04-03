@@ -14,7 +14,7 @@ from mbr.models import (
     get_db, db_session, init_mbr_tables, verify_user,
     list_mbr, get_mbr, save_mbr, activate_mbr, clone_mbr,
     list_ebr_open, list_ebr_completed, list_ebr_recent, export_wyniki_csv,
-    create_ebr, get_ebr, get_ebr_wyniki, save_wyniki, complete_ebr,
+    create_ebr, get_ebr, get_ebr_wyniki, get_round_state, save_wyniki, complete_ebr,
     sync_ebr_to_v4, next_nr_partii, PRODUCTS,
     list_completed_registry, get_registry_columns, list_completed_products,
 )
@@ -314,7 +314,9 @@ def fast_entry_partial(ebr_id):
         if ebr is None:
             return "Nie znaleziono", 404
         wyniki = get_ebr_wyniki(db, ebr_id)
-    return render_template("laborant/_fast_entry_content.html", ebr=ebr, wyniki=wyniki)
+        round_state = get_round_state(wyniki)
+    return render_template("laborant/_fast_entry_content.html",
+                           ebr=ebr, wyniki=wyniki, round_state=round_state)
 
 
 @app.route("/laborant/ebr/<int:ebr_id>/save", methods=["POST"])
