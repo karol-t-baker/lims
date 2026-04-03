@@ -380,16 +380,39 @@ function renderReferences() {
         // Zbiornik mode: only show analiza_koncowa references
         if (ebrTyp === 'zbiornik' && sekcja !== 'analiza_koncowa') return;
 
-        let html = `<div class="ref norms"><div class="ref-t">${esc(etap.nazwa)}</div>`;
+        const sekWyniki = wyniki[sekcja] || {};
+
+        let html = `<div class="ref"><div class="ref-t">${esc(etap.nazwa)}</div>`;
         pola.forEach(pole => {
-            const minMax = (pole.min != null || pole.max != null)
-                ? `${pole.min != null ? pole.min : '...'} - ${pole.max != null ? pole.max : '...'}`
-                : '---';
-            html += `<div class="rr"><span class="rr-k">${esc(pole.label)}</span><span class="rr-v">${minMax}</span></div>`;
+            const normText = (pole.min != null || pole.max != null)
+                ? `(${pole.min != null ? pole.min : '...'} - ${pole.max != null ? pole.max : '...'})`
+                : '';
+            const existing = sekWyniki[pole.kod];
+            const currentInput = document.querySelector(`input[data-kod="${pole.kod}"][data-sekcja="${sekcja}"]`);
+            const liveVal = currentInput && currentInput.value !== '' ? currentInput.value : null;
+            const savedVal = existing ? existing.wartosc : null;
+            const displayVal = liveVal || savedVal;
+
+            let valHtml;
+            if (displayVal != null && displayVal !== '') {
+                valHtml = `<strong>${displayVal}</strong> <span style="color:var(--text-dim)">${normText}</span>`;
+            } else {
+                valHtml = `\u2014 <span style="color:var(--text-dim)">${normText}</span>`;
+            }
+            html += `<div class="rr"><span class="rr-k">${esc(pole.label)}</span><span class="rr-v">${valHtml}</span></div>`;
         });
         html += '</div>';
+
         container.innerHTML += html;
     });
+
+    // Historical values placeholder
+    container.innerHTML += `<div class="ref norms">
+        <div class="ref-t">Typowe wartosci (historyczne)</div>
+        <div style="font-size:11px;color:var(--text-dim);padding:8px 0;">
+            Dane pojawia sie po zebraniu wystarczajacej liczby szarz.
+        </div>
+    </div>`;
 }
 
 
@@ -465,13 +488,6 @@ function showRightPanel(view) {
 
 // ═══ CALCULATOR BRIDGE ═══
 
-function openCalc(tag, kod, sekcja, calcMethod) {
-    if (typeof window.openCalculator === 'function') {
-        showRightPanel('calc');
-        window.openCalculator(tag, kod, sekcja, calcMethod);
-    }
-}
-
 // Event delegation: click on titracja .ff div or its input opens calculator
 document.addEventListener('click', function(e) {
     const ff = e.target.closest('.ff.titr[data-kod]');
@@ -484,7 +500,27 @@ document.addEventListener('click', function(e) {
         const raw = ff.dataset.calcMethod;
         if (raw) calcMethod = JSON.parse(raw);
     } catch(ex) {}
-    openCalc(tag, kod, sekcja, calcMethod);
+
+    // Only switch panel if calc tab is not already active
+    const calcView = document.getElementById('rp-calc');
+    if (!calcView || !calcView.classList.contains('active')) {
+        showRightPanel('calc');
+    }
+    window.openCalculator(tag, kod, sekcja, calcMethod);
+});
+
+// Event delegation: click on non-titr, non-computed field switches to references
+document.addEventListener('click', function(e) {
+    const ff = e.target.closest('.ff:not(.titr):not(.computed)');
+    if (!ff) return;
+    const input = ff.querySelector('input[data-kod]');
+    if (!input) return;
+    const refView = document.getElementById('rp-ref');
+    if (refView && !refView.classList.contains('active')) {
+        showRightPanel('ref');
+    }
+    // Refresh references to show current live values
+    renderReferences();
 });
 
 

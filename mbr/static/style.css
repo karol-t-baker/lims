@@ -640,6 +640,15 @@ body {
 }
 .calc-accept:hover { filter: brightness(1.1); }
 
+.calc-save-status {
+  text-align: center;
+  margin-top: 8px;
+  font-size: 10px;
+  height: 16px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
 
 /* ═══ FOOTER ═══ */
 
