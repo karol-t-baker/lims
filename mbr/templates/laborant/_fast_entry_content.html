@@ -44,7 +44,7 @@
 <div id="detail-footer" class="footer">
   <span class="f-hint">Zapisz sekcje pojedynczo lub zatwierdz cala karte.</span>
   <div class="f-sp"></div>
-  <button type="button" class="btn btn-p" onclick="completeEntry()">Zatwierdz karte</button>
+  <button type="button" class="btn btn-p" onclick="completePompuj()">Zatwierdz karte</button>
 </div>
 {% else %}
 <div id="detail-footer" class="footer">
@@ -53,180 +53,526 @@
 </div>
 {% endif %}
 
-<script>
-{# Set globals for this batch #}
-window.ebrId = {{ ebr.ebr_id }};
-const ebrId = {{ ebr.ebr_id }};
-const ebrStatus = "{{ ebr.status }}";
-const ebrTyp = "{{ ebr.typ|default('szarza') }}";
-const etapy = {{ (ebr.etapy_json if ebr.etapy_json is string else ebr.etapy_json | tojson) | safe }};
-const parametry = {{ (ebr.parametry_lab if ebr.parametry_lab is string else ebr.parametry_lab | tojson) | safe }};
-const wyniki = {{ wyniki | tojson | safe }};
+<style>
+.decision-bar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-top: 16px;
+    padding: 14px 16px;
+    background: var(--surface, #f8f9fa);
+    border: 1.5px solid var(--border, #e0e0e0);
+    border-radius: var(--radius, 8px);
+}
+.decision-bar .decision-label {
+    font-size: 12px;
+    color: var(--text-dim, #666);
+    margin-right: auto;
+}
+.btn-success {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 18px;
+    border: none;
+    border-radius: var(--radius, 8px);
+    font-size: 13px;
+    font-weight: 600;
+    font-family: var(--font);
+    cursor: pointer;
+    background: #16a34a;
+    color: #fff;
+}
+.btn-success:hover { background: #15803d; }
+.btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 18px;
+    border: 1.5px solid var(--border, #e0e0e0);
+    border-radius: var(--radius, 8px);
+    font-size: 13px;
+    font-weight: 500;
+    font-family: var(--font);
+    cursor: pointer;
+    background: var(--surface, #fff);
+    color: var(--text, #333);
+}
+.btn-secondary:hover { background: var(--hover, #f0f0f0); }
+.btn-warn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 18px;
+    border: 1.5px solid #f59e0b;
+    border-radius: var(--radius, 8px);
+    font-size: 13px;
+    font-weight: 500;
+    font-family: var(--font);
+    cursor: pointer;
+    background: #fffbeb;
+    color: #92400e;
+}
+.btn-warn:hover { background: #fef3c7; }
+.highlight-prev input {
+    border-color: #f59e0b !important;
+    box-shadow: 0 0 0 2px rgba(245,158,11,0.18);
+}
+.highlight-prev label .hl-warn {
+    color: #f59e0b;
+    font-size: 13px;
+    margin-left: 4px;
+}
+.runda-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 18px 0 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-dim, #888);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.runda-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border, #e0e0e0);
+}
+.section.readonly-past { opacity: 0.75; }
+.post-stand-bar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-top: 12px;
+}
+</style>
 
-const TITR_TAGS_LEGACY = ['procent_sa', 'procent_nacl', 'procent_aa', 'procent_so3', 'procent_h2o2', 'lk', 'le_liczba_kwasowa'];
+<script>
+{# Set globals for this batch — use var so re-loading a different batch doesn't throw const-redeclaration error #}
+window.ebrId = {{ ebr.ebr_id }};
+var ebrId = {{ ebr.ebr_id }};
+var ebrStatus = "{{ ebr.status }}";
+var ebrTyp = "{{ ebr.typ|default('szarza') }}";
+var etapy = {{ (ebr.etapy_json if ebr.etapy_json is string else ebr.etapy_json | tojson) | safe }};
+var parametry = {{ (ebr.parametry_lab if ebr.parametry_lab is string else ebr.parametry_lab | tojson) | safe }};
+var wyniki = {{ wyniki | tojson | safe }};
+var roundState = {{ round_state | tojson | safe }};
+
+var TITR_TAGS_LEGACY = ['procent_sa', 'procent_nacl', 'procent_aa', 'procent_so3', 'procent_h2o2', 'lk', 'le_liczba_kwasowa'];
 
 function getPola(sekcja) {
-    const s = parametry[sekcja];
+    // Strip round suffix to find base key in parametry
+    var baseKey = sekcja.replace(/__\d+$/, '');
+    var s = parametry[baseKey];
+    if (!s) {
+        // Fallback: try exact key
+        s = parametry[sekcja];
+    }
     if (!s) return [];
     if (Array.isArray(s)) return s;
     if (s.pola && Array.isArray(s.pola)) return s.pola;
     return [];
 }
 
+function isCyclicProduct() {
+    return parametry.hasOwnProperty('analiza') && parametry.hasOwnProperty('standaryzacja');
+}
+
 function renderSections() {
-    const container = document.getElementById('sections-container');
+    if (isCyclicProduct()) {
+        renderCyclicSections();
+    } else {
+        renderLinearSections();
+    }
+}
+
+// --- Linear rendering (zbiornik, simple products) — original logic ---
+function renderLinearSections() {
+    var container = document.getElementById('sections-container');
     container.innerHTML = '';
 
-    etapy.forEach((etap, i) => {
-        const sekcja = etap.sekcja_lab || '';
+    etapy.forEach(function(etap, i) {
+        var sekcja = etap.sekcja_lab || '';
         if (!sekcja) return;
         if (etap.read_only === true) return;
-        const pola = getPola(sekcja);
+        var pola = getPola(sekcja);
         if (pola.length === 0) return;
 
         if (ebrTyp === 'zbiornik' && sekcja !== 'analiza_koncowa') return;
 
-        const sekWyniki = wyniki[sekcja] || {};
-        const hasSomeResults = Object.keys(sekWyniki).length > 0;
-        const allInLimit = hasSomeResults && Object.values(sekWyniki).every(w => w.w_limicie === 1);
-        const isReadonly = ebrStatus !== 'open';
+        var sekWyniki = wyniki[sekcja] || {};
+        var hasSomeResults = Object.keys(sekWyniki).length > 0;
+        var allInLimit = hasSomeResults && Object.values(sekWyniki).every(function(w) { return w.w_limicie === 1; });
+        var isReadonly = ebrStatus !== 'open';
 
-        const isFirst = !container.querySelector('.section.current') && !hasSomeResults;
+        var isFirst = !container.querySelector('.section.current') && !hasSomeResults;
 
-        const section = document.createElement('div');
-        section.className = 'section' + (isFirst ? ' current' : '');
-        section.id = 'sec-' + sekcja;
-
-        let badgeHtml = '';
-        if (hasSomeResults) {
-            if (allInLimit) {
-                badgeHtml = '<span class="sec-badge b-ok">OK</span>';
-            } else {
-                badgeHtml = '<span class="sec-badge" style="background:var(--red-bg);color:var(--red);">Poza limitem</span>';
-            }
-        } else {
-            badgeHtml = '<span class="sec-badge b-wait">Oczekuje</span>';
-        }
-
-        let headHtml = `
-            <div class="sec-head">
-                <div class="sec-icon teal">${i + 1}</div>
-                <span class="sec-title">${esc(etap.nazwa)}</span>
-                ${badgeHtml}
-            </div>
-        `;
-
-        let fieldsHtml = '<div class="fg wide">';
-        pola.forEach(pole => {
-            const existing = sekWyniki[pole.kod];
-            const val = existing ? existing.wartosc : '';
-            const komentarzVal = existing ? (existing.komentarz || '') : '';
-            const isTitr = pole.measurement_type === 'titracja' || TITR_TAGS_LEGACY.includes(pole.kod);
-            const isObl = pole.measurement_type === 'obliczeniowy';
-
-            let inputClass = '';
-            if (existing) {
-                inputClass = existing.w_limicie === 1 ? 'ok' : 'err';
-            }
-            if (isObl) inputClass += ' calc';
-
-            const normText = (pole.min != null || pole.max != null)
-                ? `<span class="norm">${pole.min != null ? pole.min : ''}${pole.min != null && pole.max != null ? ' - ' : ''}${pole.max != null ? pole.max : ''}</span>`
-                : '';
-
-            let calcMethodAttr = '';
-            if (isTitr && !isReadonly && pole.calc_method) {
-                calcMethodAttr = `data-calc-method='${JSON.stringify(pole.calc_method).replace(/'/g, "&#39;")}'`;
-            }
-
-            fieldsHtml += `
-                <div class="ff${isTitr ? ' titr' : ''}${isObl ? ' computed' : ''}" ${isTitr && !isReadonly ? `data-kod="${esc(pole.kod)}" data-tag="${esc(pole.tag)}" data-sekcja="${esc(sekcja)}"` : ''} ${calcMethodAttr}>
-                    <label>${esc(pole.label)} ${normText}${isObl && pole.formula ? ' <span class="norm">[' + esc(pole.formula) + ']</span>' : ''}</label>
-                    <input type="number" step="any"
-                        data-kod="${esc(pole.kod)}"
-                        data-sekcja="${esc(sekcja)}"
-                        data-tag="${esc(pole.tag)}"
-                        data-min="${pole.min != null ? pole.min : ''}"
-                        data-max="${pole.max != null ? pole.max : ''}"
-                        data-measurement-type="${esc(pole.measurement_type || '')}"
-                        ${isObl && pole.formula ? `data-formula="${esc(pole.formula)}"` : ''}
-                        value="${val !== '' && val !== null ? val : ''}"
-                        class="${inputClass.trim()}"
-                        ${isReadonly ? 'readonly' : ''}
-                        ${isObl && !isReadonly ? 'readonly' : ''}
-                        oninput="validateField(this)">
-                    <textarea data-komentarz="${esc(pole.kod)}" data-sekcja="${esc(sekcja)}"
-                        placeholder="Komentarz (wymagany przy przekroczeniu limitu)..."
-                        style="display:${existing && existing.w_limicie === 0 ? 'block' : 'none'};width:100%;margin-top:4px;padding:6px 8px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:11px;font-family:var(--font);color:var(--text);min-height:36px;resize:vertical;"
-                        ${isReadonly ? 'readonly' : ''}>${komentarzVal}</textarea>
-                </div>
-            `;
+        renderOneSection(container, {
+            sekcja: sekcja,
+            title: etap.nazwa,
+            index: i + 1,
+            pola: pola,
+            sekWyniki: sekWyniki,
+            hasSomeResults: hasSomeResults,
+            allInLimit: allInLimit,
+            isReadonly: isReadonly,
+            isCurrent: isFirst,
+            prevOutOfLimit: [],
+            saveBtnLabel: 'Zapisz ' + etap.nazwa
         });
-        fieldsHtml += '</div>';
+    });
+}
 
-        let saveBtn = '';
-        if (!isReadonly) {
-            saveBtn = `<div style="margin-top:14px;text-align:right;"><button class="btn btn-p" onclick="saveSection('${esc(sekcja)}')">Zapisz ${esc(etap.nazwa)}</button></div>`;
+// --- Cyclic rendering (analiza/standaryzacja rounds) ---
+function renderCyclicSections() {
+    var container = document.getElementById('sections-container');
+    container.innerHTML = '';
+    var isReadonly = ebrStatus !== 'open';
+    var rs = roundState;
+    var sectionIndex = 0;
+
+    // Collect all completed round keys from wyniki, sorted
+    var completedRounds = [];
+    Object.keys(wyniki).forEach(function(key) {
+        var m = key.match(/^(analiza|standaryzacja)__(\d+)$/);
+        if (m) {
+            completedRounds.push({base: m[1], runda: parseInt(m[2]), key: key});
+        }
+    });
+    completedRounds.sort(function(a, b) {
+        if (a.runda !== b.runda) return a.runda - b.runda;
+        // Within same runda: analiza before standaryzacja
+        return a.base === 'analiza' ? -1 : 1;
+    });
+
+    // Render completed rounds as readonly
+    var lastRenderedRunda = 0;
+    completedRounds.forEach(function(item) {
+        // Show runda divider
+        if (item.runda > lastRenderedRunda) {
+            lastRenderedRunda = item.runda;
+            var divider = document.createElement('div');
+            divider.className = 'runda-divider';
+            divider.textContent = 'Runda ' + item.runda;
+            container.appendChild(divider);
         }
 
-        section.innerHTML = headHtml + '<div class="sec-body">' + fieldsHtml + saveBtn + '</div>';
-        container.appendChild(section);
+        sectionIndex++;
+        var pola = getPola(item.key);
+        var sekWyniki = wyniki[item.key] || {};
+        var hasSomeResults = Object.keys(sekWyniki).length > 0;
+        var allInLimit = hasSomeResults && Object.values(sekWyniki).every(function(w) { return w.w_limicie === 1; });
+
+        var baseLabel = parametry[item.base] ? (parametry[item.base].label || item.base) : item.base;
+        var title = baseLabel + ' (runda ' + item.runda + ')';
+
+        // Determine if this is the "current active" section (just completed, still editable in this reload)
+        var isCurrentActive = !isReadonly && (item.key === rs.next_sekcja) && hasSomeResults;
+
+        // Previous analiza out-of-limit highlighting: only for analiza rounds >= 2
+        var prevOut = [];
+        if (item.base === 'analiza' && item.runda >= 2) {
+            // Get out-of-limit from the analiza round BEFORE this one
+            var prevAnKey = 'analiza__' + (item.runda - 1);
+            var prevAnWyniki = wyniki[prevAnKey] || {};
+            Object.keys(prevAnWyniki).forEach(function(kod) {
+                if (prevAnWyniki[kod].w_limicie === 0) prevOut.push(kod);
+            });
+        }
+
+        renderOneSection(container, {
+            sekcja: item.key,
+            title: title,
+            index: sectionIndex,
+            pola: pola,
+            sekWyniki: sekWyniki,
+            hasSomeResults: hasSomeResults,
+            allInLimit: allInLimit,
+            isReadonly: true,  // completed rounds are readonly
+            isCurrent: false,
+            prevOutOfLimit: prevOut,
+            saveBtnLabel: null,
+            pastRound: true
+        });
     });
+
+    // Decision bar: after analysis in runda >= 2, show Przepompuj/Korekta
+    if (!isReadonly && rs.is_decision) {
+        renderDecisionButtons(container);
+        return; // Don't show next editable section — user must choose
+    }
+
+    // Render post-standaryzacja buttons if standaryzacja was just saved
+    // (last_standaryzacja >= last_analiza means stand just completed for this round)
+    if (!isReadonly && rs.last_standaryzacja > 0 && rs.last_standaryzacja >= rs.last_analiza && rs.next_step === 'analiza') {
+        // Show the next analysis section as editable, with post-stand shortcut button
+        // First render the editable analysis section below
+    }
+
+    // Render the next editable section
+    if (!isReadonly) {
+        var nextSekcja = rs.next_sekcja;
+        var nextBase = rs.next_step;
+        var nextRunda = rs.current_runda;
+        var pola = getPola(nextSekcja);
+
+        if (pola.length > 0) {
+            // Runda divider if new runda
+            if (nextRunda > lastRenderedRunda) {
+                var divider = document.createElement('div');
+                divider.className = 'runda-divider';
+                divider.textContent = 'Runda ' + nextRunda;
+                container.appendChild(divider);
+            }
+
+            sectionIndex++;
+            var baseLabel = parametry[nextBase] ? (parametry[nextBase].label || nextBase) : nextBase;
+            var title = baseLabel + ' (runda ' + nextRunda + ')';
+            var sekWyniki = wyniki[nextSekcja] || {};
+            var hasSomeResults = Object.keys(sekWyniki).length > 0;
+            var allInLimit = hasSomeResults && Object.values(sekWyniki).every(function(w) { return w.w_limicie === 1; });
+
+            // Highlight out-of-limit from previous analiza for analysis rounds >= 2
+            var prevOut = [];
+            if (nextBase === 'analiza' && nextRunda >= 2) {
+                prevOut = rs.prev_analiza_out || [];
+            }
+
+            renderOneSection(container, {
+                sekcja: nextSekcja,
+                title: title,
+                index: sectionIndex,
+                pola: pola,
+                sekWyniki: sekWyniki,
+                hasSomeResults: hasSomeResults,
+                allInLimit: allInLimit,
+                isReadonly: false,
+                isCurrent: true,
+                prevOutOfLimit: prevOut,
+                saveBtnLabel: 'Zapisz ' + baseLabel
+            });
+
+            // Post-standaryzacja: add "Przepompuj bez analizy" button after stand save btn
+            if (nextBase === 'analiza' && rs.last_standaryzacja > 0 && rs.last_standaryzacja >= rs.last_analiza) {
+                renderPostStandButtons(container);
+            }
+        }
+    }
+}
+
+function renderDecisionButtons(container) {
+    var bar = document.createElement('div');
+    bar.className = 'decision-bar';
+    bar.innerHTML =
+        '<span class="decision-label">Analiza zakonczona. Co dalej?</span>' +
+        '<button class="btn-success" onclick="completePompuj()">Przepompuj na zbiornik</button>' +
+        '<button class="btn-secondary" onclick="startKorekta()">Korekta</button>';
+    container.appendChild(bar);
+}
+
+function renderPostStandButtons(container) {
+    var bar = document.createElement('div');
+    bar.className = 'post-stand-bar';
+    bar.innerHTML =
+        '<button class="btn-warn" onclick="completePompuj()" title="Dla malych korekt — pomin powtorna analize">Przepompuj bez analizy</button>';
+    container.appendChild(bar);
+}
+
+// --- Shared section renderer ---
+function renderOneSection(container, opts) {
+    var sekcja = opts.sekcja;
+    var pola = opts.pola;
+    var sekWyniki = opts.sekWyniki;
+    var hasSomeResults = opts.hasSomeResults;
+    var allInLimit = opts.allInLimit;
+    var isReadonly = opts.isReadonly;
+    var prevOutOfLimit = opts.prevOutOfLimit || [];
+
+    var section = document.createElement('div');
+    var classes = 'section';
+    if (opts.isCurrent) classes += ' current';
+    if (opts.pastRound && isReadonly) classes += ' readonly-past';
+    section.className = classes;
+    section.id = 'sec-' + sekcja;
+
+    var badgeHtml = '';
+    if (hasSomeResults) {
+        if (allInLimit) {
+            badgeHtml = '<span class="sec-badge b-ok">OK</span>';
+        } else {
+            badgeHtml = '<span class="sec-badge" style="background:var(--red-bg);color:var(--red);">Poza limitem</span>';
+        }
+    } else {
+        badgeHtml = '<span class="sec-badge b-wait">Oczekuje</span>';
+    }
+
+    var headHtml =
+        '<div class="sec-head">' +
+            '<div class="sec-icon teal">' + opts.index + '</div>' +
+            '<span class="sec-title">' + esc(opts.title) + '</span>' +
+            badgeHtml +
+        '</div>';
+
+    var fieldsHtml = '<div class="fg wide">';
+    pola.forEach(function(pole) {
+        var existing = sekWyniki[pole.kod];
+        var val = existing ? existing.wartosc : '';
+        var komentarzVal = existing ? (existing.komentarz || '') : '';
+        var isTitr = pole.measurement_type === 'titracja' || TITR_TAGS_LEGACY.includes(pole.kod);
+        var isObl = pole.measurement_type === 'obliczeniowy';
+        var isHighlighted = prevOutOfLimit.indexOf(pole.kod) !== -1;
+
+        var inputClass = '';
+        if (existing) {
+            inputClass = existing.w_limicie === 1 ? 'ok' : 'err';
+        }
+        if (isObl) inputClass += ' calc';
+
+        var normText = (pole.min != null || pole.max != null)
+            ? '<span class="norm">' + (pole.min != null ? pole.min : '') + (pole.min != null && pole.max != null ? ' - ' : '') + (pole.max != null ? pole.max : '') + '</span>'
+            : '';
+
+        var highlightWarn = isHighlighted ? '<span class="hl-warn">\u26A0</span>' : '';
+
+        var calcMethodAttr = '';
+        if (isTitr && !isReadonly && pole.calc_method) {
+            calcMethodAttr = 'data-calc-method=\'' + JSON.stringify(pole.calc_method).replace(/'/g, "&#39;") + '\'';
+        }
+
+        fieldsHtml +=
+            '<div class="ff' + (isTitr ? ' titr' : '') + (isObl ? ' computed' : '') + (isHighlighted ? ' highlight-prev' : '') + '" ' +
+                (isTitr && !isReadonly ? 'data-kod="' + esc(pole.kod) + '" data-tag="' + esc(pole.tag) + '" data-sekcja="' + esc(sekcja) + '"' : '') + ' ' + calcMethodAttr + '>' +
+                '<label>' + esc(pole.label) + ' ' + normText +
+                    (isObl && pole.formula ? ' <span class="norm">[' + esc(pole.formula) + ']</span>' : '') +
+                    highlightWarn +
+                '</label>' +
+                '<input type="number" step="any"' +
+                    ' data-kod="' + esc(pole.kod) + '"' +
+                    ' data-sekcja="' + esc(sekcja) + '"' +
+                    ' data-tag="' + esc(pole.tag) + '"' +
+                    ' data-min="' + (pole.min != null ? pole.min : '') + '"' +
+                    ' data-max="' + (pole.max != null ? pole.max : '') + '"' +
+                    ' data-measurement-type="' + esc(pole.measurement_type || '') + '"' +
+                    (isObl && pole.formula ? ' data-formula="' + esc(pole.formula) + '"' : '') +
+                    ' value="' + (val !== '' && val !== null ? val : '') + '"' +
+                    ' class="' + inputClass.trim() + '"' +
+                    (isReadonly ? ' readonly' : '') +
+                    (isObl && !isReadonly ? ' readonly' : '') +
+                    ' oninput="validateField(this)">' +
+                '<textarea data-komentarz="' + esc(pole.kod) + '" data-sekcja="' + esc(sekcja) + '"' +
+                    ' placeholder="Komentarz (wymagany przy przekroczeniu limitu)..."' +
+                    ' style="display:' + (existing && existing.w_limicie === 0 ? 'block' : 'none') + ';width:100%;margin-top:4px;padding:6px 8px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:11px;font-family:var(--font);color:var(--text);min-height:36px;resize:vertical;"' +
+                    (isReadonly ? ' readonly' : '') + '>' + komentarzVal + '</textarea>' +
+            '</div>';
+    });
+    fieldsHtml += '</div>';
+
+    var saveBtn = '';
+    if (!isReadonly && opts.saveBtnLabel) {
+        saveBtn = '<div style="margin-top:14px;text-align:right;"><button class="btn btn-p" onclick="saveSection(\'' + esc(sekcja) + '\')">' + esc(opts.saveBtnLabel) + '</button></div>';
+    }
+
+    section.innerHTML = headHtml + '<div class="sec-body">' + fieldsHtml + saveBtn + '</div>';
+    container.appendChild(section);
 }
 
 
 function renderReferences() {
-    const container = document.getElementById('ref-container');
+    var container = document.getElementById('ref-container');
     container.innerHTML = '';
 
-    etapy.forEach(etap => {
-        const sekcja = etap.sekcja_lab || '';
-        if (!sekcja || etap.read_only === true) return;
-        const pola = getPola(sekcja);
-        if (pola.length === 0) return;
+    if (isCyclicProduct()) {
+        // For cyclic products, show references for all round-suffixed sections that have wyniki
+        var sekcjaKeys = Object.keys(wyniki).sort();
+        // Also add the next editable section
+        if (roundState.next_sekcja && sekcjaKeys.indexOf(roundState.next_sekcja) === -1) {
+            sekcjaKeys.push(roundState.next_sekcja);
+        }
+        sekcjaKeys.forEach(function(sekcja) {
+            var pola = getPola(sekcja);
+            if (pola.length === 0) return;
+            var sekWyniki = wyniki[sekcja] || {};
+            var base = sekcja.replace(/__\d+$/, '');
+            var rundaMatch = sekcja.match(/__(\d+)$/);
+            var runda = rundaMatch ? rundaMatch[1] : '';
+            var baseLabel = parametry[base] ? (parametry[base].label || base) : base;
+            var title = baseLabel + (runda ? ' (runda ' + runda + ')' : '');
 
-        if (ebrTyp === 'zbiornik' && sekcja !== 'analiza_koncowa') return;
+            var html = '<div class="ref"><div class="ref-t">' + esc(title) + '</div>';
+            pola.forEach(function(pole) {
+                var normText = (pole.min != null || pole.max != null)
+                    ? '(' + (pole.min != null ? pole.min : '...') + ' - ' + (pole.max != null ? pole.max : '...') + ')'
+                    : '';
+                var existing = sekWyniki[pole.kod];
+                var currentInput = document.querySelector('input[data-kod="' + pole.kod + '"][data-sekcja="' + sekcja + '"]');
+                var liveVal = currentInput && currentInput.value !== '' ? currentInput.value : null;
+                var savedVal = existing ? existing.wartosc : null;
+                var displayVal = liveVal || savedVal;
 
-        const sekWyniki = wyniki[sekcja] || {};
-
-        let html = `<div class="ref"><div class="ref-t">${esc(etap.nazwa)}</div>`;
-        pola.forEach(pole => {
-            const normText = (pole.min != null || pole.max != null)
-                ? `(${pole.min != null ? pole.min : '...'} - ${pole.max != null ? pole.max : '...'})`
-                : '';
-            const existing = sekWyniki[pole.kod];
-            const currentInput = document.querySelector(`input[data-kod="${pole.kod}"][data-sekcja="${sekcja}"]`);
-            const liveVal = currentInput && currentInput.value !== '' ? currentInput.value : null;
-            const savedVal = existing ? existing.wartosc : null;
-            const displayVal = liveVal || savedVal;
-
-            let valHtml;
-            if (displayVal != null && displayVal !== '') {
-                valHtml = `<strong>${displayVal}</strong> <span style="color:var(--text-dim)">${normText}</span>`;
-            } else {
-                valHtml = `\u2014 <span style="color:var(--text-dim)">${normText}</span>`;
-            }
-            html += `<div class="rr"><span class="rr-k">${esc(pole.label)}</span><span class="rr-v">${valHtml}</span></div>`;
+                var valHtml;
+                if (displayVal != null && displayVal !== '') {
+                    valHtml = '<strong>' + displayVal + '</strong> <span style="color:var(--text-dim)">' + normText + '</span>';
+                } else {
+                    valHtml = '\u2014 <span style="color:var(--text-dim)">' + normText + '</span>';
+                }
+                html += '<div class="rr"><span class="rr-k">' + esc(pole.label) + '</span><span class="rr-v">' + valHtml + '</span></div>';
+            });
+            html += '</div>';
+            container.innerHTML += html;
         });
-        html += '</div>';
+    } else {
+        // Linear references — original logic
+        etapy.forEach(function(etap) {
+            var sekcja = etap.sekcja_lab || '';
+            if (!sekcja || etap.read_only === true) return;
+            var pola = getPola(sekcja);
+            if (pola.length === 0) return;
 
-        container.innerHTML += html;
-    });
+            if (ebrTyp === 'zbiornik' && sekcja !== 'analiza_koncowa') return;
 
-    container.innerHTML += `<div class="ref norms">
-        <div class="ref-t">Typowe wartosci (historyczne)</div>
-        <div style="font-size:11px;color:var(--text-dim);padding:8px 0;">
-            Dane pojawia sie po zebraniu wystarczajacej liczby szarz.
-        </div>
-    </div>`;
+            var sekWyniki = wyniki[sekcja] || {};
+
+            var html = '<div class="ref"><div class="ref-t">' + esc(etap.nazwa) + '</div>';
+            pola.forEach(function(pole) {
+                var normText = (pole.min != null || pole.max != null)
+                    ? '(' + (pole.min != null ? pole.min : '...') + ' - ' + (pole.max != null ? pole.max : '...') + ')'
+                    : '';
+                var existing = sekWyniki[pole.kod];
+                var currentInput = document.querySelector('input[data-kod="' + pole.kod + '"][data-sekcja="' + sekcja + '"]');
+                var liveVal = currentInput && currentInput.value !== '' ? currentInput.value : null;
+                var savedVal = existing ? existing.wartosc : null;
+                var displayVal = liveVal || savedVal;
+
+                var valHtml;
+                if (displayVal != null && displayVal !== '') {
+                    valHtml = '<strong>' + displayVal + '</strong> <span style="color:var(--text-dim)">' + normText + '</span>';
+                } else {
+                    valHtml = '\u2014 <span style="color:var(--text-dim)">' + normText + '</span>';
+                }
+                html += '<div class="rr"><span class="rr-k">' + esc(pole.label) + '</span><span class="rr-v">' + valHtml + '</span></div>';
+            });
+            html += '</div>';
+
+            container.innerHTML += html;
+        });
+    }
+
+    container.innerHTML += '<div class="ref norms">' +
+        '<div class="ref-t">Typowe wartosci (historyczne)</div>' +
+        '<div style="font-size:11px;color:var(--text-dim);padding:8px 0;">' +
+            'Dane pojawia sie po zebraniu wystarczajacej liczby szarz.' +
+        '</div>' +
+    '</div>';
 }
 
 
 function validateField(input) {
-    const val = parseFloat(input.value);
-    const min = input.dataset.min !== '' ? parseFloat(input.dataset.min) : null;
-    const max = input.dataset.max !== '' ? parseFloat(input.dataset.max) : null;
-    const komentarz = document.querySelector(`textarea[data-komentarz="${input.dataset.kod}"][data-sekcja="${input.dataset.sekcja}"]`);
+    var val = parseFloat(input.value);
+    var min = input.dataset.min !== '' ? parseFloat(input.dataset.min) : null;
+    var max = input.dataset.max !== '' ? parseFloat(input.dataset.max) : null;
+    var komentarz = document.querySelector('textarea[data-komentarz="' + input.dataset.kod + '"][data-sekcja="' + input.dataset.sekcja + '"]');
 
     input.classList.remove('ok', 'err');
 
@@ -235,7 +581,7 @@ function validateField(input) {
         return;
     }
 
-    let inLimit = true;
+    var inLimit = true;
     if (min !== null && val < min) inLimit = false;
     if (max !== null && val > max) inLimit = false;
 
@@ -247,11 +593,11 @@ function validateField(input) {
 
 
 async function saveSection(sekcja) {
-    const fields = document.querySelectorAll(`input[data-sekcja="${sekcja}"]`);
-    const values = {};
-    fields.forEach(f => {
+    var fields = document.querySelectorAll('input[data-sekcja="' + sekcja + '"]');
+    var values = {};
+    fields.forEach(function(f) {
         if (f.value && f.dataset.kod) {
-            const komentarz = document.querySelector(`textarea[data-komentarz="${f.dataset.kod}"][data-sekcja="${sekcja}"]`);
+            var komentarz = document.querySelector('textarea[data-komentarz="' + f.dataset.kod + '"][data-sekcja="' + sekcja + '"]');
             values[f.dataset.kod] = {
                 wartosc: f.value,
                 komentarz: komentarz ? komentarz.value : ""
@@ -260,10 +606,10 @@ async function saveSection(sekcja) {
     });
     if (Object.keys(values).length === 0) return;
 
-    const resp = await fetch(`/laborant/ebr/${ebrId}/save`, {
+    var resp = await fetch('/laborant/ebr/' + ebrId + '/save', {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({sekcja, values})
+        body: JSON.stringify({sekcja: sekcja, values: values})
     });
     if (resp.ok) {
         // Reload the partial content in SPA mode
@@ -276,16 +622,15 @@ async function saveSection(sekcja) {
 }
 
 
-async function completeEntry() {
-    if (!confirm('Zatwierdzic karte? Nie bedzie mozna edytowac.')) return;
-    const resp = await fetch(`/laborant/ebr/${ebrId}/complete`, {
+async function completePompuj() {
+    if (!confirm('Przepompowac na zbiornik? Karta zostanie zamknieta.')) return;
+    var resp = await fetch('/laborant/ebr/' + ebrId + '/complete', {
         method: "POST",
         headers: {"Content-Type": "application/json"}
     });
     if (resp.ok || resp.redirected) {
         if (typeof showDashboard === 'function') {
             showDashboard();
-            // Reload dashboard content
             location.href = '/laborant/szarze';
         } else {
             location.href = '/laborant/szarze';
@@ -293,15 +638,28 @@ async function completeEntry() {
     }
 }
 
+// Legacy alias
+var completeEntry = completePompuj;
+
+
+function startKorekta() {
+    // Reload batch detail — backend will compute fresh round_state with next standaryzacja step
+    if (typeof loadBatch === 'function') {
+        loadBatch(ebrId);
+    } else {
+        location.reload();
+    }
+}
+
 
 function scrollToSection(sekcja) {
-    const el = document.getElementById('sec-' + sekcja);
+    var el = document.getElementById('sec-' + sekcja);
     if (el) el.scrollIntoView({behavior: 'smooth', block: 'start'});
 }
 
 
 function showRightPanel(view) {
-    document.querySelectorAll('.rp-tab').forEach((t, i) => {
+    document.querySelectorAll('.rp-tab').forEach(function(t, i) {
         t.classList.toggle('active', (view === 'ref' && i === 0) || (view === 'calc' && i === 1));
     });
     document.getElementById('rp-ref').classList.toggle('active', view === 'ref');
@@ -309,51 +667,55 @@ function showRightPanel(view) {
 }
 
 
-// Calculator bridge
-document.addEventListener('click', function _calcBridge(e) {
-    const ff = e.target.closest('.ff.titr[data-kod]');
+// Calculator bridge — remove previous listener to avoid duplicates on SPA reload
+if (window._calcBridge) document.removeEventListener('click', window._calcBridge);
+window._calcBridge = function(e) {
+    var ff = e.target.closest('.ff.titr[data-kod]');
     if (!ff) return;
-    const kod = ff.dataset.kod;
-    const tag = ff.dataset.tag || kod;
-    const sekcja = ff.dataset.sekcja;
-    let calcMethod = null;
+    var kod = ff.dataset.kod;
+    var tag = ff.dataset.tag || kod;
+    var sekcja = ff.dataset.sekcja;
+    var calcMethod = null;
     try {
-        const raw = ff.dataset.calcMethod;
+        var raw = ff.dataset.calcMethod;
         if (raw) calcMethod = JSON.parse(raw);
     } catch(ex) {}
 
-    const calcView = document.getElementById('rp-calc');
+    var calcView = document.getElementById('rp-calc');
     if (!calcView || !calcView.classList.contains('active')) {
         showRightPanel('calc');
     }
     window.openCalculator(tag, kod, sekcja, calcMethod);
-});
+};
+document.addEventListener('click', window._calcBridge);
 
-document.addEventListener('click', function _refBridge(e) {
-    const ff = e.target.closest('.ff:not(.titr):not(.computed)');
+if (window._refBridge) document.removeEventListener('click', window._refBridge);
+window._refBridge = function(e) {
+    var ff = e.target.closest('.ff:not(.titr):not(.computed)');
     if (!ff) return;
-    const input = ff.querySelector('input[data-kod]');
+    var input = ff.querySelector('input[data-kod]');
     if (!input) return;
-    const refView = document.getElementById('rp-ref');
+    var refView = document.getElementById('rp-ref');
     if (refView && !refView.classList.contains('active')) {
         showRightPanel('ref');
     }
     renderReferences();
-});
+};
+document.addEventListener('click', window._refBridge);
 
 
 // Computed fields
 function setupComputedFields() {
-    document.querySelectorAll('input[data-formula]').forEach(computedInput => {
-        const formula = computedInput.dataset.formula;
-        const sekcja = computedInput.dataset.sekcja;
-        const deps = formula.match(/[a-z_]+/g) || [];
-        deps.forEach(depKod => {
-            const depInput = document.querySelector(
-                `input[data-kod="${depKod}"][data-sekcja="${sekcja}"]`
+    document.querySelectorAll('input[data-formula]').forEach(function(computedInput) {
+        var formula = computedInput.dataset.formula;
+        var sekcja = computedInput.dataset.sekcja;
+        var deps = formula.match(/[a-z_]+/g) || [];
+        deps.forEach(function(depKod) {
+            var depInput = document.querySelector(
+                'input[data-kod="' + depKod + '"][data-sekcja="' + sekcja + '"]'
             );
             if (depInput && depInput !== computedInput) {
-                depInput.addEventListener('input', () => recomputeField(computedInput));
+                depInput.addEventListener('input', function() { recomputeField(computedInput); });
             }
         });
         recomputeField(computedInput);
@@ -361,22 +723,22 @@ function setupComputedFields() {
 }
 
 function recomputeField(computedInput) {
-    const formula = computedInput.dataset.formula;
-    const sekcja = computedInput.dataset.sekcja;
+    var formula = computedInput.dataset.formula;
+    var sekcja = computedInput.dataset.sekcja;
     if (!formula) return;
 
-    const context = {};
-    document.querySelectorAll(`input[data-sekcja="${sekcja}"]`).forEach(inp => {
+    var context = {};
+    document.querySelectorAll('input[data-sekcja="' + sekcja + '"]').forEach(function(inp) {
         if (inp.dataset.kod && inp.value !== '') {
             context[inp.dataset.kod] = parseFloat(inp.value);
         }
     });
 
     try {
-        let expr = formula;
-        const vars = formula.match(/[a-z_]+/g) || [];
-        let allPresent = true;
-        vars.forEach(v => {
+        var expr = formula;
+        var vars = formula.match(/[a-z_]+/g) || [];
+        var allPresent = true;
+        vars.forEach(function(v) {
             if (context[v] == null || isNaN(context[v])) {
                 allPresent = false;
             } else {
@@ -384,7 +746,7 @@ function recomputeField(computedInput) {
             }
         });
         if (allPresent) {
-            const result = Function('"use strict"; return (' + expr + ')')();
+            var result = Function('"use strict"; return (' + expr + ')')();
             if (!isNaN(result)) {
                 computedInput.value = result.toFixed(2);
                 computedInput.readOnly = true;
@@ -397,7 +759,7 @@ function recomputeField(computedInput) {
 
 function esc(s) {
     if (s == null) return '';
-    const d = document.createElement('div');
+    var d = document.createElement('div');
     d.textContent = String(s);
     return d.innerHTML.replace(/"/g, '&quot;');
 }
