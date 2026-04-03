@@ -7,7 +7,7 @@
 <div class="sidebar">
   <!-- Header -->
   <div class="sb-head">
-    <div class="sb-greeting">Witaj, {{ session.user.imie_nazwisko or session.user.login }}</div>
+    <div class="sb-greeting">Witaj, {{ session.get('user', {}).get('imie_nazwisko') or session.get('user', {}).get('login', '') }}</div>
     <div class="sb-date">{{ today }}</div>
   </div>
 
@@ -65,7 +65,7 @@
     <div class="sb-stats">
       <span><span class="sb-stat-value">{{ batches|rejectattr('typ', 'equalto', 'zbiornik')|list|length }}</span> szarz</span>
       <span><span class="sb-stat-value">{{ batches|selectattr('typ', 'equalto', 'zbiornik')|list|length }}</span> zbiornikow</span>
-      <span style="color:var(--amber)"><span class="sb-stat-value" style="color:var(--amber)">{{ batches|rejectattr('last_entry')|list|length }}</span> oczekuje</span>
+      <span style="color:var(--amber)"><span class="sb-stat-value" style="color:var(--amber)">{{ batches|selectattr('last_entry', 'none')|list|length }}</span> oczekuje</span>
     </div>
     <button class="sb-new-btn" onclick="document.getElementById('reg-modal').classList.add('show')">+ Nowa szarza</button>
   </div>
@@ -228,151 +228,5 @@ function applyTableFilters() {
     row.style.display = (matchProdukt && matchTyp && matchNr) ? '' : 'none';
   });
 }
-
-let currentTyp = 'szarza';
-
-function closeModal() {
-  document.getElementById('reg-modal').classList.remove('show');
-  // Reset to step 1 after close
-  setTimeout(backToStep1, 300);
-}
-
-function selectTyp(typ) {
-  currentTyp = typ;
-  document.getElementById('typ-input').value = typ;
-  document.getElementById('step-1').style.display = 'none';
-  document.getElementById('modal-footer').style.display = 'flex';
-
-  if (typ === 'szarza') {
-    document.getElementById('step-2a').style.display = 'block';
-    document.getElementById('step-2b').style.display = 'none';
-    document.getElementById('modal-subtitle').textContent = 'Nowa szarza produkcyjna';
-  } else {
-    document.getElementById('step-2a').style.display = 'none';
-    document.getElementById('step-2b').style.display = 'block';
-    document.getElementById('modal-subtitle').textContent = 'Analiza zbiornika magazynowego';
-  }
-}
-
-function backToStep1() {
-  document.getElementById('step-1').style.display = 'block';
-  document.getElementById('step-2a').style.display = 'none';
-  document.getElementById('step-2b').style.display = 'none';
-  document.getElementById('modal-footer').style.display = 'none';
-  document.getElementById('modal-subtitle').textContent = 'Wybierz typ rejestracji';
-  // Clear selections
-  document.querySelectorAll('#step-1 .product-option').forEach(function(p) { p.classList.remove('selected'); });
-  // Reset product search selectors
-  clearProduct('szarza');
-  clearProduct('zbiornik');
-}
-
-function filterProducts(input) {
-  const query = input.value.toLowerCase();
-  const wrap = input.closest('.product-search-wrap');
-  wrap.classList.add('open');
-  wrap.querySelectorAll('.product-item').forEach(item => {
-    const name = item.dataset.product.toLowerCase();
-    const shortName = item.querySelector('.product-item-name').textContent.toLowerCase();
-    item.classList.toggle('hidden', !name.includes(query) && !shortName.includes(query));
-  });
-}
-
-function quickPick(btn, product, context) {
-  // Highlight selected quick-pick
-  const container = btn.parentElement;
-  container.querySelectorAll('.sb-pill').forEach(p => p.classList.remove('active'));
-  btn.classList.add('active');
-
-  document.getElementById('produkt-input').value = product;
-
-  // Hide search, show selected badge
-  const step = context === 'szarza' ? document.getElementById('step-2a') : document.getElementById('step-2b');
-  const wrap = step.querySelector('.product-search-wrap');
-  const selected = step.querySelector('.product-selected');
-  wrap.style.display = 'none';
-  selected.style.display = 'flex';
-  selected.querySelector('.product-selected-name').textContent = btn.textContent.trim() + ' — ' + product;
-
-  // Fetch auto-number
-  fetchAutoNr(product, context);
-}
-
-function pickProduct(el) {
-  const product = el.dataset.product;
-  const shortName = el.querySelector('.product-item-name').textContent;
-  const context = currentTyp;
-
-  document.getElementById('produkt-input').value = product;
-
-  // Show selected badge, hide search
-  const wrap = el.closest('.product-search-wrap');
-  wrap.style.display = 'none';
-  const selected = wrap.parentElement.querySelector('.product-selected');
-  selected.style.display = 'flex';
-  selected.querySelector('.product-selected-name').textContent = shortName + ' — ' + product;
-
-  fetchAutoNr(product, context);
-}
-
-function fetchAutoNr(product, context) {
-  fetch('/api/next-nr/' + encodeURIComponent(product))
-    .then(r => r.json())
-    .then(data => {
-      if (context === 'szarza') {
-        document.getElementById('nr-partii-input').value = data.nr_partii;
-      } else {
-        document.getElementById('nr-partii-input-zb').value = data.nr_partii;
-      }
-    });
-}
-
-function clearProduct(context) {
-  document.getElementById('produkt-input').value = '';
-  var step = context === 'szarza' ? document.getElementById('step-2a') : document.getElementById('step-2b');
-  if (!step) return;
-  var wrap = step.querySelector('.product-search-wrap');
-  var selected = step.querySelector('.product-selected');
-  if (wrap) {
-    wrap.style.display = 'block';
-    var searchInput = wrap.querySelector('.product-search');
-    if (searchInput) searchInput.value = '';
-    wrap.classList.remove('open');
-    wrap.querySelectorAll('.product-item').forEach(function(item) { item.classList.remove('hidden'); });
-  }
-  if (selected) selected.style.display = 'none';
-  // Clear quick-pick active state
-  var qp = step.querySelector('[id^="quick-pick-"]');
-  if (qp) qp.querySelectorAll('.sb-pill').forEach(function(p) { p.classList.remove('active'); });
-  // Clear nr_partii
-  if (context === 'szarza') {
-    document.getElementById('nr-partii-input').value = '';
-  } else {
-    var zb = document.getElementById('nr-partii-input-zb');
-    if (zb) zb.value = '';
-  }
-}
-
-// Dropdown blur/focus handlers
-document.querySelectorAll('.product-search').forEach(input => {
-  input.addEventListener('blur', () => {
-    setTimeout(() => input.closest('.product-search-wrap').classList.remove('open'), 200);
-  });
-  input.addEventListener('focus', () => {
-    input.closest('.product-search-wrap').classList.add('open');
-  });
-});
-
-// Sync zbiornik nr_partii to the actual form field before submit
-document.getElementById('new-batch-form').addEventListener('submit', function() {
-  if (currentTyp === 'zbiornik') {
-    // Copy zbiornik nr_partii to the real input
-    var zbVal = document.getElementById('nr-partii-input-zb').value;
-    document.getElementById('nr-partii-input').value = zbVal;
-    // Ensure nr_partii name is set
-    document.getElementById('nr-partii-input-zb').setAttribute('name', '');
-    document.getElementById('nr-partii-input').removeAttribute('readonly');
-  }
-});
 </script>
 {% endblock %}

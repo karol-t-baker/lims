@@ -32,7 +32,6 @@ def pl_date_filter(value):
     if not value:
         return '\u2014'
     try:
-        from datetime import datetime
         dt = datetime.fromisoformat(str(value))
         return dt.strftime('%d.%m.%Y %H:%M')
     except Exception:
@@ -45,7 +44,6 @@ def pl_date_short_filter(value):
     if not value:
         return '\u2014'
     try:
-        from datetime import datetime
         dt = datetime.fromisoformat(str(value))
         return dt.strftime('%d.%m.%Y')
     except Exception:
@@ -74,8 +72,7 @@ def short_product_filter(value):
 
 @app.context_processor
 def inject_today():
-    from datetime import date
-    return {'today': date.today().strftime('%d.%m.%Y')}
+    return {'today': datetime.now().strftime('%d.%m.%Y')}
 
 
 # ---------------------------------------------------------------------------
@@ -242,7 +239,6 @@ def tech_dashboard():
 def tech_export():
     import csv
     import io
-    from flask import Response
 
     db = get_db()
     try:
@@ -330,7 +326,9 @@ def fast_entry(ebr_id):
 @app.route("/laborant/ebr/<int:ebr_id>/save", methods=["POST"])
 @login_required
 def save_entry(ebr_id):
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
     sekcja = data.get("sekcja", "")
     values = data.get("values", {})
     user = session["user"]["login"]
@@ -364,7 +362,9 @@ def complete_entry(ebr_id):
 @login_required
 def save_samples(ebr_id):
     """Save titration samples (naważki + optional volumes) for a parameter."""
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "Invalid JSON"}), 400
     db = get_db()
     try:
         samples_json = json.dumps(data["samples"])

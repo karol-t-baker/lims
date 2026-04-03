@@ -132,34 +132,24 @@ def next_nr_partii(db: sqlite3.Connection, produkt: str) -> str:
     year = datetime.now().year
     suffix = f"/{year}"
 
-    # Check ebr_batches
-    row1 = db.execute("""
+    # Check ebr_batches and v4 batch table (both underscore and space variants)
+    rows = db.execute("""
         SELECT nr_partii FROM ebr_batches
         WHERE batch_id LIKE ? AND nr_partii LIKE ?
-        ORDER BY ebr_id DESC
-    """, (f"{produkt}%", f"%{suffix}")).fetchall()
-
-    # Check v4 batch table (product with spaces)
-    row2 = db.execute("""
+        UNION ALL
         SELECT nr_partii FROM batch
-        WHERE produkt = ? AND nr_partii LIKE ?
-    """, (produkt.replace('_', ' '), f"%{suffix}")).fetchall()
-
-    # Also check with underscore variant
-    row3 = db.execute("""
-        SELECT nr_partii FROM batch
-        WHERE produkt = ? AND nr_partii LIKE ?
-    """, (produkt, f"%{suffix}")).fetchall()
+        WHERE (produkt = ? OR produkt = ?) AND nr_partii LIKE ?
+    """, (f"{produkt}%", f"%{suffix}",
+          produkt, produkt.replace('_', ' '), f"%{suffix}")).fetchall()
 
     max_num = 0
-    for rows in [row1, row2, row3]:
-        for r in rows:
-            try:
-                num = int(r["nr_partii"].split("/")[0])
-                if num > max_num:
-                    max_num = num
-            except (ValueError, IndexError):
-                pass
+    for r in rows:
+        try:
+            num = int(r["nr_partii"].split("/")[0])
+            if num > max_num:
+                max_num = num
+        except (ValueError, IndexError):
+            pass
 
     return f"{max_num + 1}/{year}"
 
@@ -376,7 +366,8 @@ def list_ebr_completed(
 
 def list_ebr_recent(db: sqlite3.Connection, days: int = 7) -> list[dict]:
     """List recently completed batches (last N days) with wyniki summary."""
-    cutoff = (datetime.now() - __import__('datetime').timedelta(days=days)).isoformat(timespec="seconds")
+    from datetime import timedelta
+    cutoff = (datetime.now() - timedelta(days=days)).isoformat(timespec="seconds")
     rows = db.execute("""
         SELECT
             eb.ebr_id,
@@ -512,7 +503,9 @@ def save_wyniki(
     parametry = json.loads(ebr["parametry_lab"]) if isinstance(ebr["parametry_lab"], str) else ebr["parametry_lab"]
     sekcja_def = parametry.get(sekcja, {})
     pola = sekcja_def.get("pola", []) if isinstance(sekcja_def, dict) else sekcja_def
-    pola_map = {p["kod"]: p for p in pola}
+    if not isinstance(pola, list):
+        pola = []
+    pola_map = {p["kod"]: p for p in pola if isinstance(p, dict) and "kod" in p}
     now = datetime.now().isoformat(timespec="seconds")
 
     for kod, entry in values.items():
@@ -652,28 +645,12 @@ def sync_ebr_to_v4(db: sqlite3.Connection, ebr_id: int) -> None:
                 ak_values[ak_col] = row["wartosc"]
 
         if ak_values:
-            # Check if batch row exists
-            existing = db.execute(
-                "SELECT batch_id FROM batch WHERE batch_id = ?", (batch_id,)
-            ).fetchone()
-            if existing:
-                set_parts = [f"{c} = ?" for c in ak_values]
-                vals = list(ak_values.values()) + [batch_id]
-                db.execute(
-                    f"UPDATE batch SET {', '.join(set_parts)} WHERE batch_id = ?",
-                    vals,
-                )
-            else:
-                # Insert new batch row
-                cols = ["batch_id", "produkt", "nr_partii", "_source"]
-                vals = [batch_id, ebr["produkt"], ebr["nr_partii"], "digital"]
-                for c, v in ak_values.items():
-                    cols.append(c)
-                    vals.append(v)
-                placeholders = ", ".join(["?"] * len(vals))
-                col_names = ", ".join(cols)
-                db.execute(
-                    f"INSERT INTO batch ({col_names}) VALUES ({placeholders})", vals
-                )
+            # Batch row guaranteed to exist (ensured at top of function)
+            set_parts = [f"{c} = ?" for c in ak_values]
+            vals = list(ak_values.values()) + [batch_id]
+            db.execute(
+                f"UPDATE batch SET {', '.join(set_parts)} WHERE batch_id = ?",
+                vals,
+            )
 
     db.commit()

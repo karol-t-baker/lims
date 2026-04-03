@@ -6,7 +6,7 @@
 {% block sidebar %}
 <div class="sidebar">
   <div class="sb-head">
-    <div class="sb-greeting">Witaj, {{ session.user.imie_nazwisko or session.user.login }}</div>
+    <div class="sb-greeting">Witaj, {{ session.get('user', {}).get('imie_nazwisko') or session.get('user', {}).get('login', '') }}</div>
     <div class="sb-date">{{ today }}</div>
   </div>
   <div class="sb-lab">Aktywne szarże</div>

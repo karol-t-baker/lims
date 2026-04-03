@@ -77,8 +77,8 @@
 {% block scripts %}
 <script>
 const IS_DRAFT = {{ 'true' if mbr.status == 'draft' else 'false' }};
-let etapy = {{ mbr.etapy_json | safe }};
-let parametry = {{ mbr.parametry_lab | safe }};
+let etapy = JSON.parse({{ mbr.etapy_json | tojson }});
+let parametry = JSON.parse({{ mbr.parametry_lab | tojson }});
 
 function switchTab(tab) {
   document.querySelectorAll('.rp-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
