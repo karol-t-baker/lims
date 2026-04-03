@@ -127,6 +127,14 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             aktywny     INTEGER NOT NULL DEFAULT 1
         )
     """)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS feedback (
+            id      INTEGER PRIMARY KEY AUTOINCREMENT,
+            text    TEXT NOT NULL,
+            who     TEXT NOT NULL,
+            dt      TEXT NOT NULL
+        )
+    """)
     db.execute("CREATE INDEX IF NOT EXISTS idx_wyniki_ebr_limicie ON ebr_wyniki(ebr_id, w_limicie, dt_wpisu)")
     db.commit()
 

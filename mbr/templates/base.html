@@ -24,7 +24,7 @@
   <button class="rail-btn" onclick="if(typeof openNewBatchModal==='function')openNewBatchModal()" title="Nowa szarza"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg><span class="rail-label">+ Nowa</span></button>
   <div class="rail-sep"></div>
   <button class="rail-btn" onclick="" title="Notatki"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg><span class="rail-label">Notatki</span></button>
-  <button class="rail-btn" onclick="" title="Feedback"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/><path d="M12 7v6"/><path d="M9 10h6"/></svg><span class="rail-label">Feedback</span></button>
+  <button class="rail-btn" onclick="openFeedbackModal()" title="Feedback"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/><path d="M12 7v6"/><path d="M9 10h6"/></svg><span class="rail-label">Feedback</span></button>
   {% endif %}
 
   <div class="rail-sp"></div>
@@ -89,6 +89,33 @@
     <div class="ld-btns">
       <button class="m-btn m-btn-o" onclick="document.getElementById('logout-confirm').classList.remove('show')">Nie</button>
       <a href="{{ url_for('logout') }}" class="m-btn m-btn-p ld-yes">Tak, wyloguj</a>
+    </div>
+  </div>
+</div>
+
+<!-- Feedback modal -->
+<div class="modal-overlay" id="feedback-modal" onclick="if(event.target===this)closeFeedbackModal()">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-head">
+      <div class="modal-icon" style="background:linear-gradient(135deg, #dbeafe, #bfdbfe); color:#1e40af;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" style="width:20px;height:20px;"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      </div>
+      <div class="modal-titles">
+        <div class="modal-title">Feedback</div>
+        <div class="modal-subtitle">Uwagi, sugestie, problemy</div>
+      </div>
+      <button class="modal-close" onclick="closeFeedbackModal()">&times;</button>
+    </div>
+    <div class="modal-body" style="padding:20px 24px;">
+      <textarea id="feedback-text" class="fb-textarea" placeholder="Co chcesz przekazać?" rows="4"></textarea>
+      <div class="fb-meta">
+        <span class="fb-who" id="fb-who"></span>
+        <span class="fb-chars"><span id="fb-count">0</span> / 500</span>
+      </div>
+    </div>
+    <div class="modal-footer" style="justify-content:flex-end;">
+      <button class="m-btn m-btn-o" onclick="closeFeedbackModal()">Anuluj</button>
+      <button class="m-btn m-btn-p" id="fb-send" onclick="sendFeedback()">Wyślij</button>
     </div>
   </div>
 </div>
@@ -315,6 +342,57 @@ function checkShiftReminder() {
   }
 }
 
+// ═══ FEEDBACK ═══
+
+function openFeedbackModal() {
+  document.getElementById('feedback-modal').classList.add('show');
+  var ta = document.getElementById('feedback-text');
+  ta.value = '';
+  document.getElementById('fb-count').textContent = '0';
+  document.getElementById('fb-send').disabled = false;
+  document.getElementById('fb-send').textContent = 'Wyślij';
+  // Show who's submitting — shift workers or logged in user
+  var who = '';
+  if (shiftWorkerIds.length > 0 && _shiftWorkers.length > 0) {
+    who = shiftWorkerIds.map(function(id) {
+      var w = _shiftWorkers.find(function(x) { return x.id === id; });
+      return w ? w.inicjaly : '?';
+    }).join(', ');
+  }
+  document.getElementById('fb-who').textContent = who ? who : '{{ session.get("user",{}).get("login","") }}';
+  setTimeout(function() { ta.focus(); }, 100);
+}
+
+function closeFeedbackModal() {
+  document.getElementById('feedback-modal').classList.remove('show');
+}
+
+document.addEventListener('input', function(e) {
+  if (e.target.id === 'feedback-text') {
+    var len = e.target.value.length;
+    document.getElementById('fb-count').textContent = len;
+    if (len > 500) e.target.value = e.target.value.substring(0, 500);
+  }
+});
+
+async function sendFeedback() {
+  var text = document.getElementById('feedback-text').value.trim();
+  if (!text) return;
+  var btn = document.getElementById('fb-send');
+  btn.disabled = true;
+  btn.textContent = 'Wysylanie...';
+  var who = document.getElementById('fb-who').textContent;
+  await fetch('/api/feedback', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({text: text, who: who})
+  });
+  btn.textContent = '✓ Wyslano';
+  setTimeout(closeFeedbackModal, 800);
+}
+
+// ═══ SHIFT ═══
+
 // Load workers on page init if shift is set
 if (shiftWorkerIds.length > 0) {
   fetch('/api/workers').then(function(r) { return r.json(); }).then(function(data) {
@@ -329,6 +407,20 @@ setInterval(checkShiftReminder, 60000);
 </script>
 
 <style>
+/* Feedback */
+.fb-textarea {
+  width: 100%; border: 1.5px solid var(--border); border-radius: 8px;
+  padding: 12px; font-size: 13px; font-family: var(--font);
+  color: var(--text); background: var(--surface); resize: vertical;
+  min-height: 80px; transition: border-color 0.15s;
+}
+.fb-textarea:focus { outline: none; border-color: var(--teal); }
+.fb-textarea::placeholder { color: var(--text-dim); }
+.fb-meta {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 8px; font-size: 10px; color: var(--text-dim);
+}
+.fb-who { font-weight: 600; }
 /* Logout dialog */
 .logout-dialog {
   background: var(--surface); border-radius: 14px; padding: 24px 28px;

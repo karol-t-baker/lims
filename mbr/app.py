@@ -470,6 +470,21 @@ def api_worker_profile(worker_id):
     return jsonify({"ok": True})
 
 
+@app.route("/api/feedback", methods=["POST"])
+@login_required
+def api_feedback():
+    data = request.get_json(silent=True) or {}
+    text = (data.get("text") or "").strip()
+    who = (data.get("who") or "").strip()
+    if not text:
+        return jsonify({"error": "empty"}), 400
+    now = datetime.now().isoformat(timespec="seconds")
+    with db_session() as db:
+        db.execute("INSERT INTO feedback (text, who, dt) VALUES (?, ?, ?)", (text, who, now))
+        db.commit()
+    return jsonify({"ok": True})
+
+
 # ---------------------------------------------------------------------------
 # PDF routes
 # ---------------------------------------------------------------------------
