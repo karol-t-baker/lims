@@ -363,6 +363,11 @@ document.addEventListener('keydown', function(e) {
     if (fbModal && fbModal.classList.contains('show')) closeFeedbackModal();
     else openFeedbackModal();
   }
+  if (e.key === 'd' || e.key === 'D') {
+    e.preventDefault();
+    if (typeof showDashboard === 'function') showDashboard();
+    else location.href = '/laborant/szarze';
+  }
   if (e.key === 'u' || e.key === 'U') {
     e.preventDefault();
     if (typeof showRegistry === 'function') showRegistry();
