@@ -69,6 +69,24 @@
 {% endif %}
 
 <style>
+.confirm-dialog {
+    background: var(--surface, #fff); border-radius: 16px; padding: 28px 32px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
+    text-align: center; animation: modalIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    max-width: 320px; width: 90%;
+}
+.cd-icon {
+    width: 48px; height: 48px; border-radius: 12px;
+    background: var(--green-bg, #e8f5ec); color: var(--green, #1a7a3a);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 14px;
+}
+.cd-text { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+.cd-sub { font-size: 12px; color: var(--text-dim); margin-bottom: 20px; line-height: 1.5; }
+.cd-btns { display: flex; gap: 8px; justify-content: center; }
+.cd-confirm { background: var(--green, #1a7a3a) !important; }
+.cd-confirm:hover { filter: brightness(1.1); }
+
 .decision-bar {
     display: flex;
     gap: 10px;
@@ -593,8 +611,33 @@ function doSaveField(input, sekcja, kod) {
 }
 
 
-async function completePompuj() {
-    if (!confirm('Przepompowac na zbiornik? Karta zostanie zamknieta.')) return;
+function completePompuj() {
+    // Show custom confirm dialog
+    var overlay = document.getElementById('confirm-complete');
+    if (!overlay) {
+        var div = document.createElement('div');
+        div.innerHTML =
+            '<div class="modal-overlay" id="confirm-complete" onclick="if(event.target===this)this.classList.remove(\'show\')">' +
+                '<div class="confirm-dialog">' +
+                    '<div class="cd-icon">' +
+                        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" style="width:24px;height:24px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 12 15 16 10"/></svg>' +
+                    '</div>' +
+                    '<div class="cd-text">Zatwierdzić kartę?</div>' +
+                    '<div class="cd-sub">Karta zostanie zamknięta i nie będzie można jej edytować.</div>' +
+                    '<div class="cd-btns">' +
+                        '<button class="m-btn m-btn-o" onclick="document.getElementById(\'confirm-complete\').classList.remove(\'show\')">Anuluj</button>' +
+                        '<button class="m-btn m-btn-p cd-confirm" onclick="doComplete()">Zatwierdź</button>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
+        document.body.appendChild(div.firstChild);
+    }
+    document.getElementById('confirm-complete').classList.add('show');
+}
+
+async function doComplete() {
+    var btn = document.querySelector('.cd-confirm');
+    if (btn) { btn.textContent = 'Zatwierdzanie...'; btn.disabled = true; }
     var resp = await fetch('/laborant/ebr/' + ebrId + '/complete', {
         method: "POST",
         headers: {"Content-Type": "application/json"}
