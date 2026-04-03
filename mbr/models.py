@@ -136,6 +136,17 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             dt      TEXT NOT NULL
         )
     """)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS swiadectwa (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            ebr_id          INTEGER NOT NULL REFERENCES ebr_batches(ebr_id),
+            template_name   TEXT NOT NULL,
+            nr_partii       TEXT NOT NULL,
+            pdf_path        TEXT NOT NULL,
+            dt_wystawienia  TEXT NOT NULL,
+            wystawil        TEXT NOT NULL
+        )
+    """)
     db.execute("CREATE INDEX IF NOT EXISTS idx_wyniki_ebr_limicie ON ebr_wyniki(ebr_id, w_limicie, dt_wpisu)")
     db.commit()
 
@@ -1033,6 +1044,33 @@ def sync_ebr_to_v4(db: sqlite3.Connection, ebr_id: int, ebr: dict | None = None)
 
     db.commit()
 
+
+# ---------------------------------------------------------------------------
+# Certificates (Świadectwa)
+# ---------------------------------------------------------------------------
+
+def create_swiadectwo(db, ebr_id, template_name, nr_partii, pdf_path, wystawil):
+    now = datetime.now().isoformat(timespec="seconds")
+    cur = db.execute(
+        "INSERT INTO swiadectwa (ebr_id, template_name, nr_partii, pdf_path, dt_wystawienia, wystawil) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (ebr_id, template_name, nr_partii, pdf_path, now, wystawil),
+    )
+    db.commit()
+    return cur.lastrowid
+
+
+def list_swiadectwa(db, ebr_id):
+    rows = db.execute(
+        "SELECT * FROM swiadectwa WHERE ebr_id = ? ORDER BY dt_wystawienia DESC",
+        (ebr_id,),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+# ---------------------------------------------------------------------------
+# Data migration
+# ---------------------------------------------------------------------------
 
 def migrate_wyniki_to_rounds(db: sqlite3.Connection) -> int:
     """Migrate legacy sekcja names to round-suffixed format.
