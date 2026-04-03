@@ -353,15 +353,21 @@ document.addEventListener('keydown', function(e) {
 
   if (e.key === 'n' || e.key === 'N') {
     e.preventDefault();
-    if (typeof openNewBatchModal === 'function') openNewBatchModal();
+    var regModal = document.getElementById('reg-modal');
+    if (regModal && regModal.classList.contains('show')) { if (typeof closeModal === 'function') closeModal(); }
+    else if (typeof openNewBatchModal === 'function') openNewBatchModal();
   }
   if (e.key === 'f' || e.key === 'F') {
     e.preventDefault();
-    if (typeof openFeedbackModal === 'function') openFeedbackModal();
+    var fbModal = document.getElementById('feedback-modal');
+    if (fbModal && fbModal.classList.contains('show')) closeFeedbackModal();
+    else openFeedbackModal();
   }
   if (e.key === 'z' || e.key === 'Z') {
     e.preventDefault();
-    if (typeof openShiftModal === 'function') openShiftModal();
+    var shModal = document.getElementById('shift-overlay');
+    if (shModal && shModal.classList.contains('show')) closeShiftModal();
+    else openShiftModal();
   }
 });
 
