@@ -333,6 +333,14 @@ document.getElementById('new-batch-form').addEventListener('submit', function(e)
     }
   }
 
+  // Validate nr zbiornika (zbiornik only)
+  if (currentTyp === 'zbiornik') {
+    var zbInput = document.querySelector('#step-2b input[name="nr_zbiornika"]');
+    if (zbInput && !zbInput.value.trim()) {
+      errors.push({msg: 'Podaj numer zbiornika', el: zbInput});
+    }
+  }
+
   if (errors.length > 0) {
     e.preventDefault();
     errors.forEach(function(err) {

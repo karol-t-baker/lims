@@ -289,8 +289,9 @@
     </div>
     <div class="ch-typ-filter" style="padding:0 16px 8px;">
       <div class="sb-seg" style="width:fit-content;">
-        <div class="sb-pill active" data-regtyp="szarza" onclick="filterRegistryType('szarza',this)">Szarze</div>
-        <div class="sb-pill" data-regtyp="zbiornik" onclick="filterRegistryType('zbiornik',this)">Zbiorniki</div>
+        <div class="sb-pill" data-regtyp="" onclick="filterRegistryType('',this)">Wszystkie</div>
+        <div class="sb-pill" data-regtyp="szarza" onclick="filterRegistryType('szarza',this)">Szarze</div>
+        <div class="sb-pill active" data-regtyp="zbiornik" onclick="filterRegistryType('zbiornik',this)">Zbiorniki</div>
       </div>
     </div>
   </div>
@@ -565,7 +566,7 @@ function applyTableFilters() {
 
 // ═══ REGISTRY (Ukonczone) ═══
 
-let registryTyp = 'szarza';
+let registryTyp = 'zbiornik';
 
 function filterRegistryType(typ, btn) {
   registryTyp = typ;
@@ -584,9 +585,9 @@ async function showRegistry(produkt, skipHistory) {
   document.getElementById('panel-registry').style.display = 'flex';
   document.getElementById('topbar').style.display = 'none';
   var sf = document.getElementById('spa-footer'); if (sf) sf.innerHTML = '';
-  registryTyp = 'szarza';
+  registryTyp = 'zbiornik';
   var typBtns = document.querySelectorAll('.ch-typ-filter .sb-pill');
-  typBtns.forEach(function(b) { b.classList.toggle('active', b.dataset.regtyp === 'szarza'); });
+  typBtns.forEach(function(b) { b.classList.toggle('active', b.dataset.regtyp === 'zbiornik'); });
 
   narrowRail();
   document.getElementById('detail-sidebar').classList.remove('open');
