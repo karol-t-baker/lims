@@ -24,16 +24,21 @@
   </div>
   <div class="col-right">
     <div class="rp-tabs">
-      <div class="rp-tab active" id="tab-calc">Kalkulator</div>
+      <div class="rp-tab active" id="tab-hist" onclick="showRightPanel('hist')">Wartości typowe</div>
+      <div class="rp-tab" id="tab-calc" onclick="showRightPanel('calc')">Kalkulator</div>
     </div>
     <div class="rp-body">
-      <div class="rp-view active" id="rp-calc">
+      <div class="rp-view active" id="rp-hist">
+        <div style="padding:16px 12px;">
+          <div style="font-size:12px; font-weight:600; color:var(--text-dim); margin-bottom:8px;">Wartości typowe (historyczne)</div>
+          <div style="font-size:11px; color:var(--text-dim); line-height:1.6;">
+            Dane pojawią się po zebraniu wystarczającej liczby szarż.
+          </div>
+        </div>
+      </div>
+      <div class="rp-view" id="rp-calc">
         <div id="calc-container">
           <div class="calc-method">Kliknij pole miareczkowe aby otworzyc kalkulator.</div>
-        </div>
-        <div style="margin-top:24px; padding:12px; border-top:1px solid var(--border);">
-          <div style="font-size:11px; font-weight:600; color:var(--text-dim); margin-bottom:4px;">Wartości historyczne</div>
-          <div style="font-size:11px; color:var(--text-dim);">Dane pojawią się po zebraniu wystarczającej liczby szarż.</div>
         </div>
       </div>
     </div>
@@ -586,31 +591,39 @@ function scrollToSection(sekcja) {
 
 
 function showRightPanel(view) {
-    // Only calc panel exists now — no-op kept for compatibility with _calcBridge
+    document.getElementById('tab-hist').classList.toggle('active', view === 'hist');
+    document.getElementById('tab-calc').classList.toggle('active', view === 'calc');
+    document.getElementById('rp-hist').classList.toggle('active', view === 'hist');
+    document.getElementById('rp-calc').classList.toggle('active', view === 'calc');
 }
 
 
-// Calculator bridge — remove previous listener to avoid duplicates on SPA reload
-if (window._calcBridge) document.removeEventListener('click', window._calcBridge);
-window._calcBridge = function(e) {
+// Right panel switching: titr click → kalkulator, other click → wartości typowe
+if (window._panelBridge) document.removeEventListener('click', window._panelBridge);
+window._panelBridge = function(e) {
+    // Titr field → open calculator
     var ff = e.target.closest('.ff.titr[data-kod]');
-    if (!ff) return;
-    var kod = ff.dataset.kod;
-    var tag = ff.dataset.tag || kod;
-    var sekcja = ff.dataset.sekcja;
-    var calcMethod = null;
-    try {
-        var raw = ff.dataset.calcMethod;
-        if (raw) calcMethod = JSON.parse(raw);
-    } catch(ex) {}
-
-    var calcView = document.getElementById('rp-calc');
-    if (!calcView || !calcView.classList.contains('active')) {
+    if (ff) {
+        var kod = ff.dataset.kod;
+        var tag = ff.dataset.tag || kod;
+        var sekcja = ff.dataset.sekcja;
+        var calcMethod = null;
+        try {
+            var raw = ff.dataset.calcMethod;
+            if (raw) calcMethod = JSON.parse(raw);
+        } catch(ex) {}
         showRightPanel('calc');
+        window.openCalculator(tag, kod, sekcja, calcMethod);
+        return;
     }
-    window.openCalculator(tag, kod, sekcja, calcMethod);
+    // Click inside right panel itself → don't switch
+    if (e.target.closest('.col-right')) return;
+    // Click inside any non-titr field or outside fields → show wartości typowe
+    if (e.target.closest('.ff') || e.target.closest('.sec-head') || e.target.closest('.decision-bar') || !e.target.closest('.col-main')) {
+        showRightPanel('hist');
+    }
 };
-document.addEventListener('click', window._calcBridge);
+document.addEventListener('click', window._panelBridge);
 
 // Computed fields
 function setupComputedFields() {
