@@ -66,7 +66,9 @@
 
   {# Panel: Szarze — all open batches (typ=szarza) #}
   <div class="sb-panel" id="panel-szarze">
-    <div class="sb-lab">Aktywne szarze</div>
+    <div class="sb-search">
+      <input type="text" placeholder="Nr szarzy..." oninput="filterCards(this, 'panel-szarze')">
+    </div>
     <div class="sb-list">
       {% for b in all_open if (b.typ or 'szarza') == 'szarza' %}
       <div class="batch-card {{ 'active' if b.ebr_id == ebr.ebr_id else '' }}"
@@ -95,7 +97,9 @@
 
   {# Panel: Zbiorniki — all open batches (typ=zbiornik) #}
   <div class="sb-panel" id="panel-zbiorniki">
-    <div class="sb-lab">Zbiorniki magazynowe</div>
+    <div class="sb-search">
+      <input type="text" placeholder="Nr zbiornika (M1-M20)..." oninput="filterCards(this, 'panel-zbiorniki')">
+    </div>
     <div class="sb-list">
       {% for b in all_open if b.typ == 'zbiornik' %}
       <div class="batch-card typ-zbiornik {{ 'active' if b.ebr_id == ebr.ebr_id else '' }}"
@@ -595,6 +599,18 @@ function recomputeField(computedInput) {
     } catch (e) {
         // Formula evaluation failed — leave field empty
     }
+}
+
+
+// ═══ SIDEBAR SEARCH ═══
+
+function filterCards(input, panelId) {
+    const q = input.value.toLowerCase().replace(/\s/g, '');
+    const panel = document.getElementById(panelId);
+    panel.querySelectorAll('.batch-card').forEach(card => {
+        const nr = (card.querySelector('.bc-nr')?.textContent || '').toLowerCase().replace(/\s/g, '');
+        card.style.display = nr.includes(q) ? '' : 'none';
+    });
 }
 
 
