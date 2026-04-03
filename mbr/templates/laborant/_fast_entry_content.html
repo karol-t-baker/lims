@@ -2,13 +2,23 @@
 
 <div id="detail-topbar">
   <span class="tp-t">
-    <a href="javascript:void(0)" class="tp-breadcrumb" onclick="showDashboard()">Szarze</a>
-    <span class="tp-sep">/</span>
-    {{ ebr.produkt | short_product }} &mdash; {{ ebr.nr_partii }}
+    <a href="javascript:void(0)" class="tp-back" onclick="showDashboard()" title="Powrót (D)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:16px;height:16px;"><path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/></svg>
+    </a>
+    <span class="tp-product">{{ ebr.produkt | short_product }}</span>
+    <span class="tp-sep">&middot;</span>
+    <span class="tp-nr">{{ ebr.nr_partii }}</span>
+    {% if ebr.typ != 'zbiornik' and (ebr.nr_amidatora or ebr.nr_mieszalnika) %}
+    <span class="tp-meta">
+      {% if ebr.nr_amidatora %}A-{{ ebr.nr_amidatora }}{% endif %}
+      {% if ebr.nr_mieszalnika %}{% if ebr.nr_amidatora %} / {% endif %}M-{{ ebr.nr_mieszalnika }}{% endif %}
+      {% if ebr.wielkosc_szarzy_kg %} &middot; {{ ebr.wielkosc_szarzy_kg|int }} kg{% endif %}
+    </span>
+    {% endif %}
   </span>
   <span class="tp-r">
     {% if ebr.typ == 'zbiornik' %}
-      <span class="en-badge" style="background:var(--blue-bg, #e8f0fe);color:var(--blue, #1a73e8);margin-right:6px;">Zbiornik</span>
+      <span class="en-badge" style="background:var(--blue-bg, #e8f0fe);color:var(--blue, #1a73e8);margin-right:4px;">Zbiornik</span>
     {% endif %}
     {% if ebr.status == 'open' %}
       <span class="en-badge b-wait">otwarta</span>
