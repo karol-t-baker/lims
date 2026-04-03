@@ -106,14 +106,32 @@ var shiftWorkerIds = {{ session.get('shift_workers', []) | tojson }};
 var _shiftWorkers = []; // cached worker list
 
 var AVATAR_COLORS = [
-  {bg:'#e0f2f1', fg:'#0d7367'},  // teal
-  {bg:'#fef3c7', fg:'#92400e'},  // amber
-  {bg:'#ede9fe', fg:'#5b21b6'},  // violet
-  {bg:'#fce7f3', fg:'#9d174d'},  // rose
-  {bg:'#dbeafe', fg:'#1e40af'},  // blue
-  {bg:'#d1fae5', fg:'#065f46'},  // emerald
-  {bg:'#fae8ff', fg:'#86198f'},  // fuchsia
-  {bg:'#fed7aa', fg:'#9a3412'},  // orange
+  {bg:'#e0f2f1', fg:'#0d7367'},
+  {bg:'#fef3c7', fg:'#92400e'},
+  {bg:'#ede9fe', fg:'#5b21b6'},
+  {bg:'#fce7f3', fg:'#9d174d'},
+  {bg:'#dbeafe', fg:'#1e40af'},
+  {bg:'#d1fae5', fg:'#065f46'},
+  {bg:'#fae8ff', fg:'#86198f'},
+  {bg:'#fed7aa', fg:'#9a3412'},
+];
+var AVATAR_ICONS = [
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6"/><path d="M10 3v5.2L4.5 18.4A1.5 1.5 0 005.7 21h12.6a1.5 1.5 0 001.2-2.6L14 8.2V3"/><path d="M7 15h10"/></svg>',
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>',
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2"/><path d="M12 21v2"/><path d="M4.22 4.22l1.42 1.42"/><path d="M18.36 18.36l1.42 1.42"/><path d="M1 12h2"/><path d="M21 12h2"/><path d="M4.22 19.78l1.42-1.42"/><path d="M18.36 5.64l1.42-1.42"/></svg>',
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 009 5.2V21H3V8.2A6 6 0 0012 3z"/><path d="M8 21v-4a4 4 0 018 0v4"/></svg>',
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8C8 10 5.9 16.17 3.82 21.34L2 21l.67-2.5C4 14 7 8 17 6V3l5 4-5 4V8z"/></svg>',
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z"/></svg>',
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>',
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>',
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>',
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>',
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 019.8 6.9C15.5 4.9 17 3.5 17 3.5s1.5 2.5 2.8 6.8A7 7 0 0111 20z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>',
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v1m0 16v1m8.66-14.5l-.87.5M4.21 16l-.87.5M20.66 16l-.87-.5M4.21 8l-.87-.5"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1.5"/></svg>',
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>',
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v4M3 5h4M6 17v4M4 19h4M13 3l2 2-2 2M19 13l2 2-2 2"/><line x1="21" y1="3" x2="3" y2="21"/></svg>',
 ];
 
 async function openShiftModal() {
@@ -134,9 +152,10 @@ function renderShiftList() {
   list.innerHTML = _shiftWorkers.map(function(w) {
     var active = shiftWorkerIds.indexOf(w.id) >= 0;
     var c = AVATAR_COLORS[(w.id - 1) % AVATAR_COLORS.length];
+    var icon = AVATAR_ICONS[(w.id - 1) % AVATAR_ICONS.length];
     var display = w.nickname || (w.imie + ' ' + w.nazwisko);
     return '<div class="sw-card' + (active ? ' active' : '') + '" data-wid="' + w.id + '">' +
-      '<div class="sw-avatar" style="background:' + c.bg + ';color:' + c.fg + ';" onclick="toggleShiftWorker(this.parentElement,' + w.id + ')">' + w.inicjaly + '</div>' +
+      '<div class="sw-avatar" style="background:' + c.bg + ';color:' + c.fg + ';" onclick="toggleShiftWorker(this.parentElement,' + w.id + ')">' + icon + '</div>' +
       '<div class="sw-info" onclick="toggleShiftWorker(this.parentElement,' + w.id + ')">' +
         '<div class="sw-name">' + display + '</div>' +
         '<div class="sw-sub">' + w.inicjaly + ' &middot; ' + w.imie + ' ' + w.nazwisko + '</div>' +
@@ -168,9 +187,10 @@ function editWorkerNick(wid) {
   // Build inline editor
   var currentNick = w.nickname || '';
   var c = AVATAR_COLORS[(w.id - 1) % AVATAR_COLORS.length];
+  var icon = AVATAR_ICONS[(w.id - 1) % AVATAR_ICONS.length];
   var html = '<div class="sw-editor">' +
     '<div class="sw-editor-header">' +
-      '<div class="sw-avatar" style="background:' + c.bg + ';color:' + c.fg + ';width:48px;height:48px;font-size:17px;border-radius:12px;">' + w.inicjaly + '</div>' +
+      '<div class="sw-avatar" style="background:' + c.bg + ';color:' + c.fg + ';width:48px;height:48px;border-radius:12px;">' + icon + '</div>' +
       '<div><div class="sw-editor-title">' + w.imie + ' ' + w.nazwisko + '</div>' +
       '<div style="font-size:11px;color:var(--text-dim);">Inicjaly: ' + w.inicjaly + '</div></div>' +
     '</div>' +
@@ -268,9 +288,9 @@ setInterval(checkShiftReminder, 60000);
 .sw-avatar {
   width: 36px; height: 36px; border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 700; letter-spacing: -0.3px;
   flex-shrink: 0; transition: transform 0.12s;
 }
+.sw-avatar svg { width: 18px; height: 18px; }
 .sw-card.active .sw-avatar { transform: scale(1.05); box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
 .sw-info { flex: 1; min-width: 0; }
 .sw-name { font-size: 13px; font-weight: 600; color: var(--text); }
