@@ -278,14 +278,12 @@ def api_next_nr(produkt):
 def szarze_list():
     db = get_db()
     try:
-        produkt = request.args.get("produkt")
-        typ = request.args.get("typ")
-        batches = list_ebr_open(db, produkt=produkt, typ=typ)
+        batches = list_ebr_open(db)
         recent = list_ebr_recent(db, days=7)
     finally:
         db.close()
     return render_template("laborant/szarze_list.html", batches=batches, recent=recent,
-                           products=PRODUCTS, filter_produkt=produkt, filter_typ=typ)
+                           products=PRODUCTS)
 
 
 @app.route("/laborant/szarze/new", methods=["POST"])
