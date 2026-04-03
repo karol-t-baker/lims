@@ -355,6 +355,14 @@ document.addEventListener('keydown', function(e) {
     e.preventDefault();
     if (typeof openNewBatchModal === 'function') openNewBatchModal();
   }
+  if (e.key === 'f' || e.key === 'F') {
+    e.preventDefault();
+    if (typeof openFeedbackModal === 'function') openFeedbackModal();
+  }
+  if (e.key === 'z' || e.key === 'Z') {
+    e.preventDefault();
+    if (typeof openShiftModal === 'function') openShiftModal();
+  }
 });
 
 // ═══ FEEDBACK ═══
