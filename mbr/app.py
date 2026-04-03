@@ -16,6 +16,7 @@ from mbr.models import (
     list_ebr_open, list_ebr_completed, list_ebr_recent, export_wyniki_csv,
     create_ebr, get_ebr, get_ebr_wyniki, save_wyniki, complete_ebr,
     sync_ebr_to_v4, next_nr_partii, PRODUCTS,
+    list_completed_registry, get_registry_columns, list_completed_products,
 )
 
 app = Flask(__name__)
@@ -245,14 +246,25 @@ def api_next_nr(produkt):
     return jsonify({"nr_partii": nr})
 
 
+@app.route("/api/registry")
+@login_required
+def api_registry():
+    produkt = request.args.get("produkt", "Chegina_K7")
+    with db_session() as db:
+        batches = list_completed_registry(db, produkt=produkt)
+        columns = get_registry_columns(db, produkt)
+    return jsonify({"batches": batches, "columns": columns, "produkt": produkt})
+
+
 @app.route("/laborant/szarze")
 @role_required("laborant")
 def szarze_list():
     with db_session() as db:
         batches = list_ebr_open(db)
         recent = list_ebr_recent(db, days=7)
+        completed_products = list_completed_products(db)
     return render_template("laborant/szarze_list.html", batches=batches, recent=recent,
-                           products=PRODUCTS)
+                           products=PRODUCTS, completed_products=completed_products)
 
 
 @app.route("/laborant/szarze/new", methods=["POST"])
@@ -288,8 +300,9 @@ def fast_entry(ebr_id):
         # Serve the SPA shell — JS will detect URL and load partial via AJAX
         batches = list_ebr_open(db)
         recent = list_ebr_recent(db, days=7)
+        completed_products = list_completed_products(db)
     return render_template("laborant/szarze_list.html", batches=batches, recent=recent,
-                           products=PRODUCTS)
+                           products=PRODUCTS, completed_products=completed_products)
 
 
 @app.route("/laborant/ebr/<int:ebr_id>/partial")

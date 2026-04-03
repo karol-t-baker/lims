@@ -482,6 +482,64 @@ def list_ebr_recent(db: sqlite3.Connection, days: int = 7) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def list_completed_registry(
+    db: sqlite3.Connection, produkt: str | None = None, limit: int = 100
+) -> list[dict]:
+    """Get completed batches with all wyniki for registry table view."""
+    sql = """
+        SELECT eb.ebr_id, eb.batch_id, eb.nr_partii, mt.produkt, eb.dt_end, eb.typ
+        FROM ebr_batches eb
+        JOIN mbr_templates mt ON mt.mbr_id = eb.mbr_id
+        WHERE eb.status = 'completed'
+    """
+    params: list = []
+    if produkt:
+        sql += " AND mt.produkt = ?"
+        params.append(produkt)
+    sql += " ORDER BY eb.dt_end DESC LIMIT ?"
+    params.append(limit)
+    rows = db.execute(sql, params).fetchall()
+
+    result = []
+    for r in rows:
+        d = dict(r)
+        wyniki = db.execute(
+            "SELECT kod_parametru, tag, wartosc, w_limicie FROM ebr_wyniki WHERE ebr_id = ?",
+            (d["ebr_id"],)
+        ).fetchall()
+        d["wyniki"] = {w["kod_parametru"]: dict(w) for w in wyniki}
+        result.append(d)
+    return result
+
+
+def get_registry_columns(db: sqlite3.Connection, produkt: str) -> list:
+    """Get column definitions (parameter names + limits) for a product's registry table."""
+    mbr = db.execute(
+        "SELECT parametry_lab FROM mbr_templates WHERE produkt = ? AND status = 'active'",
+        (produkt,)
+    ).fetchone()
+    if not mbr:
+        return []
+    parametry = json.loads(mbr["parametry_lab"]) if isinstance(mbr["parametry_lab"], str) else mbr["parametry_lab"]
+    sekcja = parametry.get("analiza_koncowa", {})
+    pola = sekcja.get("pola", sekcja) if isinstance(sekcja, dict) else sekcja
+    if not isinstance(pola, list):
+        return []
+    return pola
+
+
+def list_completed_products(db: sqlite3.Connection) -> list[str]:
+    """Get list of all products that have at least one completed batch."""
+    rows = db.execute("""
+        SELECT DISTINCT mt.produkt
+        FROM ebr_batches eb
+        JOIN mbr_templates mt ON mt.mbr_id = eb.mbr_id
+        WHERE eb.status = 'completed'
+        ORDER BY mt.produkt
+    """).fetchall()
+    return [r["produkt"] for r in rows]
+
+
 def export_wyniki_csv(
     db: sqlite3.Connection, produkt: str | None = None
 ) -> list[dict]:
