@@ -61,6 +61,44 @@
   {% endif %}
   {% endwith %}
 
+  {# ── KPI ── #}
+  {% set szarze_only = batches|rejectattr('typ', 'equalto', 'zbiornik')|list %}
+  {% set zbiorniki_only = batches|selectattr('typ', 'equalto', 'zbiornik')|list %}
+  {% set oczekujace = batches|selectattr('stage_status', 'equalto', 'waiting')|list %}
+  {% set w_trakcie = batches|selectattr('stage_status', 'equalto', 'in_progress')|list %}
+  {% set gotowe = batches|selectattr('stage_status', 'equalto', 'done')|list %}
+  {% set poza_limitem = batches|selectattr('out_of_limit', 'gt', 0)|list %}
+  <div class="kpi-row">
+    <div class="kpi {{ 'highlight' if oczekujace }}">
+      <div class="kpi-label">Oczekujące</div>
+      <div class="kpi-value">{{ oczekujace|length }}</div>
+      <div class="kpi-sub">
+        {% set prod_counts = {} %}
+        {% for b in oczekujace %}{% if prod_counts.update({b.produkt|short_product: (prod_counts.get(b.produkt|short_product, 0) + 1)}) %}{% endif %}{% endfor %}
+        {{ prod_counts.items()|map('join', ': ')|join(', ') or 'brak' }}
+      </div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Aktywne szarże</div>
+      <div class="kpi-value">{{ szarze_only|length }}</div>
+      <div class="kpi-sub">
+        {% set sp = {} %}
+        {% for b in szarze_only %}{% if sp.update({b.produkt|short_product: (sp.get(b.produkt|short_product, 0) + 1)}) %}{% endif %}{% endfor %}
+        {{ sp.items()|map('join', ': ')|join(', ') or 'brak' }}
+      </div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Zbiorniki</div>
+      <div class="kpi-value">{{ zbiorniki_only|length }}</div>
+      <div class="kpi-sub">{{ gotowe|length }} gotowych do zatwierdzenia</div>
+    </div>
+    <div class="kpi {{ 'highlight' if poza_limitem }}">
+      <div class="kpi-label">Poza limitem</div>
+      <div class="kpi-value" {% if poza_limitem %}style="color:var(--red)"{% endif %}>{{ poza_limitem|length }}</div>
+      <div class="kpi-sub">{{ recent|length }} ukończonych (7 dni)</div>
+    </div>
+  </div>
+
   {# ── Filtry (client-side) ── #}
   <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;flex-wrap:wrap;">
     <span class="form-label" style="margin:0;white-space:nowrap;">Produkt:</span>
