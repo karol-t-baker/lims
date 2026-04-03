@@ -6,7 +6,7 @@ import functools
 import json
 import os
 import socket
-from datetime import datetime
+from datetime import datetime, date
 
 from flask import Flask, Response, redirect, url_for, request, session, render_template, flash, jsonify, abort
 
@@ -215,6 +215,37 @@ def tech_dashboard():
         filter_produkt=produkt,
         filter_typ=typ,
     )
+
+
+@app.route("/technolog/narzedzia")
+@role_required("technolog")
+def narzedzia():
+    return render_template("technolog/narzedzia.html", today=date.today().isoformat())
+
+
+@app.route("/technolog/narzedzia/wniosek-dojazd")
+@role_required("technolog")
+def wniosek_dojazd():
+    return render_template("technolog/wniosek_dojazd.html", today=date.today().isoformat())
+
+
+@app.route("/technolog/narzedzia/wniosek-dojazd/pdf", methods=["POST"])
+@role_required("technolog")
+def wniosek_dojazd_pdf():
+    from mbr.pdf_gen import generate_wniosek_dojazd_pdf
+    data = {
+        "imie_nazwisko": request.form.get("imie_nazwisko", ""),
+        "data": request.form.get("data", ""),
+        "skad": request.form.get("skad", ""),
+        "dokad": request.form.get("dokad", ""),
+        "km": float(request.form.get("km", 0)),
+        "stawka": float(request.form.get("stawka", 0.8358)),
+        "cel": request.form.get("cel", ""),
+    }
+    data["kwota"] = round(data["km"] * data["stawka"], 2)
+    pdf_bytes = generate_wniosek_dojazd_pdf(data)
+    return Response(pdf_bytes, mimetype="application/pdf",
+                    headers={"Content-Disposition": "inline; filename=wniosek_dojazd.pdf"})
 
 
 @app.route("/technolog/export")

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 25mm 20mm; }
+  body { font-family: Arial, sans-serif; font-size: 11pt; color: #222; }
+  h1 { font-size: 14pt; text-align: center; margin-bottom: 24px; }
+  .subtitle { text-align: center; font-size: 10pt; color: #666; margin-top: -18px; margin-bottom: 30px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+  th, td { border: 1px solid #999; padding: 8px 10px; text-align: left; }
+  th { background: #f0f0f0; font-size: 10pt; width: 35%; }
+  td { font-size: 11pt; }
+  .sig-row { display: flex; justify-content: space-between; margin-top: 60px; }
+  .sig-box { text-align: center; width: 40%; }
+  .sig-line { border-top: 1px solid #999; margin-top: 40px; padding-top: 4px; font-size: 9pt; color: #666; }
+</style>
+</head>
+<body>
+  <h1>Wniosek o zwrot kosztów dojazdu<br>samochodem prywatnym</h1>
+  <p class="subtitle">PCC Exol SA — Kontrola Jakości</p>
+
+  <table>
+    <tr><th>Imię i nazwisko</th><td>{{ imie_nazwisko }}</td></tr>
+    <tr><th>Data</th><td>{{ data }}</td></tr>
+    <tr><th>Trasa</th><td>{{ skad }} &rarr; {{ dokad }}</td></tr>
+    <tr><th>Cel wyjazdu</th><td>{{ cel }}</td></tr>
+    <tr><th>Liczba kilometrów</th><td>{{ km }} km</td></tr>
+    <tr><th>Stawka za km</th><td>{{ "%.4f"|format(stawka) }} zł/km</td></tr>
+    <tr><th>Kwota do zwrotu</th><td><strong>{{ "%.2f"|format(kwota) }} zł</strong></td></tr>
+  </table>
+
+  <div class="sig-row">
+    <div class="sig-box">
+      <div class="sig-line">podpis wnioskodawcy</div>
+    </div>
+    <div class="sig-box">
+      <div class="sig-line">podpis przełożonego</div>
+    </div>
+  </div>
+</body>
+</html>

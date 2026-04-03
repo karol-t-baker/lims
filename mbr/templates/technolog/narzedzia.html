@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Narzędzia{% endblock %}
+{% block nav_narzedzia %}active{% endblock %}
+
+{% block content %}
+<div style="padding:24px; max-width:800px;">
+  <h2 style="font-size:18px; font-weight:600; margin-bottom:20px;">Narzędzia</h2>
+  <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:14px;">
+    <a href="{{ url_for('wniosek_dojazd') }}" class="tool-card">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" style="width:28px;height:28px;color:var(--teal);"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      <div class="tc-name">Wniosek o zwrot kosztów</div>
+      <div class="tc-desc">Dojazd samochodem prywatnym</div>
+    </a>
+  </div>
+</div>
+<style>
+.tool-card { display:flex; flex-direction:column; align-items:center; gap:8px; padding:24px 16px; border:1.5px solid var(--border); border-radius:var(--radius); background:var(--surface); text-decoration:none; color:var(--text); transition:border-color 0.15s, box-shadow 0.15s; cursor:pointer; text-align:center; }
+.tool-card:hover { border-color:var(--teal); box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+.tc-name { font-size:13px; font-weight:600; }
+.tc-desc { font-size:11px; color:var(--text-dim); }
+</style>
+{% endblock %}

@@ -17,3 +17,13 @@ def generate_pdf(mbr, ebr=None, wyniki=None):
                            mbr=mbr, ebr=ebr, wyniki=wyniki or {},
                            etapy=etapy, parametry=parametry)
     return HTML(string=html).write_pdf()
+
+
+def generate_wniosek_dojazd_pdf(data: dict) -> bytes:
+    """Generate expense reimbursement PDF.
+    data keys: imie_nazwisko, data, skad, dokad, km, stawka, kwota, cel
+    """
+    from weasyprint import HTML
+
+    html = render_template("pdf/wniosek_dojazd.html", **data)
+    return HTML(string=html).write_pdf()
