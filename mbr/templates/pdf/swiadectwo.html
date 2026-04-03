@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<style>
+@page {
+  size: A4;
+  margin: 20mm 18mm;
+}
+body {
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 10pt;
+  color: #000;
+  margin: 0;
+  padding: 0;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────── */
+.cert-header {
+  display: table;
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 10pt;
+}
+.cert-header-logo {
+  display: table-cell;
+  width: 35%;
+  vertical-align: middle;
+  font-size: 13pt;
+  font-weight: bold;
+}
+.cert-header-title {
+  display: table-cell;
+  text-align: center;
+  vertical-align: middle;
+  padding: 4pt 8pt;
+}
+.cert-header-title .cert-title-main {
+  font-size: 13pt;
+  font-weight: bold;
+  display: block;
+}
+.cert-header-title .cert-title-sub {
+  font-size: 10pt;
+  font-style: italic;
+  display: block;
+}
+.cert-header-title .cert-product {
+  font-size: 12pt;
+  font-weight: bold;
+  margin-top: 4pt;
+  display: block;
+}
+.cert-header-tds {
+  display: table-cell;
+  width: 25%;
+  text-align: right;
+  vertical-align: top;
+  font-size: 8.5pt;
+}
+hr.cert-divider {
+  border: none;
+  border-top: 2px solid #000;
+  margin: 6pt 0 10pt 0;
+}
+
+/* ── Meta table ─────────────────────────────────────────────────────── */
+table.meta-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 10pt;
+  font-size: 9.5pt;
+}
+table.meta-table td {
+  padding: 3pt 6pt;
+  border: 1px solid #000;
+}
+table.meta-table td.meta-label {
+  font-weight: bold;
+  width: 30%;
+  background: #f5f5f5;
+}
+
+/* ── Results table ──────────────────────────────────────────────────── */
+table.results-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 12pt;
+  font-size: 9.5pt;
+}
+table.results-table th {
+  border: 1px solid #000;
+  padding: 4pt 6pt;
+  background: #ececec;
+  font-weight: bold;
+  text-align: center;
+  font-size: 9pt;
+}
+table.results-table td {
+  border: 1px solid #000;
+  padding: 3pt 6pt;
+  vertical-align: middle;
+}
+table.results-table td.col-param {
+  width: 38%;
+}
+table.results-table td.col-req {
+  width: 22%;
+  text-align: center;
+}
+table.results-table td.col-method {
+  width: 18%;
+  text-align: center;
+  font-size: 8.5pt;
+}
+table.results-table td.col-result {
+  width: 22%;
+  text-align: center;
+  font-weight: bold;
+}
+table.results-table td.col-result.empty-result {
+  color: #777;
+  font-weight: normal;
+}
+
+/* ── Opinion ────────────────────────────────────────────────────────── */
+.opinion-section {
+  margin: 10pt 0;
+  font-size: 9.5pt;
+}
+.opinion-section .opinion-label {
+  font-weight: bold;
+  margin-bottom: 3pt;
+}
+.opinion-text {
+  padding: 4pt 6pt;
+  border-left: 3px solid #000;
+  margin-left: 4pt;
+}
+
+/* ── Footer ─────────────────────────────────────────────────────────── */
+.cert-footer {
+  margin-top: 18pt;
+  font-size: 9pt;
+}
+.cert-footer-date {
+  margin-bottom: 16pt;
+}
+.cert-footer-sig {
+  display: table;
+  width: 100%;
+}
+.cert-footer-sig-left {
+  display: table-cell;
+  width: 50%;
+  vertical-align: top;
+}
+.cert-footer-sig-right {
+  display: table-cell;
+  width: 50%;
+  vertical-align: top;
+  text-align: right;
+}
+.sig-line {
+  margin-top: 30pt;
+  border-top: 1px solid #000;
+  padding-top: 3pt;
+  font-size: 8.5pt;
+  width: 160pt;
+}
+.sig-line-right {
+  margin-top: 30pt;
+  border-top: 1px solid #000;
+  padding-top: 3pt;
+  font-size: 8.5pt;
+  width: 160pt;
+  margin-left: auto;
+}
+.electronic-notice {
+  margin-top: 14pt;
+  font-size: 8pt;
+  font-weight: bold;
+  border-top: 1px solid #ccc;
+  padding-top: 5pt;
+}
+.electronic-notice-sub {
+  font-size: 7.5pt;
+  font-weight: normal;
+  font-style: italic;
+  margin-top: 2pt;
+}
+</style>
+</head>
+<body>
+
+<!-- ── Certificate Header ─────────────────────────────────────────── -->
+<div class="cert-header">
+  <div class="cert-header-logo">PCC Exol SA</div>
+  <div class="cert-header-title">
+    <span class="cert-title-main">Świadectwo Jakości</span>
+    <span class="cert-title-sub">/ Quality Certificate</span>
+    {% if meta.produkt_name %}
+    <span class="cert-product">{{ meta.produkt_name }}</span>
+    {% elif ebr %}
+    <span class="cert-product">{{ ebr.produkt | replace('_', ' ') }}</span>
+    {% endif %}
+  </div>
+  <div class="cert-header-tds">
+    {% if meta.tds %}TDS: {{ meta.tds }}<br>{% endif %}
+    {% if meta.cas %}CAS: {{ meta.cas }}{% endif %}
+  </div>
+</div>
+<hr class="cert-divider">
+
+<!-- ── Metadata Table ─────────────────────────────────────────────── -->
+<table class="meta-table">
+  <tr>
+    <td class="meta-label">Partia / Batch</td>
+    <td>{{ ebr.nr_partii if ebr else '' }}</td>
+    <td class="meta-label">Kraj pochodzenia / Country of origin</td>
+    <td>Polska / Poland</td>
+  </tr>
+  <tr>
+    <td class="meta-label">Data produkcji / Production date</td>
+    <td>{{ dt_produkcji }}</td>
+    <td class="meta-label">Data ważności / Expiry date</td>
+    <td>{{ dt_waznosci }}</td>
+  </tr>
+</table>
+
+<!-- ── Results Table ──────────────────────────────────────────────── -->
+<table class="results-table">
+  <thead>
+    <tr>
+      {% if header %}
+        {% for col in header %}
+          <th>{{ col | replace('\n', '<br>') | safe }}</th>
+        {% endfor %}
+      {% else %}
+        <th>Parametr oznaczany<br><em>/ Inspection character</em></th>
+        <th>Wymagania<br><em>/ Requirement</em></th>
+        <th>Metoda badań<br><em>/ Test method</em></th>
+        <th>Wynik<br><em>/ Result</em></th>
+      {% endif %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <td class="col-param">{{ row.param | replace('\n', '<br>') | safe }}</td>
+      <td class="col-req">{{ row.requirement }}</td>
+      <td class="col-method">{{ row.method }}</td>
+      {% if row.result %}
+        <td class="col-result">{{ row.result }}</td>
+      {% else %}
+        <td class="col-result empty-result">—</td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<!-- ── Opinion ────────────────────────────────────────────────────── -->
+{% if meta.opinion %}
+<div class="opinion-section">
+  <div class="opinion-label">Opinia Laboratorium KJ / Opinion of Quality Control Laboratory:</div>
+  <div class="opinion-text">{{ meta.opinion }}</div>
+</div>
+{% endif %}
+
+<!-- ── Footer ─────────────────────────────────────────────────────── -->
+<div class="cert-footer">
+  <div class="cert-footer-date">Sobowidz, {{ dt_wystawienia }}</div>
+  <div class="cert-footer-sig">
+    <div class="cert-footer-sig-left">
+      <div class="sig-line">Wystawił / The certificate made by</div>
+    </div>
+    <div class="cert-footer-sig-right">
+      <div class="sig-line-right">Specjalista ds. KJ / Quality Control Specialist</div>
+    </div>
+  </div>
+  <div class="electronic-notice">
+    Dokument utworzony elektronicznie, nie wymaga podpisu.
+    <div class="electronic-notice-sub">The certificate is not signed as it is electronically edited.</div>
+  </div>
+</div>
+
+</body>
+</html>
