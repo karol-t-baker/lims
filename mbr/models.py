@@ -113,6 +113,13 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     except Exception:
         pass  # column already exists
 
+    # Migration: add samples_json column for titration persistence
+    try:
+        db.execute("ALTER TABLE ebr_wyniki ADD COLUMN samples_json TEXT")
+        db.commit()
+    except Exception:
+        pass  # column already exists
+
 
 # ---------------------------------------------------------------------------
 # Auto-numbering
@@ -517,6 +524,7 @@ def save_wyniki(
                 komentarz = excluded.komentarz,
                 dt_wpisu = excluded.dt_wpisu,
                 wpisal = excluded.wpisal
+                -- samples_json intentionally NOT overwritten here
         """, (ebr_id, sekcja, kod, tag, wartosc, min_limit, max_limit,
               w_limicie, komentarz, now, user))
     db.commit()

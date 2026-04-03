@@ -468,12 +468,7 @@ function showRightPanel(view) {
 // ═══ CALCULATOR BRIDGE ═══
 
 function openCalc(tag, kod, sekcja, calcMethod) {
-    showRightPanel('calc');
-    // Highlight active titr field
-    document.querySelectorAll('.ff.titr').forEach(f => f.classList.remove('active-calc'));
-    if (event && event.currentTarget) {
-        event.currentTarget.closest('.ff.titr')?.classList.add('active-calc');
-    }
+    // openCalculator now handles showRightPanel and highlighting internally
     if (typeof window.openCalculator === 'function') {
         window.openCalculator(tag, kod, sekcja, calcMethod);
     }

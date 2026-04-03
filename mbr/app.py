@@ -3,8 +3,10 @@ app.py — Minimal Flask app for MBR/EBR management.
 """
 
 import functools
+import json
 import os
 import socket
+from datetime import datetime
 
 from flask import Flask, Response, redirect, url_for, request, session, render_template, flash, jsonify, abort
 
@@ -351,6 +353,51 @@ def complete_entry(ebr_id):
     finally:
         db.close()
     return redirect(url_for("szarze_list"))
+
+
+# ---------------------------------------------------------------------------
+# Titration samples API (persistent naważki/volumes)
+# ---------------------------------------------------------------------------
+
+@app.route("/api/ebr/<int:ebr_id>/samples", methods=["POST"])
+@login_required
+def save_samples(ebr_id):
+    """Save titration samples (naważki + optional volumes) for a parameter."""
+    data = request.get_json()
+    db = get_db()
+    try:
+        samples_json = json.dumps(data["samples"])
+        db.execute("""
+            INSERT INTO ebr_wyniki (ebr_id, sekcja, kod_parametru, tag, wartosc,
+                min_limit, max_limit, w_limicie, samples_json, is_manual, dt_wpisu, wpisal)
+            VALUES (?, ?, ?, ?, NULL, NULL, NULL, NULL, ?, 1, ?, ?)
+            ON CONFLICT(ebr_id, sekcja, kod_parametru) DO UPDATE SET
+                samples_json = excluded.samples_json,
+                dt_wpisu = excluded.dt_wpisu,
+                wpisal = excluded.wpisal
+        """, (ebr_id, data["sekcja"], data["kod_parametru"], data.get("tag", ""),
+              samples_json, datetime.now().isoformat(timespec="seconds"),
+              session["user"]["login"]))
+        db.commit()
+    finally:
+        db.close()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/ebr/<int:ebr_id>/samples/<sekcja>/<kod>")
+@login_required
+def get_samples(ebr_id, sekcja, kod):
+    """Get saved titration samples for a parameter."""
+    db = get_db()
+    try:
+        row = db.execute(
+            "SELECT samples_json FROM ebr_wyniki WHERE ebr_id = ? AND sekcja = ? AND kod_parametru = ?",
+            (ebr_id, sekcja, kod)
+        ).fetchone()
+    finally:
+        db.close()
+    samples = json.loads(row["samples_json"]) if row and row["samples_json"] else []
+    return jsonify({"samples": samples})
 
 
 # ---------------------------------------------------------------------------
