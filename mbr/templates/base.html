@@ -326,26 +326,25 @@ setInterval(checkShiftReminder, 60000);
 <style>
 .rail-crew {
   display: flex; align-items: center; justify-content: center;
-  cursor: pointer; padding: 2px;
+  cursor: pointer; padding: 4px 6px; border-radius: 8px;
+  transition: background 0.15s;
 }
+.rail-crew:hover { background: rgba(255,255,255,0.1); }
 .crew-pill {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 4px 8px; border-radius: 6px;
-  font-size: 9px; font-weight: 600; letter-spacing: 0.2px;
-  white-space: nowrap; transition: all 0.15s;
-  border: 1px solid var(--border, rgba(255,255,255,0.12));
-  background: var(--surface-alt, rgba(255,255,255,0.06));
-  color: var(--text-dim);
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 10px; font-weight: 500; letter-spacing: 0.3px;
+  white-space: nowrap;
+  color: rgba(255,255,255,0.55);
+  transition: color 0.15s;
 }
-.crew-pill:hover { border-color: var(--teal); color: var(--teal); }
-.crew-pill.crew-empty { opacity: 0.5; font-size: 8px; }
-.crew-pill.crew-active { color: var(--text-sec, #c8c2b8); }
+.rail-crew:hover .crew-pill { color: rgba(255,255,255,0.85); }
+.crew-pill.crew-empty { font-size: 9px; opacity: 0.35; }
+.crew-pill.crew-active { color: rgba(255,255,255,0.65); }
 .crew-short { display: inline; }
 .crew-long { display: none; }
-/* Wide rail: show names, hide initials */
 .rail-wide .crew-short { display: none; }
 .rail-wide .crew-long { display: inline !important; }
-.rail-wide .crew-pill { font-size: 10px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+.rail-wide .crew-pill { font-size: 11px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
 #shift-overlay.show { display: flex; }
 .shift-modal { max-width: 420px; }
 
