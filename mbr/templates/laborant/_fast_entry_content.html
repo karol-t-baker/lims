@@ -123,23 +123,6 @@
     font-size: 13px;
     margin-left: 4px;
 }
-.runda-divider {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin: 18px 0 10px;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--text-dim, #888);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-.runda-divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--border, #e0e0e0);
-}
 .section.readonly-past { opacity: 0.75; }
 .post-stand-bar {
     display: flex;
@@ -225,6 +208,19 @@ function renderLinearSections() {
     });
 }
 
+function getCyclicSectionTitle(base, runda) {
+    if (base === 'analiza') {
+        if (runda === 1) return 'Analiza';
+        if (runda === 2) return 'Analiza po standaryzacji';
+        return 'Analiza po korekcie ' + (runda - 1);
+    }
+    if (base === 'standaryzacja') {
+        if (runda === 1) return 'Dodatki standaryzacyjne';
+        return 'Korekta — dodatki (' + (runda - 1) + ')';
+    }
+    return base;
+}
+
 // --- Cyclic rendering (analiza/standaryzacja rounds) ---
 function renderCyclicSections() {
     var container = document.getElementById('sections-container');
@@ -233,7 +229,7 @@ function renderCyclicSections() {
     var rs = roundState;
     var sectionIndex = 0;
 
-    // Collect all completed round keys from wyniki, sorted
+    // Collect all round keys from wyniki, sorted
     var completedRounds = [];
     Object.keys(wyniki).forEach(function(key) {
         var m = key.match(/^(analiza|standaryzacja)__(\d+)$/);
@@ -248,25 +244,14 @@ function renderCyclicSections() {
     });
 
     // Render completed rounds as readonly
-    var lastRenderedRunda = 0;
     completedRounds.forEach(function(item) {
-        // Show runda divider
-        if (item.runda > lastRenderedRunda) {
-            lastRenderedRunda = item.runda;
-            var divider = document.createElement('div');
-            divider.className = 'runda-divider';
-            divider.textContent = 'Runda ' + item.runda;
-            container.appendChild(divider);
-        }
-
         sectionIndex++;
         var pola = getPola(item.key);
         var sekWyniki = wyniki[item.key] || {};
         var hasSomeResults = Object.keys(sekWyniki).length > 0;
         var allInLimit = hasSomeResults && Object.values(sekWyniki).every(function(w) { return w.w_limicie === 1; });
 
-        var baseLabel = parametry[item.base] ? (parametry[item.base].label || item.base) : item.base;
-        var title = baseLabel + ' (runda ' + item.runda + ')';
+        var title = getCyclicSectionTitle(item.base, item.runda);
 
         // Determine if this is the "current active" section (just completed, still editable in this reload)
         var isCurrentActive = !isReadonly && (item.key === rs.next_sekcja) && hasSomeResults;
@@ -319,17 +304,8 @@ function renderCyclicSections() {
         var pola = getPola(nextSekcja);
 
         if (pola.length > 0) {
-            // Runda divider if new runda
-            if (nextRunda > lastRenderedRunda) {
-                var divider = document.createElement('div');
-                divider.className = 'runda-divider';
-                divider.textContent = 'Runda ' + nextRunda;
-                container.appendChild(divider);
-            }
-
             sectionIndex++;
-            var baseLabel = parametry[nextBase] ? (parametry[nextBase].label || nextBase) : nextBase;
-            var title = baseLabel + ' (runda ' + nextRunda + ')';
+            var title = getCyclicSectionTitle(nextBase, nextRunda);
             var sekWyniki = wyniki[nextSekcja] || {};
             var hasSomeResults = Object.keys(sekWyniki).length > 0;
             var allInLimit = hasSomeResults && Object.values(sekWyniki).every(function(w) { return w.w_limicie === 1; });
@@ -351,7 +327,7 @@ function renderCyclicSections() {
                 isReadonly: false,
                 isCurrent: true,
                 prevOutOfLimit: prevOut,
-                saveBtnLabel: 'Zapisz ' + baseLabel
+                saveBtnLabel: 'Zapisz'
             });
 
             // Post-standaryzacja: add "Przepompuj bez analizy" button after stand save btn
@@ -496,9 +472,8 @@ function renderReferences() {
             var sekWyniki = wyniki[sekcja] || {};
             var base = sekcja.replace(/__\d+$/, '');
             var rundaMatch = sekcja.match(/__(\d+)$/);
-            var runda = rundaMatch ? rundaMatch[1] : '';
-            var baseLabel = parametry[base] ? (parametry[base].label || base) : base;
-            var title = baseLabel + (runda ? ' (runda ' + runda + ')' : '');
+            var rundaNum = rundaMatch ? parseInt(rundaMatch[1]) : 0;
+            var title = rundaNum > 0 ? getCyclicSectionTitle(base, rundaNum) : (parametry[base] ? (parametry[base].label || base) : base);
 
             var html = '<div class="ref"><div class="ref-t">' + esc(title) + '</div>';
             pola.forEach(function(pole) {
