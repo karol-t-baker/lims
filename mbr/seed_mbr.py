@@ -36,11 +36,11 @@ ETAPY_SIMPLE = [
 
 # Known titration calc methods
 _CALC_METHODS = {
-    "nacl":  {"name": "Argentometryczna Mohr", "formula": "% = (V * 0.00585 * 100) / m", "factor": 0.585},
-    "aa":    {"name": "Alkacymetria",          "formula": "% = (V * C * M) / (m * 10)",   "factor": 3.015},
-    "so3":   {"name": "Jodometryczna",         "formula": "% = (V * 0.004 * 100) / m",    "factor": 0.4},
-    "h2o2":  {"name": "Manganometryczna",      "formula": "% = (V * 0.0017 * 100) / m",   "factor": 0.17},
-    "lk":    {"name": "Alkacymetria KOH",      "formula": "LK = (V * C * 56.1) / m",      "factor": 5.61},
+    "nacl":  {"name": "Argentometryczna Mohr", "formula": "% = (V * 0.00585 * 100) / m", "factor": 0.585, "suggested_mass": 2.0},
+    "aa":    {"name": "Alkacymetria",          "formula": "% = (V * C * M) / (m * 10)",   "factor": 3.015, "suggested_mass": 5.0},
+    "so3":   {"name": "Jodometryczna",         "formula": "% = (V * 0.004 * 100) / m",    "factor": 0.4,   "suggested_mass": 10.0},
+    "h2o2":  {"name": "Manganometryczna",      "formula": "% = (V * 0.0017 * 100) / m",   "factor": 0.17,  "suggested_mass": 10.0},
+    "lk":    {"name": "Alkacymetria KOH",      "formula": "LK = (V * C * 56.1) / m",      "factor": 5.61,  "suggested_mass": 2.0},
 }
 
 _TITR_TBD = {"name": "Do uzupełnienia", "formula": "TBD", "factor": 1.0}
@@ -53,12 +53,15 @@ def _bezp(kod, label, tag, mn, mx, precision=2):
             "measurement_type": "bezposredni"}
 
 
-def _titr(kod, label, tag, mn, mx, precision=2):
+def _titr(kod, label, tag, mn, mx, precision=2, suggested_mass=None):
     """Titration parameter (titracja). Uses known calc_method or TBD placeholder."""
+    cm = dict(_CALC_METHODS.get(kod, _TITR_TBD))
+    if suggested_mass is not None:
+        cm["suggested_mass"] = suggested_mass
     entry = {"kod": kod, "label": label, "tag": tag, "typ": "float",
              "min": mn, "max": mx, "precision": precision,
              "measurement_type": "titracja",
-             "calc_method": _CALC_METHODS.get(kod, _TITR_TBD)}
+             "calc_method": cm}
     return entry
 
 
@@ -914,6 +917,26 @@ def seed(update=False):
                 )
                 print(f"  + MBR: {produkt} v1 (active)")
                 created += 1
+
+        # --- Workers (synthetic test data) ---
+        existing_workers = db.execute("SELECT COUNT(*) FROM workers").fetchone()[0]
+        if existing_workers == 0:
+            test_workers = [
+                ("Anna",    "Kowalska",   "AK"),
+                ("Marta",   "Nowak",      "MN"),
+                ("Katarzyna", "Wiśniewska", "KW"),
+                ("Joanna",  "Wójcik",     "JW"),
+                ("Ewa",     "Kamińska",   "EK"),
+                ("Tomasz",  "Zieliński",  "TZ"),
+            ]
+            for imie, nazwisko, inicjaly in test_workers:
+                db.execute(
+                    "INSERT INTO workers (imie, nazwisko, inicjaly) VALUES (?, ?, ?)",
+                    (imie, nazwisko, inicjaly),
+                )
+            print(f"  + {len(test_workers)} workers seeded")
+        else:
+            print(f"  . {existing_workers} workers already exist")
 
         db.commit()
         print(f"\nSeed complete: {created} created, {updated} updated, {skipped} skipped.")

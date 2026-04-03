@@ -92,6 +92,7 @@ async function openCalculator(tag, kod, sekcja, calcMethod) {
             method: calcMethod.name || '',
             formula: calcMethod.formula || '',
             factor: calcMethod.factor,
+            suggested_mass: calcMethod.suggested_mass || null,
         };
     } else {
         method = CALC_METHODS[tag] || CALC_METHODS[kod];
@@ -229,6 +230,11 @@ function renderCalculator() {
         <div class="calc-method">Metoda: ${method.method || method.name}</div>
         <div class="calc-formula">${method.formula}</div>
     </div>`;
+
+    // Suggested mass hint
+    if (method.suggested_mass) {
+        html += `<div class="calc-hint">Sugerowana naważka: <strong>${method.suggested_mass} g</strong></div>`;
+    }
 
     // Samples
     const results = [];
