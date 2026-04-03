@@ -2,8 +2,10 @@
 <div class="modal-overlay" id="reg-modal" onclick="if(event.target===this)closeModal()">
   <div class="modal">
     <div class="modal-head">
-      <div class="modal-icon">+</div>
-      <div>
+      <div class="modal-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+      </div>
+      <div class="modal-titles">
         <div class="modal-title">Nowa szarza</div>
         <div class="modal-subtitle" id="modal-subtitle">Wybierz typ rejestracji</div>
       </div>
@@ -18,34 +20,53 @@
 
         {# Step 1: Type selection #}
         <div id="step-1">
-          <div class="product-grid">
-            <div class="product-option" onclick="selectTyp('szarza')">
-              <span class="po-check">&#10003;</span>
-              <div class="po-name" style="font-size:24px;">&#9879;</div>
-              <div class="po-name">Szarza produkcyjna</div>
-              <div class="po-desc">Nowa szarza z pelnym procesem</div>
+          <div class="type-grid">
+            <div class="type-card" onclick="selectTyp('szarza')">
+              <div class="tc-icon">
+                <!-- Erlenmeyer flask with liquid + bubbles -->
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 3h6"/><path d="M10 3v5.2L4.5 18.4A1.5 1.5 0 005.7 21h12.6a1.5 1.5 0 001.2-2.6L14 8.2V3"/>
+                  <path d="M7 15h10"/><circle cx="9" cy="18" r="0.5"/><circle cx="13" cy="17" r="0.5"/><circle cx="11" cy="19" r="0.5"/>
+                </svg>
+              </div>
+              <div class="tc-name">Szarza produkcyjna</div>
+              <div class="tc-desc">Nowa szarza z pelnym procesem produkcyjnym</div>
             </div>
-            <div class="product-option" onclick="selectTyp('zbiornik')">
-              <span class="po-check">&#10003;</span>
-              <div class="po-name" style="font-size:24px;">&#127981;</div>
-              <div class="po-name">Analiza zbiornika</div>
-              <div class="po-desc">Analiza mieszaniny w zbiorniku magazynowym</div>
+            <div class="type-card" onclick="selectTyp('zbiornik')">
+              <div class="tc-icon">
+                <!-- Storage tank with level indicator -->
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                  <ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/>
+                  <path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"/>
+                  <path d="M20 16.5c0 1.38-3.58 2.5-8 2.5s-8-1.12-8-2.5"/>
+                  <line x1="2" y1="12" x2="4" y2="12"/><line x1="2" y1="15" x2="4" y2="15"/>
+                </svg>
+              </div>
+              <div class="tc-name">Analiza zbiornika</div>
+              <div class="tc-desc">Analiza mieszaniny w zbiorniku magazynowym</div>
             </div>
           </div>
         </div>
 
         {# Step 2a: Szarza form #}
         <div id="step-2a" style="display:none;">
+          <div class="step-indicator">
+            <div class="step-dot done"></div>
+            <div class="step-line done"></div>
+            <div class="step-dot active"></div>
+          </div>
+
           <div class="form-row">
             <div class="form-label">Produkt</div>
-            <div style="display:flex;gap:6px;margin-bottom:8px;" id="quick-pick-szarza">
-              <button type="button" class="sb-pill" onclick="quickPick(this,'Chegina_K7','szarza')">K7</button>
-              <button type="button" class="sb-pill" onclick="quickPick(this,'Chegina_K40GL','szarza')">K40GL</button>
-              <button type="button" class="sb-pill" onclick="quickPick(this,'Chegina_K40GLO','szarza')">K40GLO</button>
-              <button type="button" class="sb-pill" onclick="quickPick(this,'Chegina_K40GLOL','szarza')">K40GLOL</button>
+            <div class="quick-picks" id="quick-pick-szarza">
+              <button type="button" class="qp-btn" onclick="quickPick(this,'Chegina_K7','szarza')">K7</button>
+              <button type="button" class="qp-btn" onclick="quickPick(this,'Chegina_K40GL','szarza')">K40GL</button>
+              <button type="button" class="qp-btn" onclick="quickPick(this,'Chegina_K40GLO','szarza')">K40GLO</button>
+              <button type="button" class="qp-btn" onclick="quickPick(this,'Chegina_K40GLOL','szarza')">K40GLOL</button>
             </div>
-            <div class="product-search-wrap" id="search-wrap-szarza">
-              <input class="form-input product-search" type="text"
+            <div class="search-wrap product-search-wrap" id="search-wrap-szarza">
+              <span class="search-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+              <input class="search-input form-input product-search" type="text"
                      placeholder="Inny produkt — szukaj..."
                      oninput="filterProducts(this)"
                      autocomplete="off">
@@ -58,15 +79,23 @@
                 {% endfor %}
               </div>
             </div>
-            <div class="product-selected" id="selected-product-szarza" style="display:none;">
-              <span class="product-selected-name"></span>
-              <button type="button" class="product-selected-clear" onclick="clearProduct('szarza')">&times;</button>
+            <div class="selected-badge product-selected" id="selected-product-szarza" style="display:none;">
+              <div class="sb-check"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+              <div>
+                <div class="sb-name product-selected-name"></div>
+                <div class="sb-full"></div>
+              </div>
+              <button type="button" class="sb-clear product-selected-clear" onclick="clearProduct('szarza')">&times;</button>
             </div>
           </div>
-          <div class="form-row">
-            <div class="form-label">Nr partii (auto)</div>
-            <input class="form-input" type="text" name="nr_partii" id="nr-partii-input" required readonly placeholder="Wybierz produkt...">
+
+          <div class="auto-nr" id="auto-nr-szarza" style="display:none;">
+            <span class="nr-label">Nr partii</span>
+            <span class="nr-value" id="nr-value-szarza"></span>
           </div>
+          <input class="form-input" type="hidden" name="nr_partii" id="nr-partii-input" required>
+
+          <div style="height:16px"></div>
           <div class="form-row-inline">
             <div class="form-row" style="margin:0">
               <div class="form-label">Nr amidatora</div>
@@ -85,16 +114,23 @@
 
         {# Step 2b: Zbiornik form #}
         <div id="step-2b" style="display:none;">
+          <div class="step-indicator">
+            <div class="step-dot done"></div>
+            <div class="step-line done"></div>
+            <div class="step-dot active"></div>
+          </div>
+
           <div class="form-row">
             <div class="form-label">Produkt</div>
-            <div style="display:flex;gap:6px;margin-bottom:8px;" id="quick-pick-zbiornik">
-              <button type="button" class="sb-pill" onclick="quickPick(this,'Chegina_K7','zbiornik')">K7</button>
-              <button type="button" class="sb-pill" onclick="quickPick(this,'Chegina_K40GL','zbiornik')">K40GL</button>
-              <button type="button" class="sb-pill" onclick="quickPick(this,'Chegina_K40GLO','zbiornik')">K40GLO</button>
-              <button type="button" class="sb-pill" onclick="quickPick(this,'Chegina_K40GLOL','zbiornik')">K40GLOL</button>
+            <div class="quick-picks" id="quick-pick-zbiornik">
+              <button type="button" class="qp-btn" onclick="quickPick(this,'Chegina_K7','zbiornik')">K7</button>
+              <button type="button" class="qp-btn" onclick="quickPick(this,'Chegina_K40GL','zbiornik')">K40GL</button>
+              <button type="button" class="qp-btn" onclick="quickPick(this,'Chegina_K40GLO','zbiornik')">K40GLO</button>
+              <button type="button" class="qp-btn" onclick="quickPick(this,'Chegina_K40GLOL','zbiornik')">K40GLOL</button>
             </div>
-            <div class="product-search-wrap" id="search-wrap-zbiornik">
-              <input class="form-input product-search" type="text"
+            <div class="search-wrap product-search-wrap" id="search-wrap-zbiornik">
+              <span class="search-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+              <input class="search-input form-input product-search" type="text"
                      placeholder="Inny produkt — szukaj..."
                      oninput="filterProducts(this)"
                      autocomplete="off">
@@ -107,15 +143,23 @@
                 {% endfor %}
               </div>
             </div>
-            <div class="product-selected" id="selected-product-zbiornik" style="display:none;">
-              <span class="product-selected-name"></span>
-              <button type="button" class="product-selected-clear" onclick="clearProduct('zbiornik')">&times;</button>
+            <div class="selected-badge product-selected" id="selected-product-zbiornik" style="display:none;">
+              <div class="sb-check"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+              <div>
+                <div class="sb-name product-selected-name"></div>
+                <div class="sb-full"></div>
+              </div>
+              <button type="button" class="sb-clear product-selected-clear" onclick="clearProduct('zbiornik')">&times;</button>
             </div>
           </div>
-          <div class="form-row">
-            <div class="form-label">Nr partii (auto)</div>
-            <input class="form-input" type="text" id="nr-partii-input-zb" readonly placeholder="Wybierz produkt...">
+
+          <div class="auto-nr" id="auto-nr-zbiornik" style="display:none;">
+            <span class="nr-label">Nr partii</span>
+            <span class="nr-value" id="nr-value-zbiornik"></span>
           </div>
+          <input class="form-input" type="hidden" id="nr-partii-input-zb">
+
+          <div style="height:16px"></div>
           <div class="form-row">
             <div class="form-label">Nr zbiornika</div>
             <input class="form-input" type="text" name="nr_zbiornika" placeholder="np. M16">
@@ -123,8 +167,11 @@
         </div>
 
         {# Footer #}
-        <div class="modal-footer" id="modal-footer" style="padding:14px 0 0;border-top:none;display:none;">
-          <button type="button" class="m-btn m-btn-o" onclick="backToStep1()">Wstecz</button>
+        <div class="modal-footer" id="modal-footer" style="display:none;">
+          <button type="button" class="m-btn-back" onclick="backToStep1()">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/></svg>
+            Wstecz
+          </button>
           <div class="m-sp"></div>
           <button type="button" class="m-btn m-btn-o" onclick="closeModal()">Anuluj</button>
           <button type="submit" class="m-btn m-btn-p">Utworz</button>
@@ -168,7 +215,6 @@ function backToStep1() {
   document.getElementById('step-2b').style.display = 'none';
   document.getElementById('modal-footer').style.display = 'none';
   document.getElementById('modal-subtitle').textContent = 'Wybierz typ rejestracji';
-  document.querySelectorAll('#step-1 .product-option').forEach(function(p) { p.classList.remove('selected'); });
   clearProduct('szarza');
   clearProduct('zbiornik');
 }
@@ -186,7 +232,7 @@ function filterProducts(input) {
 
 function quickPick(btn, product, context) {
   var container = btn.parentElement;
-  container.querySelectorAll('.sb-pill').forEach(function(p) { p.classList.remove('active'); });
+  container.querySelectorAll('.qp-btn').forEach(function(p) { p.classList.remove('active'); });
   btn.classList.add('active');
   document.getElementById('produkt-input').value = product;
   var step = context === 'szarza' ? document.getElementById('step-2a') : document.getElementById('step-2b');
@@ -194,7 +240,9 @@ function quickPick(btn, product, context) {
   var selected = step.querySelector('.product-selected');
   wrap.style.display = 'none';
   selected.style.display = 'flex';
-  selected.querySelector('.product-selected-name').textContent = btn.textContent.trim() + ' \u2014 ' + product;
+  var shortName = btn.textContent.trim();
+  selected.querySelector('.product-selected-name').textContent = shortName;
+  selected.querySelector('.sb-full').textContent = product;
   fetchAutoNr(product, context);
 }
 
@@ -206,7 +254,8 @@ function pickProduct(el) {
   wrap.style.display = 'none';
   var selected = wrap.parentElement.querySelector('.product-selected');
   selected.style.display = 'flex';
-  selected.querySelector('.product-selected-name').textContent = shortName + ' \u2014 ' + product;
+  selected.querySelector('.product-selected-name').textContent = shortName;
+  selected.querySelector('.sb-full').textContent = product;
   fetchAutoNr(product, currentTyp);
 }
 
@@ -216,8 +265,12 @@ function fetchAutoNr(product, context) {
     .then(function(data) {
       if (context === 'szarza') {
         document.getElementById('nr-partii-input').value = data.nr_partii;
+        document.getElementById('nr-value-szarza').textContent = data.nr_partii;
+        document.getElementById('auto-nr-szarza').style.display = 'flex';
       } else {
         document.getElementById('nr-partii-input-zb').value = data.nr_partii;
+        document.getElementById('nr-value-zbiornik').textContent = data.nr_partii;
+        document.getElementById('auto-nr-zbiornik').style.display = 'flex';
       }
     });
 }
@@ -237,12 +290,14 @@ function clearProduct(context) {
   }
   if (selected) selected.style.display = 'none';
   var qp = step.querySelector('[id^="quick-pick-"]');
-  if (qp) qp.querySelectorAll('.sb-pill').forEach(function(p) { p.classList.remove('active'); });
+  if (qp) qp.querySelectorAll('.qp-btn').forEach(function(p) { p.classList.remove('active'); });
   if (context === 'szarza') {
     document.getElementById('nr-partii-input').value = '';
+    document.getElementById('auto-nr-szarza').style.display = 'none';
   } else {
     var zb = document.getElementById('nr-partii-input-zb');
     if (zb) zb.value = '';
+    document.getElementById('auto-nr-zbiornik').style.display = 'none';
   }
 }
 
