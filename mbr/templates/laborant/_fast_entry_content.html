@@ -24,16 +24,16 @@
   </div>
   <div class="col-right">
     <div class="rp-tabs">
-      <div class="rp-tab active" onclick="showRightPanel('ref')" id="tab-ref">Referencje</div>
-      <div class="rp-tab" onclick="showRightPanel('calc')" id="tab-calc">Kalkulator</div>
+      <div class="rp-tab active" id="tab-calc">Kalkulator</div>
     </div>
     <div class="rp-body">
-      <div class="rp-view active" id="rp-ref">
-        <div id="ref-container"></div>
-      </div>
-      <div class="rp-view" id="rp-calc">
+      <div class="rp-view active" id="rp-calc">
         <div id="calc-container">
           <div class="calc-method">Kliknij pole miareczkowe aby otworzyc kalkulator.</div>
+        </div>
+        <div style="margin-top:24px; padding:12px; border-top:1px solid var(--border);">
+          <div style="font-size:11px; font-weight:600; color:var(--text-dim); margin-bottom:4px;">Wartości historyczne</div>
+          <div style="font-size:11px; color:var(--text-dim);">Dane pojawią się po zebraniu wystarczającej liczby szarż.</div>
         </div>
       </div>
     </div>
@@ -450,94 +450,6 @@ function renderOneSection(container, opts) {
 }
 
 
-function renderReferences() {
-    var container = document.getElementById('ref-container');
-    container.innerHTML = '';
-
-    if (isCyclicProduct()) {
-        // For cyclic products, show references for all round-suffixed sections that have wyniki
-        var sekcjaKeys = Object.keys(wyniki).sort();
-        // Also add the next editable section
-        if (roundState.next_sekcja && sekcjaKeys.indexOf(roundState.next_sekcja) === -1) {
-            sekcjaKeys.push(roundState.next_sekcja);
-        }
-        sekcjaKeys.forEach(function(sekcja) {
-            var pola = getPola(sekcja);
-            if (pola.length === 0) return;
-            var sekWyniki = wyniki[sekcja] || {};
-            var base = sekcja.replace(/__\d+$/, '');
-            var rundaMatch = sekcja.match(/__(\d+)$/);
-            var rundaNum = rundaMatch ? parseInt(rundaMatch[1]) : 0;
-            var title = rundaNum > 0 ? getCyclicSectionTitle(base, rundaNum) : (parametry[base] ? (parametry[base].label || base) : base);
-
-            var html = '<div class="ref"><div class="ref-t">' + esc(title) + '</div>';
-            pola.forEach(function(pole) {
-                var normText = (pole.min != null || pole.max != null)
-                    ? '(' + (pole.min != null ? pole.min : '...') + ' - ' + (pole.max != null ? pole.max : '...') + ')'
-                    : '';
-                var existing = sekWyniki[pole.kod];
-                var currentInput = document.querySelector('input[data-kod="' + pole.kod + '"][data-sekcja="' + sekcja + '"]');
-                var liveVal = currentInput && currentInput.value !== '' ? currentInput.value : null;
-                var savedVal = existing ? existing.wartosc : null;
-                var displayVal = liveVal || savedVal;
-
-                var valHtml;
-                if (displayVal != null && displayVal !== '') {
-                    valHtml = '<strong>' + displayVal + '</strong> <span style="color:var(--text-dim)">' + normText + '</span>';
-                } else {
-                    valHtml = '\u2014 <span style="color:var(--text-dim)">' + normText + '</span>';
-                }
-                html += '<div class="rr"><span class="rr-k">' + esc(pole.label) + '</span><span class="rr-v">' + valHtml + '</span></div>';
-            });
-            html += '</div>';
-            container.innerHTML += html;
-        });
-    } else {
-        // Linear references — original logic
-        etapy.forEach(function(etap) {
-            var sekcja = etap.sekcja_lab || '';
-            if (!sekcja || etap.read_only === true) return;
-            var pola = getPola(sekcja);
-            if (pola.length === 0) return;
-
-            if (ebrTyp === 'zbiornik' && sekcja !== 'analiza_koncowa') return;
-
-            var sekWyniki = wyniki[sekcja] || {};
-
-            var html = '<div class="ref"><div class="ref-t">' + esc(etap.nazwa) + '</div>';
-            pola.forEach(function(pole) {
-                var normText = (pole.min != null || pole.max != null)
-                    ? '(' + (pole.min != null ? pole.min : '...') + ' - ' + (pole.max != null ? pole.max : '...') + ')'
-                    : '';
-                var existing = sekWyniki[pole.kod];
-                var currentInput = document.querySelector('input[data-kod="' + pole.kod + '"][data-sekcja="' + sekcja + '"]');
-                var liveVal = currentInput && currentInput.value !== '' ? currentInput.value : null;
-                var savedVal = existing ? existing.wartosc : null;
-                var displayVal = liveVal || savedVal;
-
-                var valHtml;
-                if (displayVal != null && displayVal !== '') {
-                    valHtml = '<strong>' + displayVal + '</strong> <span style="color:var(--text-dim)">' + normText + '</span>';
-                } else {
-                    valHtml = '\u2014 <span style="color:var(--text-dim)">' + normText + '</span>';
-                }
-                html += '<div class="rr"><span class="rr-k">' + esc(pole.label) + '</span><span class="rr-v">' + valHtml + '</span></div>';
-            });
-            html += '</div>';
-
-            container.innerHTML += html;
-        });
-    }
-
-    container.innerHTML += '<div class="ref norms">' +
-        '<div class="ref-t">Typowe wartosci (historyczne)</div>' +
-        '<div style="font-size:11px;color:var(--text-dim);padding:8px 0;">' +
-            'Dane pojawia sie po zebraniu wystarczajacej liczby szarz.' +
-        '</div>' +
-    '</div>';
-}
-
-
 function validateField(input) {
     var val = parseFloat(input.value);
     var min = input.dataset.min !== '' ? parseFloat(input.dataset.min) : null;
@@ -674,11 +586,7 @@ function scrollToSection(sekcja) {
 
 
 function showRightPanel(view) {
-    document.querySelectorAll('.rp-tab').forEach(function(t, i) {
-        t.classList.toggle('active', (view === 'ref' && i === 0) || (view === 'calc' && i === 1));
-    });
-    document.getElementById('rp-ref').classList.toggle('active', view === 'ref');
-    document.getElementById('rp-calc').classList.toggle('active', view === 'calc');
+    // Only calc panel exists now — no-op kept for compatibility with _calcBridge
 }
 
 
@@ -703,21 +611,6 @@ window._calcBridge = function(e) {
     window.openCalculator(tag, kod, sekcja, calcMethod);
 };
 document.addEventListener('click', window._calcBridge);
-
-if (window._refBridge) document.removeEventListener('click', window._refBridge);
-window._refBridge = function(e) {
-    var ff = e.target.closest('.ff:not(.titr):not(.computed)');
-    if (!ff) return;
-    var input = ff.querySelector('input[data-kod]');
-    if (!input) return;
-    var refView = document.getElementById('rp-ref');
-    if (refView && !refView.classList.contains('active')) {
-        showRightPanel('ref');
-    }
-    renderReferences();
-};
-document.addEventListener('click', window._refBridge);
-
 
 // Computed fields
 function setupComputedFields() {
@@ -796,7 +689,6 @@ document.addEventListener('keydown', function(e) {
 
 // Init
 renderSections();
-renderReferences();
 setupComputedFields();
 </script>
 
