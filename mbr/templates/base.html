@@ -124,19 +124,16 @@ function renderShiftList() {
   }
   list.innerHTML = _shiftWorkers.map(function(w) {
     var active = shiftWorkerIds.indexOf(w.id) >= 0;
-    var avatar = w.nickname ? w.nickname.charAt(0) : '';
     var displayEmoji = AVATARS[(w.id - 1) % AVATARS.length];
     var display = w.nickname || (w.imie + ' ' + w.nazwisko);
-    return '<div class="sw-card' + (active ? ' active' : '') + '" data-wid="' + w.id + '" onclick="toggleShiftWorker(this,' + w.id + ')">' +
-      '<div class="sw-avatar">' + displayEmoji + '</div>' +
-      '<div class="sw-info">' +
+    return '<div class="sw-card' + (active ? ' active' : '') + '" data-wid="' + w.id + '">' +
+      '<div class="sw-avatar" onclick="toggleShiftWorker(this.parentElement,' + w.id + ')">' + displayEmoji + '</div>' +
+      '<div class="sw-info" onclick="toggleShiftWorker(this.parentElement,' + w.id + ')">' +
         '<div class="sw-name">' + display + '</div>' +
         '<div class="sw-sub">' + w.inicjaly + ' &middot; ' + w.imie + ' ' + w.nazwisko + '</div>' +
       '</div>' +
-      '<div class="sw-actions" onclick="event.stopPropagation()">' +
-        '<button class="sw-edit-btn" onclick="event.stopPropagation();editWorkerNick(' + w.id + ')" title="Zmien nick / avatar">✏️</button>' +
-      '</div>' +
-      '<div class="sw-check">' + (active ? '✓' : '') + '</div>' +
+      '<button class="sw-personalize" onclick="event.stopPropagation();editWorkerNick(' + w.id + ')">personalizuj</button>' +
+      '<div class="sw-check" onclick="toggleShiftWorker(this.parentElement,' + w.id + ')">' + (active ? '✓' : '') + '</div>' +
     '</div>';
   }).join('');
 }
@@ -277,13 +274,13 @@ setInterval(checkShiftReminder, 60000);
 .sw-info { flex: 1; min-width: 0; }
 .sw-name { font-size: 13px; font-weight: 600; color: var(--text); }
 .sw-sub { font-size: 10px; color: var(--text-dim); margin-top: 1px; }
-.sw-actions { flex-shrink: 0; }
-.sw-edit-btn {
-  background: none; border: none; font-size: 14px; cursor: pointer;
-  padding: 4px; border-radius: 6px; opacity: 0; transition: opacity 0.15s;
+.sw-personalize {
+  background: none; border: none; font-size: 10px; cursor: pointer;
+  color: var(--teal, #0d9488); padding: 2px 8px; border-radius: 4px;
+  flex-shrink: 0; font-weight: 500; text-decoration: underline;
+  text-underline-offset: 2px;
 }
-.sw-card:hover .sw-edit-btn { opacity: 0.6; }
-.sw-edit-btn:hover { opacity: 1 !important; background: var(--surface-alt); }
+.sw-personalize:hover { background: var(--teal-bg, #e0f2f1); }
 .sw-check {
   width: 22px; height: 22px; border-radius: 6px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
