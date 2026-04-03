@@ -73,7 +73,10 @@ body {
   margin-bottom: 16px;
   letter-spacing: -0.5px;
   text-decoration: none;
+  overflow: hidden; white-space: nowrap;
 }
+.rail-logo-short { display: inline; }
+.rail-logo-full { display: none !important; }
 .rail-btn {
   width: 38px; height: 38px;
   border-radius: 8px;
@@ -938,7 +941,8 @@ body {
 
 /* ═══ DASHBOARD ═══ */
 
-.dashboard { flex: 1; overflow-y: auto; padding: 20px 24px; }
+#panel-dashboard { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+.dashboard { flex: 1; overflow-y: auto; padding: 24px 28px; }
 
 /* KPI strip */
 .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }

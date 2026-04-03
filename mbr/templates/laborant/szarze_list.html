@@ -23,7 +23,12 @@
     align-items: flex-start !important;
     padding: 12px 8px !important;
   }
-  .rail-wide .rail-logo { margin-left: 2px; margin-bottom: 16px; }
+  .rail-wide .rail-logo {
+    width: auto; height: auto; padding: 8px 12px; margin-bottom: 16px;
+    font-size: 14px; letter-spacing: -0.3px;
+  }
+  .rail-wide .rail-logo-short { display: none !important; }
+  .rail-wide .rail-logo-full { display: inline !important; font-size: 14px; font-weight: 700; }
   .rail-wide .rail-btn {
     width: 100%; height: auto; padding: 10px 12px;
     justify-content: flex-start; gap: 10px; border-radius: 8px;
