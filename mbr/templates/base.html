@@ -10,16 +10,16 @@
 <body>
 
 {# ═══ NAV RAIL ═══ #}
-<div class="rail">
+<div class="rail" id="rail">
   <a class="rail-logo" href="{{ url_for('index') }}">KS</a>
 
   {% if session.get('user', {}).get('rola') == 'technolog' %}
-  <a class="rail-btn {% block nav_mbr %}{% endblock %}" href="{{ url_for('mbr_list') }}" title="Szablony MBR">&#9881;</a>
-  <a class="rail-btn {% block nav_dashboard %}{% endblock %}" href="{{ url_for('tech_dashboard') }}" title="Dashboard">&#128200;</a>
+  <a class="rail-btn {% block nav_mbr %}{% endblock %}" href="{{ url_for('mbr_list') }}" title="Szablony MBR">&#9881;<span class="rail-label">Szablony</span></a>
+  <a class="rail-btn {% block nav_dashboard %}{% endblock %}" href="{{ url_for('tech_dashboard') }}" title="Dashboard">&#128200;<span class="rail-label">Dashboard</span></a>
   {% endif %}
 
   {% if session.get('user', {}).get('rola') == 'laborant' %}
-  <a class="rail-btn {% block nav_szarze %}{% endblock %}" href="{{ url_for('szarze_list') }}" title="Szarze">&#9883;</a>
+  <a class="rail-btn {% block nav_szarze %}{% endblock %}" href="{{ url_for('szarze_list') }}" title="Szarze">&#9883;<span class="rail-label">Szarze</span></a>
   {% endif %}
 
   <div class="rail-sp"></div>
@@ -31,6 +31,7 @@
     {%- else -%}
       {{ parts[0][:2]|upper }}
     {%- endif -%}
+    <span class="rail-label">Wyloguj</span>
   </a>
 </div>
 

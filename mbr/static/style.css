@@ -87,6 +87,7 @@ body {
   background: rgba(255,255,255,0.12);
   color: #5eead4;
 }
+.rail-label { display: none; }
 .rail-sp { flex: 1; }
 .rail-av {
   width: 30px; height: 30px;
