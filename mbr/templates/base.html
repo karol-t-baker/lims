@@ -31,7 +31,7 @@
 
   {# Shift indicator + user #}
   <div class="rail-crew" id="shift-indicator" onclick="openShiftModal()" title="Zmiana — kliknij aby zmienić">
-    <span id="crew-pill" class="crew-pill crew-empty">--</span>
+    <span id="crew-pill" class="crew-pill crew-empty">zmiana</span>
   </div>
 </div>
 
@@ -273,7 +273,7 @@ function updateShiftDisplay() {
 
   if (shiftWorkerIds.length === 0 || _shiftWorkers.length === 0) {
     pill.className = 'crew-pill crew-empty';
-    pill.innerHTML = '--';
+    pill.innerHTML = 'zmiana';
     return;
   }
 
@@ -283,7 +283,7 @@ function updateShiftDisplay() {
 
   if (workers.length === 0) {
     pill.className = 'crew-pill crew-empty';
-    pill.innerHTML = '--';
+    pill.innerHTML = 'zmiana';
     return;
   }
 
@@ -338,7 +338,8 @@ setInterval(checkShiftReminder, 60000);
   transition: color 0.15s;
 }
 .rail-crew:hover .crew-pill { color: rgba(255,255,255,0.85); }
-.crew-pill.crew-empty { font-size: 9px; opacity: 0.35; }
+.crew-pill.crew-empty { font-size: 9px; color: rgba(255,255,255,0.3); }
+.rail-crew:hover .crew-pill.crew-empty { color: rgba(255,255,255,0.7); }
 .crew-pill.crew-active { color: rgba(255,255,255,0.65); }
 .crew-short { display: inline; }
 .crew-long { display: none; }
