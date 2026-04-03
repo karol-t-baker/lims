@@ -1493,17 +1493,17 @@ body {
 .sb-search input:focus { outline: none; border-color: var(--teal); }
 
 /* Filter pills — segmented control */
-.sb-filters { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.sb-filters { padding: 10px 12px; border-bottom: 1px solid var(--border); }
 .sb-seg {
-  display: flex; background: var(--surface-alt); border-radius: 6px; padding: 2px;
+  display: flex; background: var(--surface-alt); border-radius: 8px; padding: 3px;
 }
 .sb-pill {
-  flex: 1; padding: 5px 4px; border-radius: 5px; font-size: 10px; font-weight: 600;
+  flex: 1; padding: 7px 4px; border-radius: 6px; font-size: 11px; font-weight: 600;
   cursor: pointer; border: none; background: transparent;
-  color: var(--text-dim); transition: all 0.12s; white-space: nowrap; text-align: center;
+  color: var(--text-dim); transition: all 0.15s; white-space: nowrap; text-align: center;
 }
 .sb-pill:hover { color: var(--text-sec); }
-.sb-pill.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+.sb-pill.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
 .sb-pill .pill-count {
   font-family: var(--mono); font-size: 9px; margin-left: 2px; opacity: 0.6;
 }
@@ -1511,87 +1511,68 @@ body {
 /* Batch card */
 .batch-card {
   position: relative;
-  padding: 10px 12px 10px 16px;
-  margin-bottom: 4px;
+  padding: 10px 12px;
+  margin: 3px 0;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.1s;
-  border: 1.5px solid transparent;
+  transition: all 0.12s;
+  border: 1px solid var(--border-subtle, #f0ece4);
 }
-.batch-card:hover { background: var(--surface-alt); }
-.batch-card.active { background: var(--teal-bg); border-color: var(--teal); }
-
-/* Left color strip — type indicator */
-.batch-card::before {
-  content: '';
-  position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px;
-  border-radius: 0 2px 2px 0;
-  background: var(--teal);
-}
-.batch-card.typ-zbiornik::before { background: var(--blue); }
-.batch-card.status-alert::before { background: var(--red); }
+.batch-card:hover { border-color: var(--border); }
+.batch-card.active { border-color: var(--teal); background: #fafefe; }
 
 /* Card header row */
-.bc-top { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.bc-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
 .bc-nr {
-  font-family: var(--mono); font-size: 13px; font-weight: 600;
-  letter-spacing: -0.3px;
+  font-size: 13px; font-weight: 700;
 }
 .bc-product {
-  font-size: 10px; font-weight: 600; color: var(--teal);
-  background: var(--teal-bg); padding: 1px 6px; border-radius: 4px;
+  font-size: 11px; font-weight: 700; color: var(--text-sec);
 }
 .batch-card.typ-zbiornik .bc-product {
-  color: var(--blue); background: var(--blue-bg);
+  color: var(--blue);
 }
-.bc-typ-icon {
-  margin-left: auto; font-size: 11px; color: var(--text-dim);
-  width: 20px; height: 20px; display: flex; align-items: center;
-  justify-content: center; border-radius: 4px;
-}
-.batch-card.typ-zbiornik .bc-typ-icon {
-  color: var(--blue); background: var(--blue-bg);
-}
+.bc-typ-icon { display: none; }
 
 /* Card meta row */
-.bc-meta {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 10px; color: var(--text-dim);
-}
-.bc-equip { font-family: var(--mono); }
-.bc-time { margin-left: auto; font-family: var(--mono); font-size: 10px; }
+.bc-meta { display: none; }
 
 /* Progress bar */
 .bc-progress {
-  margin-top: 6px; display: flex; align-items: center; gap: 6px;
+  margin: 6px 0 4px; display: flex; align-items: center; gap: 0;
 }
 .bc-bar {
-  flex: 1; height: 3px; border-radius: 2px; background: var(--border);
+  flex: 1; height: 3px; border-radius: 2px; background: var(--border-subtle, #f0ece4);
   overflow: hidden;
 }
 .bc-bar-fill {
   height: 100%; border-radius: 2px;
-  background: linear-gradient(90deg, var(--green), var(--teal));
+  background: var(--teal);
   transition: width 0.3s ease;
 }
 .bc-bar-fill.alert {
-  background: linear-gradient(90deg, var(--amber), var(--red));
+  background: var(--red);
 }
-.bc-pct { font-size: 9px; font-family: var(--mono); color: var(--text-dim); min-width: 24px; text-align: right; }
+.bc-pct { display: none; }
 
-/* Status tag */
+/* Status row */
 .bc-status {
-  display: inline-flex; align-items: center; gap: 3px;
-  font-size: 9px; font-weight: 600; text-transform: uppercase;
-  letter-spacing: 0.5px; margin-top: 4px;
+  display: flex; align-items: center; justify-content: space-between;
 }
-.bc-status-dot {
-  width: 5px; height: 5px; border-radius: 50%;
+.bc-status-dot { display: none; }
+.bc-status {
+  font-size: 10px; color: var(--text-dim);
 }
-.bc-status.waiting .bc-status-dot { background: var(--amber); }
-.bc-status.waiting { color: var(--amber); }
-.bc-status.progress .bc-status-dot { background: var(--teal); }
-.bc-status.progress { color: var(--teal); }
+.bc-status.alert { color: var(--red); }
+.bc-status.in_progress { color: var(--teal); }
+.bc-status.done { color: var(--green); }
+.bc-badge {
+  font-size: 9px; font-weight: 500; padding: 2px 7px; border-radius: 8px;
+}
+.bc-b-ok { background: var(--teal-bg); color: var(--teal); }
+.bc-b-done { background: var(--green-bg); color: var(--green); }
+.bc-b-wait { background: var(--surface-alt); color: var(--text-dim); }
+.bc-b-err { background: var(--red-bg); color: var(--red); }
 .bc-status.alert .bc-status-dot { background: var(--red); }
 .bc-status.alert { color: var(--red); }
 .bc-status.done .bc-status-dot { background: var(--green); }
