@@ -363,6 +363,11 @@ document.addEventListener('keydown', function(e) {
     if (fbModal && fbModal.classList.contains('show')) closeFeedbackModal();
     else openFeedbackModal();
   }
+  if (e.key === 'u' || e.key === 'U') {
+    e.preventDefault();
+    if (typeof showRegistry === 'function') showRegistry();
+    else if (typeof showDashboard === 'function') location.href = '/laborant/szarze?view=registry';
+  }
   if (e.key === 'z' || e.key === 'Z') {
     e.preventDefault();
     var shModal = document.getElementById('shift-overlay');
