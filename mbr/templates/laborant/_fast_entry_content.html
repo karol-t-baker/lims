@@ -458,7 +458,18 @@ function renderOneSection(container, opts) {
     });
     fieldsHtml += '</div>';
 
-    section.innerHTML = headHtml + '<div class="sec-body">' + fieldsHtml + '</div>';
+    // Legend — only on the first rendered section
+    var legendHtml = '';
+    if (!container.querySelector('.ff-legend')) {
+        legendHtml = '<div class="ff-legend">' +
+            '<span class="ff-leg-item"><span class="status-dot" style="background:var(--green);width:5px;height:5px;display:inline-block;border-radius:50%;"></span> w normie</span>' +
+            '<span class="ff-leg-item"><span class="status-dot" style="background:var(--red);width:5px;height:5px;display:inline-block;border-radius:50%;"></span> poza</span>' +
+            '<span class="ff-leg-item"><span class="type-tag t-titr">M</span> miareczkowanie</span>' +
+            '<span class="ff-leg-item"><span class="type-tag t-calc">O</span> obliczeniowy</span>' +
+        '</div>';
+    }
+
+    section.innerHTML = headHtml + '<div class="sec-body">' + fieldsHtml + '</div>' + legendHtml;
     container.appendChild(section);
 }
 

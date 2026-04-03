@@ -677,6 +677,14 @@ body {
 .ff .type-tag.t-calc { background: var(--amber-bg); color: var(--amber); }
 .ff .type-tag.t-suggest { background: #ede9fe; color: #7c3aed; }
 
+/* Legend */
+.ff-legend {
+  display: flex; gap: 14px; padding: 6px 18px;
+  border-top: 1px solid var(--border-subtle, #f0ece4);
+  font-size: 9px; color: var(--text-dim); align-items: center;
+}
+.ff-leg-item { display: inline-flex; align-items: center; gap: 4px; }
+
 /* Titration: clickable row */
 .ff.titr { cursor: pointer; }
 
