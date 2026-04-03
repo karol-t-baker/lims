@@ -471,8 +471,8 @@ function renderSidebarEtapy() {
   // For zbiornik: only show Analiza końcowa + Przepompowanie
   const isZbiornik = typeof ebrTyp !== 'undefined' && ebrTyp === 'zbiornik';
   const filteredEtapy = isZbiornik
-    ? etapy.filter(e => e.sekcja_lab === 'analiza_koncowa' || (e.read_only && e.nazwa === 'Przepompowanie'))
-    : etapy;
+    ? etapy.filter(e => e.sekcja_lab === 'analiza_koncowa')
+    : etapy.filter(e => e.nazwa !== 'Przepompowanie');
 
   let html = '';
   filteredEtapy.forEach((etap, i) => {
