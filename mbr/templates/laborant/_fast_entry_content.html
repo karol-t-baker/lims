@@ -76,10 +76,32 @@
 </div>
 {% else %}
 <div id="detail-footer" class="footer">
+  <div id="cert-history"></div>
   <div class="f-sp"></div>
+  {% if ebr.typ == 'zbiornik' %}
+  <button class="btn btn-o" onclick="openCertPicker()">Wystaw świadectwo</button>
+  {% endif %}
   <a href="/pdf/ebr/{{ ebr.ebr_id }}" class="btn btn-p" target="_blank">PDF</a>
 </div>
 {% endif %}
+
+<!-- Certificate template picker -->
+<div class="modal-overlay" id="cert-picker" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-head">
+      <div class="modal-icon" style="background:var(--teal-bg);color:var(--teal);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" style="width:20px;height:20px;"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      </div>
+      <div class="modal-titles">
+        <div class="modal-title">Wystaw świadectwo</div>
+        <div class="modal-subtitle">Wybierz wzór</div>
+      </div>
+      <button class="modal-close" onclick="document.getElementById('cert-picker').classList.remove('show')">&times;</button>
+    </div>
+    <div class="modal-body" id="cert-template-list" style="padding:0;max-height:50vh;overflow-y:auto;">
+    </div>
+  </div>
+</div>
 
 <style>
 /* Inline pump form in footer */
@@ -204,6 +226,22 @@
     align-items: center;
     margin-top: 12px;
 }
+
+.cert-opt {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 20px; cursor: pointer;
+    border-bottom: 1px solid var(--border-subtle, #f0ece4);
+    transition: background 0.1s; font-size: 12px;
+}
+.cert-opt:hover { background: var(--teal-bg); }
+.cert-opt:last-child { border-bottom: none; }
+.cert-opt-name { font-weight: 500; }
+.cert-hist-link {
+    font-size: 10px; color: var(--teal); text-decoration: none;
+    margin-right: 6px; padding: 2px 6px; border-radius: 4px;
+    background: var(--teal-bg);
+}
+.cert-hist-link:hover { text-decoration: underline; }
 </style>
 
 <script>
@@ -868,6 +906,56 @@ document.addEventListener('keydown', function(e) {
 // Init
 renderSections();
 setupComputedFields();
+
+async function openCertPicker() {
+    document.getElementById('cert-picker').classList.add('show');
+    document.getElementById('cert-template-list').innerHTML = '<div style="padding:20px;color:var(--text-dim);font-size:12px;text-align:center;">Ładowanie...</div>';
+    var resp = await fetch('/api/cert/templates?produkt=' + encodeURIComponent('{{ ebr.produkt }}'));
+    var data = await resp.json();
+    var list = document.getElementById('cert-template-list');
+    if (data.templates.length === 0) {
+        list.innerHTML = '<div style="padding:20px;color:var(--text-dim);font-size:12px;text-align:center;">Brak wzorów dla tego produktu.</div>';
+        return;
+    }
+    list.innerHTML = data.templates.map(function(t) {
+        return '<div class="cert-opt" onclick="generateCert(this, \'' + t.filename.replace(/'/g, "\\'") + '\')">' +
+            '<span class="cert-opt-name">' + t.display + '</span>' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:14px;height:14px;color:var(--text-dim);flex-shrink:0;"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>' +
+        '</div>';
+    }).join('');
+}
+
+async function generateCert(el, filename) {
+    el.style.opacity = '0.5';
+    el.style.pointerEvents = 'none';
+    var resp = await fetch('/api/cert/generate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ebr_id: ebrId, template_name: filename})
+    });
+    var data = await resp.json();
+    if (data.ok) {
+        document.getElementById('cert-picker').classList.remove('show');
+        window.open('/api/cert/' + data.cert_id + '/pdf', '_blank');
+        loadCertHistory();
+    } else {
+        el.style.opacity = '1';
+        el.style.pointerEvents = '';
+    }
+}
+
+async function loadCertHistory() {
+    var resp = await fetch('/api/cert/list?ebr_id=' + ebrId);
+    var data = await resp.json();
+    var el = document.getElementById('cert-history');
+    if (!el || data.certs.length === 0) return;
+    el.innerHTML = data.certs.map(function(c) {
+        var name = c.template_name.replace('.docx', '').substring(0, 35);
+        return '<a href="/api/cert/' + c.id + '/pdf" target="_blank" class="cert-hist-link">' + name + '</a>';
+    }).join('');
+}
+
+if (ebrStatus === 'completed') { loadCertHistory(); }
 </script>
 
 <script src="/static/calculator.js"></script>
