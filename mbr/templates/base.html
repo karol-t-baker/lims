@@ -29,12 +29,13 @@
 
   <div class="rail-sp"></div>
 
-  {# User menu #}
-  <div class="rail-shift" id="shift-indicator" onclick="openShiftModal()" title="Zmiana">
-    <span id="shift-initials">--</span>
-    <span class="rail-label">Zmiana</span>
+  {# Shift indicator + user #}
+  <div class="rail-crew" id="shift-indicator" onclick="openShiftModal()" title="Zmiana — kliknij aby zmienić">
+    <div class="crew-avatars" id="crew-avatars">
+      <div class="crew-dot crew-empty">--</div>
+    </div>
+    <div class="crew-names rail-label" id="crew-names"></div>
   </div>
-  <button class="rail-btn" onclick="" title="Motyw"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="10.5" r="2.5"/><circle cx="8.5" cy="7.5" r="2.5"/><circle cx="6.5" cy="12.5" r="2.5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.93 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.24-.27-.37-.62-.37-1.01 0-.83.67-1.5 1.5-1.5H16c3.31 0 6-2.69 6-6 0-5.52-4.48-9.5-10-9.5z"/></svg><span class="rail-label">Motyw</span></button>
   <div class="rail-av" onclick="document.getElementById('user-menu').classList.toggle('show')" title="{{ session.get('user', {}).get('login', '') }}" style="cursor:pointer;position:relative;">
     {%- set parts = (session.get('user', {}).get('imie_nazwisko') or session.get('user', {}).get('login') or '??').split() -%}
     {%- if parts|length >= 2 -%}
@@ -280,16 +281,33 @@ async function saveShift() {
 }
 
 function updateShiftDisplay() {
-  var el = document.getElementById('shift-initials');
-  if (!el) return;
-  if (shiftWorkerIds.length > 0 && _shiftWorkers.length > 0) {
-    var names = shiftWorkerIds.map(function(id) {
-      var w = _shiftWorkers.find(function(x) { return x.id === id; });
-      return w ? (w.nickname || w.inicjaly) : '?';
+  var avatarsEl = document.getElementById('crew-avatars');
+  var namesEl = document.getElementById('crew-names');
+  if (!avatarsEl) return;
+
+  if (shiftWorkerIds.length === 0 || _shiftWorkers.length === 0) {
+    avatarsEl.innerHTML = '<div class="crew-dot crew-empty">--</div>';
+    if (namesEl) namesEl.textContent = 'Zmiana';
+    return;
+  }
+
+  var workers = shiftWorkerIds.map(function(id) {
+    return _shiftWorkers.find(function(x) { return x.id === id; });
+  }).filter(Boolean);
+
+  // Avatars: colored circles with initials, overlapping
+  avatarsEl.innerHTML = workers.map(function(w, i) {
+    var c = AVATAR_COLORS[(w.avatar_color || 0) % AVATAR_COLORS.length];
+    return '<div class="crew-dot" style="background:' + c.bg + ';color:' + c.fg + ';z-index:' + (10 - i) + ';margin-left:' + (i > 0 ? '-8px' : '0') + ';">' + w.inicjaly + '</div>';
+  }).join('');
+
+  // Names: truncated nicknames for wide rail
+  if (namesEl) {
+    var names = workers.map(function(w) {
+      var n = w.nickname || w.imie;
+      return n.length > 8 ? n.substring(0, 7) + '.' : n;
     });
-    el.textContent = names.join(', ');
-  } else {
-    el.textContent = shiftWorkerIds.length > 0 ? shiftWorkerIds.length + ' os.' : '--';
+    namesEl.textContent = names.join(', ');
   }
 }
 
@@ -304,24 +322,41 @@ function checkShiftReminder() {
   }
 }
 
-updateShiftDisplay();
+// Load workers on page init if shift is set
+if (shiftWorkerIds.length > 0) {
+  fetch('/api/workers').then(function(r) { return r.json(); }).then(function(data) {
+    _shiftWorkers = data.workers;
+    updateShiftDisplay();
+  });
+} else {
+  updateShiftDisplay();
+}
 checkShiftReminder();
 setInterval(checkShiftReminder, 60000);
 </script>
 
 <style>
-.rail-shift {
-  display: flex; align-items: center; justify-content: center; gap: 6px;
-  padding: 6px; border-radius: 8px; cursor: pointer;
-  color: var(--text-dim); font-size: 11px; font-weight: 600;
-  transition: color 0.15s;
+.rail-crew {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px; border-radius: 10px; cursor: pointer;
+  transition: background 0.15s;
 }
-.rail-shift:hover { color: var(--teal); }
-#shift-initials {
-  width: 30px; height: 30px; border-radius: 50%;
+.rail-crew:hover { background: rgba(255,255,255,0.1); }
+.crew-avatars { display: flex; align-items: center; flex-shrink: 0; }
+.crew-dot {
+  width: 28px; height: 28px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  background: var(--surface-alt); border: 1.5px solid var(--border);
-  font-size: 10px;
+  font-size: 9px; font-weight: 700; letter-spacing: -0.3px;
+  border: 2px solid var(--bg, #1a1816); flex-shrink: 0;
+}
+.crew-dot.crew-empty {
+  background: var(--surface-alt, #2a2724); color: var(--text-dim);
+  border-color: transparent; font-size: 8px;
+}
+.crew-names {
+  font-size: 11px; font-weight: 500; color: var(--text-dim);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 120px;
 }
 #shift-overlay.show { display: flex; }
 .shift-modal { max-width: 420px; }
