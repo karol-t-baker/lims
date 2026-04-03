@@ -164,6 +164,7 @@
       <form method="POST" action="{{ url_for('szarze_new') }}" id="new-batch-form">
         <input type="hidden" name="typ" id="typ-input" value="szarza">
         <input type="hidden" name="produkt" id="produkt-input" required>
+        <input type="hidden" name="_back" value="{{ request.url }}">
 
         {# Step 1: Type selection #}
         <div id="step-1">
@@ -187,9 +188,17 @@
         <div id="step-2a" style="display:none;">
           <div class="form-row">
             <div class="form-label">Produkt</div>
-            <div class="product-search-wrap">
+            {# Quick-pick buttons for 4 main products #}
+            <div style="display:flex;gap:6px;margin-bottom:8px;" id="quick-pick-szarza">
+              <button type="button" class="sb-pill" onclick="quickPick(this,'Chegina_K7','szarza')">K7</button>
+              <button type="button" class="sb-pill" onclick="quickPick(this,'Chegina_K40GL','szarza')">K40GL</button>
+              <button type="button" class="sb-pill" onclick="quickPick(this,'Chegina_K40GLO','szarza')">K40GLO</button>
+              <button type="button" class="sb-pill" onclick="quickPick(this,'Chegina_K40GLOL','szarza')">K40GLOL</button>
+            </div>
+            {# Searchbar for all other products #}
+            <div class="product-search-wrap" id="search-wrap-szarza">
               <input class="form-input product-search" type="text"
-                     placeholder="Szukaj produktu..."
+                     placeholder="Inny produkt — szukaj..."
                      oninput="filterProducts(this)"
                      autocomplete="off">
               <div class="product-dropdown">
@@ -208,18 +217,18 @@
           </div>
 
           <div class="form-row">
-            <div class="form-label">Nr partii</div>
+            <div class="form-label">Nr partii (auto)</div>
             <input class="form-input" type="text" name="nr_partii" id="nr-partii-input" required readonly placeholder="Wybierz produkt...">
           </div>
 
           <div class="form-row-inline">
             <div class="form-row" style="margin:0">
               <div class="form-label">Nr amidatora</div>
-              <input class="form-input" type="text" name="nr_amidatora" placeholder="np. A-1">
+              <input class="form-input" type="text" name="nr_amidatora" placeholder="np. 8">
             </div>
             <div class="form-row" style="margin:0">
               <div class="form-label">Nr mieszalnika</div>
-              <input class="form-input" type="text" name="nr_mieszalnika" placeholder="np. M-3">
+              <input class="form-input" type="text" name="nr_mieszalnika" placeholder="np. 25">
             </div>
           </div>
 
@@ -233,9 +242,17 @@
         <div id="step-2b" style="display:none;">
           <div class="form-row">
             <div class="form-label">Produkt</div>
-            <div class="product-search-wrap">
+            {# Quick-pick buttons #}
+            <div style="display:flex;gap:6px;margin-bottom:8px;" id="quick-pick-zbiornik">
+              <button type="button" class="sb-pill" onclick="quickPick(this,'Chegina_K7','zbiornik')">K7</button>
+              <button type="button" class="sb-pill" onclick="quickPick(this,'Chegina_K40GL','zbiornik')">K40GL</button>
+              <button type="button" class="sb-pill" onclick="quickPick(this,'Chegina_K40GLO','zbiornik')">K40GLO</button>
+              <button type="button" class="sb-pill" onclick="quickPick(this,'Chegina_K40GLOL','zbiornik')">K40GLOL</button>
+            </div>
+            {# Searchbar for all other products #}
+            <div class="product-search-wrap" id="search-wrap-zbiornik">
               <input class="form-input product-search" type="text"
-                     placeholder="Szukaj produktu..."
+                     placeholder="Inny produkt — szukaj..."
                      oninput="filterProducts(this)"
                      autocomplete="off">
               <div class="product-dropdown">
@@ -254,13 +271,13 @@
           </div>
 
           <div class="form-row">
-            <div class="form-label">Nr partii</div>
+            <div class="form-label">Nr partii (auto)</div>
             <input class="form-input" type="text" id="nr-partii-input-zb" readonly placeholder="Wybierz produkt...">
           </div>
 
           <div class="form-row">
             <div class="form-label">Nr zbiornika</div>
-            <input class="form-input" type="text" name="nr_zbiornika" placeholder="np. Z-5">
+            <input class="form-input" type="text" name="nr_zbiornika" placeholder="np. M16">
           </div>
         </div>
 
@@ -357,22 +374,44 @@ function filterProducts(input) {
   });
 }
 
+function quickPick(btn, product, context) {
+  // Highlight selected quick-pick
+  const container = btn.parentElement;
+  container.querySelectorAll('.sb-pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+
+  document.getElementById('produkt-input').value = product;
+
+  // Hide search, show selected badge
+  const step = context === 'szarza' ? document.getElementById('step-2a') : document.getElementById('step-2b');
+  const wrap = step.querySelector('.product-search-wrap');
+  const selected = step.querySelector('.product-selected');
+  wrap.style.display = 'none';
+  selected.style.display = 'flex';
+  selected.querySelector('.product-selected-name').textContent = btn.textContent.trim() + ' — ' + product;
+
+  // Fetch auto-number
+  fetchAutoNr(product, context);
+}
+
 function pickProduct(el) {
   const product = el.dataset.product;
   const shortName = el.querySelector('.product-item-name').textContent;
+  const context = currentTyp;
 
   document.getElementById('produkt-input').value = product;
 
   // Show selected badge, hide search
-  const context = currentTyp; // 'szarza' or 'zbiornik'
   const wrap = el.closest('.product-search-wrap');
   wrap.style.display = 'none';
   const selected = wrap.parentElement.querySelector('.product-selected');
   selected.style.display = 'flex';
   selected.querySelector('.product-selected-name').textContent = shortName + ' — ' + product;
-  selected.dataset.context = context;
 
-  // Fetch auto-number
+  fetchAutoNr(product, context);
+}
+
+function fetchAutoNr(product, context) {
   fetch('/api/next-nr/' + encodeURIComponent(product))
     .then(r => r.json())
     .then(data => {
@@ -386,21 +425,27 @@ function pickProduct(el) {
 
 function clearProduct(context) {
   document.getElementById('produkt-input').value = '';
-  // Find the correct form step
-  const step = context === 'szarza' ? document.getElementById('step-2a') : document.getElementById('step-2b');
-  const wrap = step.querySelector('.product-search-wrap');
-  const selected = step.querySelector('.product-selected');
-  wrap.style.display = 'block';
-  wrap.querySelector('.product-search').value = '';
-  wrap.classList.remove('open');
-  // Show all items again
-  wrap.querySelectorAll('.product-item').forEach(item => item.classList.remove('hidden'));
-  selected.style.display = 'none';
+  var step = context === 'szarza' ? document.getElementById('step-2a') : document.getElementById('step-2b');
+  if (!step) return;
+  var wrap = step.querySelector('.product-search-wrap');
+  var selected = step.querySelector('.product-selected');
+  if (wrap) {
+    wrap.style.display = 'block';
+    var searchInput = wrap.querySelector('.product-search');
+    if (searchInput) searchInput.value = '';
+    wrap.classList.remove('open');
+    wrap.querySelectorAll('.product-item').forEach(function(item) { item.classList.remove('hidden'); });
+  }
+  if (selected) selected.style.display = 'none';
+  // Clear quick-pick active state
+  var qp = step.querySelector('[id^="quick-pick-"]');
+  if (qp) qp.querySelectorAll('.sb-pill').forEach(function(p) { p.classList.remove('active'); });
   // Clear nr_partii
   if (context === 'szarza') {
     document.getElementById('nr-partii-input').value = '';
   } else {
-    document.getElementById('nr-partii-input-zb').value = '';
+    var zb = document.getElementById('nr-partii-input-zb');
+    if (zb) zb.value = '';
   }
 }
 

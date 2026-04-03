@@ -308,8 +308,9 @@ def szarze_new():
 
     if ebr_id is None:
         flash("Brak aktywnego szablonu MBR dla tego produktu.")
-        return redirect(url_for("szarze_list"))
-    return redirect(url_for("fast_entry", ebr_id=ebr_id))
+    # Return to referring page (fast_entry or szarze_list)
+    back = request.form.get("_back") or request.referrer or url_for("szarze_list")
+    return redirect(back)
 
 
 @app.route("/laborant/ebr/<int:ebr_id>")
