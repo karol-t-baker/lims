@@ -17,13 +17,13 @@ from mbr.models import get_db, init_mbr_tables, create_user
 # ---------------------------------------------------------------------------
 
 ETAPY_FULL = [
-    {"nr": 1, "nazwa": "Amidowanie",                 "read_only": True},
-    {"nr": 2, "nazwa": "Wytworzenie SMCA",           "read_only": True},
-    {"nr": 3, "nazwa": "Czwartorzędowanie",           "read_only": True},
-    {"nr": 4, "nazwa": "Analiza przed standaryzacją", "read_only": False, "sekcja_lab": "przed_standaryzacja"},
-    {"nr": 5, "nazwa": "Standaryzacja",               "read_only": True},
-    {"nr": 6, "nazwa": "Analiza końcowa",             "read_only": False, "sekcja_lab": "analiza_koncowa"},
-    {"nr": 7, "nazwa": "Przepompowanie",              "read_only": True},
+    {"nr": 1, "nazwa": "Amidowanie",          "read_only": True},
+    {"nr": 2, "nazwa": "Wytworzenie SMCA",    "read_only": True},
+    {"nr": 3, "nazwa": "Czwartorzędowanie",    "read_only": True},
+    {"nr": 4, "nazwa": "Analiza",              "read_only": False, "sekcja_lab": "analiza"},
+    {"nr": 5, "nazwa": "Standaryzacja",        "read_only": False, "sekcja_lab": "standaryzacja"},
+    {"nr": 6, "nazwa": "Analiza końcowa",      "read_only": False, "sekcja_lab": "analiza"},
+    {"nr": 7, "nazwa": "Przepompowanie",       "read_only": True},
 ]
 
 ETAPY_SIMPLE = [
@@ -76,6 +76,13 @@ def _nastaw():
             "min": 0, "max": 9999, "precision": 0,
             "measurement_type": "bezposredni"}
 
+
+def _dodatek(kod, label, tag):
+    """Additive amount field (always 0-9999 kg)."""
+    return {"kod": kod, "label": label, "tag": tag, "typ": "float",
+            "min": 0, "max": 9999, "precision": 1,
+            "measurement_type": "bezposredni"}
+
 # ---------------------------------------------------------------------------
 # GRUPA 1: Original 4 Chegina betaines (2 lab sections)
 # ---------------------------------------------------------------------------
@@ -87,27 +94,27 @@ PRODUCTS = [
         "template_id": "T111",
         "etapy": ETAPY_FULL,
         "parametry_lab": {
-            "przed_standaryzacja": {
-                "label": "Analiza przed standaryzacją",
-                "pola": [
-                    _bezp("ph_10proc",   "pH 10%",    "ph_10proc",  4.0,   6.0,   2),
-                    _bezp("nd20",        "nd20",       "nd20",       1.39,  1.42,  3),
-                    _titr("so3",         "%SO3",       "so3",        0,     0.030, 3),
-                    _bezp("barwa_fau",   "Barwa FAU",  "barwa_fau",  0,     200,   0),
-                ],
-            },
-            "analiza_koncowa": {
-                "label": "Analiza końcowa",
+            "analiza": {
+                "label": "Analiza",
                 "pola": [
                     _bezp("sm",          "S.Masa",     "sm",         44,    48,    1),
                     _titr("nacl",        "NaCl",       "nacl",       5.8,   7.3,   2),
                     _bezp("ph_10proc",   "pH 10%",     "ph_10proc",  4.5,   5.5,   2),
+                    _bezp("nd20",        "nd20",       "nd20",       1.39,  1.42,  3),
                     _obl("sa",           "%SA",         "sa",         37,    42,    2, "sm - nacl - 0.6"),
                     _titr("aa",          "%AA",         "aa",         0,     0.5,   2),
                     _bezp("barwa_fau",   "Barwa FAU",   "barwa_fau",  0,     200,   0),
                     _bezp("barwa_hz",    "Barwa Hz",    "barwa_hz",   0,     100,   0),
                     _titr("so3",         "SO3",         "so3",        0,     0.030, 3),
                     _nastaw(),
+                ],
+            },
+            "standaryzacja": {
+                "label": "Standaryzacja",
+                "pola": [
+                    _dodatek("kwas_kg",  "Kwas [kg]",  "kwas_kg"),
+                    _dodatek("woda_kg",  "Woda [kg]",  "woda_kg"),
+                    _dodatek("nacl_kg",  "NaCl [kg]",  "nacl_kg"),
                 ],
             },
         },
@@ -117,27 +124,27 @@ PRODUCTS = [
         "template_id": "T118",
         "etapy": ETAPY_FULL,
         "parametry_lab": {
-            "przed_standaryzacja": {
-                "label": "Analiza przed standaryzacją",
-                "pola": [
-                    _bezp("ph_10proc",   "pH 10%",    "ph_10proc",  4.0,   7.0,   2),
-                    _bezp("nd20",        "nd20",       "nd20",       1.39,  1.42,  3),
-                    _titr("so3",         "%SO3",       "so3",        0,     0.030, 3),
-                    _bezp("barwa_fau",   "Barwa FAU",  "barwa_fau",  0,     200,   0),
-                ],
-            },
-            "analiza_koncowa": {
-                "label": "Analiza końcowa",
+            "analiza": {
+                "label": "Analiza",
                 "pola": [
                     _bezp("sm",          "S.Masa",     "sm",         44,    48,    1),
                     _titr("nacl",        "NaCl",       "nacl",       5.8,   7.3,   2),
                     _bezp("ph_10proc",   "pH 10%",     "ph_10proc",  5.0,   7.0,   2),
+                    _bezp("nd20",        "nd20",       "nd20",       1.39,  1.42,  3),
                     _obl("sa",           "%SA",         "sa",         37,    9999,  2, "sm - nacl - 0.6"),  # min 37%
                     _titr("aa",          "%AA",         "aa",         0,     0.5,   2),
                     _bezp("gestosc",     "gęstość",     "gestosc",    1.05,  1.09,  3),
                     _bezp("barwa_fau",   "Barwa FAU",   "barwa_fau",  0,     200,   0),
                     _titr("so3",         "SO3",         "so3",        0,     0.030, 3),
                     _nastaw(),
+                ],
+            },
+            "standaryzacja": {
+                "label": "Standaryzacja",
+                "pola": [
+                    _dodatek("kwas_kg",  "Kwas [kg]",  "kwas_kg"),
+                    _dodatek("woda_kg",  "Woda [kg]",  "woda_kg"),
+                    _dodatek("nacl_kg",  "NaCl [kg]",  "nacl_kg"),
                 ],
             },
         },
@@ -147,27 +154,27 @@ PRODUCTS = [
         "template_id": "T118",
         "etapy": ETAPY_FULL,
         "parametry_lab": {
-            "przed_standaryzacja": {
-                "label": "Analiza przed standaryzacją",
-                "pola": [
-                    _bezp("ph_10proc",   "pH 10%",    "ph_10proc",  4.0,   7.0,   2),
-                    _bezp("nd20",        "nd20",       "nd20",       1.39,  1.42,  3),
-                    _titr("so3",         "%SO3",       "so3",        0,     0.030, 3),
-                    _bezp("barwa_fau",   "Barwa FAU",  "barwa_fau",  0,     200,   0),
-                ],
-            },
-            "analiza_koncowa": {
-                "label": "Analiza końcowa",
+            "analiza": {
+                "label": "Analiza",
                 "pola": [
                     _bezp("sm",          "S.Masa",     "sm",         44,    9999,  1),  # min 44.0%
                     _titr("nacl",        "NaCl",       "nacl",       5.8,   7.3,   2),
                     _bezp("ph_10proc",   "pH 10%",     "ph_10proc",  4.5,   6.5,   2),
+                    _bezp("nd20",        "nd20",       "nd20",       1.39,  1.42,  3),
                     _obl("sa",           "%SA",         "sa",         36,    42,    2, "sm - nacl - 0.6"),
                     _titr("aa",          "%AA",         "aa",         0,     0.3,   2),
                     _titr("h2o2",        "%H2O2",       "h2o2",       0,     0.010, 3),
                     _titr("so3",         "SO3",         "so3",        0,     0.030, 3),
                     _bezp("barwa_fau",   "Barwa FAU",   "barwa_fau",  0,     200,   0),
                     _nastaw(),
+                ],
+            },
+            "standaryzacja": {
+                "label": "Standaryzacja",
+                "pola": [
+                    _dodatek("kwas_kg",  "Kwas [kg]",  "kwas_kg"),
+                    _dodatek("woda_kg",  "Woda [kg]",  "woda_kg"),
+                    _dodatek("nacl_kg",  "NaCl [kg]",  "nacl_kg"),
                 ],
             },
         },
@@ -177,17 +184,8 @@ PRODUCTS = [
         "template_id": "T121",
         "etapy": ETAPY_FULL,
         "parametry_lab": {
-            "przed_standaryzacja": {
-                "label": "Analiza przed standaryzacją",
-                "pola": [
-                    _bezp("ph_10proc",   "pH 10%",    "ph_10proc",  4.0,   6.0,   2),
-                    _bezp("nd20",        "nd20",       "nd20",       1.39,  1.42,  3),
-                    _titr("so3",         "%SO3",       "so3",        0,     0.030, 3),
-                    _bezp("barwa_fau",   "Barwa FAU",  "barwa_fau",  0,     200,   0),
-                ],
-            },
-            "analiza_koncowa": {
-                "label": "Analiza końcowa",
+            "analiza": {
+                "label": "Analiza",
                 "pola": [
                     _bezp("sm",          "S.Masa",     "sm",         40,    48,    1),
                     _titr("nacl",        "NaCl",       "nacl",       4.0,   8.0,   2),
@@ -197,6 +195,14 @@ PRODUCTS = [
                     _bezp("barwa_fau",   "Barwa FAU",   "barwa_fau",  0,     200,   0),
                     _bezp("barwa_hz",    "Barwa Hz",    "barwa_hz",   0,     100,   0),
                     _nastaw(),
+                ],
+            },
+            "standaryzacja": {
+                "label": "Standaryzacja",
+                "pola": [
+                    _dodatek("kwas_kg",  "Kwas [kg]",  "kwas_kg"),
+                    _dodatek("woda_kg",  "Woda [kg]",  "woda_kg"),
+                    _dodatek("nacl_kg",  "NaCl [kg]",  "nacl_kg"),
                 ],
             },
         },
