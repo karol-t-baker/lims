@@ -2,22 +2,50 @@
 
 {% block title %}Narzędzia{% endblock %}
 {% block nav_narzedzia %}active{% endblock %}
+{% block nav_narzedzia_lab %}active{% endblock %}
+
+{% block topbar %}{% endblock %}
 
 {% block content %}
 <div style="padding:24px; max-width:800px;">
   <h2 style="font-size:18px; font-weight:600; margin-bottom:20px;">Narzędzia</h2>
-  <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:14px;">
+
+  <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:14px; margin-bottom:32px;">
     <a href="{{ url_for('wniosek_dojazd') }}" class="tool-card">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" style="width:28px;height:28px;color:var(--teal);"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
       <div class="tc-name">Wniosek o zwrot kosztów</div>
       <div class="tc-desc">Dojazd samochodem prywatnym</div>
     </a>
   </div>
+
+  <h3 style="font-size:14px; font-weight:600; margin-bottom:12px; color:var(--text-sec);">Skróty klawiszowe</h3>
+  <div class="shortcuts-list">
+    <div class="shortcut-row">
+      <kbd>N</kbd>
+      <span>Nowa szarża</span>
+    </div>
+  </div>
 </div>
+
 <style>
 .tool-card { display:flex; flex-direction:column; align-items:center; gap:8px; padding:24px 16px; border:1.5px solid var(--border); border-radius:var(--radius); background:var(--surface); text-decoration:none; color:var(--text); transition:border-color 0.15s, box-shadow 0.15s; cursor:pointer; text-align:center; }
 .tool-card:hover { border-color:var(--teal); box-shadow:0 2px 8px rgba(0,0,0,0.06); }
 .tc-name { font-size:13px; font-weight:600; }
 .tc-desc { font-size:11px; color:var(--text-dim); }
+
+.shortcuts-list { display:flex; flex-direction:column; gap:6px; }
+.shortcut-row {
+  display:flex; align-items:center; gap:12px;
+  padding:8px 12px; border-radius:8px;
+  background:var(--surface-alt); font-size:12px; color:var(--text-sec);
+}
+.shortcut-row kbd {
+  display:inline-flex; align-items:center; justify-content:center;
+  min-width:26px; height:24px; padding:0 6px;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:5px; font-size:11px; font-weight:600;
+  font-family:var(--mono, monospace); color:var(--text);
+  box-shadow:0 1px 0 var(--border);
+}
 </style>
 {% endblock %}

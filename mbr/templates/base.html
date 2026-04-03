@@ -343,6 +343,20 @@ function checkShiftReminder() {
   }
 }
 
+// ═══ KEYBOARD SHORTCUTS ═══
+
+document.addEventListener('keydown', function(e) {
+  // Ignore when typing in inputs/textareas
+  if (e.target.matches('input, textarea, select, [contenteditable]')) return;
+  // Ignore with modifiers (Ctrl, Alt, Meta)
+  if (e.ctrlKey || e.altKey || e.metaKey) return;
+
+  if (e.key === 'n' || e.key === 'N') {
+    e.preventDefault();
+    if (typeof openNewBatchModal === 'function') openNewBatchModal();
+  }
+});
+
 // ═══ FEEDBACK ═══
 
 var _fbSelectedWho = '';
