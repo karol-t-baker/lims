@@ -9,6 +9,26 @@
 {% block content %}
 <div class="narz-page">
 
+  <div class="narz-shortcuts-card">
+    <div class="nsc-header">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" style="width:15px;height:15px;color:var(--text-dim);"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M6 16h8"/></svg>
+      <span>Skróty klawiszowe</span>
+    </div>
+    <div class="nsc-groups">
+      <div class="nsc-group">
+        <div class="nsc-group-label">Nawigacja</div>
+        <div class="nsc-item"><kbd>D</kbd><span>Dashboard</span></div>
+        <div class="nsc-item"><kbd>U</kbd><span>Ukończone</span></div>
+      </div>
+      <div class="nsc-group">
+        <div class="nsc-group-label">Akcje</div>
+        <div class="nsc-item"><kbd>N</kbd><span>Nowa szarża</span></div>
+        <div class="nsc-item"><kbd>F</kbd><span>Feedback</span></div>
+        <div class="nsc-item"><kbd>Z</kbd><span>Zmiana</span></div>
+      </div>
+    </div>
+  </div>
+
   <div class="narz-section">
     <div class="narz-section-label">Formularze</div>
 
@@ -29,35 +49,6 @@
     {% endif %}
   </div>
 
-  <div class="narz-divider"></div>
-
-  <div class="narz-section">
-    <div class="narz-section-label">Skróty klawiszowe</div>
-
-    <div class="narz-shortcuts">
-      <div class="narz-shortcut">
-        <div class="narz-keys"><kbd>D</kbd></div>
-        <div class="narz-shortcut-desc">Dashboard — powrót do listy szarż</div>
-      </div>
-      <div class="narz-shortcut">
-        <div class="narz-keys"><kbd>N</kbd></div>
-        <div class="narz-shortcut-desc">Nowa szarża</div>
-      </div>
-      <div class="narz-shortcut">
-        <div class="narz-keys"><kbd>F</kbd></div>
-        <div class="narz-shortcut-desc">Feedback</div>
-      </div>
-      <div class="narz-shortcut">
-        <div class="narz-keys"><kbd>U</kbd></div>
-        <div class="narz-shortcut-desc">Ukończone — rejestr ukończonych szarż</div>
-      </div>
-      <div class="narz-shortcut">
-        <div class="narz-keys"><kbd>Z</kbd></div>
-        <div class="narz-shortcut-desc">Zmiana — kto jest na zmianie</div>
-      </div>
-    </div>
-  </div>
-
 </div>
 
 <style>
@@ -66,7 +57,80 @@
   max-width: 640px;
 }
 
-/* Section labels — uppercase, small, like technical specs */
+/* ═══ Shortcuts card ═══ */
+.narz-shortcuts-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  overflow: hidden;
+  margin-bottom: 28px;
+}
+
+.nsc-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--surface-alt);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-sec);
+  letter-spacing: 0.3px;
+}
+
+.nsc-groups {
+  display: flex;
+  gap: 0;
+}
+
+.nsc-group {
+  flex: 1;
+  padding: 14px 16px 12px;
+}
+.nsc-group + .nsc-group {
+  border-left: 1px solid var(--border);
+}
+
+.nsc-group-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+.nsc-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.nsc-item kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--mono, monospace);
+  color: var(--text);
+  flex-shrink: 0;
+}
+
+.nsc-item span {
+  font-size: 12px;
+  color: var(--text-sec);
+}
+
+/* ═══ Section ═══ */
 .narz-section { margin-bottom: 8px; }
 .narz-section-label {
   font-size: 10px;
@@ -78,13 +142,7 @@
   padding-left: 2px;
 }
 
-.narz-divider {
-  height: 1px;
-  background: var(--border);
-  margin: 24px 0;
-}
-
-/* Tool cards */
+/* ═══ Tool cards ═══ */
 .narz-grid {
   display: flex;
   flex-direction: column;
@@ -128,46 +186,6 @@
   font-size: 12px;
   color: var(--text-dim);
   padding: 16px 0;
-}
-
-/* Shortcuts */
-.narz-shortcuts {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.narz-shortcut {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 8px 10px;
-  border-radius: 6px;
-}
-.narz-shortcut:hover { background: var(--surface-alt); }
-
-.narz-keys { flex-shrink: 0; }
-
-.narz-keys kbd {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 24px;
-  height: 24px;
-  padding: 0 7px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-bottom-width: 2px;
-  border-radius: 5px;
-  font-size: 11px;
-  font-weight: 700;
-  font-family: var(--mono, monospace);
-  color: var(--text);
-}
-
-.narz-shortcut-desc {
-  font-size: 12px;
-  color: var(--text-sec);
 }
 </style>
 {% endblock %}
