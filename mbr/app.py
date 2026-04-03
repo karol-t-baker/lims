@@ -304,6 +304,8 @@ def szarze_list():
 def szarze_new():
     with db_session() as db:
         typ = request.form.get("typ", "szarza")
+        nastaw_raw = request.form.get("nastaw", "")
+        nastaw = int(nastaw_raw) if nastaw_raw else None
         ebr_id = create_ebr(
             db,
             produkt=request.form["produkt"],
@@ -313,6 +315,7 @@ def szarze_new():
             wielkosc_kg=float(request.form.get("wielkosc_kg", 0) or 0),
             operator=session["user"]["login"],
             typ=typ,
+            nastaw=nastaw,
         )
 
     if ebr_id is None:

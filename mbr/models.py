@@ -94,7 +94,8 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
                                 CHECK(status IN ('open', 'completed', 'cancelled')),
             operator            TEXT,
             typ                 TEXT NOT NULL DEFAULT 'szarza'
-                                CHECK(typ IN ('szarza', 'zbiornik'))
+                                CHECK(typ IN ('szarza', 'zbiornik')),
+            nastaw              INTEGER
         );
 
         CREATE TABLE IF NOT EXISTS ebr_wyniki (
@@ -130,6 +131,12 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
         db.commit()
     except Exception:
         pass  # column already exists
+
+    # Migration: add nastaw column if not exists
+    cols = [r[1] for r in db.execute("PRAGMA table_info(ebr_batches)").fetchall()]
+    if "nastaw" not in cols:
+        db.execute("ALTER TABLE ebr_batches ADD COLUMN nastaw INTEGER")
+        db.commit()
 
 
 # ---------------------------------------------------------------------------
@@ -605,6 +612,7 @@ def create_ebr(
     wielkosc_kg: float | None,
     operator: str,
     typ: str = 'szarza',
+    nastaw: int | None = None,
 ) -> int | None:
     """Create new EBR from active MBR. Returns ebr_id or None if no active MBR."""
     mbr = get_active_mbr(db, produkt)
@@ -614,10 +622,10 @@ def create_ebr(
     now = datetime.now().isoformat(timespec="seconds")
     cur = db.execute(
         "INSERT INTO ebr_batches (mbr_id, batch_id, nr_partii, nr_amidatora, "
-        "nr_mieszalnika, wielkosc_szarzy_kg, dt_start, operator, typ) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "nr_mieszalnika, wielkosc_szarzy_kg, dt_start, operator, typ, nastaw) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (mbr["mbr_id"], batch_id, nr_partii, nr_amidatora,
-         nr_mieszalnika, wielkosc_kg, now, operator, typ),
+         nr_mieszalnika, wielkosc_kg, now, operator, typ, nastaw),
     )
     db.commit()
     return cur.lastrowid
