@@ -344,6 +344,8 @@ function checkShiftReminder() {
 
 // ═══ FEEDBACK ═══
 
+var _fbSelectedWho = '';
+
 function openFeedbackModal() {
   document.getElementById('feedback-modal').classList.add('show');
   var ta = document.getElementById('feedback-text');
@@ -351,16 +353,33 @@ function openFeedbackModal() {
   document.getElementById('fb-count').textContent = '0';
   document.getElementById('fb-send').disabled = false;
   document.getElementById('fb-send').textContent = 'Wyślij';
-  // Show who's submitting — shift workers or logged in user
-  var who = '';
-  if (shiftWorkerIds.length > 0 && _shiftWorkers.length > 0) {
-    who = shiftWorkerIds.map(function(id) {
-      var w = _shiftWorkers.find(function(x) { return x.id === id; });
-      return w ? w.inicjaly : '?';
-    }).join(', ');
+
+  var whoEl = document.getElementById('fb-who');
+  var workers = shiftWorkerIds.map(function(id) {
+    return _shiftWorkers.find(function(x) { return x.id === id; });
+  }).filter(Boolean);
+
+  if (workers.length >= 2) {
+    // Multiple people on shift — show selectable pills
+    whoEl.innerHTML = workers.map(function(w) {
+      var label = w.nickname || w.inicjaly;
+      return '<button type="button" class="fb-who-btn" data-ini="' + w.inicjaly + '" onclick="pickFbWho(this)">' + label + '</button>';
+    }).join('');
+    _fbSelectedWho = '';
+  } else if (workers.length === 1) {
+    whoEl.textContent = workers[0].nickname || workers[0].inicjaly;
+    _fbSelectedWho = workers[0].inicjaly;
+  } else {
+    whoEl.textContent = '{{ session.get("user",{}).get("login","") }}';
+    _fbSelectedWho = '{{ session.get("user",{}).get("login","") }}';
   }
-  document.getElementById('fb-who').textContent = who ? who : '{{ session.get("user",{}).get("login","") }}';
   setTimeout(function() { ta.focus(); }, 100);
+}
+
+function pickFbWho(btn) {
+  btn.parentElement.querySelectorAll('.fb-who-btn').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  _fbSelectedWho = btn.dataset.ini;
 }
 
 function closeFeedbackModal() {
@@ -378,10 +397,18 @@ document.addEventListener('input', function(e) {
 async function sendFeedback() {
   var text = document.getElementById('feedback-text').value.trim();
   if (!text) return;
+  if (!_fbSelectedWho) {
+    // Flash the who pills
+    document.querySelectorAll('.fb-who-btn').forEach(function(b) {
+      b.style.animation = 'shakeIn 0.3s ease';
+      setTimeout(function() { b.style.animation = ''; }, 300);
+    });
+    return;
+  }
   var btn = document.getElementById('fb-send');
   btn.disabled = true;
   btn.textContent = 'Wysylanie...';
-  var who = document.getElementById('fb-who').textContent;
+  var who = _fbSelectedWho;
   await fetch('/api/feedback', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
@@ -420,7 +447,14 @@ setInterval(checkShiftReminder, 60000);
   display: flex; justify-content: space-between; align-items: center;
   margin-top: 8px; font-size: 10px; color: var(--text-dim);
 }
-.fb-who { font-weight: 600; }
+.fb-who { font-weight: 600; display: flex; gap: 4px; align-items: center; }
+.fb-who-btn {
+  padding: 2px 8px; border-radius: 4px; border: 1px solid var(--border);
+  background: var(--surface); font-size: 10px; font-weight: 600; font-family: var(--font);
+  color: var(--text-dim); cursor: pointer; transition: all 0.12s;
+}
+.fb-who-btn:hover { border-color: var(--teal); color: var(--teal); }
+.fb-who-btn.active { background: var(--teal-bg); border-color: var(--teal); color: var(--teal); }
 /* Logout dialog */
 .logout-dialog {
   background: var(--surface); border-radius: 14px; padding: 24px 28px;
