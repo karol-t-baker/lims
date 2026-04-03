@@ -322,15 +322,14 @@ function renderSections() {
                 ? `<span class="norm">${pole.min != null ? pole.min : ''}${pole.min != null && pole.max != null ? ' - ' : ''}${pole.max != null ? pole.max : ''}</span>`
                 : '';
 
-            // Build calc_method JSON for titracja onclick
-            let onclickAttr = '';
-            if (isTitr && !isReadonly) {
-                const cm = pole.calc_method ? JSON.stringify(pole.calc_method).replace(/"/g, '&quot;').replace(/'/g, "\\'") : 'null';
-                onclickAttr = `onclick="openCalc('${esc(pole.kod)}', '${esc(pole.kod)}', '${esc(sekcja)}', ${pole.calc_method ? JSON.stringify(pole.calc_method).replace(/'/g, "\\'") : 'null'})"`;
+            // Store calc_method as data attribute for titracja fields
+            let calcMethodAttr = '';
+            if (isTitr && !isReadonly && pole.calc_method) {
+                calcMethodAttr = `data-calc-method='${JSON.stringify(pole.calc_method).replace(/'/g, "&#39;")}'`;
             }
 
             fieldsHtml += `
-                <div class="ff${isTitr ? ' titr' : ''}${isObl ? ' computed' : ''}">
+                <div class="ff${isTitr ? ' titr' : ''}${isObl ? ' computed' : ''}" ${isTitr && !isReadonly ? `data-kod="${esc(pole.kod)}" data-tag="${esc(pole.tag)}" data-sekcja="${esc(sekcja)}"` : ''} ${calcMethodAttr}>
                     <label>${esc(pole.label)} ${normText}${isObl && pole.formula ? ' <span class="norm">[' + esc(pole.formula) + ']</span>' : ''}</label>
                     <input type="number" step="any"
                         data-kod="${esc(pole.kod)}"
@@ -344,7 +343,6 @@ function renderSections() {
                         class="${inputClass.trim()}"
                         ${isReadonly ? 'readonly' : ''}
                         ${isObl && !isReadonly ? 'readonly' : ''}
-                        ${onclickAttr}
                         oninput="validateField(this)">
                     <textarea data-komentarz="${esc(pole.kod)}" data-sekcja="${esc(sekcja)}"
                         placeholder="Komentarz (wymagany przy przekroczeniu limitu)..."
@@ -468,11 +466,26 @@ function showRightPanel(view) {
 // ═══ CALCULATOR BRIDGE ═══
 
 function openCalc(tag, kod, sekcja, calcMethod) {
-    // openCalculator now handles showRightPanel and highlighting internally
     if (typeof window.openCalculator === 'function') {
+        showRightPanel('calc');
         window.openCalculator(tag, kod, sekcja, calcMethod);
     }
 }
+
+// Event delegation: click on titracja .ff div or its input opens calculator
+document.addEventListener('click', function(e) {
+    const ff = e.target.closest('.ff.titr[data-kod]');
+    if (!ff) return;
+    const kod = ff.dataset.kod;
+    const tag = ff.dataset.tag || kod;
+    const sekcja = ff.dataset.sekcja;
+    let calcMethod = null;
+    try {
+        const raw = ff.dataset.calcMethod;
+        if (raw) calcMethod = JSON.parse(raw);
+    } catch(ex) {}
+    openCalc(tag, kod, sekcja, calcMethod);
+});
 
 
 // ═══ OBLICZENIOWY (computed fields) ═══
