@@ -583,7 +583,7 @@ body {
   font-size: 10px; padding: 3px 10px;
   border-radius: 10px; font-weight: 500;
 }
-.sec-body { padding: 16px 18px; }
+.sec-body { padding: 12px 14px; }
 .sec-sub {
   font-size: 10px; text-transform: uppercase;
   letter-spacing: 0.5px; color: var(--text-dim);
@@ -594,34 +594,56 @@ body {
 }
 
 /* Form grid */
-.fg { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+/* Form grid — table-like lab card layout */
+.fg {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
 .fg.wide { grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); }
+
 .ff {
   position: relative;
-  padding: 8px;
-  border-radius: 6px;
-  background: var(--bg);
-  border: 1px solid transparent;
-  transition: border-color 0.15s;
+  padding: 6px 10px 8px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  transition: background 0.12s;
 }
-.ff:focus-within { border-color: var(--teal); background: var(--surface); }
+.ff:focus-within { background: var(--teal-bg); }
 .ff label {
-  display: block;
-  font-size: 10px; text-transform: uppercase;
-  letter-spacing: 0.4px;
-  color: var(--text-sec); margin-bottom: 5px; font-weight: 600;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 10px;
+  letter-spacing: 0.3px;
+  color: var(--text-dim);
+  margin-bottom: 2px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
 }
-.ff .norm { font-family: var(--mono); font-size: 9px; font-weight: 400; }
+.ff .norm {
+  font-family: var(--mono);
+  font-size: 8px;
+  font-weight: 400;
+  color: var(--text-dim);
+  opacity: 0.7;
+}
 .ff input, .ff select {
   width: 100%;
-  padding: 10px;
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius);
-  font-size: 14px;
+  padding: 4px 2px;
+  border: none;
+  border-bottom: 1.5px solid var(--border);
+  border-radius: 0;
+  font-size: 15px;
   font-family: var(--mono);
   color: var(--text);
   text-align: center;
-  background: white;
+  background: transparent;
   -moz-appearance: textfield;
 }
 .ff input::-webkit-outer-spin-button,
@@ -631,31 +653,45 @@ body {
 }
 .ff input:focus, .ff select:focus {
   outline: none;
-  border-color: var(--teal);
-  box-shadow: 0 0 0 3px var(--teal-bg);
+  border-bottom-color: var(--teal);
 }
-.ff input.ok { border-color: var(--green); background: var(--green-bg); }
-.ff input.calc { border-color: var(--teal); background: var(--teal-bg); font-weight: 600; }
+.ff input.ok {
+  border-bottom-color: var(--green);
+  color: var(--green);
+  font-weight: 600;
+}
+.ff input.calc {
+  border-bottom-color: var(--teal);
+  color: var(--teal);
+  font-weight: 600;
+}
+.ff input[readonly] {
+  border-bottom-style: dotted;
+  color: var(--text-sec);
+}
 .ff select { text-align: left; font-family: var(--font); }
 
 /* Titration field indicator */
 .ff.titr { cursor: pointer; }
 .ff.titr::after {
   content: '\2697';
-  position: absolute; right: 8px; bottom: 12px;
-  font-size: 12px; color: var(--teal);
-  pointer-events: none;
+  position: absolute; right: 6px; top: 6px;
+  font-size: 10px; color: var(--teal);
+  pointer-events: none; opacity: 0.5;
 }
+.ff.titr:hover::after { opacity: 1; }
 .ff.titr.active-calc::after {
   content: '\25C0';
-  color: var(--teal); font-size: 10px;
+  color: var(--teal); font-size: 9px; opacity: 1;
 }
 
 /* Out-of-limit error styling */
 .ff input.err, .ef input.err {
-  border-color: var(--red);
-  background: var(--red-bg);
+  border-bottom-color: var(--red);
+  color: var(--red);
+  font-weight: 600;
 }
+.ff input.err + textarea { margin-top: 2px; }
 
 
 /* ═══ REFERENCE CARDS ═══ */
