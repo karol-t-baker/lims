@@ -1,0 +1,268 @@
+{# ═══ MODAL: Nowa szarza (shared between szarze_list and fast_entry) ═══ #}
+<div class="modal-overlay" id="reg-modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-icon">+</div>
+      <div>
+        <div class="modal-title">Nowa szarza</div>
+        <div class="modal-subtitle" id="modal-subtitle">Wybierz typ rejestracji</div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+
+    <div class="modal-body">
+      <form method="POST" action="{{ url_for('szarze_new') }}" id="new-batch-form">
+        <input type="hidden" name="typ" id="typ-input" value="szarza">
+        <input type="hidden" name="produkt" id="produkt-input" required>
+        <input type="hidden" name="_back" value="{{ request.url }}">
+
+        {# Step 1: Type selection #}
+        <div id="step-1">
+          <div class="product-grid">
+            <div class="product-option" onclick="selectTyp('szarza')">
+              <span class="po-check">&#10003;</span>
+              <div class="po-name" style="font-size:24px;">&#9879;</div>
+              <div class="po-name">Szarza produkcyjna</div>
+              <div class="po-desc">Nowa szarza z pelnym procesem</div>
+            </div>
+            <div class="product-option" onclick="selectTyp('zbiornik')">
+              <span class="po-check">&#10003;</span>
+              <div class="po-name" style="font-size:24px;">&#127981;</div>
+              <div class="po-name">Analiza zbiornika</div>
+              <div class="po-desc">Analiza mieszaniny w zbiorniku magazynowym</div>
+            </div>
+          </div>
+        </div>
+
+        {# Step 2a: Szarza form #}
+        <div id="step-2a" style="display:none;">
+          <div class="form-row">
+            <div class="form-label">Produkt</div>
+            <div style="display:flex;gap:6px;margin-bottom:8px;" id="quick-pick-szarza">
+              <button type="button" class="sb-pill" onclick="quickPick(this,'Chegina_K7','szarza')">K7</button>
+              <button type="button" class="sb-pill" onclick="quickPick(this,'Chegina_K40GL','szarza')">K40GL</button>
+              <button type="button" class="sb-pill" onclick="quickPick(this,'Chegina_K40GLO','szarza')">K40GLO</button>
+              <button type="button" class="sb-pill" onclick="quickPick(this,'Chegina_K40GLOL','szarza')">K40GLOL</button>
+            </div>
+            <div class="product-search-wrap" id="search-wrap-szarza">
+              <input class="form-input product-search" type="text"
+                     placeholder="Inny produkt — szukaj..."
+                     oninput="filterProducts(this)"
+                     autocomplete="off">
+              <div class="product-dropdown">
+                {% for p in products %}
+                <div class="product-item" data-product="{{ p }}" onclick="pickProduct(this)">
+                  <span class="product-item-name">{{ p|short_product }}</span>
+                  <span class="product-item-full">{{ p }}</span>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="product-selected" id="selected-product-szarza" style="display:none;">
+              <span class="product-selected-name"></span>
+              <button type="button" class="product-selected-clear" onclick="clearProduct('szarza')">&times;</button>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-label">Nr partii (auto)</div>
+            <input class="form-input" type="text" name="nr_partii" id="nr-partii-input" required readonly placeholder="Wybierz produkt...">
+          </div>
+          <div class="form-row-inline">
+            <div class="form-row" style="margin:0">
+              <div class="form-label">Nr amidatora</div>
+              <input class="form-input" type="text" name="nr_amidatora" placeholder="np. 8">
+            </div>
+            <div class="form-row" style="margin:0">
+              <div class="form-label">Nr mieszalnika</div>
+              <input class="form-input" type="text" name="nr_mieszalnika" placeholder="np. 25">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-label">Wielkosc szarzy [kg]</div>
+            <input class="form-input" type="number" step="any" name="wielkosc_kg" placeholder="np. 4000">
+          </div>
+        </div>
+
+        {# Step 2b: Zbiornik form #}
+        <div id="step-2b" style="display:none;">
+          <div class="form-row">
+            <div class="form-label">Produkt</div>
+            <div style="display:flex;gap:6px;margin-bottom:8px;" id="quick-pick-zbiornik">
+              <button type="button" class="sb-pill" onclick="quickPick(this,'Chegina_K7','zbiornik')">K7</button>
+              <button type="button" class="sb-pill" onclick="quickPick(this,'Chegina_K40GL','zbiornik')">K40GL</button>
+              <button type="button" class="sb-pill" onclick="quickPick(this,'Chegina_K40GLO','zbiornik')">K40GLO</button>
+              <button type="button" class="sb-pill" onclick="quickPick(this,'Chegina_K40GLOL','zbiornik')">K40GLOL</button>
+            </div>
+            <div class="product-search-wrap" id="search-wrap-zbiornik">
+              <input class="form-input product-search" type="text"
+                     placeholder="Inny produkt — szukaj..."
+                     oninput="filterProducts(this)"
+                     autocomplete="off">
+              <div class="product-dropdown">
+                {% for p in products %}
+                <div class="product-item" data-product="{{ p }}" onclick="pickProduct(this)">
+                  <span class="product-item-name">{{ p|short_product }}</span>
+                  <span class="product-item-full">{{ p }}</span>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="product-selected" id="selected-product-zbiornik" style="display:none;">
+              <span class="product-selected-name"></span>
+              <button type="button" class="product-selected-clear" onclick="clearProduct('zbiornik')">&times;</button>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-label">Nr partii (auto)</div>
+            <input class="form-input" type="text" id="nr-partii-input-zb" readonly placeholder="Wybierz produkt...">
+          </div>
+          <div class="form-row">
+            <div class="form-label">Nr zbiornika</div>
+            <input class="form-input" type="text" name="nr_zbiornika" placeholder="np. M16">
+          </div>
+        </div>
+
+        {# Footer #}
+        <div class="modal-footer" id="modal-footer" style="padding:14px 0 0;border-top:none;display:none;">
+          <button type="button" class="m-btn m-btn-o" onclick="backToStep1()">Wstecz</button>
+          <div class="m-sp"></div>
+          <button type="button" class="m-btn m-btn-o" onclick="closeModal()">Anuluj</button>
+          <button type="submit" class="m-btn m-btn-p">Utworz</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentTyp = 'szarza';
+
+function openNewBatchModal() {
+  document.getElementById('reg-modal').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('reg-modal').classList.remove('show');
+  setTimeout(backToStep1, 300);
+}
+
+function selectTyp(typ) {
+  currentTyp = typ;
+  document.getElementById('typ-input').value = typ;
+  document.getElementById('step-1').style.display = 'none';
+  document.getElementById('modal-footer').style.display = 'flex';
+  if (typ === 'szarza') {
+    document.getElementById('step-2a').style.display = 'block';
+    document.getElementById('step-2b').style.display = 'none';
+    document.getElementById('modal-subtitle').textContent = 'Nowa szarza produkcyjna';
+  } else {
+    document.getElementById('step-2a').style.display = 'none';
+    document.getElementById('step-2b').style.display = 'block';
+    document.getElementById('modal-subtitle').textContent = 'Analiza zbiornika magazynowego';
+  }
+}
+
+function backToStep1() {
+  document.getElementById('step-1').style.display = 'block';
+  document.getElementById('step-2a').style.display = 'none';
+  document.getElementById('step-2b').style.display = 'none';
+  document.getElementById('modal-footer').style.display = 'none';
+  document.getElementById('modal-subtitle').textContent = 'Wybierz typ rejestracji';
+  document.querySelectorAll('#step-1 .product-option').forEach(function(p) { p.classList.remove('selected'); });
+  clearProduct('szarza');
+  clearProduct('zbiornik');
+}
+
+function filterProducts(input) {
+  var query = input.value.toLowerCase();
+  var wrap = input.closest('.product-search-wrap');
+  wrap.classList.add('open');
+  wrap.querySelectorAll('.product-item').forEach(function(item) {
+    var name = item.dataset.product.toLowerCase();
+    var shortName = item.querySelector('.product-item-name').textContent.toLowerCase();
+    item.classList.toggle('hidden', !name.includes(query) && !shortName.includes(query));
+  });
+}
+
+function quickPick(btn, product, context) {
+  var container = btn.parentElement;
+  container.querySelectorAll('.sb-pill').forEach(function(p) { p.classList.remove('active'); });
+  btn.classList.add('active');
+  document.getElementById('produkt-input').value = product;
+  var step = context === 'szarza' ? document.getElementById('step-2a') : document.getElementById('step-2b');
+  var wrap = step.querySelector('.product-search-wrap');
+  var selected = step.querySelector('.product-selected');
+  wrap.style.display = 'none';
+  selected.style.display = 'flex';
+  selected.querySelector('.product-selected-name').textContent = btn.textContent.trim() + ' \u2014 ' + product;
+  fetchAutoNr(product, context);
+}
+
+function pickProduct(el) {
+  var product = el.dataset.product;
+  var shortName = el.querySelector('.product-item-name').textContent;
+  document.getElementById('produkt-input').value = product;
+  var wrap = el.closest('.product-search-wrap');
+  wrap.style.display = 'none';
+  var selected = wrap.parentElement.querySelector('.product-selected');
+  selected.style.display = 'flex';
+  selected.querySelector('.product-selected-name').textContent = shortName + ' \u2014 ' + product;
+  fetchAutoNr(product, currentTyp);
+}
+
+function fetchAutoNr(product, context) {
+  fetch('/api/next-nr/' + encodeURIComponent(product))
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (context === 'szarza') {
+        document.getElementById('nr-partii-input').value = data.nr_partii;
+      } else {
+        document.getElementById('nr-partii-input-zb').value = data.nr_partii;
+      }
+    });
+}
+
+function clearProduct(context) {
+  document.getElementById('produkt-input').value = '';
+  var step = context === 'szarza' ? document.getElementById('step-2a') : document.getElementById('step-2b');
+  if (!step) return;
+  var wrap = step.querySelector('.product-search-wrap');
+  var selected = step.querySelector('.product-selected');
+  if (wrap) {
+    wrap.style.display = 'block';
+    var searchInput = wrap.querySelector('.product-search');
+    if (searchInput) searchInput.value = '';
+    wrap.classList.remove('open');
+    wrap.querySelectorAll('.product-item').forEach(function(item) { item.classList.remove('hidden'); });
+  }
+  if (selected) selected.style.display = 'none';
+  var qp = step.querySelector('[id^="quick-pick-"]');
+  if (qp) qp.querySelectorAll('.sb-pill').forEach(function(p) { p.classList.remove('active'); });
+  if (context === 'szarza') {
+    document.getElementById('nr-partii-input').value = '';
+  } else {
+    var zb = document.getElementById('nr-partii-input-zb');
+    if (zb) zb.value = '';
+  }
+}
+
+// Dropdown blur/focus handlers
+document.querySelectorAll('.product-search').forEach(function(input) {
+  input.addEventListener('blur', function() {
+    setTimeout(function() { input.closest('.product-search-wrap').classList.remove('open'); }, 200);
+  });
+  input.addEventListener('focus', function() {
+    input.closest('.product-search-wrap').classList.add('open');
+  });
+});
+
+// Sync zbiornik nr_partii before submit
+document.getElementById('new-batch-form').addEventListener('submit', function() {
+  if (currentTyp === 'zbiornik') {
+    var zbVal = document.getElementById('nr-partii-input-zb').value;
+    document.getElementById('nr-partii-input').value = zbVal;
+    document.getElementById('nr-partii-input-zb').removeAttribute('name');
+    document.getElementById('nr-partii-input').removeAttribute('readonly');
+  }
+});
+</script>
