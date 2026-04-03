@@ -74,10 +74,21 @@
       <div id="shift-worker-list" class="sw-list">Ladowanie...</div>
     </div>
     <div class="modal-footer">
-      <a href="{{ url_for('logout') }}" class="m-btn m-btn-o" style="font-size:11px;color:var(--text-dim);" onclick="return confirm('Na pewno wylogowac?')">Wyloguj</a>
+      <button class="m-btn m-btn-o" style="font-size:11px;color:var(--text-dim);" onclick="document.getElementById('logout-confirm').classList.add('show')">Wyloguj</button>
       <div class="m-sp"></div>
       <button class="m-btn m-btn-o" onclick="closeShiftModal()">Anuluj</button>
       <button class="m-btn m-btn-p" onclick="saveShift()">Potwierdz zmiane</button>
+    </div>
+  </div>
+</div>
+
+<!-- Logout confirm -->
+<div class="modal-overlay" id="logout-confirm" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="logout-dialog">
+    <div class="ld-text">Na pewno wylogować?</div>
+    <div class="ld-btns">
+      <button class="m-btn m-btn-o" onclick="document.getElementById('logout-confirm').classList.remove('show')">Nie</button>
+      <a href="{{ url_for('logout') }}" class="m-btn m-btn-p ld-yes">Tak, wyloguj</a>
     </div>
   </div>
 </div>
@@ -318,6 +329,16 @@ setInterval(checkShiftReminder, 60000);
 </script>
 
 <style>
+/* Logout dialog */
+.logout-dialog {
+  background: var(--surface); border-radius: 14px; padding: 24px 28px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
+  text-align: center; animation: modalIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  max-width: 280px; width: 90%;
+}
+.ld-text { font-size: 14px; font-weight: 600; margin-bottom: 18px; color: var(--text); }
+.ld-btns { display: flex; gap: 8px; justify-content: center; }
+.ld-yes { text-decoration: none; }
 /* crew label truncation in wide rail */
 .rail-wide #crew-label { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block !important; }
 #shift-overlay.show { display: flex; }
