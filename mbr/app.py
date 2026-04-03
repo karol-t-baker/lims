@@ -17,7 +17,7 @@ from mbr.models import (
     create_ebr, get_ebr, get_ebr_wyniki, get_round_state, save_wyniki, complete_ebr,
     sync_ebr_to_v4, next_nr_partii, PRODUCTS,
     list_completed_registry, get_registry_columns, list_completed_products,
-    list_workers, update_worker_nickname,
+    list_workers, update_worker_profile, update_worker_nickname,
 )
 
 app = Flask(__name__)
@@ -458,13 +458,15 @@ def api_shift():
     return jsonify({"worker_ids": session.get("shift_workers", [])})
 
 
-@app.route("/api/worker/<int:worker_id>/nickname", methods=["POST"])
+@app.route("/api/worker/<int:worker_id>/profile", methods=["POST"])
 @login_required
-def api_worker_nickname(worker_id):
+def api_worker_profile(worker_id):
     data = request.get_json(silent=True) or {}
-    nickname = data.get("nickname", "")
     with db_session() as db:
-        update_worker_nickname(db, worker_id, nickname)
+        update_worker_profile(db, worker_id,
+            nickname=data.get("nickname"),
+            avatar_icon=data.get("avatar_icon"),
+            avatar_color=data.get("avatar_color"))
     return jsonify({"ok": True})
 
 

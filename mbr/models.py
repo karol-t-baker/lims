@@ -122,6 +122,8 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             nazwisko    TEXT NOT NULL,
             inicjaly    TEXT NOT NULL,
             nickname    TEXT DEFAULT '',
+            avatar_icon INTEGER DEFAULT 0,
+            avatar_color INTEGER DEFAULT 0,
             aktywny     INTEGER NOT NULL DEFAULT 1
         )
     """)
@@ -146,6 +148,13 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     cols = [r[1] for r in db.execute("PRAGMA table_info(ebr_batches)").fetchall()]
     if "nastaw" not in cols:
         db.execute("ALTER TABLE ebr_batches ADD COLUMN nastaw INTEGER")
+        db.commit()
+
+    # Migration: add avatar columns to workers if not exists
+    wcols = [r[1] for r in db.execute("PRAGMA table_info(workers)").fetchall()]
+    if "avatar_icon" not in wcols:
+        db.execute("ALTER TABLE workers ADD COLUMN avatar_icon INTEGER DEFAULT 0")
+        db.execute("ALTER TABLE workers ADD COLUMN avatar_color INTEGER DEFAULT 0")
         db.commit()
 
 
@@ -229,9 +238,28 @@ def list_workers(db, aktywny=True):
     return [dict(r) for r in db.execute(sql).fetchall()]
 
 
-def update_worker_nickname(db, worker_id, nickname):
-    db.execute("UPDATE workers SET nickname = ? WHERE id = ?", (nickname, worker_id))
+def update_worker_profile(db, worker_id, nickname=None, avatar_icon=None, avatar_color=None):
+    sets = []
+    vals = []
+    if nickname is not None:
+        sets.append("nickname = ?")
+        vals.append(nickname)
+    if avatar_icon is not None:
+        sets.append("avatar_icon = ?")
+        vals.append(avatar_icon)
+    if avatar_color is not None:
+        sets.append("avatar_color = ?")
+        vals.append(avatar_color)
+    if not sets:
+        return
+    vals.append(worker_id)
+    db.execute(f"UPDATE workers SET {', '.join(sets)} WHERE id = ?", vals)
     db.commit()
+
+
+# Backwards compat alias
+def update_worker_nickname(db, worker_id, nickname):
+    update_worker_profile(db, worker_id, nickname=nickname)
 
 
 # ---------------------------------------------------------------------------

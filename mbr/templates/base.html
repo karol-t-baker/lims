@@ -151,8 +151,8 @@ function renderShiftList() {
   }
   list.innerHTML = _shiftWorkers.map(function(w) {
     var active = shiftWorkerIds.indexOf(w.id) >= 0;
-    var c = AVATAR_COLORS[(w.id - 1) % AVATAR_COLORS.length];
-    var icon = AVATAR_ICONS[(w.id - 1) % AVATAR_ICONS.length];
+    var c = AVATAR_COLORS[(w.avatar_color || 0) % AVATAR_COLORS.length];
+    var icon = AVATAR_ICONS[(w.avatar_icon || 0) % AVATAR_ICONS.length];
     var display = w.nickname || (w.imie + ' ' + w.nazwisko);
     return '<div class="sw-card' + (active ? ' active' : '') + '" data-wid="' + w.id + '">' +
       '<div class="sw-avatar" style="background:' + c.bg + ';color:' + c.fg + ';" onclick="toggleShiftWorker(this.parentElement,' + w.id + ')">' + icon + '</div>' +
@@ -186,36 +186,78 @@ function editWorkerNick(wid) {
 
   // Build inline editor
   var currentNick = w.nickname || '';
-  var c = AVATAR_COLORS[(w.id - 1) % AVATAR_COLORS.length];
-  var icon = AVATAR_ICONS[(w.id - 1) % AVATAR_ICONS.length];
+  var curIcon = w.avatar_icon || 0;
+  var curColor = w.avatar_color || 0;
+
   var html = '<div class="sw-editor">' +
     '<div class="sw-editor-header">' +
-      '<div class="sw-avatar" style="background:' + c.bg + ';color:' + c.fg + ';width:48px;height:48px;border-radius:12px;">' + icon + '</div>' +
+      '<div class="sw-avatar sw-editor-preview" id="ed-preview" style="background:' + AVATAR_COLORS[curColor % AVATAR_COLORS.length].bg + ';color:' + AVATAR_COLORS[curColor % AVATAR_COLORS.length].fg + ';width:52px;height:52px;border-radius:14px;">' + AVATAR_ICONS[curIcon % AVATAR_ICONS.length] + '</div>' +
       '<div><div class="sw-editor-title">' + w.imie + ' ' + w.nazwisko + '</div>' +
-      '<div style="font-size:11px;color:var(--text-dim);">Inicjaly: ' + w.inicjaly + '</div></div>' +
+      '<div style="font-size:11px;color:var(--text-dim);">' + w.inicjaly + '</div></div>' +
     '</div>' +
     '<div class="sw-editor-section">' +
-      '<label class="sw-editor-label">Wyswietlany nick</label>' +
+      '<label class="sw-editor-label">Nick</label>' +
       '<input class="form-input sw-nick-input" id="nick-edit-input" value="' + currentNick + '" placeholder="np. Ania, Kasia..." style="width:100%;">' +
-      '<div style="font-size:10px;color:var(--text-dim);margin-top:4px;">Jezeli ustawisz nick, bedzie wyswietlany zamiast imienia i nazwiska.</div>' +
+    '</div>' +
+    '<div class="sw-editor-section">' +
+      '<label class="sw-editor-label">Ikonka</label>' +
+      '<div class="sw-picker-grid" id="icon-picker">' +
+        AVATAR_ICONS.map(function(ic, i) {
+          var sel = i === curIcon ? ' selected' : '';
+          return '<button type="button" class="sw-pick-btn' + sel + '" data-idx="' + i + '" onclick="pickIcon(' + i + ')">' + ic + '</button>';
+        }).join('') +
+      '</div>' +
+    '</div>' +
+    '<div class="sw-editor-section">' +
+      '<label class="sw-editor-label">Kolor</label>' +
+      '<div class="sw-picker-grid sw-color-grid" id="color-picker">' +
+        AVATAR_COLORS.map(function(c, i) {
+          var sel = i === curColor ? ' selected' : '';
+          return '<button type="button" class="sw-color-btn' + sel + '" data-idx="' + i + '" style="background:' + c.bg + ';border-color:' + c.fg + ';" onclick="pickColor(' + i + ')"></button>';
+        }).join('') +
+      '</div>' +
     '</div>' +
     '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">' +
       '<button class="m-btn m-btn-o" onclick="renderShiftList()">Anuluj</button>' +
-      '<button class="m-btn m-btn-p" onclick="saveWorkerNick(' + wid + ')">Zapisz</button>' +
+      '<button class="m-btn m-btn-p" onclick="saveWorkerProfile(' + wid + ')">Zapisz</button>' +
     '</div>' +
   '</div>';
   list.innerHTML = html;
+
+  // Store current selections
+  window._edIcon = curIcon;
+  window._edColor = curColor;
 }
 
-async function saveWorkerNick(wid) {
+function pickIcon(idx) {
+  window._edIcon = idx;
+  document.querySelectorAll('#icon-picker .sw-pick-btn').forEach(function(b) { b.classList.toggle('selected', parseInt(b.dataset.idx) === idx); });
+  updateEditorPreview();
+}
+
+function pickColor(idx) {
+  window._edColor = idx;
+  document.querySelectorAll('#color-picker .sw-color-btn').forEach(function(b) { b.classList.toggle('selected', parseInt(b.dataset.idx) === idx); });
+  updateEditorPreview();
+}
+
+function updateEditorPreview() {
+  var preview = document.getElementById('ed-preview');
+  if (!preview) return;
+  var c = AVATAR_COLORS[window._edColor % AVATAR_COLORS.length];
+  preview.style.background = c.bg;
+  preview.style.color = c.fg;
+  preview.innerHTML = AVATAR_ICONS[window._edIcon % AVATAR_ICONS.length];
+}
+
+async function saveWorkerProfile(wid) {
   var nick = document.getElementById('nick-edit-input').value.trim();
-  await fetch('/api/worker/' + wid + '/nickname', {
+  await fetch('/api/worker/' + wid + '/profile', {
     method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({nickname: nick})
+    body: JSON.stringify({nickname: nick, avatar_icon: window._edIcon, avatar_color: window._edColor})
   });
-  // Update cached data
   var w = _shiftWorkers.find(function(x) { return x.id === wid; });
-  if (w) w.nickname = nick;
+  if (w) { w.nickname = nick; w.avatar_icon = window._edIcon; w.avatar_color = window._edColor; }
   renderShiftList();
 }
 
@@ -319,6 +361,23 @@ setInterval(checkShiftReminder, 60000);
 .sw-editor-section { margin-bottom: 14px; }
 .sw-editor-label { font-size: 11px; font-weight: 600; color: var(--text-dim); display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.3px; }
 .sw-nick-input { font-size: 14px !important; padding: 10px 12px !important; }
+.sw-editor-preview svg { width: 24px; height: 24px; }
+.sw-picker-grid { display: flex; flex-wrap: wrap; gap: 5px; }
+.sw-pick-btn {
+  width: 34px; height: 34px; border-radius: 8px; border: 1.5px solid var(--border);
+  background: var(--surface); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-dim); transition: all 0.12s; padding: 0;
+}
+.sw-pick-btn svg { width: 16px; height: 16px; }
+.sw-pick-btn:hover { border-color: var(--teal); color: var(--teal); }
+.sw-pick-btn.selected { border-color: var(--teal); background: var(--teal-bg); color: var(--teal); box-shadow: 0 0 0 2px rgba(13,148,136,0.15); }
+.sw-color-btn {
+  width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent;
+  cursor: pointer; transition: all 0.12s;
+}
+.sw-color-btn:hover { transform: scale(1.15); }
+.sw-color-btn.selected { transform: scale(1.15); border-width: 2.5px; box-shadow: 0 0 0 2px rgba(0,0,0,0.1); }
 </style>
 </body>
 </html>
