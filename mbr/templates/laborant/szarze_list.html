@@ -82,6 +82,7 @@
     </select>
     <span class="form-label" style="margin:0;white-space:nowrap;">Nr:</span>
     <input class="form-input" type="text" placeholder="nr szarzy/zbiornika..." id="filter-nr" oninput="applyTableFilters()" style="width:120px;">
+    <button class="q-btn" onclick="clearFilters()" title="Wyczysc filtry">&times;</button>
   </div>
 
   <div class="section-title">Otwarte szarze <span class="section-count">{{ batches|length }}</span></div>
@@ -185,6 +186,13 @@ function filterByType(typ) {
       card.style.display = card.dataset.typ === typ ? '' : 'none';
     }
   });
+}
+
+function clearFilters() {
+  document.getElementById('filter-produkt').value = '';
+  document.getElementById('filter-typ').value = '';
+  document.getElementById('filter-nr').value = '';
+  applyTableFilters();
 }
 
 function applyTableFilters() {
