@@ -468,8 +468,14 @@ function renderSidebarEtapy() {
   const rs = typeof roundState !== 'undefined' ? roundState : null;
   const hasCycle = typeof parametry !== 'undefined' && parametry.analiza && parametry.dodatki;
 
+  // For zbiornik: only show Analiza końcowa + Przepompowanie
+  const isZbiornik = typeof ebrTyp !== 'undefined' && ebrTyp === 'zbiornik';
+  const filteredEtapy = isZbiornik
+    ? etapy.filter(e => e.sekcja_lab === 'analiza_koncowa' || (e.read_only && e.nazwa === 'Przepompowanie'))
+    : etapy;
+
   let html = '';
-  etapy.forEach((etap, i) => {
+  filteredEtapy.forEach((etap, i) => {
     const isLab = etap.sekcja_lab && !etap.read_only;
     let status = 'pending'; // pending | active | done
     let detail = '';
