@@ -107,13 +107,8 @@
             </div>
           </div>
           <div class="form-row">
-            <div class="form-label">Wielkosc szarzy [kg]</div>
-            <input class="form-input" type="number" step="any" name="wielkosc_kg" placeholder="np. 4000">
-          </div>
-          <div class="nf-field">
-            <label class="form-label">Nastaw</label>
-            <input class="form-input" type="number" name="nastaw" required
-                   placeholder="Nastaw..." style="width:100%;">
+            <div class="form-label">Wielkosc szarzy (nastaw) [kg]</div>
+            <input class="form-input" type="number" step="any" name="wielkosc_kg" required placeholder="np. 4000">
           </div>
         </div>
 
@@ -316,8 +311,16 @@ document.querySelectorAll('.product-search').forEach(function(input) {
   });
 });
 
-// Sync zbiornik nr_partii before submit
-document.getElementById('new-batch-form').addEventListener('submit', function() {
+// Validate + sync before submit
+document.getElementById('new-batch-form').addEventListener('submit', function(e) {
+  // Validate produkt is selected
+  var produkt = document.getElementById('produkt-input').value;
+  if (!produkt) {
+    e.preventDefault();
+    alert('Wybierz produkt.');
+    return false;
+  }
+  // Sync zbiornik nr_partii
   if (currentTyp === 'zbiornik') {
     var zbVal = document.getElementById('nr-partii-input-zb').value;
     document.getElementById('nr-partii-input').value = zbVal;
