@@ -146,6 +146,41 @@
   </div>
   {% endif %}
 
+  {# ── Ostatnio ukonczone (7 dni) ── #}
+  {% if recent %}
+  <div class="section-title" style="margin-top:24px;">Ostatnio ukonczone <span class="section-count">{{ recent|length }} / 7 dni</span></div>
+  <table class="queue-table">
+    <thead>
+      <tr>
+        <th>Nr partii</th>
+        <th>Produkt</th>
+        <th>Typ</th>
+        <th>Zakonczona</th>
+        <th>Wyniki</th>
+        <th>PDF</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in recent %}
+      <tr style="cursor:pointer;" onclick="location.href='{{ url_for('fast_entry', ebr_id=r.ebr_id) }}'">
+        <td><span class="q-batch">{{ r.nr_partii }}</span></td>
+        <td><span class="q-product">{{ r.produkt|short_product }}</span></td>
+        <td><span class="typ-badge {{ r.typ or 'szarza' }}">{{ r.typ or 'szarza' }}</span></td>
+        <td class="q-time">{{ r.dt_end | pl_date }}</td>
+        <td>
+          {% if r.out_of_limit > 0 %}
+            <span class="q-priority urgent">{{ r.out_of_limit }} poza limitem</span>
+          {% else %}
+            <span class="q-priority low">OK ({{ r.total_wyniki }})</span>
+          {% endif %}
+        </td>
+        <td><a href="{{ url_for('pdf_ebr', ebr_id=r.ebr_id) }}" class="q-btn" target="_blank" onclick="event.stopPropagation()">PDF</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+
 </div>
 
 {% include "laborant/_modal_nowa_szarza.html" %}

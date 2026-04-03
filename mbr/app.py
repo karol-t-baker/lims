@@ -13,7 +13,7 @@ from flask import Flask, Response, redirect, url_for, request, session, render_t
 from mbr.models import (
     get_db, init_mbr_tables, verify_user,
     list_mbr, get_mbr, save_mbr, activate_mbr, clone_mbr,
-    list_ebr_open, list_ebr_completed, export_wyniki_csv,
+    list_ebr_open, list_ebr_completed, list_ebr_recent, export_wyniki_csv,
     create_ebr, get_ebr, get_ebr_wyniki, save_wyniki, complete_ebr,
     sync_ebr_to_v4, next_nr_partii, PRODUCTS,
 )
@@ -281,10 +281,11 @@ def szarze_list():
         produkt = request.args.get("produkt")
         typ = request.args.get("typ")
         batches = list_ebr_open(db, produkt=produkt, typ=typ)
+        recent = list_ebr_recent(db, days=7)
     finally:
         db.close()
-    return render_template("laborant/szarze_list.html", batches=batches, products=PRODUCTS,
-                           filter_produkt=produkt, filter_typ=typ)
+    return render_template("laborant/szarze_list.html", batches=batches, recent=recent,
+                           products=PRODUCTS, filter_produkt=produkt, filter_typ=typ)
 
 
 @app.route("/laborant/szarze/new", methods=["POST"])

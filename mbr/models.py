@@ -374,6 +374,31 @@ def list_ebr_completed(
     return [dict(r) for r in rows]
 
 
+def list_ebr_recent(db: sqlite3.Connection, days: int = 7) -> list[dict]:
+    """List recently completed batches (last N days) with wyniki summary."""
+    cutoff = (datetime.now() - __import__('datetime').timedelta(days=days)).isoformat(timespec="seconds")
+    rows = db.execute("""
+        SELECT
+            eb.ebr_id,
+            eb.batch_id,
+            eb.nr_partii,
+            mt.produkt,
+            eb.nr_amidatora,
+            eb.dt_start,
+            eb.dt_end,
+            eb.typ,
+            (SELECT COUNT(*) FROM ebr_wyniki ew WHERE ew.ebr_id = eb.ebr_id AND ew.w_limicie = 0)
+                AS out_of_limit,
+            (SELECT COUNT(*) FROM ebr_wyniki ew WHERE ew.ebr_id = eb.ebr_id)
+                AS total_wyniki
+        FROM ebr_batches eb
+        JOIN mbr_templates mt ON mt.mbr_id = eb.mbr_id
+        WHERE eb.status = 'completed' AND eb.dt_end >= ?
+        ORDER BY eb.dt_end DESC
+    """, (cutoff,)).fetchall()
+    return [dict(r) for r in rows]
+
+
 def export_wyniki_csv(
     db: sqlite3.Connection, produkt: str | None = None
 ) -> list[dict]:
