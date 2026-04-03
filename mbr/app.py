@@ -321,9 +321,10 @@ def fast_entry(ebr_id):
         if ebr is None:
             return "Nie znaleziono szarzy", 404
         wyniki = get_ebr_wyniki(db, ebr_id)
+        all_open = list_ebr_open(db)
     finally:
         db.close()
-    return render_template("laborant/fast_entry.html", ebr=ebr, wyniki=wyniki)
+    return render_template("laborant/fast_entry.html", ebr=ebr, wyniki=wyniki, all_open=all_open)
 
 
 @app.route("/laborant/ebr/<int:ebr_id>/save", methods=["POST"])

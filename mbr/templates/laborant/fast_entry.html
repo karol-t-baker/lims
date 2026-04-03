@@ -64,19 +64,61 @@
     </div>
   </div>
 
-  {# Panel: Szarze #}
+  {# Panel: Szarze — all open batches (typ=szarza) #}
   <div class="sb-panel" id="panel-szarze">
     <div class="sb-lab">Aktywne szarze</div>
-    <div class="sb-list" id="sb-szarze">
-      {# filled by JS #}
+    <div class="sb-list">
+      {% for b in all_open if (b.typ or 'szarza') == 'szarza' %}
+      <div class="batch-card {{ 'active' if b.ebr_id == ebr.ebr_id else '' }}"
+           onclick="location.href='{{ url_for('fast_entry', ebr_id=b.ebr_id) }}'">
+        <div class="bc-top">
+          <span class="bc-nr">{{ b.nr_partii }}</span>
+          <span class="bc-product">{{ b.produkt|short_product }}</span>
+          <span class="bc-typ-icon">&#9879;</span>
+        </div>
+        <div class="bc-meta">
+          <span class="bc-equip">A-{{ b.nr_amidatora or '?' }} / M-{{ b.nr_mieszalnika or '?' }}</span>
+          <span class="bc-time">{{ b.dt_start | pl_date }}</span>
+        </div>
+        <div class="bc-status {{ 'alert' if b.out_of_limit > 0 else 'progress' if b.last_entry else 'waiting' }}">
+          <span class="bc-status-dot"></span>
+          {% if b.out_of_limit > 0 %}{{ b.out_of_limit }} poza limitem
+          {% elif b.last_entry %}W toku
+          {% else %}Oczekuje{% endif %}
+        </div>
+      </div>
+      {% else %}
+      <div style="padding:12px;font-size:11px;color:var(--text-dim);">Brak otwartych szarz</div>
+      {% endfor %}
     </div>
   </div>
 
-  {# Panel: Zbiorniki #}
+  {# Panel: Zbiorniki — all open batches (typ=zbiornik) #}
   <div class="sb-panel" id="panel-zbiorniki">
     <div class="sb-lab">Zbiorniki magazynowe</div>
     <div class="sb-list">
-      <div class="sb-footer">Wkrotce</div>
+      {% for b in all_open if b.typ == 'zbiornik' %}
+      <div class="batch-card typ-zbiornik {{ 'active' if b.ebr_id == ebr.ebr_id else '' }}"
+           onclick="location.href='{{ url_for('fast_entry', ebr_id=b.ebr_id) }}'">
+        <div class="bc-top">
+          <span class="bc-nr">{{ b.nr_partii }}</span>
+          <span class="bc-product">{{ b.produkt|short_product }}</span>
+          <span class="bc-typ-icon">&#9648;</span>
+        </div>
+        <div class="bc-meta">
+          <span>Zbiornik</span>
+          <span class="bc-time">{{ b.dt_start | pl_date }}</span>
+        </div>
+        <div class="bc-status {{ 'alert' if b.out_of_limit > 0 else 'progress' if b.last_entry else 'waiting' }}">
+          <span class="bc-status-dot"></span>
+          {% if b.out_of_limit > 0 %}{{ b.out_of_limit }} poza limitem
+          {% elif b.last_entry %}W toku
+          {% else %}Oczekuje{% endif %}
+        </div>
+      </div>
+      {% else %}
+      <div style="padding:12px;font-size:11px;color:var(--text-dim);">Brak otwartych zbiornikow</div>
+      {% endfor %}
     </div>
   </div>
 
@@ -223,57 +265,7 @@ function renderSidebar() {
 }
 
 
-// ═══ RENDER SIDEBAR SZARZE ═══
-
-function renderSzarze() {
-    const container = document.getElementById('sb-szarze');
-    container.innerHTML = '';
-
-    // Count progress for current batch
-    let totalSections = 0, doneSections = 0;
-    etapy.forEach(etap => {
-        const sekcja = etap.sekcja_lab || '';
-        if (!sekcja || etap.read_only) return;
-        if (ebrTyp === 'zbiornik' && sekcja !== 'analiza_koncowa') return;
-        totalSections++;
-        if (wyniki[sekcja] && Object.keys(wyniki[sekcja]).length > 0) doneSections++;
-    });
-    const pctWidth = totalSections > 0 ? Math.round((doneSections / totalSections) * 100) : 0;
-    const isZbiornik = ebrTyp === 'zbiornik';
-
-    const nrPartii = {{ ebr.nr_partii | tojson }};
-    const shortProduct = {{ ebr.produkt|short_product | tojson }};
-    const nrAmidatora = {{ (ebr.nr_amidatora or '?') | tojson }};
-    const nrMieszalnika = {{ (ebr.nr_mieszalnika or '?') | tojson }};
-    const dtStart = {{ (ebr.dt_start | pl_date) | tojson }};
-
-    const equipHtml = isZbiornik
-        ? '<span>Zbiornik</span>'
-        : '<span class="bc-equip">A-' + esc(nrAmidatora) + ' / M-' + esc(nrMieszalnika) + '</span>';
-    const statusCls = doneSections === totalSections && totalSections > 0 ? 'done' : doneSections > 0 ? 'progress' : 'waiting';
-    const statusText = doneSections === totalSections && totalSections > 0 ? 'Gotowy' : doneSections > 0 ? 'W toku' : 'Oczekuje na analize';
-
-    const card = document.createElement('div');
-    card.className = 'batch-card active' + (isZbiornik ? ' typ-zbiornik' : '');
-    card.innerHTML =
-        '<div class="bc-top">' +
-            '<span class="bc-nr">' + esc(nrPartii) + '</span>' +
-            '<span class="bc-product">' + esc(shortProduct) + '</span>' +
-            '<span class="bc-typ-icon" title="' + (isZbiornik ? 'Zbiornik' : 'Szarza') + '">' + (isZbiornik ? '&#9648;' : '&#9879;') + '</span>' +
-        '</div>' +
-        '<div class="bc-meta">' +
-            equipHtml +
-            '<span class="bc-time">' + esc(dtStart) + '</span>' +
-        '</div>' +
-        '<div class="bc-progress">' +
-            '<div class="bc-bar"><div class="bc-bar-fill" style="width:' + pctWidth + '%"></div></div>' +
-            '<span class="bc-pct">' + doneSections + '/' + totalSections + '</span>' +
-        '</div>' +
-        '<div class="bc-status ' + statusCls + '">' +
-            '<span class="bc-status-dot"></span> ' + statusText +
-        '</div>';
-    container.appendChild(card);
-}
+// renderSzarze removed — panels "Szarze" and "Zbiorniki" are now server-rendered in Jinja2
 
 
 // ═══ RENDER MAIN SECTIONS ═══
@@ -619,7 +611,6 @@ function esc(s) {
 // ═══ INIT ═══
 
 renderSidebar();
-renderSzarze();
 renderSections();
 renderReferences();
 setupComputedFields();
