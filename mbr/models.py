@@ -355,14 +355,27 @@ def list_ebr_open(
 
 
 def _compute_stage_info(ebr_row: dict) -> dict:
-    """Compute stage_name, stage_status, progress_pct from parametry_lab + filled_count."""
+    """Compute synthesis stage from completed lab sections.
+
+    Szarża logic (based on which lab analyses are done):
+      - No results          → "Produkcja" (somewhere before standaryzacja)
+      - przed_stand partial  → "Analiza przed standaryzacją" (in_progress)
+      - przed_stand done     → "Standaryzacja" (analysis done, now standardizing)
+      - analiza_konc partial → "Analiza końcowa" (in_progress)
+      - analiza_konc done    → "Gotowy do zatwierdzenia"
+
+    Zbiornik logic:
+      - No results  → "Oczekuje na analizę"
+      - Partial     → "Analiza w trakcie"
+      - Done        → "Gotowy do zatwierdzenia"
+    """
     parametry_raw = ebr_row.get("parametry_lab", "{}")
     parametry = json.loads(parametry_raw) if isinstance(parametry_raw, str) else parametry_raw
     filled = ebr_row.get("filled_count", 0) or 0
     typ = ebr_row.get("typ", "szarza")
 
-    # Count total fields and per-section fields
-    sections = []
+    # Count per-section fields
+    sections = {}
     total_fields = 0
     for sek_key, sek_def in parametry.items():
         pola = sek_def.get("pola", sek_def) if isinstance(sek_def, dict) else sek_def
@@ -370,42 +383,44 @@ def _compute_stage_info(ebr_row: dict) -> dict:
             pola = []
         n = len(pola)
         total_fields += n
-        sections.append({"key": sek_key, "count": n})
+        sections[sek_key] = n
 
     if total_fields == 0:
         return {"stage_name": "Brak parametrów", "stage_status": "waiting", "progress_pct": 0}
 
-    progress_pct = round((filled / total_fields) * 100) if total_fields > 0 else 0
+    progress_pct = round((filled / total_fields) * 100)
 
+    # ── Zbiornik ──
     if typ == "zbiornik":
         if filled == 0:
-            return {"stage_name": "Analiza końcowa", "stage_status": "waiting", "progress_pct": 0}
+            return {"stage_name": "Oczekuje na analizę", "stage_status": "waiting", "progress_pct": 0}
         elif filled < total_fields:
-            return {"stage_name": "Analiza końcowa", "stage_status": "in_progress", "progress_pct": progress_pct}
+            return {"stage_name": "Analiza w trakcie", "stage_status": "in_progress", "progress_pct": progress_pct}
         else:
             return {"stage_name": "Gotowy do zatwierdzenia", "stage_status": "done", "progress_pct": 100}
 
-    # Szarza: check which sections are filled
-    # Section order: przed_standaryzacja → analiza_koncowa
-    sek_przed = next((s for s in sections if s["key"] == "przed_standaryzacja"), None)
-    sek_konc = next((s for s in sections if s["key"] == "analiza_koncowa"), None)
-
-    przed_n = sek_przed["count"] if sek_przed else 0
-    konc_n = sek_konc["count"] if sek_konc else 0
+    # ── Szarża ──
+    przed_n = sections.get("przed_standaryzacja", 0)
+    konc_n = sections.get("analiza_koncowa", 0)
 
     if filled == 0:
-        return {"stage_name": "Przed standaryzacją", "stage_status": "waiting", "progress_pct": 0}
-    elif filled <= przed_n:
-        if filled < przed_n:
-            return {"stage_name": "Przed standaryzacją", "stage_status": "in_progress", "progress_pct": progress_pct}
-        else:
-            return {"stage_name": "Analiza końcowa", "stage_status": "waiting", "progress_pct": progress_pct}
-    else:
-        filled_konc = filled - przed_n
-        if filled_konc < konc_n:
-            return {"stage_name": "Analiza końcowa", "stage_status": "in_progress", "progress_pct": progress_pct}
-        else:
-            return {"stage_name": "Gotowy do zatwierdzenia", "stage_status": "done", "progress_pct": 100}
+        # No lab results yet — batch is in production (before any analysis)
+        return {"stage_name": "Produkcja", "stage_status": "waiting", "progress_pct": 0}
+
+    if przed_n > 0 and filled < przed_n:
+        # Partially filled przed_standaryzacja
+        return {"stage_name": "Analiza przed standaryzacją", "stage_status": "in_progress", "progress_pct": progress_pct}
+
+    if przed_n > 0 and filled == przed_n:
+        # przed_standaryzacja complete, analiza_koncowa not started
+        return {"stage_name": "Standaryzacja", "stage_status": "waiting", "progress_pct": progress_pct}
+
+    # filled > przed_n → some analiza_koncowa results exist
+    filled_konc = filled - przed_n
+    if filled_konc < konc_n:
+        return {"stage_name": "Analiza końcowa", "stage_status": "in_progress", "progress_pct": progress_pct}
+
+    return {"stage_name": "Gotowy do zatwierdzenia", "stage_status": "done", "progress_pct": 100}
 
 
 def list_ebr_completed(
