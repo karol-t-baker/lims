@@ -86,9 +86,9 @@
 {% endblock %}
 
 {% block topbar %}
-<div class="topbar" id="topbar">
-  <span class="tp-t" id="topbar-title">Szarze EBR</span>
-  <span class="tp-r" id="topbar-right">{{ batches|length }} otwartych</span>
+<div class="topbar" id="topbar" style="display:none;">
+  <span class="tp-t" id="topbar-title"></span>
+  <span class="tp-r" id="topbar-right"></span>
 </div>
 {% endblock %}
 
@@ -110,37 +110,34 @@
     {# KPI #}
     {% set szarze_only = batches|rejectattr('typ', 'equalto', 'zbiornik')|list %}
     {% set zbiorniki_only = batches|selectattr('typ', 'equalto', 'zbiornik')|list %}
-    {% set oczekujace = batches|selectattr('stage_status', 'equalto', 'waiting')|list %}
-    {% set gotowe = batches|selectattr('stage_status', 'equalto', 'done')|list %}
+    {% set w_trakcie = batches|selectattr('stage_status', 'equalto', 'in_progress')|list %}
     {% set poza_limitem = batches|selectattr('out_of_limit', 'gt', 0)|list %}
-    <div class="kpi-row">
-      <div class="kpi {{ 'highlight' if oczekujace }}">
-        <div class="kpi-label">Oczekujace</div>
-        <div class="kpi-value">{{ oczekujace|length }}</div>
-        <div class="kpi-sub">
-          {% set pc = {} %}
-          {% for b in oczekujace %}{% if pc.update({b.produkt|short_product: (pc.get(b.produkt|short_product, 0) + 1)}) %}{% endif %}{% endfor %}
-          {{ pc.items()|map('join', ': ')|join(', ') or 'brak' }}
-        </div>
-      </div>
+    {# Count batches per stage #}
+    {% set stage_counts = {} %}
+    {% for b in szarze_only %}{% if stage_counts.update({b.stage_name|default('?'): (stage_counts.get(b.stage_name|default('?'), 0) + 1)}) %}{% endif %}{% endfor %}
+    <div class="kpi-row" style="grid-template-columns: repeat(3, 1fr);">
       <div class="kpi">
         <div class="kpi-label">Aktywne szarze</div>
         <div class="kpi-value">{{ szarze_only|length }}</div>
         <div class="kpi-sub">
-          {% set sp = {} %}
-          {% for b in szarze_only %}{% if sp.update({b.produkt|short_product: (sp.get(b.produkt|short_product, 0) + 1)}) %}{% endif %}{% endfor %}
-          {{ sp.items()|map('join', ': ')|join(', ') or 'brak' }}
+          {% for stage, cnt in stage_counts.items() %}
+          <span style="display:inline-block;margin-right:8px;">{{ stage }}: <strong>{{ cnt }}</strong></span>
+          {% endfor %}
+          {% if not stage_counts %}brak{% endif %}
         </div>
       </div>
       <div class="kpi">
         <div class="kpi-label">Zbiorniki</div>
         <div class="kpi-value">{{ zbiorniki_only|length }}</div>
-        <div class="kpi-sub">{{ gotowe|length }} gotowych</div>
+        <div class="kpi-sub">{{ zbiorniki_only|selectattr('stage_status', 'equalto', 'in_progress')|list|length + zbiorniki_only|selectattr('stage_status', 'equalto', 'waiting')|list|length }} do analizy koncowej</div>
       </div>
-      <div class="kpi {{ 'highlight' if poza_limitem }}">
-        <div class="kpi-label">Poza limitem</div>
-        <div class="kpi-value" {% if poza_limitem %}style="color:var(--red)"{% endif %}>{{ poza_limitem|length }}</div>
-        <div class="kpi-sub">{{ recent|length }} ukonczonych (7 dni)</div>
+      <div class="kpi {{ 'highlight' if w_trakcie }}">
+        <div class="kpi-label">W trakcie analizy</div>
+        <div class="kpi-value">{{ w_trakcie|length }}</div>
+        <div class="kpi-sub">
+          {% if poza_limitem %}<span style="color:var(--red)">{{ poza_limitem|length }} poza limitem</span>{% else %}wszystko w normie{% endif %}
+          &bull; {{ recent|length }} ukonczonych (7 dni)
+        </div>
       </div>
     </div>
 
@@ -266,6 +263,9 @@ async function loadBatch(ebrId) {
   detailPanel.style.display = '';
 
   // Update topbar
+  // Show topbar in detail view
+  var topbar = document.getElementById('topbar');
+  topbar.style.display = '';
   const dtTopbar = detailPanel.querySelector('#detail-topbar');
   if (dtTopbar) {
     document.getElementById('topbar-title').innerHTML = dtTopbar.querySelector('.tp-t') ? dtTopbar.querySelector('.tp-t').innerHTML : '';
@@ -307,11 +307,12 @@ function showDashboard() {
   document.getElementById('panel-dashboard').style.display = '';
   document.getElementById('panel-detail').style.display = 'none';
   document.getElementById('panel-detail').innerHTML = '';
-  document.getElementById('topbar-title').textContent = 'Szarze EBR';
-  document.getElementById('topbar-right').textContent = '{{ batches|length }} otwartych';
+
+  // Hide topbar on dashboard (no need for it)
+  document.getElementById('topbar').style.display = 'none';
+
   var sf = document.getElementById('spa-footer'); if (sf) sf.innerHTML = '';
 
-  // Expand rail, close sidebar
   expandRail();
   document.getElementById('detail-sidebar').classList.remove('open');
 
