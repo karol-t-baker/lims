@@ -385,28 +385,34 @@ def _compute_stage_info(ebr_row: dict) -> dict:
         else:
             return {"stage_name": "Gotowy do zatwierdzenia", "stage_status": "done", "progress_pct": 100}
 
-    # New cyclic schema
+    # New cyclic schema: analiza + dodatki
     analiza_n = sections.get("analiza", 0)
-    stand_n = sections.get("standaryzacja", 0)
+    dodatki_n = sections.get("dodatki", 0)
 
-    if analiza_n > 0 and stand_n > 0:
+    if analiza_n > 0 and dodatki_n > 0:
+        # Standaryzacja etap = analiza + dodatki, then Analiza końcowa = analiza again
+        # One full cycle: analiza_n + dodatki_n + analiza_n fields
+        first_stand = analiza_n + dodatki_n  # standaryzacja phase (analysis + additives)
         if filled == 0:
-            return {"stage_name": "Analiza", "stage_status": "waiting", "progress_pct": 0}
-        elif filled < analiza_n:
-            return {"stage_name": "Analiza", "stage_status": "in_progress", "progress_pct": round((filled / analiza_n) * 100)}
-        elif filled == analiza_n:
-            return {"stage_name": "Standaryzacja", "stage_status": "waiting", "progress_pct": 50}
+            return {"stage_name": "Standaryzacja", "stage_status": "waiting", "progress_pct": 0}
+        elif filled < first_stand:
+            return {"stage_name": "Standaryzacja", "stage_status": "in_progress", "progress_pct": round((filled / first_stand) * 50)}
         else:
-            past_first = filled - analiza_n
-            round_size = analiza_n + stand_n
-            pos_in_round = past_first % round_size
-            if pos_in_round < stand_n:
-                return {"stage_name": "Standaryzacja", "stage_status": "in_progress" if pos_in_round > 0 else "waiting", "progress_pct": 50}
+            # Past first standaryzacja → in analiza końcowa or correction cycles
+            past_stand = filled - first_stand
+            correction_size = dodatki_n + analiza_n  # each correction = new additives + new analysis
+            if past_stand == 0:
+                return {"stage_name": "Analiza końcowa", "stage_status": "waiting", "progress_pct": 60}
+            pos_in_correction = past_stand % correction_size if correction_size > 0 else 0
+            if pos_in_correction == 0 and past_stand > 0:
+                # Just completed a full correction cycle → waiting for decision/next analiza końcowa
+                return {"stage_name": "Analiza końcowa", "stage_status": "waiting", "progress_pct": 60}
+            if pos_in_correction <= analiza_n:
+                # Filling analiza końcowa
+                return {"stage_name": "Analiza końcowa", "stage_status": "in_progress", "progress_pct": 75}
             else:
-                konc_filled = pos_in_round - stand_n
-                if konc_filled < analiza_n:
-                    return {"stage_name": "Analiza końcowa", "stage_status": "in_progress", "progress_pct": 75}
-                return {"stage_name": "Gotowy do zatwierdzenia", "stage_status": "done", "progress_pct": 100}
+                # Filling correction additives (standaryzacja phase)
+                return {"stage_name": "Standaryzacja", "stage_status": "in_progress", "progress_pct": 50}
 
     # Legacy: przed_standaryzacja + analiza_koncowa
     przed_n = sections.get("przed_standaryzacja", 0)
@@ -647,28 +653,30 @@ def get_ebr_wyniki(db: sqlite3.Connection, ebr_id: int) -> dict:
 def get_round_state(wyniki: dict) -> dict:
     """Compute current round state from wyniki keyed by sekcja.
 
+    Cyclic flow: analiza__1 → dodatki__1 → analiza__2 → [dodatki__2 → analiza__3 → ...]
+    Etap Standaryzacja = analiza + dodatki. Etap Analiza końcowa = analiza (runda >= 2).
+
     Returns:
         {
-            "last_analiza": int,       # highest N from analiza__N (0 if none)
-            "last_standaryzacja": int,  # highest N from standaryzacja__N (0 if none)
-            "next_step": str,          # "analiza"|"standaryzacja"
-            "next_sekcja": str,        # e.g. "analiza__1" or "standaryzacja__1"
-            "current_runda": int,      # current standardization round (1-based)
-            "is_decision": bool,       # True when post-standaryzacja analysis complete (Przepompuj/Korekta choice)
-            "prev_analiza_out": list,  # kods that were out of limit in last analiza round
+            "last_analiza": int,    # highest N from analiza__N (0 if none)
+            "last_dodatki": int,    # highest N from dodatki__N (0 if none)
+            "next_step": str,       # "analiza"|"dodatki"
+            "next_sekcja": str,     # e.g. "analiza__1" or "dodatki__1"
+            "is_decision": bool,    # True when analiza końcowa done (runda >= 2, no pending dodatki)
+            "prev_analiza_out": list,  # kods out of limit in last analiza
         }
     """
     last_a = 0
-    last_s = 0
+    last_d = 0
     for sek in wyniki:
         if sek.startswith("analiza__"):
             n = int(sek.split("__")[1])
             if n > last_a:
                 last_a = n
-        elif sek.startswith("standaryzacja__"):
+        elif sek.startswith("dodatki__"):
             n = int(sek.split("__")[1])
-            if n > last_s:
-                last_s = n
+            if n > last_d:
+                last_d = n
         # Legacy support
         elif sek == "przed_standaryzacja":
             last_a = max(last_a, 1)
@@ -679,26 +687,22 @@ def get_round_state(wyniki: dict) -> dict:
     if last_a == 0:
         next_step = "analiza"
         next_sekcja = "analiza__1"
-        current_runda = 1
-    elif last_a > last_s:
+    elif last_a > last_d:
         # Analiza done, waiting for additives
-        next_step = "standaryzacja"
-        next_sekcja = f"standaryzacja__{last_a}"
-        current_runda = last_a
+        next_step = "dodatki"
+        next_sekcja = f"dodatki__{last_a}"
     else:
-        # Additives done, waiting for next analiza
+        # Additives done, waiting for next analiza (= analiza końcowa)
         next_step = "analiza"
-        next_sekcja = f"analiza__{last_s + 1}"
-        current_runda = last_s + 1
+        next_sekcja = f"analiza__{last_d + 1}"
 
-    # Decision state: post-stand analysis done → laborant chooses Przepompuj or Korekta
-    is_decision = last_a > 1 and last_a > last_s
+    # Decision: analiza końcowa just completed (runda >= 2, awaiting decision)
+    is_decision = last_a > 1 and last_a > last_d
 
     # Find kods out of limit in most recent analiza
     prev_out = []
     if last_a > 0:
         last_analiza_key = f"analiza__{last_a}"
-        # Legacy key fallback
         if last_analiza_key not in wyniki:
             if last_a == 1 and "przed_standaryzacja" in wyniki:
                 last_analiza_key = "przed_standaryzacja"
@@ -711,10 +715,9 @@ def get_round_state(wyniki: dict) -> dict:
 
     return {
         "last_analiza": last_a,
-        "last_standaryzacja": last_s,
+        "last_dodatki": last_d,
         "next_step": next_step,
         "next_sekcja": next_sekcja,
-        "current_runda": current_runda,
         "is_decision": is_decision,
         "prev_analiza_out": prev_out,
     }
@@ -862,12 +865,12 @@ def sync_ebr_to_v4(db: sqlite3.Connection, ebr_id: int, ebr: dict | None = None)
     seq = 0
 
     def _sekcja_sort_key(item: tuple) -> tuple:
-        """Sort sekcjas in round-interleaved order: analiza__1, standaryzacja__1, analiza__2, ..."""
+        """Sort sekcjas in round-interleaved order: analiza__1, dodatki__1, analiza__2, ..."""
         sek = item[0]
         if sek.startswith("analiza__"):
             n = int(sek.split("__")[1])
             return (n, 0, sek)
-        if sek.startswith("standaryzacja__"):
+        if sek.startswith("dodatki__"):
             n = int(sek.split("__")[1])
             return (n, 1, sek)
         # Legacy / other: append at end in alphabetical order
@@ -885,7 +888,7 @@ def sync_ebr_to_v4(db: sqlite3.Connection, ebr_id: int, ebr: dict | None = None)
         # Map base sekcja to event stage
         if base == "analiza":
             stage = "analiza"
-        elif base == "standaryzacja":
+        elif base == "dodatki":
             stage = "standaryzacja"
         elif base == "przed_standaryzacja":
             stage = "standaryzacja"
@@ -895,7 +898,7 @@ def sync_ebr_to_v4(db: sqlite3.Connection, ebr_id: int, ebr: dict | None = None)
         else:
             stage = base
 
-        event_type = "dodatek" if base == "standaryzacja" else "analiza"
+        event_type = "dodatek" if base == "dodatki" else "analiza"
 
         col_values: dict = {}
         for kod, row in params.items():

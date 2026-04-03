@@ -20,10 +20,9 @@ ETAPY_FULL = [
     {"nr": 1, "nazwa": "Amidowanie",          "read_only": True},
     {"nr": 2, "nazwa": "Wytworzenie SMCA",    "read_only": True},
     {"nr": 3, "nazwa": "Czwartorzędowanie",    "read_only": True},
-    {"nr": 4, "nazwa": "Analiza",              "read_only": False, "sekcja_lab": "analiza"},
-    {"nr": 5, "nazwa": "Standaryzacja",        "read_only": False, "sekcja_lab": "standaryzacja"},
-    {"nr": 6, "nazwa": "Analiza końcowa",      "read_only": False, "sekcja_lab": "analiza"},
-    {"nr": 7, "nazwa": "Przepompowanie",       "read_only": True},
+    {"nr": 4, "nazwa": "Standaryzacja",        "read_only": False, "sekcja_lab": "standaryzacja"},
+    {"nr": 5, "nazwa": "Analiza końcowa",      "read_only": False, "sekcja_lab": "analiza_koncowa"},
+    {"nr": 6, "nazwa": "Przepompowanie",       "read_only": True},
 ]
 
 ETAPY_SIMPLE = [
@@ -109,8 +108,8 @@ PRODUCTS = [
                     _nastaw(),
                 ],
             },
-            "standaryzacja": {
-                "label": "Standaryzacja",
+            "dodatki": {
+                "label": "Dodatki standaryzacyjne",
                 "pola": [
                     _dodatek("kwas_kg",  "Kwas [kg]",  "kwas_kg"),
                     _dodatek("woda_kg",  "Woda [kg]",  "woda_kg"),
@@ -139,8 +138,8 @@ PRODUCTS = [
                     _nastaw(),
                 ],
             },
-            "standaryzacja": {
-                "label": "Standaryzacja",
+            "dodatki": {
+                "label": "Dodatki standaryzacyjne",
                 "pola": [
                     _dodatek("kwas_kg",  "Kwas [kg]",  "kwas_kg"),
                     _dodatek("woda_kg",  "Woda [kg]",  "woda_kg"),
@@ -169,8 +168,8 @@ PRODUCTS = [
                     _nastaw(),
                 ],
             },
-            "standaryzacja": {
-                "label": "Standaryzacja",
+            "dodatki": {
+                "label": "Dodatki standaryzacyjne",
                 "pola": [
                     _dodatek("kwas_kg",  "Kwas [kg]",  "kwas_kg"),
                     _dodatek("woda_kg",  "Woda [kg]",  "woda_kg"),
@@ -197,8 +196,8 @@ PRODUCTS = [
                     _nastaw(),
                 ],
             },
-            "standaryzacja": {
-                "label": "Standaryzacja",
+            "dodatki": {
+                "label": "Dodatki standaryzacyjne",
                 "pola": [
                     _dodatek("kwas_kg",  "Kwas [kg]",  "kwas_kg"),
                     _dodatek("woda_kg",  "Woda [kg]",  "woda_kg"),

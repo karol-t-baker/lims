@@ -24,10 +24,9 @@ def test_cyclic_standaryzacja():
     rs = get_round_state(wyniki)
     assert rs["next_step"] == "analiza"
     assert rs["next_sekcja"] == "analiza__1"
-    assert rs["current_runda"] == 1
     print("  [OK] Initial round state: analiza__1")
 
-    # 4. Save first analiza (runda 1)
+    # 4. Save first analiza (part of standaryzacja etap)
     save_wyniki(db, ebr_id, "analiza__1", {
         "sm": {"wartosc": 45.0, "komentarz": ""},
         "nacl": {"wartosc": 5.8, "komentarz": ""},
@@ -40,25 +39,24 @@ def test_cyclic_standaryzacja():
     wyniki = get_ebr_wyniki(db, ebr_id)
     assert "analiza__1" in wyniki
     rs = get_round_state(wyniki)
-    assert rs["next_step"] == "standaryzacja"
-    assert rs["next_sekcja"] == "standaryzacja__1"
-    print("  [OK] Analiza runda 1 saved -> next: standaryzacja__1")
+    assert rs["next_step"] == "dodatki"
+    assert rs["next_sekcja"] == "dodatki__1"
+    print("  [OK] Analiza 1 saved -> next: dodatki__1")
 
-    # 5. Save standaryzacja (runda 1)
-    save_wyniki(db, ebr_id, "standaryzacja__1", {
+    # 5. Save dodatki (additives)
+    save_wyniki(db, ebr_id, "dodatki__1", {
         "kwas_kg": {"wartosc": 2.5, "komentarz": ""},
         "woda_kg": {"wartosc": 15.0, "komentarz": ""},
         "nacl_kg": {"wartosc": 1.2, "komentarz": ""},
     }, "test_laborant")
     wyniki = get_ebr_wyniki(db, ebr_id)
-    assert "standaryzacja__1" in wyniki
+    assert "dodatki__1" in wyniki
     rs = get_round_state(wyniki)
     assert rs["next_step"] == "analiza"
     assert rs["next_sekcja"] == "analiza__2"
-    assert rs["current_runda"] == 2
-    print("  [OK] Standaryzacja runda 1 saved -> next: analiza__2")
+    print("  [OK] Dodatki 1 saved -> next: analiza__2 (analiza koncowa)")
 
-    # 6. Save second analiza (runda 2 — after standardization)
+    # 6. Save analiza koncowa (analiza__2)
     save_wyniki(db, ebr_id, "analiza__2", {
         "sm": {"wartosc": 44.5, "komentarz": ""},
         "nacl": {"wartosc": 6.0, "komentarz": ""},
@@ -73,7 +71,7 @@ def test_cyclic_standaryzacja():
     rs = get_round_state(wyniki)
     assert rs["last_analiza"] == 2
     assert rs["is_decision"] is True
-    print("  [OK] Analiza runda 2 saved -> decision point")
+    print("  [OK] Analiza koncowa saved -> decision point (Przepompuj/Korekta)")
 
     # 7. Sync to v4
     sync_ebr_to_v4(db, ebr_id)
@@ -87,9 +85,9 @@ def test_cyclic_standaryzacja():
     assert e2["kwas_kg"] == 2.5
     assert e2["woda_kg"] == 15.0
     assert e3["stage"] == "analiza" and e3["runda"] == 2
-    print(f"  [OK] v4 events synced: {len(events)} rows with correct stages/runda")
+    print(f"  [OK] v4 events synced: {len(events)} rows")
 
-    # 8. Complete + final sync
+    # 8. Complete + final sync -> ak_* from analiza__2 (last analiza)
     complete_ebr(db, ebr_id)
     sync_ebr_to_v4(db, ebr_id)
 
@@ -98,7 +96,7 @@ def test_cyclic_standaryzacja():
     assert batch["ak_procent_sm"] == 44.5, f"ak_procent_sm = {batch['ak_procent_sm']}"
     assert batch["ak_procent_nacl"] == 6.0
     assert batch["ak_nd20"] == 1.402
-    print(f"  [OK] v4 batch ak_* from last analiza round: ak_procent_sm={batch['ak_procent_sm']}")
+    print(f"  [OK] v4 batch ak_* from analiza koncowa: ak_procent_sm={batch['ak_procent_sm']}")
 
     # 9. Cleanup
     db.execute("DELETE FROM ebr_wyniki WHERE ebr_id = ?", (ebr_id,))
@@ -107,7 +105,7 @@ def test_cyclic_standaryzacja():
     db.execute("DELETE FROM batch WHERE batch_id = 'Chegina_K7__99_2026'")
     db.commit()
     db.close()
-    print("\n✓ All cyclic standaryzacja tests passed!")
+    print("\n✓ All tests passed!")
 
 
 if __name__ == "__main__":

@@ -160,7 +160,7 @@ function getPola(sekcja) {
 }
 
 function isCyclicProduct() {
-    return parametry.hasOwnProperty('analiza') && parametry.hasOwnProperty('standaryzacja');
+    return parametry.hasOwnProperty('analiza') && parametry.hasOwnProperty('dodatki');
 }
 
 function renderSections() {
@@ -208,15 +208,15 @@ function renderLinearSections() {
     });
 }
 
-function getCyclicSectionTitle(base, runda) {
+function getCyclicSectionTitle(base, n) {
     if (base === 'analiza') {
-        if (runda === 1) return 'Analiza';
-        if (runda === 2) return 'Analiza po standaryzacji';
-        return 'Analiza po korekcie ' + (runda - 1);
+        if (n === 1) return 'Analiza';
+        if (n === 2) return 'Analiza końcowa';
+        return 'Analiza końcowa (po korekcie ' + (n - 2) + ')';
     }
-    if (base === 'standaryzacja') {
-        if (runda === 1) return 'Dodatki standaryzacyjne';
-        return 'Korekta — dodatki (' + (runda - 1) + ')';
+    if (base === 'dodatki') {
+        if (n === 1) return 'Dodatki standaryzacyjne';
+        return 'Korekta — dodatki';
     }
     return base;
 }
@@ -232,14 +232,14 @@ function renderCyclicSections() {
     // Collect all round keys from wyniki, sorted
     var completedRounds = [];
     Object.keys(wyniki).forEach(function(key) {
-        var m = key.match(/^(analiza|standaryzacja)__(\d+)$/);
+        var m = key.match(/^(analiza|dodatki)__(\d+)$/);
         if (m) {
             completedRounds.push({base: m[1], runda: parseInt(m[2]), key: key});
         }
     });
     completedRounds.sort(function(a, b) {
         if (a.runda !== b.runda) return a.runda - b.runda;
-        // Within same runda: analiza before standaryzacja
+        // Within same round: analiza before dodatki
         return a.base === 'analiza' ? -1 : 1;
     });
 
@@ -291,7 +291,7 @@ function renderCyclicSections() {
 
     // Render post-standaryzacja buttons if standaryzacja was just saved
     // (last_standaryzacja >= last_analiza means stand just completed for this round)
-    if (!isReadonly && rs.last_standaryzacja > 0 && rs.last_standaryzacja >= rs.last_analiza && rs.next_step === 'analiza') {
+    if (!isReadonly && rs.last_dodatki > 0 && rs.last_dodatki >= rs.last_analiza && rs.next_step === 'analiza') {
         // Show the next analysis section as editable, with post-stand shortcut button
         // First render the editable analysis section below
     }
@@ -300,19 +300,19 @@ function renderCyclicSections() {
     if (!isReadonly) {
         var nextSekcja = rs.next_sekcja;
         var nextBase = rs.next_step;
-        var nextRunda = rs.current_runda;
+        var nextN = parseInt((nextSekcja.match(/__(\d+)$/) || [0, 1])[1]);
         var pola = getPola(nextSekcja);
 
         if (pola.length > 0) {
             sectionIndex++;
-            var title = getCyclicSectionTitle(nextBase, nextRunda);
+            var title = getCyclicSectionTitle(nextBase, nextN);
             var sekWyniki = wyniki[nextSekcja] || {};
             var hasSomeResults = Object.keys(sekWyniki).length > 0;
             var allInLimit = hasSomeResults && Object.values(sekWyniki).every(function(w) { return w.w_limicie === 1; });
 
             // Highlight out-of-limit from previous analiza for analysis rounds >= 2
             var prevOut = [];
-            if (nextBase === 'analiza' && nextRunda >= 2) {
+            if (nextBase === 'analiza' && nextN >= 2) {
                 prevOut = rs.prev_analiza_out || [];
             }
 
@@ -331,7 +331,7 @@ function renderCyclicSections() {
             });
 
             // Post-standaryzacja: add "Przepompuj bez analizy" button after stand save btn
-            if (nextBase === 'analiza' && rs.last_standaryzacja > 0 && rs.last_standaryzacja >= rs.last_analiza) {
+            if (nextBase === 'analiza' && rs.last_dodatki > 0 && rs.last_dodatki >= rs.last_analiza) {
                 renderPostStandButtons(container);
             }
         }
