@@ -177,6 +177,7 @@ function getPola(sekcja) {
 }
 
 function isCyclicProduct() {
+    if (ebrTyp === 'zbiornik') return false;
     return parametry.hasOwnProperty('analiza') && parametry.hasOwnProperty('dodatki');
 }
 
