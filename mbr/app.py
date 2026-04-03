@@ -17,6 +17,7 @@ from mbr.models import (
     create_ebr, get_ebr, get_ebr_wyniki, get_round_state, save_wyniki, complete_ebr,
     sync_ebr_to_v4, next_nr_partii, PRODUCTS,
     list_completed_registry, get_registry_columns, list_completed_products,
+    list_workers, update_worker_nickname,
 )
 
 app = Flask(__name__)
@@ -362,7 +363,18 @@ def save_entry(ebr_id):
         return jsonify({"error": "Invalid JSON"}), 400
     sekcja = data.get("sekcja", "")
     values = data.get("values", {})
-    user = session["user"]["login"]
+    # Use shift workers if set, otherwise fall back to login
+    shift_ids = session.get("shift_workers", [])
+    if shift_ids:
+        with db_session() as db_w:
+            placeholders = ",".join("?" * len(shift_ids))
+            workers = db_w.execute(
+                f"SELECT inicjaly, nickname FROM workers WHERE id IN ({placeholders})",
+                shift_ids
+            ).fetchall()
+            user = ", ".join(w["nickname"] or w["inicjaly"] for w in workers)
+    else:
+        user = session["user"]["login"]
 
     with db_session() as db:
         ebr = get_ebr(db, ebr_id)
@@ -422,6 +434,39 @@ def get_samples(ebr_id, sekcja, kod):
         ).fetchone()
     samples = json.loads(row["samples_json"]) if row and row["samples_json"] else []
     return jsonify({"samples": samples})
+
+
+# ---------------------------------------------------------------------------
+# Shift / workers API
+# ---------------------------------------------------------------------------
+
+@app.route("/api/workers")
+@login_required
+def api_workers():
+    with db_session() as db:
+        workers = list_workers(db)
+    return jsonify({"workers": workers})
+
+
+@app.route("/api/shift", methods=["GET", "POST"])
+@login_required
+def api_shift():
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        worker_ids = data.get("worker_ids", [])
+        session["shift_workers"] = worker_ids
+        return jsonify({"ok": True})
+    return jsonify({"worker_ids": session.get("shift_workers", [])})
+
+
+@app.route("/api/worker/<int:worker_id>/nickname", methods=["POST"])
+@login_required
+def api_worker_nickname(worker_id):
+    data = request.get_json(silent=True) or {}
+    nickname = data.get("nickname", "")
+    with db_session() as db:
+        update_worker_nickname(db, worker_id, nickname)
+    return jsonify({"ok": True})
 
 
 # ---------------------------------------------------------------------------

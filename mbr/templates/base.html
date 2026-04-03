@@ -30,7 +30,10 @@
   <div class="rail-sp"></div>
 
   {# User menu #}
-  <button class="rail-btn" onclick="" title="Zmiana"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg><span class="rail-label">Zmiana</span></button>
+  <div class="rail-shift" id="shift-indicator" onclick="openShiftModal()" title="Zmiana">
+    <span id="shift-initials">--</span>
+    <span class="rail-label">Zmiana</span>
+  </div>
   <button class="rail-btn" onclick="" title="Motyw"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="10.5" r="2.5"/><circle cx="8.5" cy="7.5" r="2.5"/><circle cx="6.5" cy="12.5" r="2.5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.93 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.24-.27-.37-.62-.37-1.01 0-.83.67-1.5 1.5-1.5H16c3.31 0 6-2.69 6-6 0-5.52-4.48-9.5-10-9.5z"/></svg><span class="rail-label">Motyw</span></button>
   <div class="rail-av" onclick="document.getElementById('user-menu').classList.toggle('show')" title="{{ session.get('user', {}).get('login', '') }}" style="cursor:pointer;position:relative;">
     {%- set parts = (session.get('user', {}).get('imie_nazwisko') or session.get('user', {}).get('login') or '??').split() -%}
@@ -66,5 +69,118 @@
 </div>
 
 {% block scripts %}{% endblock %}
+
+<!-- Shift modal -->
+<div class="modal-overlay" id="shift-overlay" style="display:none;" onclick="if(event.target===this)closeShiftModal()">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-header">
+      <span class="modal-title">Kto jest na zmianie?</span>
+      <button class="modal-close" onclick="closeShiftModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="shift-worker-list" style="padding:16px;">
+      Ladowanie...
+    </div>
+    <div class="modal-footer" style="padding:12px 16px;">
+      <button class="btn btn-p" onclick="saveShift()">Potwierdz</button>
+    </div>
+  </div>
+</div>
+
+<!-- Shift reminder banner -->
+<div id="shift-reminder" style="display:none; position:fixed; top:0; left:0; right:0; z-index:9999;
+  background:#fef3c7; color:#92400e; padding:10px 16px;
+  font-size:13px; font-weight:500; text-align:center; cursor:pointer; border-bottom:1.5px solid #f59e0b;"
+  onclick="openShiftModal()">
+  Zmiana &mdash; potwierdz kto jest na zmianie
+</div>
+
+<script>
+var shiftWorkerIds = {{ session.get('shift_workers', []) | tojson }};
+
+async function openShiftModal() {
+  document.getElementById('shift-overlay').style.display = 'flex';
+  document.getElementById('shift-reminder').style.display = 'none';
+  var resp = await fetch('/api/workers');
+  var data = await resp.json();
+  var list = document.getElementById('shift-worker-list');
+  if (data.workers.length === 0) {
+    list.innerHTML = '<div style="color:var(--text-dim);font-size:12px;">Brak pracownikow. Dodaj w bazie danych.</div>';
+    return;
+  }
+  list.innerHTML = data.workers.map(function(w) {
+    var checked = shiftWorkerIds.indexOf(w.id) >= 0 ? 'checked' : '';
+    var display = w.nickname || (w.imie + ' ' + w.nazwisko);
+    return '<label style="display:flex;align-items:center;gap:10px;padding:8px 0;cursor:pointer;border-bottom:1px solid var(--border,#eee);">' +
+      '<input type="checkbox" class="shift-cb" value="' + w.id + '" ' + checked + ' style="width:16px;height:16px;">' +
+      '<span style="font-weight:600;font-size:13px;min-width:28px;">' + w.inicjaly + '</span>' +
+      '<span style="color:var(--text-dim);font-size:12px;">' + display + '</span></label>';
+  }).join('');
+}
+
+function closeShiftModal() { document.getElementById('shift-overlay').style.display = 'none'; }
+
+async function saveShift() {
+  var ids = [];
+  document.querySelectorAll('.shift-cb:checked').forEach(function(cb) { ids.push(parseInt(cb.value)); });
+  shiftWorkerIds = ids;
+  await fetch('/api/shift', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({worker_ids: ids}) });
+  updateShiftDisplay();
+  closeShiftModal();
+  localStorage.setItem('lastShiftConfirm', Date.now().toString());
+}
+
+function updateShiftDisplay() {
+  var el = document.getElementById('shift-initials');
+  if (!el) return;
+  el.textContent = shiftWorkerIds.length > 0 ? shiftWorkerIds.length + ' os.' : '--';
+}
+
+function checkShiftReminder() {
+  var h = new Date().getHours();
+  var isShiftHour = (h === 6 || h === 14 || h === 22);
+  var lastConfirm = parseInt(localStorage.getItem('lastShiftConfirm') || '0');
+  var minutesSince = (Date.now() - lastConfirm) / 60000;
+  var banner = document.getElementById('shift-reminder');
+  if (banner) {
+    banner.style.display = (isShiftHour && minutesSince > 30) ? '' : 'none';
+  }
+}
+
+updateShiftDisplay();
+checkShiftReminder();
+setInterval(checkShiftReminder, 60000);
+</script>
+
+<style>
+.rail-shift {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 6px; border-radius: 8px; cursor: pointer;
+  color: var(--text-dim); font-size: 11px; font-weight: 600;
+  transition: color 0.15s;
+}
+.rail-shift:hover { color: var(--teal); }
+#shift-initials {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface-alt); border: 1.5px solid var(--border);
+  font-size: 10px;
+}
+.modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.4); z-index: 9998;
+  display: flex; align-items: center; justify-content: center;
+}
+.modal {
+  background: var(--surface, #fff); border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15); width: 90%; overflow: hidden;
+}
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; border-bottom: 1px solid var(--border);
+}
+.modal-title { font-size: 14px; font-weight: 600; }
+.modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-dim); padding: 0 4px; }
+.modal-footer { border-top: 1px solid var(--border); display: flex; justify-content: flex-end; }
+</style>
 </body>
 </html>

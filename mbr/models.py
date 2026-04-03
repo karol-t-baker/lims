@@ -115,6 +115,16 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             UNIQUE(ebr_id, sekcja, kod_parametru)
         );
     """)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS workers (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            imie        TEXT NOT NULL,
+            nazwisko    TEXT NOT NULL,
+            inicjaly    TEXT NOT NULL,
+            nickname    TEXT DEFAULT '',
+            aktywny     INTEGER NOT NULL DEFAULT 1
+        )
+    """)
     db.execute("CREATE INDEX IF NOT EXISTS idx_wyniki_ebr_limicie ON ebr_wyniki(ebr_id, w_limicie, dt_wpisu)")
     db.commit()
 
@@ -204,6 +214,24 @@ def verify_user(db: sqlite3.Connection, login: str, password: str) -> dict | Non
     if not bcrypt.checkpw(password.encode(), row["password_hash"].encode()):
         return None
     return dict(row)
+
+
+# ---------------------------------------------------------------------------
+# Workers
+# ---------------------------------------------------------------------------
+
+def list_workers(db, aktywny=True):
+    """List workers, optionally filtered by active status."""
+    sql = "SELECT * FROM workers"
+    if aktywny:
+        sql += " WHERE aktywny = 1"
+    sql += " ORDER BY nazwisko, imie"
+    return [dict(r) for r in db.execute(sql).fetchall()]
+
+
+def update_worker_nickname(db, worker_id, nickname):
+    db.execute("UPDATE workers SET nickname = ? WHERE id = ?", (nickname, worker_id))
+    db.commit()
 
 
 # ---------------------------------------------------------------------------
