@@ -167,8 +167,12 @@ function getPola(sekcja) {
     var baseKey = sekcja.replace(/__\d+$/, '');
     var s = parametry[baseKey];
     if (!s) {
-        // Fallback: try exact key
-        s = parametry[sekcja];
+        // Fallback: analiza_koncowa → analiza (zbiornik uses analiza fields for koncowa)
+        if (baseKey === 'analiza_koncowa' && parametry['analiza']) {
+            s = parametry['analiza'];
+        } else {
+            s = parametry[sekcja];
+        }
     }
     if (!s) return [];
     if (Array.isArray(s)) return s;

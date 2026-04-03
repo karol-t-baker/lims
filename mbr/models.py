@@ -819,6 +819,9 @@ def save_wyniki(
     # Resolve base sekcja: "analiza__2" → "analiza", "analiza_koncowa" → "analiza_koncowa"
     base_sekcja = sekcja.split("__")[0] if "__" in sekcja else sekcja
     sekcja_def = parametry.get(base_sekcja, {})
+    # Fallback: analiza_koncowa → analiza (zbiornik uses analiza fields)
+    if not sekcja_def and base_sekcja == "analiza_koncowa" and "analiza" in parametry:
+        sekcja_def = parametry["analiza"]
     pola = sekcja_def.get("pola", []) if isinstance(sekcja_def, dict) else sekcja_def
     if not isinstance(pola, list):
         pola = []
