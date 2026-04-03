@@ -802,32 +802,37 @@ def complete_ebr(db: sqlite3.Connection, ebr_id: int) -> None:
 
 _KOD_TO_EVENT_COL = {
     "ph": "ph", "ph_10proc": "ph_10proc", "nd20": "nd20",
+    "sm": "procent_sm", "sa": "procent_sa",
+    "nacl": "procent_nacl", "aa": "procent_aa",
+    "so3": "procent_so3", "h2o2": "procent_h2o2",
+    "lk": "lk", "le_liczba_kwasowa": "lk",
+    "barwa_fau": "barwa_fau", "barwa_hz": "barwa_hz",
+    "gestosc": "gestosc",
+    # Legacy kods (procent_ prefix from old OCR data)
     "procent_sm": "procent_sm", "procent_sa": "procent_sa",
     "procent_nacl": "procent_nacl", "procent_aa": "procent_aa",
     "procent_so3": "procent_so3", "procent_h2o2": "procent_h2o2",
-    "lk": "lk", "le_liczba_kwasowa": "lk",
-    "barwa_fau": "barwa_fau", "barwa_hz": "barwa_hz",
+    # Standaryzacja additives
+    "kwas_kg": "kwas_kg", "woda_kg": "woda_kg", "nacl_kg": "nacl_kg",
 }
 
 _KOD_TO_AK_COL = {
     "ph": "ak_ph", "ph_10proc": "ak_ph_10proc", "nd20": "ak_nd20",
+    "sm": "ak_procent_sm", "sa": "ak_procent_sa",
+    "nacl": "ak_procent_nacl", "aa": "ak_procent_aa",
+    "so3": "ak_procent_so3", "h2o2": "ak_procent_h2o2",
+    "barwa_fau": "ak_barwa_fau", "barwa_hz": "ak_barwa_hz",
+    # Legacy kods
     "procent_sm": "ak_procent_sm", "procent_sa": "ak_procent_sa",
     "procent_nacl": "ak_procent_nacl", "procent_aa": "ak_procent_aa",
     "procent_so3": "ak_procent_so3", "procent_h2o2": "ak_procent_h2o2",
-    "barwa_fau": "ak_barwa_fau", "barwa_hz": "ak_barwa_hz",
-}
-
-_SEKCJA_TO_STAGE = {
-    "przed_standaryzacja": "standaryzacja",
-    "analiza_koncowa": "analiza_koncowa",
 }
 
 
 def sync_ebr_to_v4(db: sqlite3.Connection, ebr_id: int, ebr: dict | None = None) -> None:
     """Sync EBR data to v4 events and batch tables.
-    1. Delete old digital events for this batch
-    2. For each sekcja in wyniki: INSERT into events table
-    3. If completed + has analiza_koncowa: UPSERT batch row with ak_* fields
+    Handles round-suffixed sekcjas (analiza__1, standaryzacja__2)
+    and legacy sekcjas (przed_standaryzacja, analiza_koncowa).
     """
     if ebr is None:
         ebr = get_ebr(db, ebr_id)
@@ -836,7 +841,7 @@ def sync_ebr_to_v4(db: sqlite3.Connection, ebr_id: int, ebr: dict | None = None)
     batch_id = ebr["batch_id"]
     now = datetime.now().isoformat(timespec="seconds")
 
-    # 0. Ensure batch row exists (required by FK on events)
+    # 0. Ensure batch row exists
     existing_batch = db.execute(
         "SELECT batch_id FROM batch WHERE batch_id = ?", (batch_id,)
     ).fetchone()
@@ -846,7 +851,7 @@ def sync_ebr_to_v4(db: sqlite3.Connection, ebr_id: int, ebr: dict | None = None)
             (batch_id, ebr["produkt"], ebr["nr_partii"]),
         )
 
-    # 1. Delete old digital events for this batch
+    # 1. Delete old digital events
     db.execute(
         "DELETE FROM events WHERE batch_id = ? AND _source = 'digital'",
         (batch_id,),
@@ -855,9 +860,30 @@ def sync_ebr_to_v4(db: sqlite3.Connection, ebr_id: int, ebr: dict | None = None)
     # 2. Insert events for each sekcja
     wyniki = get_ebr_wyniki(db, ebr_id)
     seq = 0
-    for sekcja, params in wyniki.items():
-        stage = _SEKCJA_TO_STAGE.get(sekcja, sekcja)
-        # Build column values from kod_parametru (maps to v4 event columns)
+    for sekcja, params in sorted(wyniki.items()):
+        # Derive stage and runda from sekcja key
+        if "__" in sekcja:
+            base, runda_str = sekcja.split("__", 1)
+            runda = int(runda_str)
+        else:
+            base = sekcja
+            runda = None
+
+        # Map base sekcja to event stage
+        if base == "analiza":
+            stage = "analiza"
+        elif base == "standaryzacja":
+            stage = "standaryzacja"
+        elif base == "przed_standaryzacja":
+            stage = "standaryzacja"
+            runda = 1
+        elif base == "analiza_koncowa":
+            stage = "analiza_koncowa"
+        else:
+            stage = base
+
+        event_type = "dodatek" if base == "standaryzacja" else "analiza"
+
         col_values: dict = {}
         for kod, row in params.items():
             ecol = _KOD_TO_EVENT_COL.get(kod)
@@ -867,7 +893,10 @@ def sync_ebr_to_v4(db: sqlite3.Connection, ebr_id: int, ebr: dict | None = None)
         if col_values:
             seq += 1
             cols = ["batch_id", "dt", "stage", "event_type", "seq", "_source", "_ts_precision"]
-            vals = [batch_id, now, stage, "analiza", seq, "digital", "minute"]
+            vals = [batch_id, now, stage, event_type, seq, "digital", "minute"]
+            if runda is not None:
+                cols.append("runda")
+                vals.append(runda)
             for c, v in col_values.items():
                 cols.append(c)
                 vals.append(v)
@@ -875,21 +904,32 @@ def sync_ebr_to_v4(db: sqlite3.Connection, ebr_id: int, ebr: dict | None = None)
             col_names = ", ".join(cols)
             db.execute(f"INSERT INTO events ({col_names}) VALUES ({placeholders})", vals)
 
-    # 3. If completed + has analiza_koncowa: UPSERT batch row with ak_* fields
-    if ebr["status"] == "completed" and "analiza_koncowa" in wyniki:
-        ak_values: dict = {}
-        for kod, row in wyniki["analiza_koncowa"].items():
-            ak_col = _KOD_TO_AK_COL.get(kod)
-            if ak_col and row["wartosc"] is not None:
-                ak_values[ak_col] = row["wartosc"]
+    # 3. If completed: find last analiza round → update ak_* fields
+    if ebr["status"] == "completed":
+        last_analiza_key = None
+        max_n = 0
+        for sek in wyniki:
+            if sek.startswith("analiza__"):
+                n = int(sek.split("__")[1])
+                if n > max_n:
+                    max_n = n
+                    last_analiza_key = sek
+            elif sek == "analiza_koncowa":
+                last_analiza_key = sek
 
-        if ak_values:
-            # Batch row guaranteed to exist (ensured at top of function)
-            set_parts = [f"{c} = ?" for c in ak_values]
-            vals = list(ak_values.values()) + [batch_id]
-            db.execute(
-                f"UPDATE batch SET {', '.join(set_parts)} WHERE batch_id = ?",
-                vals,
-            )
+        if last_analiza_key and last_analiza_key in wyniki:
+            ak_values: dict = {}
+            for kod, row in wyniki[last_analiza_key].items():
+                ak_col = _KOD_TO_AK_COL.get(kod)
+                if ak_col and row["wartosc"] is not None:
+                    ak_values[ak_col] = row["wartosc"]
+
+            if ak_values:
+                set_parts = [f"{c} = ?" for c in ak_values]
+                vals = list(ak_values.values()) + [batch_id]
+                db.execute(
+                    f"UPDATE batch SET {', '.join(set_parts)} WHERE batch_id = ?",
+                    vals,
+                )
 
     db.commit()
