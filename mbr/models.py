@@ -357,17 +357,17 @@ def list_ebr_open(
 def _compute_stage_info(ebr_row: dict) -> dict:
     """Compute synthesis stage from completed lab sections.
 
-    Szarża logic (based on which lab analyses are done):
-      - No results          → "Produkcja" (somewhere before standaryzacja)
-      - przed_stand partial  → "Analiza przed standaryzacją" (in_progress)
-      - przed_stand done     → "Standaryzacja" (analysis done, now standardizing)
-      - analiza_konc partial → "Analiza końcowa" (in_progress)
-      - analiza_konc done    → "Gotowy do zatwierdzenia"
+    Szarża (4 main betaines have 2 sections, others have 1):
+      - No results              → "Analiza końcowa" (waiting)
+      - przed_stand partial     → "Przed standaryzacją" (in_progress)
+      - przed_stand done        → "Standaryzacja" (waiting — analysis done, now standardizing)
+      - analiza_konc partial    → "Analiza końcowa" (in_progress)
+      - analiza_konc done       → "Gotowy do zatwierdzenia" (done)
 
-    Zbiornik logic:
-      - No results  → "Oczekuje na analizę"
-      - Partial     → "Analiza w trakcie"
-      - Done        → "Gotowy do zatwierdzenia"
+    Zbiornik:
+      - No results  → "Analiza końcowa" (waiting)
+      - Partial     → "Analiza końcowa" (in_progress)
+      - Done        → "Gotowy do zatwierdzenia" (done)
     """
     parametry_raw = ebr_row.get("parametry_lab", "{}")
     parametry = json.loads(parametry_raw) if isinstance(parametry_raw, str) else parametry_raw
@@ -393,9 +393,9 @@ def _compute_stage_info(ebr_row: dict) -> dict:
     # ── Zbiornik ──
     if typ == "zbiornik":
         if filled == 0:
-            return {"stage_name": "Oczekuje na analizę", "stage_status": "waiting", "progress_pct": 0}
+            return {"stage_name": "Analiza końcowa", "stage_status": "waiting", "progress_pct": 0}
         elif filled < total_fields:
-            return {"stage_name": "Analiza w trakcie", "stage_status": "in_progress", "progress_pct": progress_pct}
+            return {"stage_name": "Analiza końcowa", "stage_status": "in_progress", "progress_pct": progress_pct}
         else:
             return {"stage_name": "Gotowy do zatwierdzenia", "stage_status": "done", "progress_pct": 100}
 
@@ -404,8 +404,10 @@ def _compute_stage_info(ebr_row: dict) -> dict:
     konc_n = sections.get("analiza_koncowa", 0)
 
     if filled == 0:
-        # No lab results yet — batch is in production (before any analysis)
-        return {"stage_name": "Produkcja", "stage_status": "waiting", "progress_pct": 0}
+        # No results yet — next step is the first available analysis
+        if przed_n > 0:
+            return {"stage_name": "Przed standaryzacją", "stage_status": "waiting", "progress_pct": 0}
+        return {"stage_name": "Analiza końcowa", "stage_status": "waiting", "progress_pct": 0}
 
     if przed_n > 0 and filled < przed_n:
         # Partially filled przed_standaryzacja
