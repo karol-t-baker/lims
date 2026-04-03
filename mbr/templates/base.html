@@ -30,9 +30,10 @@
   <div class="rail-sp"></div>
 
   {# Shift indicator + user #}
-  <div class="rail-crew" id="shift-indicator" onclick="openShiftModal()" title="Zmiana — kliknij aby zmienić">
-    <span id="crew-pill" class="crew-pill crew-empty">zmiana</span>
-  </div>
+  <button class="rail-btn" id="shift-indicator" onclick="openShiftModal()" title="Zmiana">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+    <span class="rail-label" id="crew-label">Zmiana</span>
+  </button>
 </div>
 
 {# ═══ SIDEBAR (optional) ═══ #}
@@ -268,12 +269,11 @@ async function saveShift() {
 }
 
 function updateShiftDisplay() {
-  var pill = document.getElementById('crew-pill');
-  if (!pill) return;
+  var label = document.getElementById('crew-label');
+  if (!label) return;
 
   if (shiftWorkerIds.length === 0 || _shiftWorkers.length === 0) {
-    pill.className = 'crew-pill crew-empty';
-    pill.innerHTML = 'zmiana';
+    label.textContent = 'Zmiana';
     return;
   }
 
@@ -282,21 +282,15 @@ function updateShiftDisplay() {
   }).filter(Boolean);
 
   if (workers.length === 0) {
-    pill.className = 'crew-pill crew-empty';
-    pill.innerHTML = 'zmiana';
+    label.textContent = 'Zmiana';
     return;
   }
 
-  // Narrow: inicjały "AK · MN", Wide: nicki "Ania, Marta"
-  var initials = workers.map(function(w) { return w.inicjaly; }).join(' · ');
   var names = workers.map(function(w) {
     var n = w.nickname || w.imie;
     return n.length > 8 ? n.substring(0, 7) + '.' : n;
   }).join(', ');
-
-  pill.className = 'crew-pill crew-active';
-  pill.innerHTML = '<span class="crew-short">' + initials + '</span>' +
-                   '<span class="crew-long rail-label">' + names + '</span>';
+  label.textContent = names;
 }
 
 function checkShiftReminder() {
@@ -324,28 +318,8 @@ setInterval(checkShiftReminder, 60000);
 </script>
 
 <style>
-.rail-crew {
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer; padding: 4px 6px; border-radius: 8px;
-  transition: background 0.15s;
-}
-.rail-crew:hover { background: rgba(255,255,255,0.1); }
-.crew-pill {
-  display: inline-flex; align-items: center; gap: 3px;
-  font-size: 10px; font-weight: 500; letter-spacing: 0.3px;
-  white-space: nowrap;
-  color: rgba(255,255,255,0.55);
-  transition: color 0.15s;
-}
-.rail-crew:hover .crew-pill { color: rgba(255,255,255,0.85); }
-.crew-pill.crew-empty { font-size: 9px; color: rgba(255,255,255,0.3); }
-.rail-crew:hover .crew-pill.crew-empty { color: rgba(255,255,255,0.7); }
-.crew-pill.crew-active { color: rgba(255,255,255,0.65); }
-.crew-short { display: inline; }
-.crew-long { display: none; }
-.rail-wide .crew-short { display: none; }
-.rail-wide .crew-long { display: inline !important; }
-.rail-wide .crew-pill { font-size: 11px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+/* crew label truncation in wide rail */
+.rail-wide #crew-label { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block !important; }
 #shift-overlay.show { display: flex; }
 .shift-modal { max-width: 420px; }
 
