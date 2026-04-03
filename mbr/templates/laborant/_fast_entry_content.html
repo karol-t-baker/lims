@@ -398,7 +398,7 @@ function renderOneSection(container, opts) {
             badgeHtml +
         '</div>';
 
-    var fieldsHtml = '<div class="fg wide">';
+    var fieldsHtml = '<div class="fg">';
     pola.forEach(function(pole) {
         var existing = sekWyniki[pole.kod];
         var val = existing ? existing.wartosc : '';
@@ -413,33 +413,29 @@ function renderOneSection(container, opts) {
         }
         if (isObl) inputClass += ' calc';
 
-        var normText = (pole.min != null || pole.max != null)
-            ? '<span class="norm">' + (pole.min != null ? pole.min : '') + (pole.min != null && pole.max != null ? ' – ' : '') + (pole.max != null ? pole.max : '') + '</span>'
-            : '';
+        // Norm range text
+        var normRange = '';
+        if (pole.min != null && pole.max != null) normRange = pole.min + ' – ' + pole.max;
+        else if (pole.min != null) normRange = '> ' + pole.min;
+        else if (pole.max != null) normRange = '< ' + pole.max;
 
-        var highlightWarn = isHighlighted ? '<span class="hl-warn">\u26A0</span>' : '';
+        // Type tag
+        var typeTag = '';
+        if (isTitr) typeTag = '<span class="type-tag t-titr">M</span>';
+        else if (isObl) typeTag = '<span class="type-tag t-calc">O</span>';
 
         var calcMethodAttr = '';
         if (isTitr && !isReadonly && pole.calc_method) {
             calcMethodAttr = 'data-calc-method=\'' + JSON.stringify(pole.calc_method).replace(/'/g, "&#39;") + '\'';
         }
 
-        // Humanize formula: replace kods with labels
-        var formulaDisplay = '';
-        if (isObl && pole.formula) {
-            formulaDisplay = pole.formula;
-            pola.forEach(function(p) {
-                formulaDisplay = formulaDisplay.replace(new RegExp('\\b' + p.kod + '\\b', 'g'), p.label);
-            });
-        }
+        var highlightCls = isHighlighted ? ' highlight-prev' : '';
 
         fieldsHtml +=
-            '<div class="ff' + (isTitr ? ' titr' : '') + (isObl ? ' computed' : '') + (isHighlighted ? ' highlight-prev' : '') + '" ' +
+            '<div class="ff' + (isTitr ? ' titr' : '') + (isObl ? ' computed' : '') + highlightCls + '" ' +
                 (isTitr && !isReadonly ? 'data-kod="' + esc(pole.kod) + '" data-tag="' + esc(pole.tag) + '" data-sekcja="' + esc(sekcja) + '"' : '') + ' ' + calcMethodAttr + '>' +
-                '<label>' + esc(pole.label) + ' ' + normText +
-                    (formulaDisplay ? ' <span class="norm">[' + esc(formulaDisplay) + ']</span>' : '') +
-                    highlightWarn +
-                '</label>' +
+                '<div class="status-dot"></div>' +
+                '<label>' + esc(pole.label) + '</label>' +
                 '<input type="number" step="any"' +
                     ' data-kod="' + esc(pole.kod) + '"' +
                     ' data-sekcja="' + esc(sekcja) + '"' +
@@ -452,11 +448,12 @@ function renderOneSection(container, opts) {
                     ' class="' + inputClass.trim() + '"' +
                     (isReadonly ? ' readonly' : '') +
                     (isObl && !isReadonly ? ' readonly' : '') +
+                    ' placeholder="\u2014"' +
                     ' oninput="validateField(this); autoSaveField(this)" onblur="doSaveField(this, this.dataset.sekcja, this.dataset.kod)">' +
-                '<textarea data-komentarz="' + esc(pole.kod) + '" data-sekcja="' + esc(sekcja) + '"' +
-                    ' placeholder="Komentarz (wymagany przy przekroczeniu limitu)..."' +
-                    ' style="display:' + (existing && existing.w_limicie === 0 ? 'block' : 'none') + ';width:100%;margin-top:4px;padding:6px 8px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:11px;font-family:var(--font);color:var(--text);min-height:36px;resize:vertical;"' +
-                    (isReadonly ? ' readonly' : '') + '>' + komentarzVal + '</textarea>' +
+                '<div class="ff-right">' +
+                    '<span class="norm-range">' + normRange + '</span>' +
+                    typeTag +
+                '</div>' +
             '</div>';
     });
     fieldsHtml += '</div>';
@@ -484,6 +481,11 @@ function validateField(input) {
     if (max !== null && val > max) inLimit = false;
 
     input.classList.add(inLimit ? 'ok' : 'err');
+    // Update status dot
+    var dot = input.closest('.ff') ? input.closest('.ff').querySelector('.status-dot') : null;
+    if (dot) {
+        dot.style.background = inLimit ? 'var(--green)' : 'var(--red)';
+    }
     if (komentarz) {
         komentarz.style.display = inLimit ? 'none' : 'block';
     }
