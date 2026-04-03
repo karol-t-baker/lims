@@ -313,7 +313,7 @@ def clone_mbr(db: sqlite3.Connection, mbr_id: int, user: str) -> int | None:
 def list_ebr_open(
     db: sqlite3.Connection, produkt: str | None = None, typ: str | None = None
 ) -> list[dict]:
-    """List open EBR batches with last entry time and out-of-limit count."""
+    """List open EBR batches with last entry time, out-of-limit count, and stage info."""
     sql = """
         SELECT
             eb.ebr_id,
@@ -321,13 +321,17 @@ def list_ebr_open(
             eb.nr_partii,
             mt.produkt,
             eb.nr_amidatora,
+            eb.nr_mieszalnika,
             eb.dt_start,
             eb.status,
             eb.typ,
+            mt.parametry_lab,
             (SELECT MAX(ew.dt_wpisu) FROM ebr_wyniki ew WHERE ew.ebr_id = eb.ebr_id)
                 AS last_entry,
             (SELECT COUNT(*) FROM ebr_wyniki ew WHERE ew.ebr_id = eb.ebr_id AND ew.w_limicie = 0)
-                AS out_of_limit
+                AS out_of_limit,
+            (SELECT COUNT(*) FROM ebr_wyniki ew WHERE ew.ebr_id = eb.ebr_id AND ew.wartosc IS NOT NULL)
+                AS filled_count
         FROM ebr_batches eb
         JOIN mbr_templates mt ON mt.mbr_id = eb.mbr_id
         WHERE eb.status = 'open'
@@ -341,7 +345,67 @@ def list_ebr_open(
         params.append(typ)
     sql += " ORDER BY eb.dt_start DESC"
     rows = db.execute(sql, params).fetchall()
-    return [dict(r) for r in rows]
+    result = []
+    for r in rows:
+        d = dict(r)
+        d.update(_compute_stage_info(d))
+        d.pop("parametry_lab", None)  # don't send raw JSON to templates
+        result.append(d)
+    return result
+
+
+def _compute_stage_info(ebr_row: dict) -> dict:
+    """Compute stage_name, stage_status, progress_pct from parametry_lab + filled_count."""
+    parametry_raw = ebr_row.get("parametry_lab", "{}")
+    parametry = json.loads(parametry_raw) if isinstance(parametry_raw, str) else parametry_raw
+    filled = ebr_row.get("filled_count", 0) or 0
+    typ = ebr_row.get("typ", "szarza")
+
+    # Count total fields and per-section fields
+    sections = []
+    total_fields = 0
+    for sek_key, sek_def in parametry.items():
+        pola = sek_def.get("pola", sek_def) if isinstance(sek_def, dict) else sek_def
+        if not isinstance(pola, list):
+            pola = []
+        n = len(pola)
+        total_fields += n
+        sections.append({"key": sek_key, "count": n})
+
+    if total_fields == 0:
+        return {"stage_name": "Brak parametrów", "stage_status": "waiting", "progress_pct": 0}
+
+    progress_pct = round((filled / total_fields) * 100) if total_fields > 0 else 0
+
+    if typ == "zbiornik":
+        if filled == 0:
+            return {"stage_name": "Analiza końcowa", "stage_status": "waiting", "progress_pct": 0}
+        elif filled < total_fields:
+            return {"stage_name": "Analiza końcowa", "stage_status": "in_progress", "progress_pct": progress_pct}
+        else:
+            return {"stage_name": "Gotowy do zatwierdzenia", "stage_status": "done", "progress_pct": 100}
+
+    # Szarza: check which sections are filled
+    # Section order: przed_standaryzacja → analiza_koncowa
+    sek_przed = next((s for s in sections if s["key"] == "przed_standaryzacja"), None)
+    sek_konc = next((s for s in sections if s["key"] == "analiza_koncowa"), None)
+
+    przed_n = sek_przed["count"] if sek_przed else 0
+    konc_n = sek_konc["count"] if sek_konc else 0
+
+    if filled == 0:
+        return {"stage_name": "Przed standaryzacją", "stage_status": "waiting", "progress_pct": 0}
+    elif filled <= przed_n:
+        if filled < przed_n:
+            return {"stage_name": "Przed standaryzacją", "stage_status": "in_progress", "progress_pct": progress_pct}
+        else:
+            return {"stage_name": "Analiza końcowa", "stage_status": "waiting", "progress_pct": progress_pct}
+    else:
+        filled_konc = filled - przed_n
+        if filled_konc < konc_n:
+            return {"stage_name": "Analiza końcowa", "stage_status": "in_progress", "progress_pct": progress_pct}
+        else:
+            return {"stage_name": "Gotowy do zatwierdzenia", "stage_status": "done", "progress_pct": 100}
 
 
 def list_ebr_completed(

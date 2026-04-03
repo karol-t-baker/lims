@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "laborant/_batch_card.html" import batch_card %}
 
 {% block title %}EBR {{ ebr.produkt|short_product }} {{ ebr.nr_partii }}{% endblock %}
 {% block nav_szarze %}active{% endblock %}
@@ -71,24 +72,7 @@
     </div>
     <div class="sb-list">
       {% for b in all_open if (b.typ or 'szarza') == 'szarza' %}
-      <div class="batch-card {{ 'active' if b.ebr_id == ebr.ebr_id else '' }}"
-           onclick="location.href='{{ url_for('fast_entry', ebr_id=b.ebr_id) }}'">
-        <div class="bc-top">
-          <span class="bc-nr">{{ b.nr_partii }}</span>
-          <span class="bc-product">{{ b.produkt|short_product }}</span>
-          <span class="bc-typ-icon">&#9879;</span>
-        </div>
-        <div class="bc-meta">
-          <span class="bc-equip">A-{{ b.nr_amidatora or '?' }} / M-{{ b.nr_mieszalnika or '?' }}</span>
-          <span class="bc-time">{{ b.dt_start | pl_date }}</span>
-        </div>
-        <div class="bc-status {{ 'alert' if b.out_of_limit > 0 else 'progress' if b.last_entry else 'waiting' }}">
-          <span class="bc-status-dot"></span>
-          {% if b.out_of_limit > 0 %}{{ b.out_of_limit }} poza limitem
-          {% elif b.last_entry %}W toku
-          {% else %}Oczekuje{% endif %}
-        </div>
-      </div>
+      {{ batch_card(b, active=(b.ebr_id == ebr.ebr_id), onclick_url=url_for('fast_entry', ebr_id=b.ebr_id)) }}
       {% else %}
       <div style="padding:12px;font-size:11px;color:var(--text-dim);">Brak otwartych szarz</div>
       {% endfor %}
@@ -102,24 +86,7 @@
     </div>
     <div class="sb-list">
       {% for b in all_open if b.typ == 'zbiornik' %}
-      <div class="batch-card typ-zbiornik {{ 'active' if b.ebr_id == ebr.ebr_id else '' }}"
-           onclick="location.href='{{ url_for('fast_entry', ebr_id=b.ebr_id) }}'">
-        <div class="bc-top">
-          <span class="bc-nr">{{ b.nr_partii }}</span>
-          <span class="bc-product">{{ b.produkt|short_product }}</span>
-          <span class="bc-typ-icon">&#9648;</span>
-        </div>
-        <div class="bc-meta">
-          <span>Zbiornik</span>
-          <span class="bc-time">{{ b.dt_start | pl_date }}</span>
-        </div>
-        <div class="bc-status {{ 'alert' if b.out_of_limit > 0 else 'progress' if b.last_entry else 'waiting' }}">
-          <span class="bc-status-dot"></span>
-          {% if b.out_of_limit > 0 %}{{ b.out_of_limit }} poza limitem
-          {% elif b.last_entry %}W toku
-          {% else %}Oczekuje{% endif %}
-        </div>
-      </div>
+      {{ batch_card(b, active=(b.ebr_id == ebr.ebr_id), onclick_url=url_for('fast_entry', ebr_id=b.ebr_id)) }}
       {% else %}
       <div style="padding:12px;font-size:11px;color:var(--text-dim);">Brak otwartych zbiornikow</div>
       {% endfor %}

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "laborant/_batch_card.html" import batch_card %}
 
 {% block title %}Szarze EBR{% endblock %}
 {% block nav_szarze %}active{% endblock %}
@@ -28,35 +29,7 @@
   <!-- Batch cards list -->
   <div class="sb-list">
     {% for b in batches %}
-    <div class="batch-card {{ 'typ-zbiornik' if b.typ == 'zbiornik' else '' }} {{ 'status-alert' if b.out_of_limit > 0 else '' }}"
-         data-typ="{{ b.typ or 'szarza' }}"
-         onclick="location.href='{{ url_for('fast_entry', ebr_id=b.ebr_id) }}'">
-      <div class="bc-top">
-        <span class="bc-nr">{{ b.nr_partii }}</span>
-        <span class="bc-product">{{ b.produkt|short_product }}</span>
-        <span class="bc-typ-icon" title="{{ 'Zbiornik' if b.typ == 'zbiornik' else 'Szarza' }}">{{ '&#9648;' if b.typ == 'zbiornik' else '&#9879;' }}</span>
-      </div>
-      <div class="bc-meta">
-        {% if b.typ == 'zbiornik' %}
-        <span>Zbiornik</span>
-        {% else %}
-        <span class="bc-equip">A-{{ b.nr_amidatora or '?' }} / M-{{ b.nr_mieszalnika or '?' }}</span>
-        {% endif %}
-        <span class="bc-time">{{ b.dt_start | pl_date }}</span>
-      </div>
-      <div class="bc-progress">
-        <div class="bc-bar">
-          <div class="bc-bar-fill {{ 'alert' if b.out_of_limit > 0 else '' }}" style="width:{{ '100' if b.typ == 'zbiornik' and b.last_entry else '50' if b.last_entry else '0' }}%"></div>
-        </div>
-        <span class="bc-pct">{% if b.typ == 'zbiornik' %}{{ '1/1' if b.last_entry else '0/1' }}{% else %}&mdash;{% endif %}</span>
-      </div>
-      <div class="bc-status {{ 'alert' if b.out_of_limit > 0 else 'progress' if b.last_entry else 'waiting' }}">
-        <span class="bc-status-dot"></span>
-        {% if b.out_of_limit > 0 %}{{ b.out_of_limit }} poza limitem
-        {% elif b.last_entry %}W toku
-        {% else %}Oczekuje na analize{% endif %}
-      </div>
-    </div>
+    {{ batch_card(b, onclick_url=url_for('fast_entry', ebr_id=b.ebr_id)) }}
     {% endfor %}
   </div>
 
@@ -138,10 +111,12 @@
         <td>
           {% if b.out_of_limit > 0 %}
             <span class="q-priority urgent">{{ b.out_of_limit }} poza limitem</span>
-          {% elif b.last_entry %}
-            <span class="q-priority normal">w toku</span>
+          {% elif b.stage_status == 'in_progress' %}
+            <span class="q-priority normal">&#9881; {{ b.stage_name }}</span>
+          {% elif b.stage_status == 'done' %}
+            <span class="q-priority" style="background:var(--green-bg);color:var(--green);">{{ b.stage_name }}</span>
           {% else %}
-            <span class="q-priority low">oczekuje</span>
+            <span class="q-priority low">{{ b.stage_name|default('Oczekuje') }}</span>
           {% endif %}
         </td>
       </tr>

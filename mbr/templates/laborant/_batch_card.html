@@ -1,0 +1,41 @@
+{# Reusable batch card macro for sidebars and lists.
+   Usage: {% from "laborant/_batch_card.html" import batch_card %}
+          {{ batch_card(b, active=(b.ebr_id == current_id), onclick_url=url) }}
+#}
+{% macro batch_card(b, active=false, onclick_url='') %}
+<div class="batch-card {{ 'typ-zbiornik' if b.typ == 'zbiornik' else '' }} {{ 'status-alert' if b.out_of_limit > 0 else '' }} {{ 'active' if active else '' }}"
+     data-typ="{{ b.typ or 'szarza' }}" data-produkt="{{ b.produkt }}" data-nr="{{ b.nr_partii }}"
+     {% if onclick_url %}onclick="location.href='{{ onclick_url }}'"{% endif %}>
+  <div class="bc-top">
+    <span class="bc-nr">{{ b.nr_partii }}</span>
+    <span class="bc-product">{{ b.produkt|short_product }}</span>
+    <span class="bc-typ-icon" title="{{ 'Zbiornik' if b.typ == 'zbiornik' else 'Szarza' }}">{{ '&#9648;' if b.typ == 'zbiornik' else '&#9879;' }}</span>
+  </div>
+  <div class="bc-meta">
+    {% if b.typ == 'zbiornik' %}
+    <span>Zbiornik</span>
+    {% else %}
+    <span class="bc-equip">A-{{ b.nr_amidatora or '?' }} / M-{{ b.nr_mieszalnika or '?' }}</span>
+    {% endif %}
+    <span class="bc-time">{{ b.dt_start | pl_date }}</span>
+  </div>
+  <div class="bc-progress">
+    <div class="bc-bar">
+      <div class="bc-bar-fill {{ 'alert' if b.out_of_limit > 0 else '' }}" style="width:{{ b.progress_pct|default(0) }}%"></div>
+    </div>
+    <span class="bc-pct">{{ b.progress_pct|default(0) }}%</span>
+  </div>
+  <div class="bc-status {{ 'alert' if b.out_of_limit > 0 else b.stage_status|default('waiting') }}">
+    <span class="bc-status-dot"></span>
+    {% if b.out_of_limit > 0 %}
+      {{ b.out_of_limit }} poza limitem — {{ b.stage_name|default('?') }}
+    {% elif b.stage_status == 'in_progress' %}
+      &#9881; {{ b.stage_name|default('?') }}
+    {% elif b.stage_status == 'done' %}
+      {{ b.stage_name|default('Gotowy') }}
+    {% else %}
+      {{ b.stage_name|default('Oczekuje') }}
+    {% endif %}
+  </div>
+</div>
+{% endmacro %}

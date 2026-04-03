@@ -1116,6 +1116,9 @@ body {
 .bc-status.alert { color: var(--red); }
 .bc-status.done .bc-status-dot { background: var(--green); }
 .bc-status.done { color: var(--green); }
+.bc-status.in_progress .bc-status-dot { background: var(--teal); animation: pulse 1.5s infinite; }
+.bc-status.in_progress { color: var(--teal); }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
 /* Sidebar stats footer */
 .sb-stats {
