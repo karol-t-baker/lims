@@ -93,8 +93,7 @@
         <th>Nr partii</th>
         <th>Produkt</th>
         <th>Typ</th>
-        <th>Amidator</th>
-        <th>Start</th>
+        <th>Etap</th>
         <th>Status</th>
       </tr>
     </thead>
@@ -106,17 +105,16 @@
         <td><span class="q-batch">{{ b.nr_partii }}</span></td>
         <td><span class="q-product">{{ b.produkt|short_product }}</span></td>
         <td><span class="typ-badge {{ b.typ or 'szarza' }}">{{ b.typ or 'szarza' }}</span></td>
-        <td class="q-time">{{ b.nr_amidatora or '---' }}</td>
-        <td class="q-time">{{ b.dt_start | pl_date }}</td>
+        <td class="q-stage">{{ b.stage_name|default('—') }}</td>
         <td>
           {% if b.out_of_limit > 0 %}
             <span class="q-priority urgent">{{ b.out_of_limit }} poza limitem</span>
           {% elif b.stage_status == 'in_progress' %}
-            <span class="q-priority normal">&#9881; {{ b.stage_name }}</span>
+            <span class="q-priority normal">&#9881; W trakcie</span>
           {% elif b.stage_status == 'done' %}
-            <span class="q-priority" style="background:var(--green-bg);color:var(--green);">{{ b.stage_name }}</span>
+            <span class="q-priority" style="background:var(--green-bg);color:var(--green);">Gotowy</span>
           {% else %}
-            <span class="q-priority low">{{ b.stage_name|default('Oczekuje') }}</span>
+            <span class="q-priority low">Oczekuje</span>
           {% endif %}
         </td>
       </tr>
