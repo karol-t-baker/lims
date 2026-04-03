@@ -9,23 +9,121 @@
   .tp-breadcrumb { color: var(--text-dim); text-decoration: none; font-size: 13px; }
   .tp-breadcrumb:hover { color: var(--text-sec); }
   .tp-sep { color: var(--text-dim); margin: 0 6px; }
+
+  /* ═══ WIDE RAIL (dashboard mode) ═══ */
+  .rail-wide {
+    width: 300px !important;
+    min-width: 300px !important;
+    transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                min-width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+  }
+  .rail-wide .rail-narrow-content { display: flex; flex-direction: column; align-items: center; padding: 12px 0; gap: 4px; width: 54px; flex-shrink: 0; }
+  .rail-wide .rail-wide-content {
+    flex: 1; display: flex; flex-direction: column; overflow: hidden;
+    border-left: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .rail-wide .rw-head { padding: 14px 16px 10px; }
+  .rail-wide .rw-greeting { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.9); }
+  .rail-wide .rw-date { font-size: 10px; color: rgba(255,255,255,0.4); margin-top: 2px; }
+
+  .rail-wide .rw-search { padding: 6px 12px; }
+  .rail-wide .rw-search input {
+    width: 100%; padding: 7px 10px; border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 6px; font-size: 11px; font-family: var(--font);
+    color: white; background: rgba(255,255,255,0.08);
+  }
+  .rail-wide .rw-search input::placeholder { color: rgba(255,255,255,0.3); }
+  .rail-wide .rw-search input:focus { outline: none; border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.12); }
+
+  .rail-wide .rw-filters { padding: 4px 12px 8px; display: flex; gap: 4px; }
+  .rail-wide .rw-pill {
+    flex: 1; padding: 4px; border-radius: 4px; font-size: 9px; font-weight: 600;
+    text-align: center; cursor: pointer; border: none;
+    background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.4);
+    transition: all 0.12s;
+  }
+  .rail-wide .rw-pill:hover { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.7); }
+  .rail-wide .rw-pill.active { background: rgba(255,255,255,0.15); color: #5eead4; }
+
+  .rail-wide .rw-list { flex: 1; overflow-y: auto; padding: 4px 8px; }
+
+  /* Rail batch card (dark theme) */
+  .rw-batch {
+    padding: 8px 10px; margin-bottom: 2px; border-radius: 6px; cursor: pointer;
+    transition: all 0.1s; border-left: 3px solid transparent;
+  }
+  .rw-batch:hover { background: rgba(255,255,255,0.08); }
+  .rw-batch.active { background: rgba(255,255,255,0.12); border-left-color: #5eead4; }
+  .rw-batch.typ-zbiornik { border-left-color: #60a5fa; }
+  .rw-batch-top { display: flex; align-items: center; gap: 6px; }
+  .rw-batch-nr { font-family: var(--mono); font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.85); }
+  .rw-batch-product { font-size: 9px; font-weight: 600; color: #5eead4; background: rgba(94,234,212,0.12); padding: 1px 5px; border-radius: 3px; }
+  .rw-batch.typ-zbiornik .rw-batch-product { color: #60a5fa; background: rgba(96,165,250,0.12); }
+  .rw-batch-stage { font-size: 9px; color: rgba(255,255,255,0.35); margin-top: 2px; }
+  .rw-batch-stage.alert { color: #fca5a5; }
+  .rw-batch-stage.in_progress { color: #5eead4; }
+  .rw-batch-stage.done { color: #86efac; }
+
+  .rail-wide .rw-footer { padding: 8px 12px; border-top: 1px solid rgba(255,255,255,0.08); }
+  .rail-wide .rw-stats { display: flex; gap: 8px; font-size: 9px; color: rgba(255,255,255,0.35); margin-bottom: 6px; }
+  .rail-wide .rw-stats strong { color: rgba(255,255,255,0.7); }
+  .rail-wide .rw-new-btn {
+    width: 100%; padding: 7px; border-radius: 5px; border: 1px dashed rgba(255,255,255,0.2);
+    background: transparent; color: #5eead4; font-size: 11px; font-weight: 600;
+    cursor: pointer; font-family: var(--font);
+  }
+  .rail-wide .rw-new-btn:hover { background: rgba(255,255,255,0.08); border-style: solid; }
+
+  /* ═══ NARROW RAIL (detail mode) ═══ */
+  .rail-narrow {
+    width: 54px !important;
+    min-width: 54px !important;
+    transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                min-width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .rail-narrow .rail-wide-content { display: none; }
+  .rail-narrow .rail-narrow-content { display: flex; flex-direction: column; align-items: center; padding: 12px 0; gap: 4px; width: 54px; }
+
+  /* ═══ SIDEBAR (detail mode only) ═══ */
+  #detail-sidebar {
+    width: 0; min-width: 0; overflow: hidden;
+    background: var(--surface); border-right: 1px solid var(--border);
+    transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                min-width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex; flex-direction: column;
+  }
+  #detail-sidebar.open {
+    width: 260px; min-width: 260px;
+  }
+  #detail-sidebar .sb-inner { width: 260px; min-width: 260px; display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 </style>
 {% endblock %}
 
 {% block sidebar %}
-{# Dashboard mode: no separate sidebar — rail handles batch switching #}
-{# Fast entry mode: rail shows mini batch items #}
-
-{# Hidden mini-items data for JS to inject into rail #}
-<div id="rail-batch-items" style="display:none;">
-  {% for b in batches %}
-  <div class="sb-mini-item {{ 'status-in_progress' if b.stage_status == 'in_progress' else ('status-done' if b.stage_status == 'done' else ('status-alert' if b.out_of_limit > 0 else '')) }} {{ 'typ-zbiornik' if b.typ == 'zbiornik' }}"
-       data-ebr-id="{{ b.ebr_id }}"
-       title="{{ b.nr_partii }} {{ b.produkt|short_product }} — {{ b.stage_name|default('Oczekuje') }}"
-       onclick="loadBatch({{ b.ebr_id }})">
-    {{ b.nr_partii.split('/')[0] }}
+{# Detail-mode sidebar (hidden by default, slides open when viewing a batch) #}
+<div id="detail-sidebar">
+  <div class="sb-inner">
+    <div class="sb-search">
+      <input type="text" placeholder="Szukaj szarzy..." oninput="filterSidebarCards(this.value)">
+    </div>
+    <div class="sb-filters">
+      <div class="sb-seg">
+        <div class="sb-pill active" onclick="filterSidebarByType('all',this)">Wszystkie</div>
+        <div class="sb-pill" onclick="filterSidebarByType('szarza',this)">Szarze</div>
+        <div class="sb-pill" onclick="filterSidebarByType('zbiornik',this)">Zbiorniki</div>
+      </div>
+    </div>
+    <div class="sb-list" id="sidebar-batch-list">
+      {% for b in batches %}
+      {{ batch_card(b) }}
+      {% endfor %}
+    </div>
+    <div class="sb-footer">
+      <button class="sb-new-btn" onclick="openNewBatchModal()">+ Nowa szarza</button>
+    </div>
   </div>
-  {% endfor %}
 </div>
 {% endblock %}
 
@@ -37,7 +135,7 @@
 {% endblock %}
 
 {% block content %}
-{# Dashboard panel — visible by default #}
+{# Dashboard panel #}
 <div id="panel-dashboard">
   <div class="dashboard">
 
@@ -55,7 +153,6 @@
     {% set szarze_only = batches|rejectattr('typ', 'equalto', 'zbiornik')|list %}
     {% set zbiorniki_only = batches|selectattr('typ', 'equalto', 'zbiornik')|list %}
     {% set oczekujace = batches|selectattr('stage_status', 'equalto', 'waiting')|list %}
-    {% set w_trakcie = batches|selectattr('stage_status', 'equalto', 'in_progress')|list %}
     {% set gotowe = batches|selectattr('stage_status', 'equalto', 'done')|list %}
     {% set poza_limitem = batches|selectattr('out_of_limit', 'gt', 0)|list %}
     <div class="kpi-row">
@@ -63,9 +160,9 @@
         <div class="kpi-label">Oczekujace</div>
         <div class="kpi-value">{{ oczekujace|length }}</div>
         <div class="kpi-sub">
-          {% set prod_counts = {} %}
-          {% for b in oczekujace %}{% if prod_counts.update({b.produkt|short_product: (prod_counts.get(b.produkt|short_product, 0) + 1)}) %}{% endif %}{% endfor %}
-          {{ prod_counts.items()|map('join', ': ')|join(', ') or 'brak' }}
+          {% set pc = {} %}
+          {% for b in oczekujace %}{% if pc.update({b.produkt|short_product: (pc.get(b.produkt|short_product, 0) + 1)}) %}{% endif %}{% endfor %}
+          {{ pc.items()|map('join', ': ')|join(', ') or 'brak' }}
         </div>
       </div>
       <div class="kpi">
@@ -80,7 +177,7 @@
       <div class="kpi">
         <div class="kpi-label">Zbiorniki</div>
         <div class="kpi-value">{{ zbiorniki_only|length }}</div>
-        <div class="kpi-sub">{{ gotowe|length }} gotowych do zatwierdzenia</div>
+        <div class="kpi-sub">{{ gotowe|length }} gotowych</div>
       </div>
       <div class="kpi {{ 'highlight' if poza_limitem }}">
         <div class="kpi-label">Poza limitem</div>
@@ -112,40 +209,28 @@
       <button type="button" class="filter-clear-btn" id="filter-clear-btn" onclick="clearFilters()" title="Wyczysc filtry" style="display:none;">&#10005; Wyczysc</button>
     </div>
 
+    {# Tabela otwartych #}
     <div class="section-title">Otwarte szarze <span class="section-count">{{ batches|length }}</span></div>
-
     {% if batches %}
     <div class="table-scroll-5">
     <table class="queue-table">
       <thead>
-        <tr>
-          <th>Nr partii</th>
-          <th>Produkt</th>
-          <th>Typ</th>
-          <th>Etap</th>
-          <th>Status</th>
-        </tr>
+        <tr><th>Nr partii</th><th>Produkt</th><th>Typ</th><th>Etap</th><th>Status</th></tr>
       </thead>
       <tbody>
         {% for b in batches %}
         <tr class="filterable-row{% if b.out_of_limit > 0 %} urgent{% endif %}"
             data-produkt="{{ b.produkt }}" data-typ="{{ b.typ or 'szarza' }}" data-nr="{{ b.nr_partii }}"
-            data-ebr-id="{{ b.ebr_id }}"
-            style="cursor:pointer;" onclick="loadBatch({{ b.ebr_id }})">
+            data-ebr-id="{{ b.ebr_id }}" style="cursor:pointer;" onclick="loadBatch({{ b.ebr_id }})">
           <td><span class="q-batch">{{ b.nr_partii }}</span></td>
           <td><span class="q-product">{{ b.produkt|short_product }}</span></td>
           <td><span class="typ-badge {{ b.typ or 'szarza' }}">{{ b.typ or 'szarza' }}</span></td>
           <td class="q-stage">{{ b.stage_name|default('—') }}</td>
           <td>
-            {% if b.out_of_limit > 0 %}
-              <span class="q-priority urgent">{{ b.out_of_limit }} poza limitem</span>
-            {% elif b.stage_status == 'in_progress' %}
-              <span class="q-priority normal">&#9881; W trakcie</span>
-            {% elif b.stage_status == 'done' %}
-              <span class="q-priority" style="background:var(--green-bg);color:var(--green);">Gotowy</span>
-            {% else %}
-              <span class="q-priority low">Oczekuje</span>
-            {% endif %}
+            {% if b.out_of_limit > 0 %}<span class="q-priority urgent">{{ b.out_of_limit }} poza limitem</span>
+            {% elif b.stage_status == 'in_progress' %}<span class="q-priority normal">&#9881; W trakcie</span>
+            {% elif b.stage_status == 'done' %}<span class="q-priority" style="background:var(--green-bg);color:var(--green);">Gotowy</span>
+            {% else %}<span class="q-priority low">Oczekuje</span>{% endif %}
           </td>
         </tr>
         {% endfor %}
@@ -153,40 +238,24 @@
     </table>
     </div>
     {% else %}
-    <div class="kpi" style="margin-bottom:24px;">
-      <div class="kpi-sub">Brak otwartych szarz. Kliknij "+ Nowa szarza" aby rozpoczac.</div>
-    </div>
+    <div class="kpi" style="margin-bottom:24px;"><div class="kpi-sub">Brak otwartych szarz.</div></div>
     {% endif %}
 
     {# Ostatnio ukonczone #}
     {% if recent %}
     <div class="section-title" style="margin-top:24px;">Ostatnio ukonczone <span class="section-count">{{ recent|length }} / 7 dni</span></div>
     <table class="queue-table">
-      <thead>
-        <tr>
-          <th>Nr partii</th>
-          <th>Produkt</th>
-          <th>Typ</th>
-          <th>Zakonczona</th>
-          <th>Wyniki</th>
-        </tr>
-      </thead>
+      <thead><tr><th>Nr partii</th><th>Produkt</th><th>Typ</th><th>Zakonczona</th><th>Wyniki</th></tr></thead>
       <tbody>
         {% for r in recent %}
         <tr class="filterable-row" data-produkt="{{ r.produkt }}" data-typ="{{ r.typ or 'szarza' }}" data-nr="{{ r.nr_partii }}"
-            data-ebr-id="{{ r.ebr_id }}"
-            style="cursor:pointer;" onclick="loadBatch({{ r.ebr_id }})">
+            data-ebr-id="{{ r.ebr_id }}" style="cursor:pointer;" onclick="loadBatch({{ r.ebr_id }})">
           <td><span class="q-batch">{{ r.nr_partii }}</span></td>
           <td><span class="q-product">{{ r.produkt|short_product }}</span></td>
           <td><span class="typ-badge {{ r.typ or 'szarza' }}">{{ r.typ or 'szarza' }}</span></td>
           <td class="q-time">{{ r.dt_end | pl_date }}</td>
-          <td>
-            {% if r.out_of_limit > 0 %}
-              <span class="q-priority urgent">{{ r.out_of_limit }} poza limitem</span>
-            {% else %}
-              <span class="q-priority low">OK ({{ r.total_wyniki }})</span>
-            {% endif %}
-          </td>
+          <td>{% if r.out_of_limit > 0 %}<span class="q-priority urgent">{{ r.out_of_limit }} poza limitem</span>
+          {% else %}<span class="q-priority low">OK ({{ r.total_wyniki }})</span>{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -196,7 +265,7 @@
   </div>
 </div>
 
-{# Detail panel — hidden, filled by AJAX #}
+{# Detail panel #}
 <div id="panel-detail" style="display:none;"></div>
 
 {% include "laborant/_modal_nowa_szarza.html" %}
@@ -210,88 +279,111 @@
 <script>
 let currentView = 'dashboard';
 let currentEbrId = null;
-let _railOriginalHTML = null;
+
+// ═══ RAIL: wide (dashboard) ↔ narrow (detail) ═══
+
+const _rail = document.querySelector('.rail');
+
+// Build wide rail content (dashboard mode)
+const _wideRailHTML = `
+  <div style="display:flex;height:100%;">
+    <div class="rail-narrow-content">
+      <a class="rail-logo" href="/">KS</a>
+      <a class="rail-btn active" href="/laborant/szarze" title="Szarze">&#9883;</a>
+      <div class="rail-sp"></div>
+      <a class="rail-av" href="/logout" title="Wyloguj">
+        ${document.querySelector('.rail-av') ? document.querySelector('.rail-av').innerHTML : '??'}
+      </a>
+    </div>
+    <div class="rail-wide-content">
+      <div class="rw-head">
+        <div class="rw-greeting">Witaj, {{ session.get('user', {}).get('imie_nazwisko') or session.get('user', {}).get('login', '') }}</div>
+        <div class="rw-date">{{ today }}</div>
+      </div>
+      <div class="rw-search">
+        <input type="text" placeholder="Szukaj..." oninput="filterRailBatches(this.value)">
+      </div>
+      <div class="rw-filters">
+        <div class="rw-pill active" onclick="filterRailByType('all',this)">Wszystkie</div>
+        <div class="rw-pill" onclick="filterRailByType('szarza',this)">Szarze</div>
+        <div class="rw-pill" onclick="filterRailByType('zbiornik',this)">Zbiorniki</div>
+      </div>
+      <div class="rw-list" id="rw-list">
+        {% for b in batches %}
+        <div class="rw-batch {{ 'typ-zbiornik' if b.typ == 'zbiornik' }}" data-ebr-id="{{ b.ebr_id }}" data-typ="{{ b.typ or 'szarza' }}" onclick="loadBatch({{ b.ebr_id }})">
+          <div class="rw-batch-top">
+            <span class="rw-batch-nr">{{ b.nr_partii }}</span>
+            <span class="rw-batch-product">{{ b.produkt|short_product }}</span>
+          </div>
+          <div class="rw-batch-stage {{ b.stage_status|default('') }}">
+            {% if b.out_of_limit > 0 %}{{ b.out_of_limit }} poza limitem{% else %}{{ b.stage_name|default('Oczekuje') }}{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="rw-footer">
+        <div class="rw-stats">
+          <span><strong>{{ batches|rejectattr('typ', 'equalto', 'zbiornik')|list|length }}</strong> szarz</span>
+          <span><strong>{{ batches|selectattr('typ', 'equalto', 'zbiornik')|list|length }}</strong> zbiornikow</span>
+        </div>
+        <button class="rw-new-btn" onclick="openNewBatchModal()">+ Nowa szarza</button>
+      </div>
+    </div>
+  </div>
+`;
+const _narrowRailHTML = _rail.innerHTML; // save original narrow rail
+
+// On dashboard load: expand rail
+function expandRail() {
+  _rail.classList.add('rail-wide');
+  _rail.classList.remove('rail-narrow');
+  _rail.innerHTML = _wideRailHTML;
+}
+
+function narrowRail() {
+  _rail.classList.remove('rail-wide');
+  _rail.classList.add('rail-narrow');
+  _rail.innerHTML = _narrowRailHTML;
+}
 
 // ═══ SPA NAVIGATION ═══
-
-function _saveRailContent() {
-  if (!_railOriginalHTML) {
-    const rail = document.querySelector('.rail');
-    _railOriginalHTML = rail.innerHTML;
-  }
-}
-
-function _switchRailToMini(activeEbrId) {
-  _saveRailContent();
-  const rail = document.querySelector('.rail');
-  const items = document.getElementById('rail-batch-items');
-
-  let html = '<a class="rail-logo" href="/laborant/szarze" onclick="event.preventDefault();showDashboard();">&#9664;</a>';
-  if (items) {
-    items.querySelectorAll('.sb-mini-item').forEach(el => {
-      const clone = el.cloneNode(true);
-      if (parseInt(el.dataset.ebrId) === activeEbrId) {
-        clone.classList.add('active');
-      }
-      html += clone.outerHTML;
-    });
-  }
-  html += '<div class="rail-sp"></div>';
-  html += '<div class="sb-mini-add" onclick="openNewBatchModal()" title="Nowa szarza">+</div>';
-
-  rail.innerHTML = html;
-}
-
-function _restoreRail() {
-  if (_railOriginalHTML) {
-    document.querySelector('.rail').innerHTML = _railOriginalHTML;
-  }
-}
 
 async function loadBatch(ebrId) {
   const resp = await fetch(`/laborant/ebr/${ebrId}/partial`);
   if (!resp.ok) return;
   const html = await resp.text();
 
-  // Inject into detail panel
-  const detailPanel = document.getElementById('panel-detail');
-  detailPanel.innerHTML = html;
-
   // Switch panels
   document.getElementById('panel-dashboard').style.display = 'none';
+  const detailPanel = document.getElementById('panel-detail');
+  detailPanel.innerHTML = html;
   detailPanel.style.display = '';
 
   // Update topbar
-  const detailTopbar = detailPanel.querySelector('#detail-topbar');
-  if (detailTopbar) {
-    const topbarTitle = document.getElementById('topbar-title');
-    const topbarRight = document.getElementById('topbar-right');
-    const dtTitle = detailTopbar.querySelector('.tp-t');
-    const dtRight = detailTopbar.querySelector('.tp-r');
-    if (topbarTitle && dtTitle) topbarTitle.innerHTML = dtTitle.innerHTML;
-    if (topbarRight && dtRight) topbarRight.innerHTML = dtRight.innerHTML;
-    detailTopbar.style.display = 'none';
+  const dtTopbar = detailPanel.querySelector('#detail-topbar');
+  if (dtTopbar) {
+    document.getElementById('topbar-title').innerHTML = dtTopbar.querySelector('.tp-t') ? dtTopbar.querySelector('.tp-t').innerHTML : '';
+    document.getElementById('topbar-right').innerHTML = dtTopbar.querySelector('.tp-r') ? dtTopbar.querySelector('.tp-r').innerHTML : '';
+    dtTopbar.style.display = 'none';
   }
 
   // Move footer
-  const detailFooter = detailPanel.querySelector('#detail-footer');
+  const dtFooter = detailPanel.querySelector('#detail-footer');
   const spaFooter = document.getElementById('spa-footer');
-  if (detailFooter && spaFooter) {
-    spaFooter.innerHTML = detailFooter.outerHTML;
-    detailFooter.style.display = 'none';
-  }
+  if (dtFooter && spaFooter) { spaFooter.innerHTML = dtFooter.outerHTML; dtFooter.style.display = 'none'; }
 
-  // Style detail workspace
-  const detailWorkspace = detailPanel.querySelector('#detail-workspace');
-  if (detailWorkspace) {
-    detailWorkspace.style.display = 'flex';
-    detailWorkspace.style.gap = '0';
-    detailWorkspace.style.flex = '1';
-    detailWorkspace.style.overflow = 'hidden';
-  }
+  // Style workspace
+  const dtWork = detailPanel.querySelector('#detail-workspace');
+  if (dtWork) { dtWork.style.display = 'flex'; dtWork.style.gap = '0'; dtWork.style.flex = '1'; dtWork.style.overflow = 'hidden'; }
 
-  // Switch rail to mini batch switcher
-  _switchRailToMini(ebrId);
+  // Narrow the rail, open the sidebar
+  narrowRail();
+  document.getElementById('detail-sidebar').classList.add('open');
+
+  // Highlight active in sidebar
+  document.querySelectorAll('#sidebar-batch-list .batch-card').forEach(c => {
+    c.classList.toggle('active', parseInt(c.dataset.ebrId) === ebrId);
+  });
 
   history.pushState({view: 'detail', ebrId}, '', `/laborant/ebr/${ebrId}`);
   currentView = 'detail';
@@ -300,8 +392,7 @@ async function loadBatch(ebrId) {
   // Execute scripts
   detailPanel.querySelectorAll('script').forEach(s => {
     const ns = document.createElement('script');
-    if (s.src) ns.src = s.src;
-    else ns.textContent = s.textContent;
+    if (s.src) ns.src = s.src; else ns.textContent = s.textContent;
     s.replaceWith(ns);
   });
 }
@@ -310,68 +401,72 @@ function showDashboard() {
   document.getElementById('panel-dashboard').style.display = '';
   document.getElementById('panel-detail').style.display = 'none';
   document.getElementById('panel-detail').innerHTML = '';
-
-  // Restore topbar
   document.getElementById('topbar-title').textContent = 'Szarze EBR';
   document.getElementById('topbar-right').textContent = '{{ batches|length }} otwartych';
+  var sf = document.getElementById('spa-footer'); if (sf) sf.innerHTML = '';
 
-  // Clear footer
-  var spaFooter = document.getElementById('spa-footer');
-  if (spaFooter) spaFooter.innerHTML = '';
-
-  // Restore rail to normal nav
-  _restoreRail();
+  // Expand rail, close sidebar
+  expandRail();
+  document.getElementById('detail-sidebar').classList.remove('open');
 
   history.pushState({view: 'dashboard'}, '', '/laborant/szarze');
   currentView = 'dashboard';
   currentEbrId = null;
 }
 
-// Handle browser back/forward
+// Browser back/forward
 window.addEventListener('popstate', (e) => {
-  if (e.state && e.state.view === 'detail' && e.state.ebrId) {
-    loadBatch(e.state.ebrId);
-  } else {
-    showDashboard();
-  }
+  if (e.state && e.state.view === 'detail' && e.state.ebrId) loadBatch(e.state.ebrId);
+  else showDashboard();
 });
 
-// On page load: if URL is /laborant/ebr/N, load that batch
-const _detailMatch = window.location.pathname.match(/\/laborant\/ebr\/(\d+)/);
-if (_detailMatch) {
-  loadBatch(parseInt(_detailMatch[1]));
-}
+// Deep link: if URL is /laborant/ebr/N
+const _dm = window.location.pathname.match(/\/laborant\/ebr\/(\d+)/);
+if (_dm) { loadBatch(parseInt(_dm[1])); } else { expandRail(); }
 
-// Batch card clicks via event delegation
+// Batch card click delegation (sidebar + dashboard table)
 document.addEventListener('click', (e) => {
   const card = e.target.closest('.batch-card[data-ebr-id]');
-  if (card) {
-    e.preventDefault();
-    e.stopPropagation();
-    loadBatch(parseInt(card.dataset.ebrId));
-  }
+  if (card) { e.preventDefault(); e.stopPropagation(); loadBatch(parseInt(card.dataset.ebrId)); }
 });
 
-// ═══ DASHBOARD FUNCTIONS ═══
+// ═══ RAIL FILTERS ═══
 
-function filterBatchCards(query) {
-  const q = query.toLowerCase();
-  document.querySelectorAll('.batch-card').forEach(card => {
-    card.style.display = card.textContent.toLowerCase().includes(q) ? '' : 'none';
+function filterRailBatches(q) {
+  q = q.toLowerCase();
+  document.querySelectorAll('#rw-list .rw-batch').forEach(b => {
+    b.style.display = b.textContent.toLowerCase().includes(q) ? '' : 'none';
   });
 }
 
-function filterByType(typ) {
-  document.querySelectorAll('.sb-pill').forEach(p => p.classList.remove('active'));
-  event.target.closest('.sb-pill').classList.add('active');
-  document.querySelectorAll('.batch-card').forEach(card => {
-    if (typ === 'all') {
-      card.style.display = '';
-    } else {
-      card.style.display = card.dataset.typ === typ ? '' : 'none';
-    }
+function filterRailByType(typ, btn) {
+  btn.parentElement.querySelectorAll('.rw-pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('#rw-list .rw-batch').forEach(b => {
+    if (typ === 'all') b.style.display = '';
+    else b.style.display = b.dataset.typ === typ ? '' : 'none';
   });
 }
+
+// ═══ SIDEBAR FILTERS (detail mode) ═══
+
+function filterSidebarCards(q) {
+  q = q.toLowerCase();
+  document.querySelectorAll('#sidebar-batch-list .batch-card').forEach(c => {
+    c.style.display = c.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+function filterSidebarByType(typ, btn) {
+  btn.parentElement.querySelectorAll('.sb-pill').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('#sidebar-batch-list .batch-card').forEach(c => {
+    if (typ === 'all') c.style.display = '';
+    else c.style.display = c.dataset.typ === typ ? '' : 'none';
+  });
+}
+
+// ═══ TABLE FILTERS ═══
 
 function clearFilters() {
   document.getElementById('filter-produkt').value = '';
@@ -385,15 +480,11 @@ function applyTableFilters() {
   var typ = document.getElementById('filter-typ').value;
   var nr = (document.getElementById('filter-nr').value || '').toLowerCase().replace(/\s/g, '');
   var hasFilter = !!(produkt || typ || nr);
-
   var clearBtn = document.getElementById('filter-clear-btn');
   if (clearBtn) clearBtn.style.display = hasFilter ? '' : 'none';
-
   document.querySelectorAll('.filterable-row').forEach(function(row) {
-    var matchProdukt = !produkt || row.dataset.produkt === produkt;
-    var matchTyp = !typ || row.dataset.typ === typ;
-    var matchNr = !nr || (row.dataset.nr || '').toLowerCase().replace(/\s/g, '').includes(nr);
-    row.style.display = (matchProdukt && matchTyp && matchNr) ? '' : 'none';
+    var ok = (!produkt || row.dataset.produkt === produkt) && (!typ || row.dataset.typ === typ) && (!nr || (row.dataset.nr || '').toLowerCase().includes(nr));
+    row.style.display = ok ? '' : 'none';
   });
 }
 </script>
