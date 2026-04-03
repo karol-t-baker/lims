@@ -42,7 +42,7 @@
 
 {% if ebr.status == 'open' %}
 <div id="detail-footer" class="footer">
-  <span class="f-hint">Zapisz sekcje pojedynczo lub zatwierdz cala karte.</span>
+  <span class="f-hint">Pola zapisuja sie automatycznie po wpisaniu wartosci.</span>
   <div class="f-sp"></div>
   <button type="button" class="btn btn-p" onclick="completePompuj()">Zatwierdz karte</button>
 </div>
@@ -203,7 +203,7 @@ function renderLinearSections() {
             isReadonly: isReadonly,
             isCurrent: isFirst,
             prevOutOfLimit: [],
-            saveBtnLabel: 'Zapisz ' + etap.nazwa
+            saveBtnLabel: null
         });
     });
 }
@@ -327,7 +327,7 @@ function renderCyclicSections() {
                 isReadonly: false,
                 isCurrent: true,
                 prevOutOfLimit: prevOut,
-                saveBtnLabel: 'Zapisz'
+                saveBtnLabel: null
             });
 
             // Post-standaryzacja: add "Przepompuj bez analizy" button after stand save btn
@@ -436,7 +436,7 @@ function renderOneSection(container, opts) {
                     ' class="' + inputClass.trim() + '"' +
                     (isReadonly ? ' readonly' : '') +
                     (isObl && !isReadonly ? ' readonly' : '') +
-                    ' oninput="validateField(this)">' +
+                    ' oninput="validateField(this); autoSaveField(this)" onblur="doSaveField(this, this.dataset.sekcja, this.dataset.kod)">' +
                 '<textarea data-komentarz="' + esc(pole.kod) + '" data-sekcja="' + esc(sekcja) + '"' +
                     ' placeholder="Komentarz (wymagany przy przekroczeniu limitu)..."' +
                     ' style="display:' + (existing && existing.w_limicie === 0 ? 'block' : 'none') + ';width:100%;margin-top:4px;padding:6px 8px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:11px;font-family:var(--font);color:var(--text);min-height:36px;resize:vertical;"' +
@@ -445,12 +445,7 @@ function renderOneSection(container, opts) {
     });
     fieldsHtml += '</div>';
 
-    var saveBtn = '';
-    if (!isReadonly && opts.saveBtnLabel) {
-        saveBtn = '<div style="margin-top:14px;text-align:right;"><button class="btn btn-p" onclick="saveSection(\'' + esc(sekcja) + '\')">' + esc(opts.saveBtnLabel) + '</button></div>';
-    }
-
-    section.innerHTML = headHtml + '<div class="sec-body">' + fieldsHtml + saveBtn + '</div>';
+    section.innerHTML = headHtml + '<div class="sec-body">' + fieldsHtml + '</div>';
     container.appendChild(section);
 }
 
@@ -594,6 +589,51 @@ async function saveSection(sekcja) {
             location.reload();
         }
     }
+}
+
+
+var _saveTimers = {};
+
+function autoSaveField(input) {
+    var sekcja = input.dataset.sekcja;
+    var kod = input.dataset.kod;
+    if (!sekcja || !kod) return;
+    var key = sekcja + '__' + kod;
+
+    if (_saveTimers[key]) clearTimeout(_saveTimers[key]);
+
+    _saveTimers[key] = setTimeout(function() {
+        doSaveField(input, sekcja, kod);
+    }, 1500);
+}
+
+function doSaveField(input, sekcja, kod) {
+    if (input.value === '') return;
+    var komentarz = document.querySelector('textarea[data-komentarz="' + kod + '"][data-sekcja="' + sekcja + '"]');
+    var values = {};
+    values[kod] = {
+        wartosc: input.value,
+        komentarz: komentarz ? komentarz.value : ""
+    };
+
+    input.style.outline = '2px solid var(--teal)';
+
+    fetch('/laborant/ebr/' + ebrId + '/save', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({sekcja: sekcja, values: values})
+    }).then(function(resp) {
+        if (resp.ok) {
+            input.style.outline = '2px solid var(--green, #16a34a)';
+            setTimeout(function() { input.style.outline = ''; }, 800);
+        } else {
+            input.style.outline = '2px solid var(--red, #dc2626)';
+            setTimeout(function() { input.style.outline = ''; }, 2000);
+        }
+    }).catch(function() {
+        input.style.outline = '2px solid var(--red, #dc2626)';
+        setTimeout(function() { input.style.outline = ''; }, 2000);
+    });
 }
 
 
