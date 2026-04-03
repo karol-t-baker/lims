@@ -182,10 +182,10 @@
       <button type="button" class="filter-clear-btn" id="filter-clear-btn" onclick="clearFilters()" title="Wyczysc filtry" style="display:none;">&#10005; Wyczysc</button>
     </div>
 
-    {# Tabela otwartych #}
-    <div class="section-title">Otwarte szarze <span class="section-count">{{ batches|length }}</span></div>
+    {# Tabela otwartych — flex-grow fills remaining space #}
+    <div class="section-title" style="flex-shrink:0;">Otwarte szarze <span class="section-count">{{ batches|length }}</span></div>
     {% if batches %}
-    <div class="table-scroll-5">
+    <div class="table-flex-fill">
     <table class="queue-table">
       <thead>
         <tr><th>Nr partii</th><th>Produkt</th><th>Typ</th><th>Etap</th><th>Status</th></tr>
@@ -214,8 +214,8 @@
     <div class="kpi" style="margin-bottom:24px;"><div class="kpi-sub">Brak otwartych szarz.</div></div>
     {% endif %}
 
-    {# Ostatnio ukonczone — button to registry #}
-    <div style="margin-top:24px;">
+    {# Rejestr ukonczonych — button #}
+    <div style="flex-shrink:0;">
       <button class="registry-open-btn" onclick="showRegistry()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" style="width:16px;height:16px;flex-shrink:0;"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></svg>
         <span>Rejestr ukonczone{% if recent %}ych ({{ recent|length }} z ostatnich 7 dni){% endif %}</span>
