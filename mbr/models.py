@@ -356,25 +356,13 @@ def list_ebr_open(
 
 def _compute_stage_info(ebr_row: dict) -> dict:
     """Compute synthesis stage from completed lab sections.
-
-    Szarża (4 main betaines have 2 sections, others have 1):
-      - No results              → "Analiza końcowa" (waiting)
-      - przed_stand partial     → "Przed standaryzacją" (in_progress)
-      - przed_stand done        → "Standaryzacja" (waiting — analysis done, now standardizing)
-      - analiza_konc partial    → "Analiza końcowa" (in_progress)
-      - analiza_konc done       → "Gotowy do zatwierdzenia" (done)
-
-    Zbiornik:
-      - No results  → "Analiza końcowa" (waiting)
-      - Partial     → "Analiza końcowa" (in_progress)
-      - Done        → "Gotowy do zatwierdzenia" (done)
+    Supports new cyclic (analiza+standaryzacja), legacy (przed+koncowa), and simple schemas.
     """
     parametry_raw = ebr_row.get("parametry_lab", "{}")
     parametry = json.loads(parametry_raw) if isinstance(parametry_raw, str) else parametry_raw
     filled = ebr_row.get("filled_count", 0) or 0
     typ = ebr_row.get("typ", "szarza")
 
-    # Count per-section fields
     sections = {}
     total_fields = 0
     for sek_key, sek_def in parametry.items():
@@ -388,40 +376,60 @@ def _compute_stage_info(ebr_row: dict) -> dict:
     if total_fields == 0:
         return {"stage_name": "Brak parametrów", "stage_status": "waiting", "progress_pct": 0}
 
-    progress_pct = round((filled / total_fields) * 100)
-
-    # ── Zbiornik ──
+    # Zbiornik
     if typ == "zbiornik":
         if filled == 0:
             return {"stage_name": "Analiza końcowa", "stage_status": "waiting", "progress_pct": 0}
         elif filled < total_fields:
-            return {"stage_name": "Analiza końcowa", "stage_status": "in_progress", "progress_pct": progress_pct}
+            return {"stage_name": "Analiza końcowa", "stage_status": "in_progress", "progress_pct": round((filled / total_fields) * 100)}
         else:
             return {"stage_name": "Gotowy do zatwierdzenia", "stage_status": "done", "progress_pct": 100}
 
-    # ── Szarża ──
+    # New cyclic schema
+    analiza_n = sections.get("analiza", 0)
+    stand_n = sections.get("standaryzacja", 0)
+
+    if analiza_n > 0 and stand_n > 0:
+        if filled == 0:
+            return {"stage_name": "Analiza", "stage_status": "waiting", "progress_pct": 0}
+        elif filled < analiza_n:
+            return {"stage_name": "Analiza", "stage_status": "in_progress", "progress_pct": round((filled / analiza_n) * 100)}
+        elif filled == analiza_n:
+            return {"stage_name": "Standaryzacja", "stage_status": "waiting", "progress_pct": 50}
+        else:
+            past_first = filled - analiza_n
+            round_size = analiza_n + stand_n
+            pos_in_round = past_first % round_size
+            if pos_in_round < stand_n:
+                return {"stage_name": "Standaryzacja", "stage_status": "in_progress" if pos_in_round > 0 else "waiting", "progress_pct": 50}
+            else:
+                konc_filled = pos_in_round - stand_n
+                if konc_filled < analiza_n:
+                    return {"stage_name": "Analiza końcowa", "stage_status": "in_progress", "progress_pct": 75}
+                return {"stage_name": "Gotowy do zatwierdzenia", "stage_status": "done", "progress_pct": 100}
+
+    # Legacy: przed_standaryzacja + analiza_koncowa
     przed_n = sections.get("przed_standaryzacja", 0)
     konc_n = sections.get("analiza_koncowa", 0)
 
-    if filled == 0:
-        # No results yet — next step is the first available analysis
-        if przed_n > 0:
+    if przed_n > 0:
+        progress_pct = round((filled / (przed_n + konc_n)) * 100) if (przed_n + konc_n) > 0 else 0
+        if filled == 0:
             return {"stage_name": "Przed standaryzacją", "stage_status": "waiting", "progress_pct": 0}
+        if filled < przed_n:
+            return {"stage_name": "Analiza przed standaryzacją", "stage_status": "in_progress", "progress_pct": progress_pct}
+        if filled == przed_n:
+            return {"stage_name": "Standaryzacja", "stage_status": "waiting", "progress_pct": progress_pct}
+        filled_konc = filled - przed_n
+        if filled_konc < konc_n:
+            return {"stage_name": "Analiza końcowa", "stage_status": "in_progress", "progress_pct": progress_pct}
+        return {"stage_name": "Gotowy do zatwierdzenia", "stage_status": "done", "progress_pct": 100}
+
+    # Simple: only analiza_koncowa
+    if filled == 0:
         return {"stage_name": "Analiza końcowa", "stage_status": "waiting", "progress_pct": 0}
-
-    if przed_n > 0 and filled < przed_n:
-        # Partially filled przed_standaryzacja
-        return {"stage_name": "Analiza przed standaryzacją", "stage_status": "in_progress", "progress_pct": progress_pct}
-
-    if przed_n > 0 and filled == przed_n:
-        # przed_standaryzacja complete, analiza_koncowa not started
-        return {"stage_name": "Standaryzacja", "stage_status": "waiting", "progress_pct": progress_pct}
-
-    # filled > przed_n → some analiza_koncowa results exist
-    filled_konc = filled - przed_n
-    if filled_konc < konc_n:
-        return {"stage_name": "Analiza końcowa", "stage_status": "in_progress", "progress_pct": progress_pct}
-
+    elif filled < total_fields:
+        return {"stage_name": "Analiza końcowa", "stage_status": "in_progress", "progress_pct": round((filled / total_fields) * 100)}
     return {"stage_name": "Gotowy do zatwierdzenia", "stage_status": "done", "progress_pct": 100}
 
 
@@ -636,6 +644,82 @@ def get_ebr_wyniki(db: sqlite3.Connection, ebr_id: int) -> dict:
     return result
 
 
+def get_round_state(wyniki: dict) -> dict:
+    """Compute current round state from wyniki keyed by sekcja.
+
+    Returns:
+        {
+            "last_analiza": int,       # highest N from analiza__N (0 if none)
+            "last_standaryzacja": int,  # highest N from standaryzacja__N (0 if none)
+            "next_step": str,          # "analiza"|"standaryzacja"
+            "next_sekcja": str,        # e.g. "analiza__1" or "standaryzacja__1"
+            "current_runda": int,      # current standardization round (1-based)
+            "is_decision": bool,       # True when post-standaryzacja analysis complete (Przepompuj/Korekta choice)
+            "prev_analiza_out": list,  # kods that were out of limit in last analiza round
+        }
+    """
+    last_a = 0
+    last_s = 0
+    for sek in wyniki:
+        if sek.startswith("analiza__"):
+            n = int(sek.split("__")[1])
+            if n > last_a:
+                last_a = n
+        elif sek.startswith("standaryzacja__"):
+            n = int(sek.split("__")[1])
+            if n > last_s:
+                last_s = n
+        # Legacy support
+        elif sek == "przed_standaryzacja":
+            last_a = max(last_a, 1)
+        elif sek == "analiza_koncowa":
+            last_a = max(last_a, 2)
+
+    # Determine next step
+    if last_a == 0:
+        next_step = "analiza"
+        next_sekcja = "analiza__1"
+        current_runda = 1
+    elif last_a > last_s:
+        # Analiza done, waiting for additives
+        next_step = "standaryzacja"
+        next_sekcja = f"standaryzacja__{last_a}"
+        current_runda = last_a
+    else:
+        # Additives done, waiting for next analiza
+        next_step = "analiza"
+        next_sekcja = f"analiza__{last_s + 1}"
+        current_runda = last_s + 1
+
+    # Decision state: post-stand analysis done → laborant chooses Przepompuj or Korekta
+    is_decision = last_a > 1 and last_a > last_s
+
+    # Find kods out of limit in most recent analiza
+    prev_out = []
+    if last_a > 0:
+        last_analiza_key = f"analiza__{last_a}"
+        # Legacy key fallback
+        if last_analiza_key not in wyniki:
+            if last_a == 1 and "przed_standaryzacja" in wyniki:
+                last_analiza_key = "przed_standaryzacja"
+            elif last_a == 2 and "analiza_koncowa" in wyniki:
+                last_analiza_key = "analiza_koncowa"
+        sek_wyniki = wyniki.get(last_analiza_key, {})
+        for kod, row in sek_wyniki.items():
+            if row.get("w_limicie") == 0:
+                prev_out.append(kod)
+
+    return {
+        "last_analiza": last_a,
+        "last_standaryzacja": last_s,
+        "next_step": next_step,
+        "next_sekcja": next_sekcja,
+        "current_runda": current_runda,
+        "is_decision": is_decision,
+        "prev_analiza_out": prev_out,
+    }
+
+
 def save_wyniki(
     db: sqlite3.Connection,
     ebr_id: int,
@@ -653,7 +737,9 @@ def save_wyniki(
     if ebr is None:
         return
     parametry = json.loads(ebr["parametry_lab"]) if isinstance(ebr["parametry_lab"], str) else ebr["parametry_lab"]
-    sekcja_def = parametry.get(sekcja, {})
+    # Resolve base sekcja: "analiza__2" → "analiza", "analiza_koncowa" → "analiza_koncowa"
+    base_sekcja = sekcja.split("__")[0] if "__" in sekcja else sekcja
+    sekcja_def = parametry.get(base_sekcja, {})
     pola = sekcja_def.get("pola", []) if isinstance(sekcja_def, dict) else sekcja_def
     if not isinstance(pola, list):
         pola = []
