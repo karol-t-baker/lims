@@ -11,6 +11,22 @@ Template: T121 | Spec: P819 | CAS: 1334422-09-1
 AMIDOWANIE → SMCA → CZWARTORZĘDOWANIE → SULFONOWANIE → UTLENIENIE → STANDARYZACJA → ANALIZA KOŃCOWA → PRZEPOMPOWANIE
 ```
 
+### Mapowanie na LIMS (ETAPY_FULL — 8 etapów):
+| Nr | Etap | Typ | Sekcja LIMS |
+|----|------|-----|-------------|
+| 1 | Amidowanie | read_only | — |
+| 2 | Wytworzenie SMCA | read_only | — |
+| 3 | Czwartorzędowanie | read_only | — |
+| 4 | Sulfonowanie | read_only | — |
+| 5 | Utlenienie | read_only | — |
+| 6 | Standaryzacja | **edytowalny** | analiza + dodatki (cyklicznie) |
+| 7 | Analiza końcowa | **edytowalny** | analiza_koncowa |
+| 8 | Przepompowanie | read_only | — |
+
+### Cykl standaryzacji w LIMS:
+Laborant pracuje w cyklu: `analiza__1` → `dodatki__1` → `analiza__2` → (jeśli poza normą) → `dodatki__2` → `analiza__3` → ...
+Każda runda analizy sprawdza parametry. Jeśli OK → przejście do analizy końcowej. Jeśli nie → korekta (dodatki) → re-analiza.
+
 ---
 
 ## Etap 1: AMIDOWANIE

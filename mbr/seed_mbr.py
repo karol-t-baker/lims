@@ -20,9 +20,24 @@ ETAPY_FULL = [
     {"nr": 1, "nazwa": "Amidowanie",          "read_only": True},
     {"nr": 2, "nazwa": "Wytworzenie SMCA",    "read_only": True},
     {"nr": 3, "nazwa": "Czwartorzędowanie",    "read_only": True},
-    {"nr": 4, "nazwa": "Standaryzacja",        "read_only": False, "sekcja_lab": "standaryzacja"},
-    {"nr": 5, "nazwa": "Analiza końcowa",      "read_only": False, "sekcja_lab": "analiza_koncowa"},
-    {"nr": 6, "nazwa": "Przepompowanie",       "read_only": True},
+    {"nr": 4, "nazwa": "Sulfonowanie",         "read_only": True},
+    {"nr": 5, "nazwa": "Utlenienie",           "read_only": True},
+    {"nr": 6, "nazwa": "Standaryzacja",        "read_only": False, "sekcja_lab": "standaryzacja"},
+    {"nr": 7, "nazwa": "Analiza końcowa",      "read_only": False, "sekcja_lab": "analiza_koncowa"},
+    {"nr": 8, "nazwa": "Przepompowanie",       "read_only": True},
+]
+
+# K40GLOL/GLOS/GLN have extra Rozjaśnianie (bleaching) stage
+ETAPY_FULL_GLOL = [
+    {"nr": 1, "nazwa": "Amidowanie",          "read_only": True},
+    {"nr": 2, "nazwa": "Wytworzenie SMCA",    "read_only": True},
+    {"nr": 3, "nazwa": "Czwartorzędowanie",    "read_only": True},
+    {"nr": 4, "nazwa": "Sulfonowanie",         "read_only": True},
+    {"nr": 5, "nazwa": "Utlenienie",           "read_only": True},
+    {"nr": 6, "nazwa": "Rozjaśnianie",         "read_only": True},
+    {"nr": 7, "nazwa": "Standaryzacja",        "read_only": False, "sekcja_lab": "standaryzacja"},
+    {"nr": 8, "nazwa": "Analiza końcowa",      "read_only": False, "sekcja_lab": "analiza_koncowa"},
+    {"nr": 9, "nazwa": "Przepompowanie",       "read_only": True},
 ]
 
 ETAPY_SIMPLE = [
@@ -153,7 +168,7 @@ PRODUCTS = [
     {
         "produkt": "Chegina_K40GLOL",
         "template_id": "T118",
-        "etapy": ETAPY_FULL,
+        "etapy": ETAPY_FULL_GLOL,
         "parametry_lab": {
             "analiza": {
                 "label": "Analiza",
@@ -894,7 +909,7 @@ PRODUCTS = [
     {
         "produkt": "Chegina_K40GLN",
         "template_id": "T-K40GLN",
-        "etapy": ETAPY_FULL,
+        "etapy": ETAPY_FULL_GLOL,
         "parametry_lab": {
             "analiza": {
                 "label": "Analiza",
@@ -914,7 +929,7 @@ PRODUCTS = [
     {
         "produkt": "Chegina_GLOL40",
         "template_id": "T-GLOL40",
-        "etapy": ETAPY_FULL,
+        "etapy": ETAPY_FULL_GLOL,
         "parametry_lab": {
             "analiza": {
                 "label": "Analiza",

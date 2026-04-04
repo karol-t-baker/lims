@@ -15,6 +15,23 @@ AMIDOWANIE → SMCA → CZWARTORZĘDOWANIE → SULFONOWANIE → UTLENIENIE (kw.c
 - Etap utlenienia wymaga DWÓCH kroków — najpierw kwas cytrynowy, potem perhydrol. K7 używa tylko perhydrolu.
 - Dodatkowy etap ROZJAŚNIANIA (wybielania) po utlenieniu — dodatkowe porcje perhydrolu w celu poprawy barwy.
 
+### Mapowanie na LIMS (ETAPY_FULL_GLOL — 9 etapów):
+| Nr | Etap | Typ | Sekcja LIMS |
+|----|------|-----|-------------|
+| 1 | Amidowanie | read_only | — |
+| 2 | Wytworzenie SMCA | read_only | — |
+| 3 | Czwartorzędowanie | read_only | — |
+| 4 | Sulfonowanie | read_only | — |
+| 5 | Utlenienie | read_only | — |
+| 6 | Rozjaśnianie | read_only | — |
+| 7 | Standaryzacja | **edytowalny** | analiza + dodatki (cyklicznie) |
+| 8 | Analiza końcowa | **edytowalny** | analiza_koncowa |
+| 9 | Przepompowanie | read_only | — |
+
+### Cykl standaryzacji w LIMS:
+Laborant pracuje w cyklu: `analiza__1` → `dodatki__1` → `analiza__2` → (jeśli poza normą) → `dodatki__2` → `analiza__3` → ...
+Każda runda analizy sprawdza parametry. Jeśli OK → przejście do analizy końcowej. Jeśli nie → korekta (dodatki) → re-analiza.
+
 ---
 
 ## Etap 1: AMIDOWANIE
