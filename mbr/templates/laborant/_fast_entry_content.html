@@ -482,7 +482,7 @@ function renderCompletedView() {
         }
 
         // Przepompowanie
-        var pump = {{ ebr.przepompowanie_json | default('null') | safe }};
+        var pump = {% if ebr.przepompowanie_json %}{{ ebr.przepompowanie_json | safe }}{% else %}null{% endif %};
         if (pump && pump.length > 0) {
             html += '<div class="cv-pump">';
             pump.forEach(function(p) {
