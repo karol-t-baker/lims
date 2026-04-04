@@ -1536,6 +1536,11 @@ body {
 .prod-gl { background: #ccfbf1; color: #0f766e; }           /* zielono-niebieski */
 .prod-other { background: var(--surface-alt); color: var(--text-sec); }
 
+.bc-etap-badge {
+  font-size: 8px; font-weight: 700; padding: 1px 4px; border-radius: 3px;
+  background: var(--surface-alt); color: var(--text-dim);
+  letter-spacing: 0.3px; flex-shrink: 0;
+}
 .bc-stage { margin-left: auto; flex-shrink: 0; font-size: 10px; }
 .bc-st-ok { color: var(--green); font-weight: 700; }
 .bc-st-err { color: var(--red); font-weight: 700; font-size: 9px; }

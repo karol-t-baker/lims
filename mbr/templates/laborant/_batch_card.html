@@ -18,9 +18,19 @@
   <span class="bc-nr">{{ b.nr_partii }}</span>
   {% if b.typ == 'zbiornik' %}<span class="bc-typ-badge">ZB</span>{% endif %}
   <span class="bc-product-sticker {{ _product_color(b.produkt) }}">{{ b.produkt|short_product }}</span>
+  {% if b.stage_name and b.typ != 'zbiornik' %}
+  <span class="bc-etap-badge">
+    {%- if 'Standaryzacja' in b.stage_name|default('') and 'Analiza' not in b.stage_name|default('') -%}ST
+    {%- elif 'końcowa' in b.stage_name|default('') -%}AK
+    {%- elif 'Analiza' in b.stage_name|default('') -%}AN
+    {%- elif 'Gotowy' in b.stage_name|default('') -%}GO
+    {%- else -%}{{ b.stage_name|default('')|truncate(2, True, '') }}
+    {%- endif -%}
+  </span>
+  {% endif %}
   <span class="bc-stage">
     {% if b.out_of_limit > 0 %}
-      <span class="bc-st-err">{{ b.out_of_limit }} poza</span>
+      <span class="bc-st-err">!!</span>
     {% elif b.stage_status == 'done' %}
       <span class="bc-st-ok">✓</span>
     {% elif b.stage_status == 'in_progress' %}
