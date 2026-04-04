@@ -259,6 +259,10 @@
     line-height: 1; letter-spacing: -.03em; margin-bottom: 10px; color: var(--text);
 }
 [class*="cv-prod-"] .cv-h2-nr { color: var(--pc); }
+.cv-h2-zbiornik {
+    font-size: 28px; font-weight: 700; opacity: 0.4; margin-left: 16px;
+    letter-spacing: 0;
+}
 
 .cv-h2-divider { height: 1px; margin: 10px 0; background: rgba(0,0,0,.1); }
 [class*="cv-prod-"] .cv-h2-divider { background: color-mix(in srgb, var(--pc) 20%, transparent); }
@@ -575,10 +579,10 @@ function renderCompletedView() {
             '<div class="cv-h2-badge"><span>▶</span> {{ ebr.produkt | replace("_", " ") }}</div>' +
             statusChip +
         '</div>' +
-        '<div class="cv-h2-nr">{{ ebr.nr_partii }}</div>' +
+        '<div class="cv-h2-nr">{{ ebr.nr_partii }}{% if ebr.nr_zbiornika and ebr.typ == "zbiornik" %}<span class="cv-h2-zbiornik">{{ ebr.nr_zbiornika }}</span>{% endif %}</div>' +
         '<div class="cv-h2-divider"></div>' +
         '<div class="cv-h2-info">' +
-            '<div class="cv-h2-item"><div class="cv-h2-key">Typ</div><div class="cv-h2-val">' + (isZbiornik ? 'Zbiornik{% if ebr.nr_zbiornika and ebr.typ == "zbiornik" %} {{ ebr.nr_zbiornika }}{% endif %}' : 'Szarża') + '</div></div>' +
+            '<div class="cv-h2-item"><div class="cv-h2-key">Typ</div><div class="cv-h2-val">' + (isZbiornik ? 'Zbiornik' : 'Szarża') + '</div></div>' +
             '<div class="cv-h2-item"><div class="cv-h2-key">Data</div><div class="cv-h2-val">{{ ebr.dt_end | pl_date if ebr.dt_end else ebr.dt_start | pl_date }}</div></div>' +
             (ebrNastaw ? '<div class="cv-h2-item"><div class="cv-h2-key">Nastaw</div><div class="cv-h2-val">' + Math.round(ebrNastaw) + ' kg</div></div>' : '') +
             {% if ebr.nr_amidatora %}(!isZbiornik ? '<div class="cv-h2-item"><div class="cv-h2-key">Amider</div><div class="cv-h2-val">A-{{ ebr.nr_amidatora }}</div></div>' : '') +{% endif %}
