@@ -209,6 +209,7 @@
 .cv-hero { border-radius: 10px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 14px; }
 .cv-hero-bg { background: linear-gradient(135deg, #0d7377 0%, #085c60 100%); padding: 22px 22px 18px; color: #fff; }
 .cv-hero-bg.cv-hero-zbiornik { background: linear-gradient(135deg, #0d7377 0%, #085c60 100%); }
+.cv-hero-bg.cv-hero-szarza { background: linear-gradient(135deg, #2c2416 0%, #4a3c28 100%); color: #f0ece4; }
 .cv-hero-label { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.6; }
 .cv-hero-nr { font-size: 32px; font-weight: 900; line-height: 1; margin-top: 4px; }
 .cv-hero-product { font-size: 14px; opacity: 0.7; margin-top: 5px; }
@@ -228,6 +229,9 @@
 .cv-p-val { font-family: var(--mono); font-size: 15px; font-weight: 700; min-width: 60px; text-align: right; }
 .cv-val-err { color: var(--red); }
 .cv-p-norm { font-family: var(--mono); font-size: 10px; color: var(--text-dim); width: 75px; text-align: right; }
+.cv-head-badge { font-size: 9px; font-weight: 600; padding: 2px 7px; border-radius: 6px; margin-left: 8px; vertical-align: middle; }
+.cv-hb-ok { background: var(--green-bg); color: var(--green); }
+.cv-hb-err { background: var(--red-bg); color: var(--red); }
 
 /* Stages (szarża) */
 .cv-stages { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
@@ -359,7 +363,7 @@ function renderCompletedView() {
 
     // Hero
     var heroHtml = '<div class="cv-hero">' +
-        '<div class="cv-hero-bg' + (isZbiornik ? ' cv-hero-zbiornik' : '') + '">' +
+        '<div class="cv-hero-bg' + (isZbiornik ? ' cv-hero-zbiornik' : ' cv-hero-szarza') + '">' +
             '<div class="cv-hero-label">' + (isZbiornik ? 'Zbiornik' : 'Szarża') + '</div>' +
             '<div class="cv-hero-nr">{{ ebr.nr_partii }}</div>' +
             '<div class="cv-hero-product">{{ ebr.produkt | short_product }}</div>' +
@@ -427,16 +431,38 @@ function renderCompletedView() {
                 var stagePola = getPola(key);
                 var stageW = wyniki[key] || {};
                 var visible = idx === stages.length - 1;
+                var base = key.replace(/__\d+$/, '');
+                var n = parseInt((key.match(/__(\d+)$/) || [0, 0])[1]);
+                var stageLabel = typeof getCyclicSectionTitle === 'function' && n > 0
+                    ? getCyclicSectionTitle(base, n) : key;
+
+                // Count ok/err for this stage
+                var stageErr = 0;
+                Object.values(stageW).forEach(function(r) { if (r.w_limicie === 0) stageErr++; });
+
                 html += '<div class="cv-stage-body' + (visible ? ' active' : '') + '" data-stage="' + key + '">';
-                html += '<div class="cv-params"><div class="cv-params-head">' + key + '</div>';
+                html += '<div class="cv-params"><div class="cv-params-head">' + esc(stageLabel);
+                if (base === 'dodatki') {
+                    // no status badge for additives
+                } else if (stageErr > 0) {
+                    html += ' <span class="cv-head-badge cv-hb-err">' + stageErr + ' poza</span>';
+                } else if (Object.keys(stageW).length > 0) {
+                    html += ' <span class="cv-head-badge cv-hb-ok">OK</span>';
+                }
+                html += '</div>';
                 stagePola.forEach(function(pole) {
                     var r = stageW[pole.kod];
                     if (!r || r.wartosc == null) return;
                     var ok = r.w_limicie === 1;
+                    var normText = '';
+                    if (pole.min != null && pole.max != null) normText = pole.min + ' – ' + pole.max;
+                    else if (pole.min != null) normText = '> ' + pole.min;
+                    else if (pole.max != null) normText = '< ' + pole.max;
                     html += '<div class="cv-param">' +
                         '<div class="cv-p-dot ' + (ok ? 'cv-dot-ok' : 'cv-dot-err') + '"></div>' +
                         '<span class="cv-p-label">' + esc(pole.label) + '</span>' +
                         '<span class="cv-p-val ' + (ok ? '' : 'cv-val-err') + '">' + r.wartosc + '</span>' +
+                        '<span class="cv-p-norm">' + normText + '</span>' +
                     '</div>';
                 });
                 html += '</div></div>';
