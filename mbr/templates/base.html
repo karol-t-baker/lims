@@ -61,6 +61,9 @@
 
 {% block scripts %}{% endblock %}
 
+<!-- Nowa szarza modal (global — available on all pages) -->
+{% include "laborant/_modal_nowa_szarza.html" %}
+
 <!-- Shift modal -->
 <div class="modal-overlay" id="shift-overlay" onclick="if(event.target===this)closeShiftModal()">
   <div class="modal shift-modal">
@@ -359,7 +362,6 @@ document.addEventListener('keydown', function(e) {
     var regModal = document.getElementById('reg-modal');
     if (regModal && regModal.classList.contains('show')) { if (typeof closeModal === 'function') closeModal(); }
     else if (typeof openNewBatchModal === 'function') openNewBatchModal();
-    else location.href = '/laborant/szarze';
   }
   if (e.key === 'f' || e.key === 'F') {
     e.preventDefault();
