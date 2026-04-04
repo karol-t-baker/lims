@@ -705,13 +705,14 @@ function renderCompletedView() {
             statusChip +
         '</div>';
 
-        // IntersectionObserver on hero
+        // IntersectionObserver on hero — use global so loadBatch can cleanup
         var heroEl = container.querySelector('.cv-h2-card');
         if (heroEl) {
-            var observer = new IntersectionObserver(function(entries) {
+            if (typeof _heroObserver !== 'undefined' && _heroObserver) _heroObserver.disconnect();
+            _heroObserver = new IntersectionObserver(function(entries) {
                 topbar.style.display = entries[0].isIntersecting ? 'none' : '';
             }, { threshold: 0.1 });
-            observer.observe(heroEl);
+            _heroObserver.observe(heroEl);
         }
     }
 }

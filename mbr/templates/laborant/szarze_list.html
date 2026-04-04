@@ -389,6 +389,7 @@
 <script>
 let currentView = 'dashboard';
 let currentEbrId = null;
+let _heroObserver = null;
 
 // ═══ RAIL: wide (dashboard) ↔ narrow (detail) ═══
 
@@ -407,6 +408,9 @@ function narrowRail() {
 // ═══ SPA NAVIGATION ═══
 
 async function loadBatch(ebrId) {
+  // Cleanup previous hero observer
+  if (_heroObserver) { _heroObserver.disconnect(); _heroObserver = null; }
+
   const resp = await fetch(`/laborant/ebr/${ebrId}/partial`);
   if (!resp.ok) return;
   const html = await resp.text();
@@ -418,9 +422,10 @@ async function loadBatch(ebrId) {
   detailPanel.innerHTML = html;
   detailPanel.style.display = '';
 
-  // Update topbar
-  // Show topbar in detail view
+  // Update topbar — reset structure first (may have been replaced by completed view)
   var topbar = document.getElementById('topbar');
+  topbar.classList.remove('cv-topbar');
+  topbar.innerHTML = '<span class="tp-t" id="topbar-title"></span><span class="tp-r" id="topbar-right"></span>';
   topbar.style.display = '';
   const dtTopbar = detailPanel.querySelector('#detail-topbar');
   if (dtTopbar) {
