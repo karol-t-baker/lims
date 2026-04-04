@@ -336,8 +336,9 @@ async function loadBatch(ebrId) {
   if (!resp.ok) return;
   const html = await resp.text();
 
-  // Switch panels
+  // Switch panels — hide both dashboard and registry
   document.getElementById('panel-dashboard').style.display = 'none';
+  document.getElementById('panel-registry').style.display = 'none';
   const detailPanel = document.getElementById('panel-detail');
   detailPanel.innerHTML = html;
   detailPanel.style.display = '';
