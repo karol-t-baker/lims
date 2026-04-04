@@ -607,12 +607,12 @@ function renderCompletedView() {
             '<div class="cv-p-dot ' + (ok ? 'cv-dot-ok' : 'cv-dot-err') + '"></div>' +
             '<span class="cv-p-label">' + esc(pole.label) + '</span>';
         if (canEdit) {
-            paramsHtml += '<input class="cv-p-input" type="number" step="any" value="' + (val !== null && val !== '' ? val : '') + '"' +
+            paramsHtml += '<input class="cv-p-input" type="text" inputmode="decimal" value="' + (val !== null && val !== '' ? String(val).replace('.', ',') : '') + '"' +
                 ' data-kod="' + esc(pole.kod) + '" data-sekcja="' + esc(lastSekcja) + '"' +
                 ' data-min="' + (pole.min != null ? pole.min : '') + '" data-max="' + (pole.max != null ? pole.max : '') + '"' +
                 ' readonly oninput="validateField(this); autoSaveField(this)" onblur="doSaveField(this, this.dataset.sekcja, this.dataset.kod)">';
         } else {
-            paramsHtml += '<span class="cv-p-val ' + (ok ? '' : 'cv-val-err') + '">' + (val !== null && val !== '' ? val : '—') + '</span>';
+            paramsHtml += '<span class="cv-p-val ' + (ok ? '' : 'cv-val-err') + '">' + (val !== null && val !== '' ? String(val).replace('.', ',') : '—') + '</span>';
         }
         paramsHtml += '<span class="cv-p-norm">' + normText + '</span>' +
         '</div>';
@@ -1204,7 +1204,7 @@ function renderOneSection(container, opts) {
                     ' data-max="' + (pole.max != null ? pole.max : '') + '"' +
                     ' data-measurement-type="' + esc(pole.measurement_type || '') + '"' +
                     (isObl && pole.formula ? ' data-formula="' + esc(pole.formula) + '"' : '') +
-                    ' value="' + (val !== '' && val !== null ? val : '') + '"' +
+                    ' value="' + (val !== '' && val !== null ? String(val).replace('.', ',') : '') + '"' +
                     ' class="' + inputClass.trim() + '"' +
                     (isReadonly ? ' readonly' : '') +
                     (isObl && !isReadonly ? ' readonly' : '') +
