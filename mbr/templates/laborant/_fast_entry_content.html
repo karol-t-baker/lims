@@ -435,8 +435,8 @@ function renderCompletedView() {
     var canEdit = isZbiornik;
     var paramsHtml = '<div class="cv-params">' +
         '<div class="cv-params-head">Parametry końcowe' +
-            (canEdit ? ' <button class="cv-edit-btn" onclick="toggleEditParams()" id="cv-edit-toggle">edytuj</button>' +
-                   '<button class="cv-save-btn" onclick="toggleEditParams()" id="cv-save-toggle" style="display:none;">✓ Zakończ edycję</button>' : '') +
+            (canEdit ? ' <button class="cv-edit-btn" onclick="startEditParams()" id="cv-edit-toggle">edytuj</button>' +
+                   '<button class="cv-save-btn" onclick="finishEditParams()" id="cv-save-toggle" style="display:none;">✓ Zakończ edycję</button>' : '') +
         '</div>';
     var lastSekcja = lastAnaliza || 'analiza_koncowa';
     pola.forEach(function(pole) {
@@ -561,30 +561,17 @@ function renderCompletedView() {
     }
 }
 
-function toggleEditParams() {
+function startEditParams() {
     var inputs = document.querySelectorAll('.cv-p-input');
-    var editBtn = document.getElementById('cv-edit-toggle');
-    var saveBtn = document.getElementById('cv-save-toggle');
-    var isEditing = !inputs[0].readOnly;
-
-    if (!isEditing) {
-        // Exiting edit mode
-        inputs.forEach(function(inp) { inp.readOnly = true; });
-        editBtn.style.display = '';
-        saveBtn.style.display = 'none';
-        var warning = document.getElementById('cv-edit-warning');
-        if (warning) warning.remove();
-        // Reload to refresh certs + dots
-        if (typeof loadBatch === 'function') loadBatch(ebrId);
-    } else {
-        // Entering edit mode
-        inputs.forEach(function(inp) { inp.readOnly = false; });
-        editBtn.style.display = 'none';
-        saveBtn.style.display = '';
-        inputs[0].focus();
-        // Show warning if has certs
-        var certsEl = document.getElementById('cv-certs');
-        if (certsEl && certsEl.querySelector('.cv-cert-issued')) {
+    inputs.forEach(function(inp) { inp.readOnly = false; });
+    document.getElementById('cv-edit-toggle').style.display = 'none';
+    document.getElementById('cv-save-toggle').style.display = '';
+    if (inputs[0]) inputs[0].focus();
+    // Show warning if has certs
+    var certsEl = document.getElementById('cv-certs');
+    if (certsEl && certsEl.querySelector('.cv-cert-issued')) {
+        var existing = document.getElementById('cv-edit-warning');
+        if (!existing) {
             var w = document.createElement('div');
             w.id = 'cv-edit-warning';
             w.className = 'cv-edit-warn';
@@ -592,6 +579,13 @@ function toggleEditParams() {
             certsEl.parentElement.insertBefore(w, certsEl);
         }
     }
+}
+
+function finishEditParams() {
+    var inputs = document.querySelectorAll('.cv-p-input');
+    inputs.forEach(function(inp) { inp.readOnly = true; });
+    // Reload to refresh dots + certs status
+    if (typeof loadBatch === 'function') loadBatch(ebrId);
 }
 
 function showCompletedStage(btn, key) {
