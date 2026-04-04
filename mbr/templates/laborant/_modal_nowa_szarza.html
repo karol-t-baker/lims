@@ -162,7 +162,10 @@
           <div style="height:16px"></div>
           <div class="form-row">
             <div class="form-label">Nr zbiornika</div>
-            <input class="form-input" type="text" name="nr_zbiornika" placeholder="np. M16">
+            <div style="display:flex;align-items:center;gap:0;">
+              <span style="padding:10px 8px 10px 12px;background:var(--surface-alt);border:1.5px solid var(--border);border-right:none;border-radius:6px 0 0 6px;font-size:13px;font-weight:700;color:var(--text-sec);">M</span>
+              <input class="form-input" type="number" min="1" max="99" name="nr_zbiornika_num" placeholder="nr" style="border-radius:0 6px 6px 0;width:80px;" id="zbiornik-nr-input">
+            </div>
           </div>
         </div>
 
@@ -335,7 +338,7 @@ document.getElementById('new-batch-form').addEventListener('submit', function(e)
 
   // Validate nr zbiornika (zbiornik only)
   if (currentTyp === 'zbiornik') {
-    var zbInput = document.querySelector('#step-2b input[name="nr_zbiornika"]');
+    var zbInput = document.getElementById('zbiornik-nr-input');
     if (zbInput && !zbInput.value.trim()) {
       errors.push({msg: 'Podaj numer zbiornika', el: zbInput});
     }
@@ -361,7 +364,15 @@ document.getElementById('new-batch-form').addEventListener('submit', function(e)
     document.getElementById('nr-partii-input').value = zbVal;
     document.getElementById('nr-partii-input-zb').removeAttribute('name');
     document.getElementById('nr-partii-input').removeAttribute('readonly');
-    // nr_zbiornika is already a named input in the form — it will be sent directly
+    // Compose nr_zbiornika from "M" + number input
+    var zbNrInput = document.getElementById('zbiornik-nr-input');
+    if (zbNrInput && zbNrInput.value.trim()) {
+      var hidden = document.createElement('input');
+      hidden.type = 'hidden';
+      hidden.name = 'nr_zbiornika';
+      hidden.value = 'M' + zbNrInput.value.trim();
+      zbNrInput.form.appendChild(hidden);
+    }
   }
 });
 </script>
