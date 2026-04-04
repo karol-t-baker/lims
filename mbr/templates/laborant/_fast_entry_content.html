@@ -277,41 +277,68 @@
     display: flex; align-items: center; justify-content: center;
     font-size: 10px; font-weight: 700; flex-shrink: 0;
 }
-.cv-cert-row { display: flex; align-items: center; gap: 0; margin-bottom: 4px; }
-.cv-cert-row .cv-cert-issued { flex: 1; margin-bottom: 0; }
-.cv-ci-delete {
-    border: none; background: none; padding: 4px 8px;
+/* Single mixed list styles */
+.cv-outdated-banner {
+    padding: 8px 14px; margin: 12px 14px 0;
+    background: var(--amber-bg); border-radius: 6px; border-left: 3px solid var(--amber);
+    font-size: 11px; color: var(--amber); font-weight: 500; line-height: 1.5;
+}
+.cv-list { }
+.cv-list-sep {
+    padding: 10px 16px 4px; font-size: 9px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim);
+}
+.cv-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 16px; border-bottom: 1px solid var(--border-subtle, #f0ece4);
+    transition: background 0.1s;
+}
+.cv-row:last-child { border-bottom: none; }
+.cv-row:hover { background: #faf9f6; }
+.cv-row-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; background: var(--green); }
+.cv-row-dot.stale { background: var(--amber); }
+.cv-row-dot.tmpl {
+    width: 18px; height: 18px; border-radius: 4px;
+    background: var(--teal-bg); color: var(--teal);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+}
+.cv-row-name { font-size: 12px; font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cv-row-meta { font-size: 10px; color: var(--text-dim); flex-shrink: 0; }
+.cv-row-badge-stale {
+    font-size: 8px; font-weight: 700; color: var(--amber);
+    background: var(--amber-bg); padding: 1px 5px; border-radius: 3px;
+    text-transform: uppercase; letter-spacing: 0.3px; flex-shrink: 0;
+}
+.cv-row-pdf {
+    font-size: 9px; font-weight: 700; color: var(--teal);
+    background: var(--teal-bg); padding: 2px 8px; border-radius: 4px;
+    text-decoration: none; flex-shrink: 0;
+}
+.cv-row-pdf:hover { background: #d0ecec; }
+.cv-row-del {
+    border: none; background: none; padding: 2px 6px;
     color: var(--text-dim); cursor: pointer; font-size: 10px;
-    border-radius: 4px; flex-shrink: 0; font-family: var(--font);
-    transition: all 0.12s;
+    font-family: var(--font); flex-shrink: 0; transition: color 0.12s;
 }
-.cv-ci-delete:hover { color: var(--red); }
-.cv-ci-confirm {
-    display: flex; gap: 4px; align-items: center; flex-shrink: 0; margin-left: 4px;
-}
-.cv-ci-yes {
+.cv-row-del:hover { color: var(--red); }
+.cv-row-stale { opacity: 0.55; }
+.cv-row-stale:hover { opacity: 0.75; }
+.cv-row-tmpl { cursor: pointer; }
+.cv-row-tmpl:hover { background: var(--teal-bg); }
+.cv-row-tmpl .cv-row-name { color: var(--text-sec); font-weight: 500; }
+.cv-del-confirm { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
+.cv-del-yes {
     font-size: 9px; font-weight: 600; padding: 3px 8px; border-radius: 4px;
-    border: none; background: var(--red); color: #fff; cursor: pointer;
-    font-family: var(--font);
+    border: none; background: var(--red); color: #fff; cursor: pointer; font-family: var(--font);
 }
-.cv-ci-yes:hover { filter: brightness(1.1); }
-.cv-ci-no {
+.cv-del-yes:hover { filter: brightness(1.1); }
+.cv-del-no {
     font-size: 9px; font-weight: 500; padding: 3px 8px; border-radius: 4px;
     border: 1px solid var(--border); background: var(--surface); color: var(--text-dim);
     cursor: pointer; font-family: var(--font);
 }
-.cv-ci-no:hover { background: var(--surface-alt); }
-.cv-ci-outdated { opacity: 0.55; border-left: 3px solid var(--amber); }
-.cv-outdated-banner {
-    padding: 8px 12px; margin-bottom: 10px;
-    background: var(--amber-bg); border-radius: 6px; border-left: 3px solid var(--amber);
-    font-size: 11px; color: var(--amber); font-weight: 500; line-height: 1.5;
-}
-.cv-ci-stale {
-    font-size: 8px; font-weight: 700; color: var(--amber);
-    background: var(--amber-bg); padding: 1px 5px; border-radius: 3px;
-    margin-left: 6px; text-transform: uppercase; letter-spacing: 0.3px;
-}
+.cv-del-no:hover { background: var(--surface-alt); }
 .cv-head-badge { font-size: 9px; font-weight: 600; padding: 2px 7px; border-radius: 6px; margin-left: 8px; vertical-align: middle; }
 .cv-hb-ok { background: var(--green-bg); color: var(--green); }
 .cv-hb-err { background: var(--red-bg); color: var(--red); }
@@ -332,39 +359,8 @@
 .cv-pump-kg { font-family: var(--mono); font-size: 22px; font-weight: 900; margin-top: 4px; }
 .cv-pump-kg span { font-size: 12px; font-weight: 400; color: var(--text-sec); }
 
-/* Certs section */
 .cv-certs { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-top: 12px; }
-.cv-certs-section { padding: 14px 16px; }
-.cv-certs-section + .cv-certs-section { border-top: 1px solid var(--border-subtle, #f0ece4); }
-.cv-certs-head { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim); margin-bottom: 10px; }
 .cv-certs-empty { font-size: 12px; color: var(--text-dim); padding: 14px 16px; }
-
-/* Issued cert cards */
-.cv-cert-issued {
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 12px; border-radius: 8px; margin-bottom: 4px;
-    text-decoration: none; color: var(--text);
-    background: var(--surface-alt); transition: all 0.12s; cursor: pointer;
-}
-.cv-cert-issued:hover { background: var(--teal-bg); }
-.cv-ci-icon { color: var(--teal); flex-shrink: 0; }
-.cv-ci-info { flex: 1; min-width: 0; }
-.cv-ci-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cv-ci-meta { font-size: 10px; color: var(--text-dim); margin-top: 1px; }
-.cv-ci-pdf { font-size: 9px; font-weight: 700; color: var(--teal); background: var(--teal-bg); padding: 3px 8px; border-radius: 4px; flex-shrink: 0; }
-
-/* Template picker grid */
-.cv-tmpl-grid { display: flex; flex-wrap: wrap; gap: 6px; }
-.cv-tmpl-btn {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 7px 12px; border-radius: 6px;
-    border: 1px dashed var(--border); background: var(--surface);
-    font-size: 11px; font-weight: 500; font-family: var(--font);
-    color: var(--text-sec); cursor: pointer; transition: all 0.12s;
-}
-.cv-tmpl-btn:hover { border-color: var(--teal); color: var(--teal); border-style: solid; background: var(--teal-bg); }
-.cv-tmpl-btn:disabled { opacity: 0.5; cursor: default; }
-.cv-tmpl-btn svg { color: var(--text-dim); }
 
 </style>
 
@@ -648,56 +644,54 @@ async function loadCompletedCerts() {
     var tmplData = await tmplResp.json();
 
     var html = '';
+    var hasOutdated = certData.certs.some(function(c) { return c.nieaktualne; });
 
-    // Issued certificates
+    // Warning banner
+    if (hasOutdated) {
+        html += '<div class="cv-outdated-banner">' +
+            'Parametry zmienione po wystawieniu — oznaczone świadectwa nieaktualne.' +
+        '</div>';
+    }
+
+    // Single mixed list
+    html += '<div class="cv-list">';
+
+    // Issued certs
     if (certData.certs.length > 0) {
-        var hasOutdated = certData.certs.some(function(c) { return c.nieaktualne; });
-        html += '<div class="cv-certs-section">';
-        html += '<div class="cv-certs-head">Wystawione</div>';
-        if (hasOutdated) {
-            html += '<div class="cv-outdated-banner">' +
-                'Parametry zostały zmienione po wystawieniu — świadectwa oznaczone jako nieaktualne. Wystaw nowe.' +
-            '</div>';
-        }
+        html += '<div class="cv-list-sep">Wystawione</div>';
         certData.certs.forEach(function(c) {
             var name = c.template_name.replace('.docx', '');
-            // Trim common prefixes for display
             var display = name;
             ['Świadectwo_Certificate-', 'Świadectwo_Certificate- ', 'ŚwiadectwoCertificate-',
              'Certificate Świadectwo-', 'Świadectwo-Certificate - '].forEach(function(p) {
                 display = display.replace(p, '');
             });
             var dt = c.dt_wystawienia ? c.dt_wystawienia.substring(0, 10) : '';
-            var outdated = c.nieaktualne ? ' cv-ci-outdated' : '';
-            var outdatedBadge = c.nieaktualne ? '<span class="cv-ci-stale">nieaktualne</span>' : '';
-            html += '<div class="cv-cert-row">' +
-                '<a href="/api/cert/' + c.id + '/pdf" target="_blank" class="cv-cert-issued' + outdated + '">' +
-                    '<div class="cv-ci-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" style="width:16px;height:16px;"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>' +
-                    '<div class="cv-ci-info">' +
-                        '<div class="cv-ci-name">' + display + outdatedBadge + '</div>' +
-                        '<div class="cv-ci-meta">' + dt + (c.wystawil ? ' · ' + c.wystawil : '') + '</div>' +
-                    '</div>' +
-                    '<span class="cv-ci-pdf">PDF</span>' +
-                '</a>' +
-                '<button class="cv-ci-delete" onclick="event.stopPropagation();deleteCert(' + c.id + ')">usuń</button>' +
+            var isStale = c.nieaktualne;
+
+            html += '<div class="cv-row' + (isStale ? ' cv-row-stale' : '') + '">' +
+                '<div class="cv-row-dot' + (isStale ? ' stale' : '') + '"></div>' +
+                '<span class="cv-row-name">' + display + '</span>' +
+                '<span class="cv-row-meta">' + dt + (c.wystawil ? ' · ' + c.wystawil : '') + '</span>' +
+                (isStale ? '<span class="cv-row-badge-stale">nieaktualne</span>' : '') +
+                '<a href="/api/cert/' + c.id + '/pdf" target="_blank" class="cv-row-pdf">PDF</a>' +
+                '<button class="cv-row-del" onclick="event.stopPropagation();deleteCert(' + c.id + ')">usuń</button>' +
             '</div>';
         });
-        html += '</div>';
     }
 
-    // Template picker
+    // Templates
     if (tmplData.templates.length > 0) {
-        html += '<div class="cv-certs-section">';
-        html += '<div class="cv-certs-head">Wystaw nowe</div>';
-        html += '<div class="cv-tmpl-grid">';
+        html += '<div class="cv-list-sep">Wystaw nowe</div>';
         tmplData.templates.forEach(function(t) {
-            html += '<button class="cv-tmpl-btn" onclick="generateCertInline(this,\'' + t.filename.replace(/'/g, "\\'") + '\')">' +
-                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" style="width:14px;height:14px;flex-shrink:0;"><path d="M12 5v14M5 12h14"/></svg>' +
-                '<span>' + t.display + '</span>' +
-            '</button>';
+            html += '<div class="cv-row cv-row-tmpl" onclick="generateCertInline(this,\'' + t.filename.replace(/'/g, "\\'") + '\')">' +
+                '<div class="cv-row-dot tmpl">+</div>' +
+                '<span class="cv-row-name">' + t.display + '</span>' +
+            '</div>';
         });
-        html += '</div></div>';
     }
+
+    html += '</div>';
 
     if (!certData.certs.length && !tmplData.templates.length) {
         html = '<div class="cv-certs-empty">Brak wzorów świadectw dla tego produktu.</div>';
@@ -707,15 +701,14 @@ async function loadCompletedCerts() {
 }
 
 function deleteCert(certId) {
-    // Replace × with confirm/cancel inline
-    var row = document.querySelector('.cv-ci-delete[onclick*="' + certId + '"]').closest('.cv-cert-row');
-    var delBtn = row.querySelector('.cv-ci-delete');
+    var row = document.querySelector('.cv-row-del[onclick*="' + certId + '"]').closest('.cv-row');
+    var delBtn = row.querySelector('.cv-row-del');
     delBtn.style.display = 'none';
-    var confirm = document.createElement('div');
-    confirm.className = 'cv-ci-confirm';
-    confirm.innerHTML = '<button class="cv-ci-yes" onclick="doDeleteCert(' + certId + ',this)">usuń</button>' +
-        '<button class="cv-ci-no" onclick="cancelDeleteCert(this)">nie</button>';
-    row.appendChild(confirm);
+    var confirmDiv = document.createElement('div');
+    confirmDiv.className = 'cv-del-confirm';
+    confirmDiv.innerHTML = '<button class="cv-del-yes" onclick="doDeleteCert(' + certId + ',this)">usuń</button>' +
+        '<button class="cv-del-no" onclick="cancelDeleteCert(this)">nie</button>';
+    row.appendChild(confirmDiv);
 }
 
 async function doDeleteCert(certId, btn) {
@@ -725,9 +718,9 @@ async function doDeleteCert(certId, btn) {
 }
 
 function cancelDeleteCert(btn) {
-    var row = btn.closest('.cv-cert-row');
-    row.querySelector('.cv-ci-confirm').remove();
-    row.querySelector('.cv-ci-delete').style.display = '';
+    var row = btn.closest('.cv-row');
+    row.querySelector('.cv-del-confirm').remove();
+    row.querySelector('.cv-row-del').style.display = '';
 }
 
 async function generateCertInline(btn, filename) {
