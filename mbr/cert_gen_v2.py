@@ -263,10 +263,23 @@ def _days_in_month(year: int, month: int) -> int:
 # ---------------------------------------------------------------------------
 # 6. generate_certificate_pdf
 # ---------------------------------------------------------------------------
+def _escape_xml_chars(context: dict) -> dict:
+    """Escape < and > in string values so docxtpl/XML doesn't eat them."""
+    def _esc(val):
+        if isinstance(val, str):
+            return val.replace("<", "˂").replace(">", "˃")
+        if isinstance(val, list):
+            return [_esc(item) for item in val]
+        if isinstance(val, dict):
+            return {k: _esc(v) for k, v in val.items()}
+        return val
+    return _esc(context)
+
+
 def _docxtpl_render(context: dict) -> bytes:
     """Render the master .docx template with context, return .docx bytes."""
     tpl = DocxTemplate(str(_TEMPLATE_PATH))
-    tpl.render(context)
+    tpl.render(_escape_xml_chars(context))
     buf = io.BytesIO()
     tpl.save(buf)
     return buf.getvalue()
