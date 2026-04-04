@@ -466,9 +466,13 @@ async function loadBatch(ebrId) {
   // Update sidebar etapy view (after scripts set globals)
   setTimeout(function() {
     renderSidebarEtapy();
-    // If completed, switch sidebar to registry mode
+    // Switch sidebar mode based on batch status
     if (typeof ebrStatus !== 'undefined' && ebrStatus === 'completed') {
       setSidebarMode('registry');
+    } else {
+      // Active batch — ensure sidebar is in active mode
+      document.getElementById('sb-mode-active').style.display = '';
+      document.getElementById('sb-mode-registry').style.display = 'none';
     }
   }, 50);
 }
