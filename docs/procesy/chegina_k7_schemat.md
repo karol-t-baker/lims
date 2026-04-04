@@ -20,6 +20,9 @@ AMIDOWANIE → SMCA → CZWARTORZĘDOWANIE → SULFONOWANIE → UTLENIENIE → S
 ### Operacje:
 1. Załadunek surowców (kwasy C12-18, CNO/PKO, woda)
 2. Włączenie reaktora (temp. docelowa: 160-170°C)
+
+> **Uwaga:** W danych z produkcji zaobserwowano pojedyncze szarże z temp. 200°C. Zakres 160-170°C jest standardowy, odchylenia wymagają uzasadnienia.
+
 3. Załadunek DMAPA (czysta + zwrotna)
 4. Reakcja amidowania (6-20h w 160-170°C)
 5. Destylacja DMAPA (odzysk zwrotów)
@@ -158,6 +161,7 @@ AMIDOWANIE → SMCA → CZWARTORZĘDOWANIE → SULFONOWANIE → UTLENIENIE → S
 | Perhydrol | Odbarwienie / utlenienie | barwa↓, SO₃↓ |
 | MGDA-Na3 | Stabilizacja | kompleksowanie |
 | NaCl | Korekta zasolenia | NaCl↑ |
+| NaOH | Korekta pH | pH↑ |
 
 ### Etap analityczny (powtarzany po każdej korekcie):
 | Parametr | Skrót | Typ | Zakres K7 | Metoda |
@@ -169,6 +173,9 @@ AMIDOWANIE → SMCA → CZWARTORZĘDOWANIE → SULFONOWANIE → UTLENIENIE → S
 | Substancja aktywna [%] | sa | obliczeniowy | 30.0 - 42.0 | SM - NaCl - 0.6 |
 | Barwa FAU | barwa_fau | bezpośredni | 0 - 200 | L928 |
 | Barwa Hz | barwa_hz | bezpośredni | 0 - 100 | L928 |
+| %AA (aminokwasowość) | aa | titracja (alkacymetria, f=3.015) | 0 - 0.50 | L904 — z adnotacją "mierzony referencyjnie, nie na świadectwie" |
+| %SO₃²⁻ | so3 | titracja (jodometryczna, f=0.4) | monitorowanie | — "weryfikacja po utlenieniu" |
+| %H₂O₂ | h2o2 | titracja (manganometryczna, f=0.17) | monitorowanie | — "weryfikacja resztki" |
 
 ### Warunek przejścia do analizy końcowej:
 - WSZYSTKIE parametry w zakresie specyfikacji
@@ -201,6 +208,15 @@ AMIDOWANIE → SMCA → CZWARTORZĘDOWANIE → SULFONOWANIE → UTLENIENIE → S
 | pH (10%, aq) | ph_10proc | 4.50 - 7.50 | L905 | 2 miejsca |
 | Substancja aktywna [%] | sa | 30.0 - 32.0 | L932 | 1 miejsce |
 
+### Parametry dodatkowe (mierzone referencyjnie, nie na świadectwie):
+| Parametr | Skrót | Typowa wartość |
+|----------|-------|----------------|
+| %H₂O₂ | h2o2 | 0.002-0.006% |
+| %SO₃²⁻ | so3 | 0.000% |
+| %AA | aa | < 0.50% |
+
+Te parametry są rejestrowane w analizie końcowej mimo że nie trafiają na świadectwo jakości K7.
+
 ### Ocena jakości:
 - **zgodna** → produkt trafia do zbiornika magazynowego
 - **niezgodna** → rework (powrót do standaryzacji) lub downgrade (np. do K7B)
@@ -217,3 +233,22 @@ AMIDOWANIE → SMCA → CZWARTORZĘDOWANIE → SULFONOWANIE → UTLENIENIE → S
 - Nr zbiornika docelowego (M1-M30)
 - Wskazania przepływomierza (od/do)
 - Podpis operatora
+
+---
+
+## Uwagi procesowe
+
+### Wielokrotne korekty
+W praktyce podczas czwartorzędowania wykonywane są małe korekty NaOH (5-10 kg) zamiast jednej dużej. Typowo 2-4 korekty NaOH po 10 kg każda, z analizą po każdej.
+
+### DMAPA — źródło
+DMAPA może pochodzić z dwóch źródeł:
+- **DMAPA czysta** — świeża (główne źródło)
+- **DMAPA zwrotna** — odzyskana z destylacji poprzednich szarż (do 40% wsadu)
+
+Proporcja czysta/zwrotna nie wpływa na parametry analityczne końcowego produktu, ale może wpływać na kinetykę reakcji amidowania.
+
+### Barwa — skale pomiarowe
+K7 używa dwóch skal barwy:
+- **FAU (skala jodowa)** — wartość na świadectwie (max 3)
+- **Hz (Hazen)** — mierzona referencyjnie podczas standaryzacji (0-100), nie trafia na świadectwo

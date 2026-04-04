@@ -23,7 +23,7 @@ AMIDOWANIE → SMCA → CZWARTORZĘDOWANIE → SULFONOWANIE → UTLENIENIE (kw.c
 
 ### Operacje:
 1. Załadunek surowców (CNO 1200 kg + kwasy C12-18 ~100 kg + woda)
-2. Włączenie reaktora (temp. docelowa: 132°C — niższa niż K7!)
+2. Włączenie reaktora (temp. docelowa: 132°C (standardowa), ale zdarzają się szarże z temp. 160°C)
 3. Załadunek DMAPA czystej (~720 kg)
 4. Reakcja amidowania
 5. Destylacja DMAPA (odzysk zwrotów)
@@ -91,6 +91,9 @@ AMIDOWANIE → SMCA → CZWARTORZĘDOWANIE → SULFONOWANIE → UTLENIENIE (kw.c
 - pH_10proc: 11.0-12.0
 - %AA < 0.30% (surowsze niż K7!)
 
+### Uwaga o pomiarach pH:
+W danych produkcyjnych zaobserwowano duże rozrzuty pH (od 6.05 do 14.55) w trakcie dozowania NaOH. Wartości < 10.0 występują na początku dozowania (przed pełną neutralizacją). Wartości > 12.0 mogą wynikać z nadmiaru NaOH wymagającego korekty MCA. Zakres 11.0-12.0 dotyczy końcowego etapu czwartorzędowania, nie pośrednich pomiarów.
+
 ### Możliwe korekty:
 - Dodatkowa porcja NaOH (pH < 11.0)
 - Dodanie MCA (pH > 12.0)
@@ -156,6 +159,9 @@ AMIDOWANIE → SMCA → CZWARTORZĘDOWANIE → SULFONOWANIE → UTLENIENIE (kw.c
 - Dodatkowa porcja perhydrolu (jeśli %SO₃ > 0.030%)
 - Dodatkowa porcja kwasu cytrynowego (jeśli pH za wysokie)
 
+### Uwaga o kolejności:
+W danych OCR kolejność dodatków (kwas cytrynowy → perhydrol) może być odwrócona z powodu niesekwencyjnego zapisu na karcie. Standardowa procedura to ZAWSZE: najpierw kwas cytrynowy, potem perhydrol.
+
 ---
 
 ## Etap 6: ROZJAŚNIANIE (WYBIELANIE)
@@ -188,6 +194,11 @@ AMIDOWANIE → SMCA → CZWARTORZĘDOWANIE → SULFONOWANIE → UTLENIENIE (kw.c
 - Zbyt dużo perhydrolu może pogorszyć inne parametry
 - Etap może być pominięty jeśli barwa po utlenieniu jest wystarczająco jasna
 
+### Kryteria wejścia/pominięcia:
+- **Wykonaj rozjaśnianie** gdy: barwa FAU > 3 lub Hz > 100 po etapie utlenienia
+- **Pomiń rozjaśnianie** gdy: barwa FAU ≤ 3 i Hz ≤ 100
+- W praktyce: 2 z 3 przeanalizowanych szarż pominęło ten etap
+
 ---
 
 ## Etap 7: STANDARYZACJA (cykliczny)
@@ -205,6 +216,9 @@ AMIDOWANIE → SMCA → CZWARTORZĘDOWANIE → SULFONOWANIE → UTLENIENIE (kw.c
 | NaCl (sól) | Korekta zasolenia | NaCl↑ |
 | NaOH | Korekta pH | pH↑ |
 
+### Analiza międzyoperacyjna (przed standaryzacją):
+Po utlenieniu/rozjaśnianiu, a przed właściwą standaryzacją, wykonywana jest analiza międzyoperacyjna obejmująca: pH, nd20, %NaCl. Służy jako punkt wyjścia do planowania korekt standaryzacyjnych.
+
 ### Etap analityczny (powtarzany po każdej korekcie):
 | Parametr | Skrót | Typ | Zakres K40GLOL | Metoda |
 |----------|-------|-----|----------------|--------|
@@ -220,6 +234,14 @@ AMIDOWANIE → SMCA → CZWARTORZĘDOWANIE → SULFONOWANIE → UTLENIENIE (kw.c
 | Barwa Hz | barwa_hz | bezpośredni | 0 - 500 | L928 |
 | Wolna amina [%] | wolna_amina | titracja | 0 - 0.50 | L904 |
 | H₂O [%] | h2o | bezpośredni | 50.0 - 58.0 | L903 |
+
+### Uwaga o parametrze "wolna amina":
+Na świadectwie jakości widnieje "Wolna kokamidopropylodimetyloamina [%]" (max 0.30%). W LIMS parametr ten jest rejestrowany jako `wolna_amina`. Jest to INNY parametr niż %AA (aminokwasowość) — nie należy ich mylić:
+- **%AA** — aminokwasowość, mierzona alkacymetrią (f=3.015)
+- **wolna amina** — wolna kokamidopropylodimetyloamina, mierzona osobną metodą (L904)
+
+### Uwaga o H₂O:
+Parametr H₂O [%] (52.0-56.0 na świadectwie) jest w praktyce OBLICZANY z suchej masy: H₂O = 100 - SM. Nie jest mierzony osobną metodą. Jeśli SM = 45.3%, to H₂O = 54.7%.
 
 ### Warunek przejścia do analizy końcowej:
 - WSZYSTKIE parametry w zakresie specyfikacji
@@ -297,3 +319,23 @@ AMIDOWANIE → SMCA → CZWARTORZĘDOWANIE → SULFONOWANIE → UTLENIENIE (kw.c
 | SA specyfikacja | 30.0-32.0 (na świadectwie) | 37.0-42.0 |
 | Warianty klienckie | ADAM&PARTNER, DR. MIELE | Loreal, Kosmepol, OQEMA |
 | Warianty MB | tak | tak (RSPO) |
+
+### Uwaga o skalach barwy:
+K40GLOL używa skali **Hazena (Hz)** na świadectwie (max 150). W trakcie produkcji często mierzona jest również barwa w skali **FAU (jodowej)**. Wartości FAU i Hz nie są bezpośrednio przeliczalne — to dwie różne metody pomiarowe. Na potrzeby świadectwa K40GLOL należy zawsze używać Hz.
+
+---
+
+## Postępowanie z niezgodnością
+
+### Kiedy produkt jest niezgodny:
+- Którykolwiek parametr analizy końcowej poza specyfikacją P833
+
+### Opcje:
+1. **Rework** — powrót do standaryzacji, dodanie korektorów, ponowna analiza
+2. **Downgrade** — przekwalifikowanie na niższy gatunek:
+   - K40GLOL → K40GLOS (jeśli SA w zakresie 39-42%)
+   - K40GLOL → K40GLO (jeśli SA min 37%)
+   - K40GLOL → K40GL (jeśli SA min 37%, inne parametry poza GLOL spec)
+3. **Odrzucenie** — rzadko, tylko gdy rework niemożliwy
+
+### Decyzję podejmuje: Kierownik Kontroli Jakości
