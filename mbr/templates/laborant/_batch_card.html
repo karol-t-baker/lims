@@ -3,10 +3,16 @@
           {{ batch_card(b) }}
 #}
 {%- macro _product_color(produkt) -%}
-{%- if 'K7' in produkt and 'K7G' not in produkt and 'K7B' not in produkt -%}prod-k7
-{%- elif 'K40GLOL' in produkt -%}prod-glol
-{%- elif 'K40GLO' in produkt and 'K40GLOL' not in produkt -%}prod-glo
-{%- elif 'K40GL' in produkt and 'K40GLO' not in produkt -%}prod-gl
+{%- if 'K40GLOL' in produkt -%}prod-glol
+{%- elif 'K40GLO' in produkt -%}prod-glo
+{%- elif 'K40GL' in produkt -%}prod-gl
+{%- elif 'KK' in produkt -%}prod-kk
+{%- elif 'K7' in produkt -%}prod-k7
+{%- elif 'Chelamid' in produkt -%}prod-chelamid
+{%- elif 'Cheminox' in produkt -%}prod-cheminox
+{%- elif 'Monamid' in produkt -%}prod-monamid
+{%- elif 'Alkinol' in produkt or 'Alstermid' in produkt -%}prod-alkinol
+{%- elif 'Chemal' in produkt or 'HSH' in produkt -%}prod-chemal
 {%- else -%}prod-other{%- endif -%}
 {%- endmacro -%}
 

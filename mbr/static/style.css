@@ -41,6 +41,18 @@
   --prod-glo-bg: #ede9fe;
   --prod-gl: #0d9488;
   --prod-gl-bg: #ccfbf1;
+  --prod-kk: #ea580c;
+  --prod-kk-bg: #fff7ed;
+  --prod-chelamid: #b45309;
+  --prod-chelamid-bg: #fffbeb;
+  --prod-cheminox: #0369a1;
+  --prod-cheminox-bg: #e0f2fe;
+  --prod-monamid: #4f46e5;
+  --prod-monamid-bg: #eef2ff;
+  --prod-alkinol: #059669;
+  --prod-alkinol-bg: #ecfdf5;
+  --prod-chemal: #7c3aed;
+  --prod-chemal-bg: #f5f3ff;
   --prod-other: var(--text-sec);
   --prod-other-bg: var(--surface-alt);
 
@@ -1557,6 +1569,12 @@ body {
 .prod-glol { background: var(--prod-glol-bg); color: var(--prod-glol); }
 .prod-glo { background: var(--prod-glo-bg); color: var(--prod-glo); }
 .prod-gl { background: var(--prod-gl-bg); color: var(--prod-gl); }
+.prod-kk { background: var(--prod-kk-bg); color: var(--prod-kk); }
+.prod-chelamid { background: var(--prod-chelamid-bg); color: var(--prod-chelamid); }
+.prod-cheminox { background: var(--prod-cheminox-bg); color: var(--prod-cheminox); }
+.prod-monamid { background: var(--prod-monamid-bg); color: var(--prod-monamid); }
+.prod-alkinol { background: var(--prod-alkinol-bg); color: var(--prod-alkinol); }
+.prod-chemal { background: var(--prod-chemal-bg); color: var(--prod-chemal); }
 .prod-other { background: var(--prod-other-bg); color: var(--prod-other); }
 
 .bc-etap-badge {

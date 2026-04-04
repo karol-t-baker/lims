@@ -155,10 +155,9 @@
     <div id="sb-mode-registry" style="display:none;">
       <div class="sr-filters">
         <select class="sr-select" id="sr-product" onchange="loadSidebarRegistry()">
-          <option value="Chegina_K7">K7</option>
-          <option value="Chegina_K40GL">K40GL</option>
-          <option value="Chegina_K40GLO">K40GLO</option>
-          <option value="Chegina_K40GLOL">K40GLOL</option>
+          {% for p in products %}
+          <option value="{{ p.produkt }}">{{ p.produkt|short_product }}</option>
+          {% endfor %}
         </select>
         <div class="sb-seg sr-type-seg">
           <div class="sb-pill active" data-sr-typ="zbiornik" onclick="setSrType('zbiornik',this)">Zbiorniki</div>
