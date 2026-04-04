@@ -449,7 +449,7 @@ async function loadBatch(ebrId) {
   // Move footer
   const dtFooter = detailPanel.querySelector('#detail-footer');
   const spaFooter = document.getElementById('spa-footer');
-  if (dtFooter && spaFooter) { spaFooter.innerHTML = dtFooter.outerHTML; dtFooter.style.display = 'none'; }
+  if (dtFooter && spaFooter) { spaFooter.innerHTML = ''; spaFooter.appendChild(dtFooter); dtFooter.style.display = ''; }
 
   // Style workspace
   const dtWork = detailPanel.querySelector('#detail-workspace');
