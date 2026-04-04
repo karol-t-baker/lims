@@ -137,6 +137,7 @@ PRODUCTS = [
                     _bezp("gestosc",     "gęstość",     "gestosc",    1.05,  1.09,  3),
                     _bezp("barwa_fau",   "Barwa FAU",   "barwa_fau",  0,     200,   0),
                     _titr("so3",         "SO3",         "so3",        0,     0.030, 3),
+                    _bezp("barwa_hz",    "Barwa Hz",    "barwa_hz",   0,     500,   0),
                 ],
             },
             "dodatki": {
@@ -167,6 +168,8 @@ PRODUCTS = [
                     _titr("so3",         "SO3",         "so3",        0,     0.030, 3),
                     _bezp("barwa_fau",   "Barwa FAU",   "barwa_fau",  0,     200,   0),
                     _bezp("barwa_hz",    "Barwa Hz",    "barwa_hz",   0,     500,   0),
+                    _titr("wolna_amina", "%wolna amina", "wolna_amina", 0,   0.5,   2),
+                    _bezp("h2o",         "H2O %",       "h2o",        50,    58,    1),
                 ],
             },
             "dodatki": {
@@ -224,6 +227,7 @@ PRODUCTS = [
                     _titr("wolna_amina", "%wolna amina", "wolna_amina", 0,   0.5,   2),
                     _bezp("barwa_fau",   "Barwa FAU",   "barwa_fau",  0,     200,   0),
                     _bezp("barwa_hz",    "Barwa Hz",    "barwa_hz",   0,     500,   0),
+                    _bezp("h2o",         "H2O %",       "h2o",        50,    58,    1),
                 ],
             },
         },
@@ -279,6 +283,7 @@ PRODUCTS = [
                     _bezp("sm",          "SM",         "sm",         36,    38,    1),
                     _bezp("nd20",        "nd20",       "nd20",       1.39,  1.42,  3),
                     _bezp("barwa_hz",    "Barwa Hz",    "barwa_hz",   0,     500,   0),
+                    _bezp("barwa_fau",   "Barwa FAU",   "barwa_fau",  0,     200,   0),
                 ],
             },
         },
@@ -342,6 +347,7 @@ PRODUCTS = [
                     _titr("wolna_amina",   "wolna amina",   "wolna_amina",  0,     1.0,   2),
                     _titr("nacl",          "NaCl",          "nacl",         4.0,   8.0,   2),
                     _bezp("barwa_hz",      "Barwa Hz",      "barwa_hz",     0,     500,   0),
+                    _bezp("ph_10proc",     "pH 5%",         "ph_10proc",    6.0,   8.0,   2),
                 ],
             },
         },
@@ -394,6 +400,7 @@ PRODUCTS = [
                     _bezp("barwa_hz",    "Barwa Hz",   "barwa_hz",   0,     500,   0),
                     _bezp("nd20",        "nd20",       "nd20",       1.39,  1.42,  3),
                     _bezp("gestosc",     "gęstość",    "gestosc",    0.99,  1.00,  3),
+                    _obl("sa",           "%SA",        "sa",         30,    35,    1, "sm"),
                 ],
             },
         },
@@ -413,6 +420,7 @@ PRODUCTS = [
                     _bezp("barwa_hz",    "Barwa Hz",   "barwa_hz",   0,     500,   0),
                     _bezp("nd20",        "nd20",       "nd20",       1.39,  1.42,  3),
                     _bezp("gestosc",     "gęstość",    "gestosc",    0.99,  1.00,  3),
+                    _obl("sa",           "%SA",        "sa",         34,    36,    1, "sm"),
                 ],
             },
         },
@@ -579,6 +587,8 @@ PRODUCTS = [
                     _titr("lz",          "L.zmydlenia",     "lz",    188,   200,  2),
                     _bezp("t_kropl",     "T.kroplenia",     "t_kropl", 58,  64,   1),
                     _titr("wkt",         "WKT",             "wkt",   0,     5,    2),
+                    _bezp("t_topn",      "T.topnienia",     "t_topn", 58,   64,   1),
+                    _bezp("wolny_glikol", "Wolny glikol %", "wolny_glikol", 0, 1, 2),
                 ],
             },
         },
@@ -596,6 +606,7 @@ PRODUCTS = [
                     _titr("li",          "L.jodowa",        "li",         63,    83,   2),
                     _titr("monoestry",   "zaw.monoestrów",  "monoestry",  30,    9999, 2),  # min 30%
                     _bezp("barwa_fau",   "barwa",           "barwa_fau",  0,     10,   0),
+                    _bezp("nd20",        "nd20",            "nd20",       1.468, 1.473, 4),
                 ],
             },
         },
@@ -766,6 +777,9 @@ PRODUCTS = [
                 "pola": [
                     _titr("dietanolamina", "%dietanolaminy", "dietanolamina", 80,  9999, 1),  # min 80%
                     _bezp("gliceryny",     "%gliceryny",     "gliceryny",     0,   9.5,  2),
+                    _bezp("dea",           "DEA %",          "dea",           0,   3,    2),
+                    _bezp("barwa_fau",     "Barwa",          "barwa_fau",     0,   10,   0),
+                    _bezp("ph_10proc",     "pH 1%",          "ph_10proc",     0,   11,   2),
                 ],
             },
         },
@@ -782,6 +796,7 @@ PRODUCTS = [
                     _titr("wolny_glikol", "wolny glikol",    "wolny_glikol", 0,   3,    2),
                     _titr("lh",           "L.hydroksylowa",  "lh",          70,   130,  2),
                     _titr("monoestry",    "monoestry",       "monoestry",   47,   55,   2),
+                    _bezp("barwa_fau",    "Barwa",           "barwa_fau",   0,    4,    0),
                 ],
             },
         },
@@ -857,6 +872,125 @@ PRODUCTS = [
                     _titr("lz",          "L.zmydlenia",     "lz",        0,     1.0,  2),
                     _titr("li",          "L.jodowa",        "li",        0,     1.0,  2),
                     _bezp("nd20",        "nd20",            "nd20",      1.39,  1.50, 3),
+                ],
+            },
+        },
+    },
+
+    # ===== GRUPA 10: Nowe produkty =====
+    {
+        "produkt": "Chegina_K40GLN",
+        "template_id": "T-K40GLN",
+        "etapy": ETAPY_FULL,
+        "parametry_lab": {
+            "analiza": {
+                "label": "Analiza",
+                "pola": [
+                    _bezp("sm",          "S.Masa",       "sm",         44,    48,    1),
+                    _titr("nacl",        "NaCl",         "nacl",       5.8,   7.3,   2),
+                    _bezp("ph_10proc",   "pH 20°C",     "ph_10proc",  4.5,   5.5,   2),
+                    _bezp("barwa_hz",    "Barwa Hz",     "barwa_hz",   0,     500,   0),
+                    _obl("sa",           "%SA",           "sa",         37.6,  40,    2, "sm - nacl - 0.6"),
+                    _titr("wolna_amina", "%wolna amina", "wolna_amina", 0,    0.3,   2),
+                    _bezp("h2o",         "H2O %",        "h2o",        0,     56,    1),
+                ],
+            },
+        },
+    },
+    {
+        "produkt": "Chegina_GLOL40",
+        "template_id": "T-GLOL40",
+        "etapy": ETAPY_FULL,
+        "parametry_lab": {
+            "analiza": {
+                "label": "Analiza",
+                "pola": [
+                    _bezp("sm",          "S.Masa",       "sm",         44,    48,    1),
+                    _titr("nacl",        "NaCl",         "nacl",       5.8,   7.3,   2),
+                    _bezp("ph_10proc",   "pH",           "ph_10proc",  4.5,   5.5,   2),
+                    _obl("sa",           "%SA",           "sa",         37,    42,    1, "sm - nacl - 0.6"),
+                    _titr("wolna_amina", "%wolna amina", "wolna_amina", 0,    0.3,   2),
+                ],
+            },
+        },
+    },
+    {
+        "produkt": "Alkinol_B",
+        "template_id": "T-ALKINOLB",
+        "etapy": ETAPY_SIMPLE,
+        "parametry_lab": {
+            "analiza_koncowa": {
+                "label": "Analiza końcowa",
+                "pola": [
+                    _bezp("barwa_fau",   "Barwa",           "barwa_fau",  0,     4,    0),
+                    _titr("lk",          "L.kwasowa",       "lk",         0,     2,    2),
+                    _titr("lz",          "L.zmydlania",     "lz",         0,     2,    2),
+                    _bezp("t_kropl",     "T.kroplenia",     "t_kropl",    47,    55,   1),
+                    _bezp("lh",          "L.hydroksylowa",  "lh",         155,   180,  0),
+                    _titr("li",          "L.jodowa",        "li",         0,     2,    2),
+                ],
+            },
+        },
+    },
+    {
+        "produkt": "Chemal_CS_3070",
+        "template_id": "T-CS3070",
+        "etapy": ETAPY_SIMPLE,
+        "parametry_lab": {
+            "analiza_koncowa": {
+                "label": "Analiza końcowa",
+                "pola": [
+                    _bezp("lh",          "L.hydroksylowa",  "lh",    210,   220,  0),
+                    _titr("lk",          "L.kwasowa",       "lk",    0,     0.2,  1),
+                    _titr("lz",          "L.zmydlenia",     "lz",    0,     1.2,  1),
+                    _titr("li",          "L.jodowa",        "li",    0,     1.0,  1),
+                ],
+            },
+        },
+    },
+    {
+        "produkt": "Chemal_CS_5050",
+        "template_id": "T-CS5050",
+        "etapy": ETAPY_SIMPLE,
+        "parametry_lab": {
+            "analiza_koncowa": {
+                "label": "Analiza końcowa",
+                "pola": [
+                    _bezp("lh",          "L.hydroksylowa",  "lh",    210,   225,  0),
+                    _titr("lk",          "L.kwasowa",       "lk",    0,     0.2,  1),
+                    _titr("lz",          "L.zmydlenia",     "lz",    0,     1.2,  1),
+                    _titr("li",          "L.jodowa",        "li",    0,     1.0,  1),
+                ],
+            },
+        },
+    },
+    {
+        "produkt": "HSH_CS_3070",
+        "template_id": "T-HSH3070",
+        "etapy": ETAPY_SIMPLE,
+        "parametry_lab": {
+            "analiza_koncowa": {
+                "label": "Analiza końcowa",
+                "pola": [
+                    _bezp("lh",          "L.hydroksylowa",  "lh",    210,   220,  0),
+                    _titr("lk",          "L.kwasowa",       "lk",    0,     0.1,  1),
+                    _titr("lz",          "L.zmydlenia",     "lz",    0,     1.0,  1),
+                    _titr("li",          "L.jodowa",        "li",    0,     1.0,  1),
+                ],
+            },
+        },
+    },
+    {
+        "produkt": "Kwas_Stearynowy",
+        "template_id": "T-KWST",
+        "etapy": ETAPY_SIMPLE,
+        "parametry_lab": {
+            "analiza_koncowa": {
+                "label": "Analiza końcowa",
+                "pola": [
+                    _titr("lk",       "L.kwasowa",    "lk",      206,   212,  0),
+                    _bezp("t_kropl",  "T.kroplenia",  "t_kropl", 54,    56.5, 1),
+                    _titr("li",       "L.jodowa",     "li",      0,     0.5,  2),
                 ],
             },
         },
