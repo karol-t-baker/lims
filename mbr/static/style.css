@@ -1087,8 +1087,8 @@ body {
 .queue-table tr.urgent td { background: var(--red-bg); }
 
 .q-batch { font-weight: 600; }
-.q-product { font-size: 11px; color: var(--text-dim); }
-.q-stage { color: var(--teal); font-weight: 500; }
+.q-product { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 5px; white-space: nowrap; display: inline-block; }
+.q-stage-sticker { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 5px; background: var(--teal-bg, #e6f5f5); color: var(--teal); white-space: nowrap; display: inline-block; }
 .q-time { font-family: var(--mono); font-size: 12px; color: var(--text-sec); }
 .q-priority { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
 .q-priority.urgent { background: var(--red-bg); color: var(--red); }
@@ -1651,6 +1651,15 @@ body {
 }
 .ch-tab:hover { color: var(--text-sec); background: var(--surface-alt); }
 .ch-tab.active { background: var(--teal); color: white; box-shadow: 0 1px 3px rgba(13,115,119,0.25); }
+/* Product-colored registry tabs */
+.ch-prod-k7.active { background: var(--prod-k7); box-shadow: 0 1px 3px color-mix(in srgb, var(--prod-k7) 25%, transparent); }
+.ch-prod-gl.active { background: var(--prod-gl); box-shadow: 0 1px 3px color-mix(in srgb, var(--prod-gl) 25%, transparent); }
+.ch-prod-glo.active { background: var(--prod-glo); box-shadow: 0 1px 3px color-mix(in srgb, var(--prod-glo) 25%, transparent); }
+.ch-prod-glol.active { background: var(--prod-glol); box-shadow: 0 1px 3px color-mix(in srgb, var(--prod-glol) 25%, transparent); }
+.ch-prod-k7:not(.active) { color: var(--prod-k7); }
+.ch-prod-gl:not(.active) { color: var(--prod-gl); }
+.ch-prod-glo:not(.active) { color: var(--prod-glo); }
+.ch-prod-glol:not(.active) { color: var(--prod-glol); }
 
 .ch-more { position: relative; }
 .ch-more-btn { display: flex; align-items: center; }

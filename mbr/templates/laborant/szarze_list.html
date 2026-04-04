@@ -114,8 +114,20 @@
     font-size: 10px; font-weight: 600; font-family: var(--font);
     background: var(--surface); color: var(--text-sec); cursor: pointer;
   }
-  .sr-qp:hover { border-color: var(--teal); color: var(--text); }
-  .sr-qp.active { background: var(--teal); color: #fff; border-color: var(--teal); }
+  .sr-qp:hover { color: var(--text); }
+  .sr-qp.active { color: #fff; }
+  .sr-prod-k7 { color: var(--prod-k7); border-color: var(--prod-k7-bg); }
+  .sr-prod-k7:hover { border-color: var(--prod-k7); }
+  .sr-prod-k7.active { background: var(--prod-k7); border-color: var(--prod-k7); }
+  .sr-prod-gl { color: var(--prod-gl); border-color: var(--prod-gl-bg); }
+  .sr-prod-gl:hover { border-color: var(--prod-gl); }
+  .sr-prod-gl.active { background: var(--prod-gl); border-color: var(--prod-gl); }
+  .sr-prod-glo { color: var(--prod-glo); border-color: var(--prod-glo-bg); }
+  .sr-prod-glo:hover { border-color: var(--prod-glo); }
+  .sr-prod-glo.active { background: var(--prod-glo); border-color: var(--prod-glo); }
+  .sr-prod-glol { color: var(--prod-glol); border-color: var(--prod-glol-bg); }
+  .sr-prod-glol:hover { border-color: var(--prod-glol); }
+  .sr-prod-glol.active { background: var(--prod-glol); border-color: var(--prod-glol); }
   .sr-search {
     flex: 1; min-width: 60px; padding: 4px 8px; border: 1px solid var(--border);
     border-radius: 5px; font-size: 10px; font-family: var(--font);
@@ -176,10 +188,10 @@
     <div id="sb-mode-registry" style="display:none;">
       <div class="sr-filters">
         <div class="sr-product-row">
-          <button class="sr-qp{% if not request.args.get('sr_prod') or request.args.get('sr_prod') == 'Chegina_K7' %} active{% endif %}" onclick="pickSrProduct(this,'Chegina_K7')">K7</button>
-          <button class="sr-qp" onclick="pickSrProduct(this,'Chegina_K40GL')">K40GL</button>
-          <button class="sr-qp" onclick="pickSrProduct(this,'Chegina_K40GLO')">K40GLO</button>
-          <button class="sr-qp" onclick="pickSrProduct(this,'Chegina_K40GLOL')">K40GLOL</button>
+          <button class="sr-qp sr-prod-k7{% if not request.args.get('sr_prod') or request.args.get('sr_prod') == 'Chegina_K7' %} active{% endif %}" onclick="pickSrProduct(this,'Chegina_K7')">K7</button>
+          <button class="sr-qp sr-prod-gl" onclick="pickSrProduct(this,'Chegina_K40GL')">K40GL</button>
+          <button class="sr-qp sr-prod-glo" onclick="pickSrProduct(this,'Chegina_K40GLO')">K40GLO</button>
+          <button class="sr-qp sr-prod-glol" onclick="pickSrProduct(this,'Chegina_K40GLOL')">K40GLOL</button>
           <input class="sr-search" id="sr-product-search" type="text" placeholder="Szukaj produktu..." oninput="searchSrProduct(this.value)">
         </div>
         <div class="sr-search-results" id="sr-search-results" style="display:none;"></div>
@@ -297,9 +309,9 @@
             data-produkt="{{ b.produkt }}" data-typ="{{ b.typ or 'szarza' }}" data-nr="{{ b.nr_partii }}"
             data-ebr-id="{{ b.ebr_id }}" style="cursor:pointer;" onclick="loadBatch({{ b.ebr_id }})">
           <td><span class="q-batch">{{ b.nr_partii }}</span></td>
-          <td><span class="q-product">{{ b.produkt|short_product }}</span></td>
+          <td><span class="q-product {{ _product_color(b.produkt) }}">{{ b.produkt|short_product }}</span></td>
           <td><span class="typ-badge {{ b.typ or 'szarza' }}">{{ b.typ or 'szarza' }}</span></td>
-          <td class="q-stage">{{ b.stage_name|default('—') }}</td>
+          <td><span class="q-stage-sticker">{{ b.stage_name|default('—') }}</span></td>
           <td>
             {% if b.out_of_limit > 0 %}<span class="q-priority urgent">{{ b.out_of_limit }} poza limitem</span>
             {% elif b.stage_status == 'in_progress' %}<span class="q-priority normal">&#9881; W trakcie</span>
@@ -341,10 +353,10 @@
       <span class="ch-count" id="reg-count">&mdash;</span>
     </div>
     <div class="ch-tabs" id="ch-tabs">
-      <button class="ch-tab active" data-product="Chegina_K7" onclick="loadRegistry('Chegina_K7')">K7</button>
-      <button class="ch-tab" data-product="Chegina_K40GL" onclick="loadRegistry('Chegina_K40GL')">K40GL</button>
-      <button class="ch-tab" data-product="Chegina_K40GLO" onclick="loadRegistry('Chegina_K40GLO')">K40GLO</button>
-      <button class="ch-tab" data-product="Chegina_K40GLOL" onclick="loadRegistry('Chegina_K40GLOL')">K40GLOL</button>
+      <button class="ch-tab ch-prod-k7 active" data-product="Chegina_K7" onclick="loadRegistry('Chegina_K7')">K7</button>
+      <button class="ch-tab ch-prod-gl" data-product="Chegina_K40GL" onclick="loadRegistry('Chegina_K40GL')">K40GL</button>
+      <button class="ch-tab ch-prod-glo" data-product="Chegina_K40GLO" onclick="loadRegistry('Chegina_K40GLO')">K40GLO</button>
+      <button class="ch-tab ch-prod-glol" data-product="Chegina_K40GLOL" onclick="loadRegistry('Chegina_K40GLOL')">K40GLOL</button>
       {% set main_products = ['Chegina_K7', 'Chegina_K40GL', 'Chegina_K40GLO', 'Chegina_K40GLOL'] %}
       {% set other_products = completed_products|default([])|reject('in', main_products)|list %}
       {% if other_products %}
