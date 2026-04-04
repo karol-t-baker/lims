@@ -50,8 +50,8 @@
   --stage-czwart: var(--teal);          /* Czwartorzędowanie */
   --stage-stand: var(--amber);          /* Standaryzacja */
   --stage-stand-bg: var(--amber-bg);
-  --stage-koncowa: #d97706;             /* Analiza końcowa */
-  --stage-koncowa-bg: #fef3c7;
+  --stage-koncowa: #6366f1;             /* Analiza końcowa — indigo */
+  --stage-koncowa-bg: #eef2ff;
   --stage-done: var(--green);           /* Gotowy */
   --stage-done-bg: var(--green-bg);
 
