@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <style>
 @page {
-  size: A4;
-  margin: 16mm 19mm 16mm 19mm;
+  size: 210mm 297mm;
+  margin: 17mm 20mm 17mm 20mm;
 }
 body {
   font-family: 'Bookman Old Style', 'URW Bookman', 'Georgia', serif;
@@ -13,219 +13,150 @@ body {
   color: #000;
   margin: 0;
   padding: 0;
-  line-height: 1.35;
+  line-height: 1.5;
 }
 
-/* ── Header (logo + title) ─────────────────────────────────────────── */
-.cert-header {
+/* ── Header: logo left, title centered ─────────────────────────────── */
+.hdr {
   display: table;
   width: 100%;
-  margin-bottom: 6pt;
+  margin-bottom: 4pt;
 }
-.cert-header-logo {
+.hdr-logo {
   display: table-cell;
-  width: 30%;
+  width: 28mm;
   vertical-align: middle;
 }
-.cert-header-logo img {
-  max-width: 160px;
+.hdr-logo img {
+  width: 26mm;
   height: auto;
 }
-.cert-header-title {
+.hdr-title {
   display: table-cell;
   text-align: center;
   vertical-align: middle;
 }
-.cert-title-main {
+.hdr-title-main {
   font-size: 14pt;
   font-weight: bold;
   display: block;
 }
-.cert-title-sub {
+.hdr-title-sub {
   font-size: 12pt;
   display: block;
 }
-.cert-product {
+.hdr-product {
   font-size: 13pt;
   font-weight: bold;
-  margin-top: 4pt;
   display: block;
+  margin-top: 2pt;
 }
 
-/* ── Spec/CAS line ─────────────────────────────────────────────────── */
-.cert-spec {
-  margin: 10pt 0 6pt 0;
-  font-size: 11pt;
-}
+/* ── Body paragraphs ───────────────────────────────────────────────── */
+p { margin: 0; }
+.info { line-height: 1.5; margin-bottom: 2pt; }
+.info-bold { font-weight: bold; }
+.spacer { height: 4pt; }
 
-/* ── Batch info (paragraphs, not table) ────────────────────────────── */
-.cert-info p {
-  margin: 2pt 0;
-  font-size: 11pt;
-}
-.cert-info .info-label {
-  /* no special style — labels are inline */
-}
-
-/* ── AVON fields ───────────────────────────────────────────────────── */
-.avon-section {
-  margin: 4pt 0;
-  font-size: 11pt;
-}
-
-/* ── Results table ─────────────────────────────────────────────────── */
-table.results-table {
+/* ── Results table — exact column proportions from .docx ───────────── */
+/* Total content width ~170mm. Cols: 46.4% / 22.1% / 20.6% / 11.4%   */
+table.rt {
   width: 100%;
   border-collapse: collapse;
-  margin: 10pt 0;
-  font-size: 10pt;
+  margin: 6pt 0;
+  font-size: 11pt;
 }
-table.results-table th {
+table.rt th, table.rt td {
   border: 1px solid #000;
-  padding: 4pt 5pt;
-  font-weight: bold;
-  text-align: center;
-  font-size: 10pt;
-}
-table.results-table td {
-  border: 1px solid #000;
-  padding: 3pt 5pt;
+  padding: 2pt 4pt;
   vertical-align: top;
 }
-table.results-table td.col-param {
-  width: 46%;
-}
-table.results-table td.col-req {
-  width: 22%;
+table.rt th {
+  font-weight: bold;
   text-align: center;
 }
-table.results-table td.col-method {
-  width: 20%;
-  text-align: center;
-  font-size: 9pt;
-}
-table.results-table td.col-result {
-  width: 12%;
-  text-align: center;
-}
-table.results-table td.col-result.empty-result {
-  color: #999;
-}
-
-/* ── Opinion + footer ──────────────────────────────────────────────── */
-.cert-opinion {
-  margin: 10pt 0 4pt 0;
-  font-size: 11pt;
-}
-.cert-opinion .bold {
-  font-weight: bold;
-}
-.cert-date {
-  margin: 12pt 0 8pt 0;
-  font-size: 11pt;
-}
-.cert-sig {
-  margin-top: 6pt;
-  font-size: 11pt;
-}
-.cert-sig .bold {
-  font-weight: bold;
-}
-.cert-electronic {
-  margin-top: 12pt;
-  font-size: 10pt;
-  font-weight: bold;
-}
+table.rt td:nth-child(1) { width: 46%; }
+table.rt td:nth-child(2) { width: 22%; text-align: center; }
+table.rt td:nth-child(3) { width: 21%; text-align: center; }
+table.rt td:nth-child(4) { width: 11%; text-align: center; }
+table.rt td.empty { color: #999; }
 </style>
 </head>
 <body>
 
-<!-- ── Header: Logo + Title ──────────────────────────────────────── -->
-<div class="cert-header">
-  <div class="cert-header-logo">
-    <img src="{{ logo_path }}" alt="Chemco">
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-logo">
+    <img src="{{ logo_path }}" alt="">
   </div>
-  <div class="cert-header-title">
-    <span class="cert-title-main">ŚWIADECTWO JAKOŚCI</span>
-    <span class="cert-title-sub">/CERTIFICATE OF ANALYSIS</span>
-    <span class="cert-product">{{ display_name }}{% if variant_suffix %} {{ variant_suffix }}{% endif %}</span>
+  <div class="hdr-title">
+    <span class="hdr-title-main">ŚWIADECTWO JAKOŚCI</span>
+    <span class="hdr-title-sub">/CERTIFICATE OF ANALYSIS</span>
+    <span class="hdr-product">{{ display_name }}{% if variant_suffix %} {{ variant_suffix }}{% endif %}</span>
   </div>
 </div>
 
-<!-- ── Spec/CAS ──────────────────────────────────────────────────── -->
-<div class="cert-spec">
-  {% if spec_number %}Klasyfikowany na podstawie specyfikacji/Classified on TDS: {{ spec_number }}{% endif %}
-  {% if cas_number %}&nbsp;&nbsp;CAS: {{ cas_number }}{% endif %}
-</div>
-
-<!-- ── AVON fields (conditional) ─────────────────────────────────── -->
+<!-- AVON (conditional) -->
 {% if avon_code %}
-<div class="avon-section">
-  <p>Kod AVON/AVON code: {{ avon_code }}</p>
-  {% if avon_name %}<p>Nazwa AVON/AVON name: {{ avon_name }}</p>{% endif %}
-</div>
+<p class="info">Kod AVON/AVON code: {{ avon_code }}</p>
+{% endif %}
+{% if avon_name %}
+<p class="info">Nazwa AVON/AVON name: {{ avon_name }}</p>
 {% endif %}
 
-<!-- ── Batch info ────────────────────────────────────────────────── -->
-<div class="cert-info">
-  <p>Partia/Batch:&emsp;{{ nr_partii }}</p>
-  <p>Data produkcji/Production date:&emsp;{{ dt_produkcji }}</p>
-  <p>Data ważności/Expiry date:&emsp;{{ dt_waznosci }}</p>
-  {% if order_number %}
-  <p>Numer zamówienia/Order No.:&emsp;{{ order_number }}</p>
-  {% endif %}
-  {% if certificate_number %}
-  <p>Numer certyfikatu/Certificate No.:&emsp;{{ certificate_number }}{% if has_rspo %}&emsp;CU-RSPO SCC-857488{% endif %}</p>
-  {% endif %}
-</div>
+<!-- SPEC -->
+<p class="info">Klasyfikowany na podstawie specyfikacji/Classified on TDS: {{ spec_number }}{% if cas_number %} &emsp;CAS: {{ cas_number }}{% endif %}</p>
 
-<!-- ── Results Table ─────────────────────────────────────────────── -->
-<table class="results-table">
-  <thead>
-    <tr>
-      <th>Parametr oznaczany<br>/Inspection characteristic</th>
-      <th>Wymagania<br>/Requirement</th>
-      <th>Metoda badań<br>/Test method</th>
-      <th>Wynik<br>/Result</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for row in rows %}
-    <tr>
-      <td class="col-param">{{ row.name_pl }}<br>/{{ row.name_en }}</td>
-      <td class="col-req">{{ row.requirement }}</td>
-      <td class="col-method">{{ row.method }}</td>
-      {% if row.result %}
-        <td class="col-result">{{ row.result }}</td>
-      {% else %}
-        <td class="col-result empty-result"></td>
-      {% endif %}
-    </tr>
-    {% endfor %}
-  </tbody>
+<!-- BATCH INFO -->
+<p class="info">Partia/Batch: &emsp;{{ nr_partii }}</p>
+<p class="info">Data produkcji/Production date: &emsp;{{ dt_produkcji }}</p>
+<p class="info">Data ważności/Expiry date: &emsp;{{ dt_waznosci }}</p>
+{% if order_number %}
+<p class="info">Numer zamówienia/Order No.: &emsp;{{ order_number }}</p>
+{% endif %}
+{% if certificate_number %}
+<p class="info">Numer certyfikatu/Certificate No.: &emsp;{{ certificate_number }}{% if has_rspo %} &emsp;CU-RSPO SCC-857488{% endif %}</p>
+{% endif %}
+
+<!-- RESULTS TABLE -->
+<table class="rt">
+  <tr>
+    <th>Parametr oznaczany<br>/Inspection characteristic</th>
+    <th>Wymagania<br>/Requirement</th>
+    <th>Metoda badań<br>/Test method</th>
+    <th>Wynik<br>/Result</th>
+  </tr>
+  {% for row in rows %}
+  <tr>
+    <td>{{ row.name_pl }}<br>/{{ row.name_en }}</td>
+    <td>{{ row.requirement }}</td>
+    <td>{{ row.method }}</td>
+    <td{% if not row.result %} class="empty"{% endif %}>{{ row.result }}</td>
+  </tr>
+  {% endfor %}
 </table>
 
-<!-- ── Country + Opinion ─────────────────────────────────────────── -->
-<div class="cert-opinion">
-  <p><span class="bold">Kraj pochodzenia/Country of origin:</span> Polska/Poland</p>
-  <p><span class="bold">Opinia Laboratorium KJ/Opinion of Quality Control Laboratory:</span></p>
-  <p>{{ opinion_pl }}/{{ opinion_en }}</p>
-</div>
+<!-- COUNTRY + OPINION -->
+<p class="info"><span class="info-bold">Kraj pochodzenia/Country of origin:</span> Polska/Poland</p>
+<p class="info"><span class="info-bold">Opinia Laboratorium KJ/Opinion of Quality Control Laboratory:</span></p>
+<p class="info">{{ opinion_pl }}/{{ opinion_en }}</p>
 
-<!-- ── Date + Signature ──────────────────────────────────────────── -->
-<div class="cert-date">
-  <p>Sobowidz, {{ dt_wystawienia }}</p>
-</div>
+<div class="spacer"></div>
 
-<div class="cert-sig">
-  <p><span class="bold">Wystawił/The certificate made by:</span></p>
-  <p>Specjalista ds. KJ/Quality Control Specialist</p>
-</div>
+<!-- DATE -->
+<p class="info">Sobowidz, {{ dt_wystawienia }}</p>
 
-<div class="cert-electronic">
-  <p>Dokument utworzony elektronicznie, nie wymaga podpisu.</p>
-  <p>The certificate is not signed as it is electronically edited.</p>
-</div>
+<div class="spacer"></div>
+
+<!-- SIGNATURE -->
+<p class="info"><span class="info-bold">Wystawił/The certificate made by:</span></p>
+<p class="info">Specjalista ds. KJ/Quality Control Specialist</p>
+
+<div class="spacer"></div>
+
+<!-- ELECTRONIC NOTICE -->
+<p class="info"><span class="info-bold">Dokument utworzony elektronicznie, nie wymaga podpisu.</span></p>
+<p class="info"><span class="info-bold">The certificate is not signed as it is electronically edited.</span></p>
 
 </body>
 </html>
