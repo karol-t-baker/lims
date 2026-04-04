@@ -330,6 +330,7 @@ PRODUCTS = [
                     _titr("lk",            "L.kwasowa",       "lk",            0,     1.0,   2),
                     _bezp("nd20",          "nd20",            "nd20",          1.39,  1.42,  3),
                     _bezp("barwa_hz",      "Barwa Hz",        "barwa_hz",      0,     500,   0),
+                    _bezp("ph_10proc",     "pH 5%",           "ph_10proc",     6.0,   8.0,   2),
                 ],
             },
         },
