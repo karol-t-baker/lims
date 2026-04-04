@@ -225,6 +225,11 @@ def build_context(
     order_number = extra.get("order_number", "") if "has_order_number" in flags else ""
     certificate_number = extra.get("certificate_number", "") if "has_certificate_number" in flags else ""
     has_rspo = "has_rspo" in flags
+    rspo_text = "CU-RSPO SCC-857488" if has_rspo else ""
+    # If MB variant (has_rspo but no has_certificate_number), auto-fill certificate_number with RSPO
+    if has_rspo and "has_certificate_number" not in flags:
+        certificate_number = rspo_text
+        rspo_text = ""
     avon_code = extra.get("avon_code", "") if "has_avon_code" in flags else ""
     avon_name = extra.get("avon_name", "") if "has_avon_name" in flags else ""
 
@@ -243,7 +248,7 @@ def build_context(
         "rows": rows,
         "order_number": order_number,
         "certificate_number": certificate_number,
-        "has_rspo": has_rspo,
+        "rspo_text": rspo_text,
         "avon_code": avon_code,
         "avon_name": avon_name,
     }

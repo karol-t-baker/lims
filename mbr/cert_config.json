@@ -113,45 +113,71 @@
         {
           "id": "loreal",
           "label": "Chegina K40GLOL — Loreal MB",
-          "flags": ["has_certificate_number", "has_rspo"],
+          "flags": [
+            "has_rspo"
+          ],
           "overrides": {
             "spec_number": "P826",
             "opinion_pl": "Produkt odpowiada wymaganiom P826",
             "opinion_en": "The product complies with P826",
-            "remove_parameters": ["dry_matter", "h2o"]
+            "remove_parameters": [
+              "dry_matter",
+              "h2o"
+            ]
           }
         },
         {
           "id": "loreal_belgia",
           "label": "Chegina K40GLOL — Loreal Belgia MB",
-          "flags": ["has_order_number", "has_certificate_number", "has_rspo"],
+          "flags": [
+            "has_order_number",
+            "has_certificate_number",
+            "has_rspo"
+          ],
           "overrides": {
             "spec_number": "P826",
             "opinion_pl": "Produkt odpowiada wymaganiom P826",
             "opinion_en": "The product complies with P826",
-            "remove_parameters": ["dry_matter", "h2o"]
+            "remove_parameters": [
+              "dry_matter",
+              "h2o"
+            ]
           }
         },
         {
           "id": "loreal_wlochy",
           "label": "Chegina K40GLOL — Loreal Włochy MB",
-          "flags": ["has_order_number", "has_certificate_number", "has_rspo"],
+          "flags": [
+            "has_order_number",
+            "has_certificate_number",
+            "has_rspo"
+          ],
           "overrides": {
             "spec_number": "P826",
             "opinion_pl": "Produkt odpowiada wymaganiom P826",
             "opinion_en": "The product complies with P826",
-            "remove_parameters": ["dry_matter", "h2o"]
+            "remove_parameters": [
+              "dry_matter",
+              "h2o"
+            ]
           }
         },
         {
           "id": "kosmepol",
           "label": "Chegina K40GLOL — Kosmepol MB",
-          "flags": ["has_order_number", "has_certificate_number", "has_rspo"],
+          "flags": [
+            "has_order_number",
+            "has_certificate_number",
+            "has_rspo"
+          ],
           "overrides": {
             "spec_number": "P826",
             "opinion_pl": "Produkt odpowiada wymaganiom P826",
             "opinion_en": "The product complies with P826",
-            "remove_parameters": ["dry_matter", "h2o"]
+            "remove_parameters": [
+              "dry_matter",
+              "h2o"
+            ]
           }
         }
       ]
@@ -228,17 +254,25 @@
         {
           "id": "mb",
           "label": "Chegina K40GLO — MB",
-          "flags": ["has_certificate_number", "has_rspo"]
+          "flags": [
+            "has_rspo"
+          ]
         },
         {
           "id": "nr_zam",
           "label": "Chegina K40GLO — NR_ZAM",
-          "flags": ["has_order_number"]
+          "flags": [
+            "has_order_number"
+          ]
         },
         {
           "id": "mb_nr_zam",
           "label": "Chegina K40GLO — MB+NR_ZAM",
-          "flags": ["has_order_number", "has_certificate_number", "has_rspo"]
+          "flags": [
+            "has_order_number",
+            "has_certificate_number",
+            "has_rspo"
+          ]
         }
       ]
     },
@@ -305,17 +339,23 @@
         {
           "id": "mb",
           "label": "Chegina K40GL — MB",
-          "flags": ["has_certificate_number", "has_rspo"]
+          "flags": [
+            "has_rspo"
+          ]
         },
         {
           "id": "nr_zam",
           "label": "Chegina K40GL — NR_ZAM",
-          "flags": ["has_order_number"]
+          "flags": [
+            "has_order_number"
+          ]
         },
         {
           "id": "adam_partner",
           "label": "Chegina K40GL — ADAM&PARTNER",
-          "flags": ["has_order_number"],
+          "flags": [
+            "has_order_number"
+          ],
           "overrides": {
             "add_parameters": [
               {
@@ -431,7 +471,9 @@
         {
           "id": "mb",
           "label": "Chegina K40GLN — MB",
-          "flags": ["has_certificate_number", "has_rspo"]
+          "flags": [
+            "has_rspo"
+          ]
         }
       ]
     },
@@ -534,7 +576,9 @@
         {
           "id": "mb",
           "label": "Chegina K40GLOS — MB",
-          "flags": ["has_certificate_number", "has_rspo"]
+          "flags": [
+            "has_rspo"
+          ]
         }
       ]
     },
@@ -610,17 +654,23 @@
         {
           "id": "mb",
           "label": "Chegina GLOL40 — MB",
-          "flags": ["has_certificate_number", "has_rspo"]
+          "flags": [
+            "has_rspo"
+          ]
         },
         {
           "id": "nr_zam",
           "label": "Chegina GLOL40 — NR_ZAM",
-          "flags": ["has_order_number"]
+          "flags": [
+            "has_order_number"
+          ]
         },
         {
           "id": "oqema",
           "label": "Chegina GLOL40 — OQEMA MB",
-          "flags": ["has_certificate_number", "has_rspo"],
+          "flags": [
+            "has_rspo"
+          ],
           "overrides": {
             "add_parameters": [
               {
@@ -700,17 +750,23 @@
         {
           "id": "mb",
           "label": "Chegina K7 — MB",
-          "flags": ["has_certificate_number", "has_rspo"]
+          "flags": [
+            "has_rspo"
+          ]
         },
         {
           "id": "nr_zam",
           "label": "Chegina K7 — NR_ZAM",
-          "flags": ["has_order_number"]
+          "flags": [
+            "has_order_number"
+          ]
         },
         {
           "id": "adam_partner",
           "label": "Chegina K7 — ADAM&PARTNER",
-          "flags": ["has_order_number"],
+          "flags": [
+            "has_order_number"
+          ],
           "overrides": {
             "add_parameters": [
               {
@@ -728,7 +784,10 @@
         {
           "id": "dr_miele",
           "label": "Chegina K7 — DR. MIELE",
-          "flags": ["has_order_number", "has_certificate_number"]
+          "flags": [
+            "has_order_number",
+            "has_certificate_number"
+          ]
         }
       ]
     },
@@ -777,12 +836,16 @@
         {
           "id": "mb",
           "label": "Chegina K7B — MB",
-          "flags": ["has_certificate_number", "has_rspo"]
+          "flags": [
+            "has_rspo"
+          ]
         },
         {
           "id": "nr_zam",
           "label": "Chegina K7B — NR_ZAM",
-          "flags": ["has_order_number"]
+          "flags": [
+            "has_order_number"
+          ]
         }
       ]
     },
@@ -894,27 +957,46 @@
         {
           "id": "avon",
           "label": "Chegina KK — AVON",
-          "flags": ["has_avon_code", "has_avon_name", "has_order_number", "has_certificate_number", "has_rspo"]
+          "flags": [
+            "has_avon_code",
+            "has_avon_name",
+            "has_order_number",
+            "has_certificate_number",
+            "has_rspo"
+          ]
         },
         {
           "id": "lehvoss",
           "label": "Chegina KK — LEHVOSS",
-          "flags": ["has_avon_code", "has_avon_name"]
+          "flags": [
+            "has_avon_code",
+            "has_avon_name"
+          ]
         },
         {
           "id": "prime",
           "label": "Chegina KK — PRIME",
-          "flags": ["has_order_number", "has_certificate_number", "has_rspo", "has_avon_code", "has_avon_name"]
+          "flags": [
+            "has_order_number",
+            "has_certificate_number",
+            "has_rspo",
+            "has_avon_code",
+            "has_avon_name"
+          ]
         },
         {
           "id": "revada",
           "label": "Chegina KK — REVADA",
-          "flags": ["has_order_number"]
+          "flags": [
+            "has_order_number"
+          ]
         },
         {
           "id": "skinchem",
           "label": "Chegina KK — SKINCHEM",
-          "flags": ["has_order_number"]
+          "flags": [
+            "has_order_number"
+          ]
         }
       ]
     },
@@ -1096,17 +1178,25 @@
         {
           "id": "mb",
           "label": "Chelamid DK — MB",
-          "flags": ["has_certificate_number", "has_rspo"]
+          "flags": [
+            "has_rspo"
+          ]
         },
         {
           "id": "nr_zam",
           "label": "Chelamid DK — NR_ZAM",
-          "flags": ["has_order_number"]
+          "flags": [
+            "has_order_number"
+          ]
         },
         {
           "id": "mb_nr_zam",
           "label": "Chelamid DK — MB+NR_ZAM",
-          "flags": ["has_order_number", "has_certificate_number", "has_rspo"]
+          "flags": [
+            "has_order_number",
+            "has_certificate_number",
+            "has_rspo"
+          ]
         },
         {
           "id": "pelna",
@@ -1138,7 +1228,9 @@
         {
           "id": "pelna_nr_zam",
           "label": "Chelamid DK — PEŁNA+NR_ZAM",
-          "flags": ["has_order_number"],
+          "flags": [
+            "has_order_number"
+          ],
           "overrides": {
             "add_parameters": [
               {
@@ -1165,7 +1257,11 @@
         {
           "id": "elin",
           "label": "Chelamid DK — ELIN",
-          "flags": ["has_order_number", "has_certificate_number", "has_rspo"],
+          "flags": [
+            "has_order_number",
+            "has_certificate_number",
+            "has_rspo"
+          ],
           "overrides": {
             "add_parameters": [
               {
@@ -1236,12 +1332,16 @@
         {
           "id": "mb",
           "label": "Cheminox K — MB",
-          "flags": ["has_certificate_number", "has_rspo"]
+          "flags": [
+            "has_rspo"
+          ]
         },
         {
           "id": "nr_zam",
           "label": "Cheminox K — NR_ZAM",
-          "flags": ["has_order_number"]
+          "flags": [
+            "has_order_number"
+          ]
         }
       ]
     },
@@ -1290,7 +1390,9 @@
         {
           "id": "nr_zam",
           "label": "Cheminox K 35 — NR_ZAM",
-          "flags": ["has_order_number"]
+          "flags": [
+            "has_order_number"
+          ]
         }
       ]
     },
@@ -1366,12 +1468,20 @@
         {
           "id": "nr_zam",
           "label": "Monamid KO — NR_ZAM",
-          "flags": ["has_order_number"]
+          "flags": [
+            "has_order_number"
+          ]
         },
         {
           "id": "avon",
           "label": "Monamid KO — AVON",
-          "flags": ["has_avon_code", "has_avon_name", "has_order_number", "has_certificate_number", "has_rspo"],
+          "flags": [
+            "has_avon_code",
+            "has_avon_name",
+            "has_order_number",
+            "has_certificate_number",
+            "has_rspo"
+          ],
           "overrides": {
             "add_parameters": [
               {
@@ -1391,7 +1501,9 @@
           "label": "Monamid KO — GHP",
           "flags": [],
           "overrides": {
-            "remove_parameters": ["barwa_gardner"],
+            "remove_parameters": [
+              "barwa_gardner"
+            ],
             "add_parameters": [
               {
                 "id": "barwa_gardner",
@@ -1630,12 +1742,20 @@
         {
           "id": "mb",
           "label": "Alkinol B — MB",
-          "flags": ["has_certificate_number", "has_rspo"]
+          "flags": [
+            "has_rspo"
+          ]
         },
         {
           "id": "avon",
           "label": "Alkinol B — AVON",
-          "flags": ["has_avon_code", "has_avon_name", "has_order_number", "has_certificate_number", "has_rspo"]
+          "flags": [
+            "has_avon_code",
+            "has_avon_name",
+            "has_order_number",
+            "has_certificate_number",
+            "has_rspo"
+          ]
         }
       ]
     },
@@ -1755,7 +1875,13 @@
         {
           "id": "avon",
           "label": "Glikoster P — AVON",
-          "flags": ["has_avon_code", "has_avon_name", "has_order_number", "has_certificate_number", "has_rspo"]
+          "flags": [
+            "has_avon_code",
+            "has_avon_name",
+            "has_order_number",
+            "has_certificate_number",
+            "has_rspo"
+          ]
         }
       ]
     },
@@ -1998,7 +2124,9 @@
         {
           "id": "nr_zam",
           "label": "Perlico 45 — NR_ZAM",
-          "flags": ["has_order_number"]
+          "flags": [
+            "has_order_number"
+          ]
         },
         {
           "id": "reuse",
@@ -2079,12 +2207,16 @@
         {
           "id": "mb",
           "label": "Chemal CS 30/70 — MB",
-          "flags": ["has_certificate_number", "has_rspo"]
+          "flags": [
+            "has_rspo"
+          ]
         },
         {
           "id": "nr_zam",
           "label": "Chemal CS 30/70 — NR_ZAM",
-          "flags": ["has_order_number"]
+          "flags": [
+            "has_order_number"
+          ]
         }
       ]
     },
@@ -2155,7 +2287,9 @@
         {
           "id": "mb",
           "label": "Chemal CS 50/50 — MB",
-          "flags": ["has_certificate_number", "has_rspo"]
+          "flags": [
+            "has_rspo"
+          ]
         }
       ]
     },
@@ -2231,7 +2365,9 @@
         {
           "id": "mb",
           "label": "HSH CS 30/70 — MB",
-          "flags": ["has_certificate_number", "has_rspo"]
+          "flags": [
+            "has_rspo"
+          ]
         }
       ]
     },
