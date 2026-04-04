@@ -207,26 +207,83 @@
 
 /* ═══ COMPLETED VIEW (hero style) ═══ */
 .cv-hero { border-radius: 10px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 14px; }
-.cv-hero-bg { padding: 18px 22px; background: var(--surface-alt); color: var(--text-sec); }
-.cv-hero-bg.cv-prod-k7 { background: var(--prod-k7-bg); color: var(--prod-k7); }
-.cv-hero-bg.cv-prod-glol { background: var(--prod-glol-bg); color: var(--prod-glol); }
-.cv-hero-bg.cv-prod-glo { background: var(--prod-glo-bg); color: var(--prod-glo); }
-.cv-hero-bg.cv-prod-gl { background: var(--prod-gl-bg); color: var(--prod-gl); }
-.cv-hero-bg.cv-prod-other { background: var(--surface-alt); color: var(--text-sec); }
-.cv-hero-main { display: flex; align-items: center; gap: 16px; }
-.cv-hero-nr { font-size: 30px; font-weight: 900; line-height: 1; }
-.cv-hero-right { }
-.cv-hero-product { font-size: 15px; font-weight: 700; }
-.cv-hero-meta { font-size: 11px; opacity: 0.55; margin-top: 2px; display: flex; gap: 8px; }
-.cv-hero-status {
-    display: flex; align-items: center; gap: 8px;
-    margin-top: 12px; font-size: 12px; font-weight: 600;
+/* Sticker card hero */
+.cv-sticker {
+    border-radius: 8px; padding: 18px 20px 16px; position: relative; overflow: hidden;
+    margin-bottom: 14px;
+    background: var(--surface-alt); border: 1.5px solid var(--border); color: var(--text-sec);
+    box-shadow: 0 4px 0 0 rgba(0,0,0,0.04), 0 6px 24px rgba(0,0,0,0.04);
 }
-.cv-st-ok { color: var(--green); }
-.cv-st-err { color: var(--red); }
-.cv-st-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-.cv-st-dot-ok { background: var(--green); }
-.cv-st-dot-err { background: var(--red); }
+.cv-sticker::before {
+    content: ''; position: absolute; top: -18px; right: -18px;
+    width: 72px; height: 72px; background: rgba(0,0,0,0.03); border-radius: 50%;
+}
+.cv-sticker.cv-prod-k7 { background: var(--prod-k7-bg); border-color: #f9a8d4; box-shadow: 0 4px 0 0 rgba(219,39,119,.1), 0 6px 24px rgba(219,39,119,.06); }
+.cv-sticker.cv-prod-k7::before { background: rgba(219,39,119,.06); }
+.cv-sticker.cv-prod-glol { background: var(--prod-glol-bg); border-color: #93c5fd; box-shadow: 0 4px 0 0 rgba(37,99,235,.1), 0 6px 24px rgba(37,99,235,.06); }
+.cv-sticker.cv-prod-glol::before { background: rgba(37,99,235,.06); }
+.cv-sticker.cv-prod-glo { background: var(--prod-glo-bg); border-color: #c4b5fd; box-shadow: 0 4px 0 0 rgba(124,58,237,.1), 0 6px 24px rgba(124,58,237,.06); }
+.cv-sticker.cv-prod-glo::before { background: rgba(124,58,237,.06); }
+.cv-sticker.cv-prod-gl { background: var(--prod-gl-bg); border-color: #5eead4; box-shadow: 0 4px 0 0 rgba(13,148,136,.1), 0 6px 24px rgba(13,148,136,.06); }
+.cv-sticker.cv-prod-gl::before { background: rgba(13,148,136,.06); }
+
+.cv-sticker-corner {
+    position: absolute; top: 0; right: 0; width: 0; height: 0;
+    border-left: 20px solid transparent; border-top: 20px solid rgba(0,0,0,0.08);
+}
+.cv-prod-k7 .cv-sticker-corner { border-top-color: rgba(219,39,119,.15); }
+.cv-prod-glol .cv-sticker-corner { border-top-color: rgba(37,99,235,.15); }
+.cv-prod-glo .cv-sticker-corner { border-top-color: rgba(124,58,237,.15); }
+.cv-prod-gl .cv-sticker-corner { border-top-color: rgba(13,148,136,.15); }
+
+.cv-sticker-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
+.cv-sticker-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-family: var(--mono); font-size: 10px; font-weight: 600;
+    letter-spacing: 0.08em; padding: 3px 9px; border-radius: 4px;
+    background: var(--text); color: #fff;
+}
+.cv-prod-k7 .cv-sticker-badge { background: var(--prod-k7); }
+.cv-prod-glol .cv-sticker-badge { background: var(--prod-glol); }
+.cv-prod-glo .cv-sticker-badge { background: var(--prod-glo); }
+.cv-prod-gl .cv-sticker-badge { background: var(--prod-gl); }
+
+.cv-status-chip {
+    font-family: var(--mono); font-size: 9px; font-weight: 600;
+    padding: 3px 8px; border-radius: 4px;
+}
+.cv-sc-err { background: var(--red-bg); color: var(--red); border: 1px solid #fecaca; }
+.cv-sc-ok { background: var(--green-bg); color: var(--green); border: 1px solid #86efac; }
+
+.cv-sticker-nr {
+    font-size: 38px; font-weight: 900; line-height: 1; letter-spacing: -0.02em;
+    margin-bottom: 8px; color: var(--text);
+}
+.cv-prod-k7 .cv-sticker-nr { color: var(--prod-k7); }
+.cv-prod-glol .cv-sticker-nr { color: var(--prod-glol); }
+.cv-prod-glo .cv-sticker-nr { color: var(--prod-glo); }
+.cv-prod-gl .cv-sticker-nr { color: var(--prod-gl); }
+
+.cv-sticker-divider { height: 1px; background: rgba(0,0,0,0.08); margin: 8px 0; }
+.cv-prod-k7 .cv-sticker-divider { background: rgba(219,39,119,.15); }
+.cv-prod-glol .cv-sticker-divider { background: rgba(37,99,235,.15); }
+.cv-prod-glo .cv-sticker-divider { background: rgba(124,58,237,.15); }
+.cv-prod-gl .cv-sticker-divider { background: rgba(13,148,136,.15); }
+
+.cv-sticker-info { display: flex; flex-wrap: wrap; gap: 0; }
+.cv-si { flex: 1; min-width: 75px; }
+.cv-si-key {
+    font-family: var(--mono); font-size: 8px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim);
+}
+.cv-si-val { font-size: 12px; font-weight: 700; color: var(--text); margin-top: 2px; }
+
+.cv-sticker-stamp {
+    position: absolute; bottom: 8px; right: 14px;
+    font-family: var(--mono); font-size: 8px; letter-spacing: 0.12em;
+    text-transform: uppercase; transform: rotate(-3deg);
+    color: var(--text-dim); opacity: 0.3;
+}
 
 .cv-params { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
 .cv-params-head { padding: 9px 16px; background: var(--surface-alt); border-bottom: 1px solid var(--border); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-dim); }
@@ -451,22 +508,25 @@ function renderCompletedView() {
     else if (prodName.indexOf('K40GLO') >= 0 && prodName.indexOf('K40GLOL') < 0) prodCls = 'cv-prod-glo';
     else if (prodName.indexOf('K40GL') >= 0 && prodName.indexOf('K40GLO') < 0) prodCls = 'cv-prod-gl';
 
-    var heroHtml = '<div class="cv-hero">' +
-        '<div class="cv-hero-bg ' + prodCls + '">' +
-            '<div class="cv-hero-main">' +
-                '<div class="cv-hero-nr">{{ ebr.nr_partii }}</div>' +
-                '<div class="cv-hero-right">' +
-                    '<div class="cv-hero-product">{{ ebr.produkt | short_product }}</div>' +
-                    '<div class="cv-hero-meta">' +
-                        '<span>' + (isZbiornik ? 'Zbiornik' : 'Szarża') + '</span>' +
-                        '<span>{{ ebr.dt_end | pl_date if ebr.dt_end else ebr.dt_start | pl_date }}</span>' +
-                    '</div>' +
-                '</div>' +
-            '</div>' +
-            (errCount > 0
-                ? '<div class="cv-hero-status cv-st-err"><span class="cv-st-dot cv-st-dot-err"></span><span>' + errCount + ' poza normą</span></div>'
-                : '') +
+    var statusChip = errCount > 0
+        ? '<div class="cv-status-chip cv-sc-err">' + errCount + ' POZA NORMĄ</div>'
+        : '<div class="cv-status-chip cv-sc-ok">OK</div>';
+
+    var heroHtml = '<div class="cv-sticker ' + prodCls + '">' +
+        '<div class="cv-sticker-corner"></div>' +
+        '<div class="cv-sticker-top">' +
+            '<div class="cv-sticker-badge">' + (isZbiornik ? 'ZB' : 'SZ') + ' {{ ebr.produkt | short_product }}</div>' +
+            statusChip +
         '</div>' +
+        '<div class="cv-sticker-nr">{{ ebr.nr_partii }}</div>' +
+        '<div class="cv-sticker-divider"></div>' +
+        '<div class="cv-sticker-info">' +
+            '<div class="cv-si"><div class="cv-si-key">Typ</div><div class="cv-si-val">' + (isZbiornik ? 'Zbiornik' : 'Szarża') + '</div></div>' +
+            '<div class="cv-si"><div class="cv-si-key">Data</div><div class="cv-si-val">{{ ebr.dt_end | pl_date if ebr.dt_end else ebr.dt_start | pl_date }}</div></div>' +
+            (ebrNastaw ? '<div class="cv-si"><div class="cv-si-key">Nastaw</div><div class="cv-si-val">' + Math.round(ebrNastaw) + ' kg</div></div>' : '') +
+            (!isZbiornik && '{{ ebr.nr_amidatora }}' ? '<div class="cv-si"><div class="cv-si-key">Amider</div><div class="cv-si-val">A-{{ ebr.nr_amidatora or "?" }}</div></div>' : '') +
+        '</div>' +
+        '<div class="cv-sticker-stamp">KJ · {{ ebr.produkt | short_product }}</div>' +
     '</div>';
 
     // Params list — editable for zbiornik
