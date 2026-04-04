@@ -29,10 +29,10 @@
 </div>
 
 <div id="detail-workspace">
-  <div class="col-main" id="sections-container">
+  <div class="col-main" id="sections-container" {% if ebr.status != 'open' %}style="padding:20px 24px;"{% endif %}>
     {# filled by JS #}
   </div>
-  <div class="col-right">
+  <div class="col-right" {% if ebr.status != 'open' %}style="display:none;"{% endif %}>
     <div class="rp-tabs">
       <div class="rp-tab" id="tab-hist" onclick="showRightPanel('hist')">Wartości typowe</div>
       <div class="rp-tab active" id="tab-calc" onclick="showRightPanel('calc')">Kalkulator</div>
