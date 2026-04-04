@@ -135,7 +135,7 @@ def calculate(dni_urlopu: int) -> dict:
 def _build_person_context(osoba: dict, dni_urlopu: int, year: int, month: int, suffix: str = '') -> dict:
     """Build template context for one person (optionally with _2 suffix for second person)."""
     data_wystawienia = last_workday(year, month)
-    miesiac = f"{MIESIACE[month]} {year}"
+    miesiac = MIESIACE[month]
     calc = calculate(dni_urlopu)
 
     ctx = {

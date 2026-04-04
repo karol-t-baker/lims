@@ -276,7 +276,7 @@ def api_paliwo_oblicz():
     today = date.today()
     calc = calculate(dni)
     lwd = last_workday(today.year, today.month)
-    calc["miesiac"] = f"{MIESIACE[today.month]} {today.year}"
+    calc["miesiac"] = MIESIACE[today.month]
     calc["data_wystawienia"] = lwd.strftime("%d.%m.%Y")
     return jsonify(calc)
 
