@@ -7,6 +7,8 @@ import json
 import os
 import socket
 from datetime import datetime, date
+from urllib.parse import urlparse
+from pathlib import Path
 
 from flask import Flask, Response, redirect, url_for, request, session, render_template, flash, jsonify, abort
 
@@ -326,7 +328,6 @@ def szarze_new():
     # Return to referring page (fast_entry or szarze_list)
     back = request.form.get("_back") or request.referrer or url_for("szarze_list")
     # Prevent open redirect — only allow relative paths
-    from urllib.parse import urlparse
     parsed = urlparse(back)
     if parsed.netloc and parsed.netloc != request.host:
         back = url_for("szarze_list")
@@ -588,7 +589,6 @@ def api_cert_delete(cert_id):
         if row is None:
             return jsonify({"error": "not found"}), 404
         # Delete PDF file — validate path stays within project
-        from pathlib import Path
         project_root = Path(__file__).parent.parent
         pdf_path = (project_root / row["pdf_path"]).resolve()
         if not str(pdf_path).startswith(str(project_root.resolve())):
@@ -610,7 +610,6 @@ def api_cert_pdf(cert_id):
         ).fetchone()
     if row is None:
         return "Nie znaleziono świadectwa", 404
-    from pathlib import Path
     project_root = Path(__file__).parent.parent
     pdf_path = (project_root / row["pdf_path"]).resolve()
     if not str(pdf_path).startswith(str(project_root.resolve())):

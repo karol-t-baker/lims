@@ -381,6 +381,14 @@ function narrowRail() {
   _rail.classList.add('rail-narrow');
 }
 
+function resetTopbar() {
+  var topbar = document.getElementById('topbar');
+  topbar.classList.remove('cv-topbar');
+  topbar.innerHTML = '<span class="tp-t" id="topbar-title"></span><span class="tp-r" id="topbar-right"></span>';
+  topbar.style.display = 'none';
+  if (_heroObserver) { _heroObserver.disconnect(); _heroObserver = null; }
+}
+
 // ═══ SPA NAVIGATION ═══
 
 async function loadBatch(ebrId) {
@@ -400,10 +408,9 @@ async function loadBatch(ebrId) {
   detailPanel.innerHTML = html;
   detailPanel.style.display = '';
 
-  // Update topbar — reset structure first (may have been replaced by completed view)
+  // Reset topbar structure (may have been replaced by completed sticker view)
+  resetTopbar();
   var topbar = document.getElementById('topbar');
-  topbar.classList.remove('cv-topbar');
-  topbar.innerHTML = '<span class="tp-t" id="topbar-title"></span><span class="tp-r" id="topbar-right"></span>';
   topbar.style.display = '';
   const dtTopbar = detailPanel.querySelector('#detail-topbar');
   if (dtTopbar) {
@@ -461,12 +468,7 @@ function showDashboard(skipHistory) {
   document.getElementById('panel-detail').innerHTML = '';
   document.getElementById('panel-registry').style.display = 'none';
 
-  // Reset + hide topbar
-  var topbar = document.getElementById('topbar');
-  topbar.classList.remove('cv-topbar');
-  topbar.innerHTML = '<span class="tp-t" id="topbar-title"></span><span class="tp-r" id="topbar-right"></span>';
-  topbar.style.display = 'none';
-  if (_heroObserver) { _heroObserver.disconnect(); _heroObserver = null; }
+  resetTopbar();
 
   var sf = document.getElementById('spa-footer'); if (sf) sf.innerHTML = '';
 
@@ -732,11 +734,7 @@ async function showRegistry(produkt, skipHistory) {
   document.getElementById('panel-detail').style.display = 'none';
   document.getElementById('panel-detail').innerHTML = '';
   document.getElementById('panel-registry').style.display = 'flex';
-  var topbar = document.getElementById('topbar');
-  topbar.classList.remove('cv-topbar');
-  topbar.innerHTML = '<span class="tp-t" id="topbar-title"></span><span class="tp-r" id="topbar-right"></span>';
-  topbar.style.display = 'none';
-  if (_heroObserver) { _heroObserver.disconnect(); _heroObserver = null; }
+  resetTopbar();
   var sf = document.getElementById('spa-footer'); if (sf) sf.innerHTML = '';
   registryTyp = 'zbiornik';
   var typBtns = document.querySelectorAll('.ch-typ-filter .sb-pill');
