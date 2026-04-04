@@ -1681,10 +1681,10 @@ body {
 .ch-prod-gl.active { background: var(--prod-gl); box-shadow: 0 1px 3px color-mix(in srgb, var(--prod-gl) 25%, transparent); }
 .ch-prod-glo.active { background: var(--prod-glo); box-shadow: 0 1px 3px color-mix(in srgb, var(--prod-glo) 25%, transparent); }
 .ch-prod-glol.active { background: var(--prod-glol); box-shadow: 0 1px 3px color-mix(in srgb, var(--prod-glol) 25%, transparent); }
-.ch-prod-k7:not(.active) { color: var(--prod-k7); }
-.ch-prod-gl:not(.active) { color: var(--prod-gl); }
-.ch-prod-glo:not(.active) { color: var(--prod-glo); }
-.ch-prod-glol:not(.active) { color: var(--prod-glol); }
+.ch-prod-k7:not(.active) { color: var(--prod-k7); border-color: transparent; }
+.ch-prod-gl:not(.active) { color: var(--prod-gl); border-color: transparent; }
+.ch-prod-glo:not(.active) { color: var(--prod-glo); border-color: transparent; }
+.ch-prod-glol:not(.active) { color: var(--prod-glol); border-color: transparent; }
 
 .ch-more { position: relative; }
 .ch-more-btn { display: flex; align-items: center; }
