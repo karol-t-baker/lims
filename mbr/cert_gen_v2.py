@@ -267,7 +267,7 @@ def _escape_xml_chars(context: dict) -> dict:
     """Escape < and > in string values so docxtpl/XML doesn't eat them."""
     def _esc(val):
         if isinstance(val, str):
-            return val.replace("<", "˂").replace(">", "˃")
+            return val.replace("<", "﹤").replace(">", "﹥")
         if isinstance(val, list):
             return [_esc(item) for item in val]
         if isinstance(val, dict):
