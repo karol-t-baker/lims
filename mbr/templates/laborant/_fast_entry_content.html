@@ -277,56 +277,75 @@
     display: flex; align-items: center; justify-content: center;
     font-size: 10px; font-weight: 700; flex-shrink: 0;
 }
-/* Single mixed list styles */
+/* Certificate list — variant 3 mixed list */
 .cv-outdated-banner {
+    display: flex; align-items: center; gap: 8px;
     padding: 8px 14px; margin: 12px 14px 0;
-    background: var(--amber-bg); border-radius: 6px; border-left: 3px solid var(--amber);
+    background: var(--amber-bg); border-radius: 6px;
     font-size: 11px; color: var(--amber); font-weight: 500; line-height: 1.5;
 }
 .cv-list { }
 .cv-list-sep {
-    padding: 10px 16px 4px; font-size: 9px; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim);
+    padding: 6px 14px; font-size: 10px; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim);
+    background: var(--surface-alt); border-bottom: 1px solid var(--border-subtle, #f0ece4);
 }
 .cv-row {
-    display: flex; align-items: center; gap: 8px;
-    padding: 8px 16px; border-bottom: 1px solid var(--border-subtle, #f0ece4);
-    transition: background 0.1s;
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; border-bottom: 1px solid var(--border-subtle, #f0ece4);
 }
 .cv-row:last-child { border-bottom: none; }
-.cv-row:hover { background: #faf9f6; }
-.cv-row-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; background: var(--green); }
-.cv-row-dot.stale { background: var(--amber); }
-.cv-row-dot.tmpl {
-    width: 18px; height: 18px; border-radius: 4px;
-    background: var(--teal-bg); color: var(--teal);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 12px; font-weight: 700;
+
+/* Dots */
+.cv-row-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: var(--teal); }
+.cv-row-dot.stale { background: var(--red); }
+.cv-row-dot.tmpl { background: none; border: 1.5px solid var(--border); }
+
+/* Name */
+.cv-row-name { font-size: 13px; font-weight: 600; color: var(--text); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Meta */
+.cv-row-meta { font-size: 11px; color: var(--text-sec); flex-shrink: 0; white-space: nowrap; }
+
+/* Badges */
+.cv-row-badge-ok {
+    font-size: 9px; font-weight: 600; color: var(--green); background: var(--green-bg);
+    padding: 2px 8px; border-radius: 4px; flex-shrink: 0;
 }
-.cv-row-name { font-size: 12px; font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cv-row-meta { font-size: 10px; color: var(--text-dim); flex-shrink: 0; }
 .cv-row-badge-stale {
-    font-size: 8px; font-weight: 700; color: var(--amber);
-    background: var(--amber-bg); padding: 1px 5px; border-radius: 3px;
-    text-transform: uppercase; letter-spacing: 0.3px; flex-shrink: 0;
+    font-size: 9px; font-weight: 600; color: var(--red); background: var(--red-bg);
+    padding: 2px 8px; border-radius: 4px; flex-shrink: 0;
 }
+
+/* Actions */
 .cv-row-pdf {
-    font-size: 9px; font-weight: 700; color: var(--teal);
-    background: var(--teal-bg); padding: 2px 8px; border-radius: 4px;
+    font-size: 10px; font-weight: 600; color: var(--teal);
     text-decoration: none; flex-shrink: 0;
 }
-.cv-row-pdf:hover { background: #d0ecec; }
+.cv-row-pdf:hover { text-decoration: underline; }
 .cv-row-del {
-    border: none; background: none; padding: 2px 6px;
+    border: none; background: none; padding: 2px 4px;
     color: var(--text-dim); cursor: pointer; font-size: 10px;
     font-family: var(--font); flex-shrink: 0; transition: color 0.12s;
 }
 .cv-row-del:hover { color: var(--red); }
-.cv-row-stale { opacity: 0.55; }
-.cv-row-stale:hover { opacity: 0.75; }
-.cv-row-tmpl { cursor: pointer; }
-.cv-row-tmpl:hover { background: var(--teal-bg); }
-.cv-row-tmpl .cv-row-name { color: var(--text-sec); font-weight: 500; }
+
+/* Stale row */
+.cv-row-stale { background: #fffafa; }
+
+/* Template row */
+.cv-row-tmpl { background: var(--surface-alt); }
+.cv-row-tmpl .cv-row-name { font-weight: 500; color: var(--text-sec); }
+.cv-row-btn-issue {
+    font-size: 10px; font-weight: 600; color: var(--teal);
+    background: var(--teal-bg); border: none; padding: 4px 10px;
+    border-radius: 4px; cursor: pointer; font-family: var(--font);
+    flex-shrink: 0; transition: all 0.12s;
+}
+.cv-row-btn-issue:hover { background: #d0ecec; }
+.cv-row-btn-issue:disabled { opacity: 0.5; cursor: default; }
+
+/* Delete confirmation */
 .cv-del-confirm { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
 .cv-del-yes {
     font-size: 9px; font-weight: 600; padding: 3px 8px; border-radius: 4px;
@@ -673,9 +692,11 @@ async function loadCompletedCerts() {
                 '<div class="cv-row-dot' + (isStale ? ' stale' : '') + '"></div>' +
                 '<span class="cv-row-name">' + display + '</span>' +
                 '<span class="cv-row-meta">' + dt + (c.wystawil ? ' · ' + c.wystawil : '') + '</span>' +
-                (isStale ? '<span class="cv-row-badge-stale">nieaktualne</span>' : '') +
+                (isStale
+                    ? '<span class="cv-row-badge-stale">Nieaktualne</span>'
+                    : '<span class="cv-row-badge-ok">OK</span>') +
                 '<a href="/api/cert/' + c.id + '/pdf" target="_blank" class="cv-row-pdf">PDF</a>' +
-                '<button class="cv-row-del" onclick="event.stopPropagation();deleteCert(' + c.id + ')">usuń</button>' +
+                '<button class="cv-row-del" onclick="event.stopPropagation();deleteCert(' + c.id + ')">Usuń</button>' +
             '</div>';
         });
     }
@@ -684,9 +705,10 @@ async function loadCompletedCerts() {
     if (tmplData.templates.length > 0) {
         html += '<div class="cv-list-sep">Wystaw nowe</div>';
         tmplData.templates.forEach(function(t) {
-            html += '<div class="cv-row cv-row-tmpl" onclick="generateCertInline(this,\'' + t.filename.replace(/'/g, "\\'") + '\')">' +
-                '<div class="cv-row-dot tmpl">+</div>' +
+            html += '<div class="cv-row cv-row-tmpl">' +
+                '<div class="cv-row-dot tmpl"></div>' +
                 '<span class="cv-row-name">' + t.display + '</span>' +
+                '<button class="cv-row-btn-issue" onclick="generateCertInline(this,\'' + t.filename.replace(/'/g, "\\'") + '\')">+ Wystaw</button>' +
             '</div>';
         });
     }
