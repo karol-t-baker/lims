@@ -556,6 +556,24 @@ def api_cert_generate():
     return jsonify({"ok": True, "cert_id": cert_id, "pdf_path": pdf_path})
 
 
+@app.route("/api/cert/<int:cert_id>", methods=["DELETE"])
+@login_required
+def api_cert_delete(cert_id):
+    with db_session() as db:
+        row = db.execute("SELECT pdf_path FROM swiadectwa WHERE id = ?", (cert_id,)).fetchone()
+        if row is None:
+            return jsonify({"error": "not found"}), 404
+        # Delete PDF file
+        from pathlib import Path
+        pdf_path = Path(__file__).parent.parent / row["pdf_path"]
+        if pdf_path.exists():
+            pdf_path.unlink()
+        # Delete DB record
+        db.execute("DELETE FROM swiadectwa WHERE id = ?", (cert_id,))
+        db.commit()
+    return jsonify({"ok": True})
+
+
 @app.route("/api/cert/<int:cert_id>/pdf")
 @login_required
 def api_cert_pdf(cert_id):
