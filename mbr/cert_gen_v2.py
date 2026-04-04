@@ -266,8 +266,12 @@ def generate_certificate_pdf(
     from weasyprint import HTML
 
     ctx = build_context(produkt, variant_id, nr_partii, dt_start, wyniki_flat, extra_fields)
+    # Logo path as file:// URI for weasyprint
+    logo_file = Path(__file__).parent / "static" / "chemco_logo.png"
+    ctx["logo_path"] = logo_file.as_uri() if logo_file.exists() else ""
     html = render_template("pdf/cert_master.html", **ctx)
-    return HTML(string=html).write_pdf()
+    base_url = str(Path(__file__).parent / "static")
+    return HTML(string=html, base_url=base_url).write_pdf()
 
 
 # ---------------------------------------------------------------------------
