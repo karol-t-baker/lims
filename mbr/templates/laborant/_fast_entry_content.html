@@ -66,9 +66,13 @@
     <button type="button" class="btn btn-p" onclick="showPumpInline()">Zatwierdz karte</button>
   </div>
   <div class="ft-pump-form" id="ft-pump-form" style="display:none;">
-    <span class="ft-label">Zbiornik</span>
-    <span class="ft-m">M</span>
-    <input class="ft-nr" type="number" min="1" max="30" id="ft-zbiornik-nr" placeholder="nr">
+    <div class="ft-targets" id="ft-targets">
+      <div class="ft-target-row">
+        <span class="ft-m">M</span>
+        <input class="ft-nr" type="number" min="1" max="99" placeholder="nr">
+      </div>
+    </div>
+    <button type="button" class="ft-add" onclick="addPumpTarget()" title="Dodaj zbiornik">+</button>
     <button class="btn btn-p ft-go" onclick="doCompleteFt()">Przepompuj</button>
     <button class="ft-cancel" onclick="hidePumpInline()" title="Anuluj">&times;</button>
   </div>
@@ -88,16 +92,29 @@
     from { opacity: 0; transform: translateX(8px); }
     to { opacity: 1; transform: translateX(0); }
 }
-.ft-label { font-size: 11px; color: var(--text-dim); font-weight: 500; }
-.ft-m { font-size: 14px; font-weight: 700; color: var(--text-sec); }
+.ft-targets { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.ft-target-row { display: flex; align-items: center; gap: 0; }
+.ft-m {
+    font-size: 13px; font-weight: 700; color: var(--text-sec);
+    padding: 6px 4px 6px 8px; background: var(--surface-alt);
+    border: 1.5px solid var(--border); border-right: none;
+    border-radius: 6px 0 0 6px;
+}
 .ft-nr {
-    width: 48px; padding: 6px 4px; border: 1.5px solid var(--border); border-radius: 6px;
-    font-size: 16px; font-family: var(--mono); font-weight: 700; color: var(--text);
+    width: 42px; padding: 6px 4px; border: 1.5px solid var(--border); border-radius: 0 6px 6px 0;
+    font-size: 14px; font-family: var(--mono); font-weight: 700; color: var(--text);
     text-align: center; background: var(--surface); -moz-appearance: textfield;
     transition: border-color 0.12s;
 }
 .ft-nr::-webkit-outer-spin-button, .ft-nr::-webkit-inner-spin-button { -webkit-appearance: none; }
 .ft-nr:focus { outline: none; border-color: var(--teal); }
+.ft-add {
+    width: 28px; height: 28px; border-radius: 50%; border: 1.5px dashed var(--border);
+    background: none; color: var(--text-dim); font-size: 16px; font-weight: 700;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all 0.12s;
+}
+.ft-add:hover { border-color: var(--teal); color: var(--teal); background: var(--teal-bg); }
 .ft-go { margin-left: 4px; }
 .ft-cancel {
     background: none; border: none; font-size: 18px; color: var(--text-dim);
@@ -1362,8 +1379,10 @@ function doSaveField(input, sekcja, kod) {
 function showPumpInline() {
     document.getElementById('ft-pump').style.display = 'none';
     document.getElementById('ft-pump-form').style.display = 'flex';
-    var inp = document.getElementById('ft-zbiornik-nr');
-    inp.value = '';
+    // Reset to single row
+    document.getElementById('ft-targets').innerHTML =
+        '<div class="ft-target-row"><span class="ft-m">M</span><input class="ft-nr" type="number" min="1" max="99" placeholder="nr"></div>';
+    var inp = document.querySelector('#ft-targets .ft-nr');
     setTimeout(function() { inp.focus(); }, 50);
 }
 
@@ -1372,17 +1391,38 @@ function hidePumpInline() {
     document.getElementById('ft-pump-form').style.display = 'none';
 }
 
+function addPumpTarget() {
+    var row = document.createElement('div');
+    row.className = 'ft-target-row';
+    row.innerHTML = '<span class="ft-m">M</span><input class="ft-nr" type="number" min="1" max="99" placeholder="nr">';
+    document.getElementById('ft-targets').appendChild(row);
+    row.querySelector('.ft-nr').focus();
+}
+
 async function doCompleteFt() {
-    var nr = document.getElementById('ft-zbiornik-nr').value.trim();
-    if (!nr) {
-        document.getElementById('ft-zbiornik-nr').style.borderColor = 'var(--red)';
-        document.getElementById('ft-zbiornik-nr').focus();
-        return;
+    var inputs = document.querySelectorAll('#ft-targets .ft-nr');
+    var targets = [];
+    var valid = true;
+    inputs.forEach(function(inp) {
+        var nr = inp.value.trim();
+        if (!nr) {
+            inp.style.borderColor = 'var(--red)';
+            if (valid) inp.focus();
+            valid = false;
+        } else {
+            inp.style.borderColor = '';
+            targets.push({nr: 'M' + nr, kg: null});
+        }
+    });
+    if (!valid || targets.length === 0) return;
+    // Distribute kg evenly if nastaw known
+    if (ebrNastaw) {
+        var perTarget = Math.round(ebrNastaw / targets.length);
+        targets.forEach(function(t) { t.kg = perTarget; });
     }
     var btn = document.querySelector('.ft-go');
     btn.textContent = '...';
     btn.disabled = true;
-    var targets = [{nr: 'M' + nr, kg: ebrNastaw ? Math.round(ebrNastaw) : null}];
     var resp = await fetch('/laborant/ebr/' + ebrId + '/complete', {
         method: "POST",
         headers: {"Content-Type": "application/json"},
