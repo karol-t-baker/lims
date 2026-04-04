@@ -95,6 +95,20 @@
   .se-active.se-stg-koncowa .se-name { color: #d97706; }
   .se-pending .se-name { color: var(--text-dim); font-weight: 500; }
   .se-detail { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+
+  /* Sidebar registry (simplified) */
+  .sr-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 10px; border-radius: 6px; cursor: pointer;
+    border-bottom: 1px solid var(--border-subtle, #f0ece4);
+    transition: background 0.1s; font-size: 12px;
+  }
+  .sr-item:hover { background: var(--surface-alt); }
+  .sr-item.active { background: var(--teal-bg); }
+  .sr-nr { font-weight: 700; font-family: var(--mono); flex: 1; }
+  .sr-status { font-size: 10px; font-weight: 700; color: var(--green); }
+  .sr-item.err .sr-status { color: var(--red); }
+  .sr-date { font-size: 10px; color: var(--text-dim); font-family: var(--mono); }
 </style>
 {% endblock %}
 
@@ -110,6 +124,7 @@
         <div class="sb-pill active" onclick="switchSidebarTab('etapy',this)">Etapy</div>
         <div class="sb-pill" onclick="switchSidebarTab('szarze',this)">Szarze</div>
         <div class="sb-pill" onclick="switchSidebarTab('zbiorniki',this)">Zbiorniki</div>
+        <div class="sb-pill" onclick="switchSidebarTab('rejestr',this)">Rejestr</div>
       </div>
     </div>
     <div class="sb-list" id="sidebar-etapy" style="display:flex; flex-direction:column; gap:0; padding:8px 10px;">
@@ -119,6 +134,8 @@
       {% for b in batches %}
       {{ batch_card(b) }}
       {% endfor %}
+    </div>
+    <div class="sb-list" id="sidebar-registry" style="display:none; padding:4px 8px;">
     </div>
     <div class="sb-footer"></div>
   </div>
@@ -384,7 +401,14 @@ async function loadBatch(ebrId) {
   });
 
   // Update sidebar etapy view (after scripts set globals)
-  setTimeout(() => renderSidebarEtapy(), 50);
+  setTimeout(function() {
+    renderSidebarEtapy();
+    // If completed, auto-switch sidebar to Rejestr tab
+    if (typeof ebrStatus !== 'undefined' && ebrStatus === 'completed') {
+      var regBtn = document.querySelector('.sb-pill[onclick*="rejestr"]');
+      if (regBtn) switchSidebarTab('rejestr', regBtn);
+    }
+  }, 50);
 }
 
 function showDashboard() {
@@ -432,21 +456,63 @@ function switchSidebarTab(tab, btn) {
   btn.classList.add('active');
   currentSidebarTab = tab;
 
-  const etapyPanel = document.getElementById('sidebar-etapy');
-  const listPanel = document.getElementById('sidebar-batch-list');
+  var etapyPanel = document.getElementById('sidebar-etapy');
+  var listPanel = document.getElementById('sidebar-batch-list');
+  var regPanel = document.getElementById('sidebar-registry');
+
+  etapyPanel.style.display = 'none';
+  listPanel.style.display = 'none';
+  regPanel.style.display = 'none';
 
   if (tab === 'etapy') {
     etapyPanel.style.display = 'flex';
-    listPanel.style.display = 'none';
+  } else if (tab === 'rejestr') {
+    regPanel.style.display = '';
+    loadSidebarRegistry();
   } else {
-    etapyPanel.style.display = 'none';
     listPanel.style.display = '';
-    // Filter batch list by type
-    document.querySelectorAll('#sidebar-batch-list .batch-card').forEach(c => {
+    document.querySelectorAll('#sidebar-batch-list .batch-card').forEach(function(c) {
       if (tab === 'szarze') c.style.display = c.dataset.typ === 'szarza' ? '' : 'none';
       else if (tab === 'zbiorniki') c.style.display = c.dataset.typ === 'zbiornik' ? '' : 'none';
     });
   }
+}
+
+var _sidebarRegistryLoaded = false;
+async function loadSidebarRegistry() {
+  var panel = document.getElementById('sidebar-registry');
+  if (_sidebarRegistryLoaded) return;
+  panel.innerHTML = '<div style="padding:16px;color:var(--text-dim);font-size:11px;">Ładowanie...</div>';
+
+  // Load recent completed for current product (or all)
+  var produkt = '';
+  if (typeof parametry !== 'undefined' && typeof ebrTyp !== 'undefined') {
+    produkt = '{{ ebr.produkt | default("") }}' || '';
+  }
+  var resp = await fetch('/api/registry?produkt=' + encodeURIComponent(produkt || 'Chegina_K7'));
+  var data = await resp.json();
+
+  var html = '';
+  if (data.batches.length === 0) {
+    html = '<div style="padding:16px;color:var(--text-dim);font-size:11px;">Brak ukończonych.</div>';
+  } else {
+    data.batches.forEach(function(b) {
+      var hasErr = data.columns.some(function(c) { return b.wyniki[c.kod] && b.wyniki[c.kod].w_limicie === 0; });
+      var dtStr = '';
+      if (b.dt_end) {
+        var parts = b.dt_end.substring(0, 10).split('-');
+        dtStr = parts[2] + '.' + parts[1];
+      }
+      var isActive = currentEbrId && b.ebr_id === currentEbrId;
+      html += '<div class="sr-item' + (isActive ? ' active' : '') + (hasErr ? ' err' : '') + '" onclick="loadBatch(' + b.ebr_id + ')">' +
+        '<span class="sr-nr">' + b.nr_partii + '</span>' +
+        '<span class="sr-status">' + (hasErr ? '!!' : '✓') + '</span>' +
+        '<span class="sr-date">' + dtStr + '</span>' +
+      '</div>';
+    });
+  }
+  panel.innerHTML = html;
+  _sidebarRegistryLoaded = true;
 }
 
 function filterSidebarCards(q) {
