@@ -280,13 +280,12 @@
 .cv-cert-row { display: flex; align-items: center; gap: 0; margin-bottom: 4px; }
 .cv-cert-row .cv-cert-issued { flex: 1; margin-bottom: 0; }
 .cv-ci-delete {
-    width: 28px; height: 28px; border: none; background: none;
-    color: var(--text-dim); cursor: pointer; font-size: 16px;
-    border-radius: 4px; flex-shrink: 0; opacity: 0;
+    border: none; background: none; padding: 4px 8px;
+    color: var(--text-dim); cursor: pointer; font-size: 10px;
+    border-radius: 4px; flex-shrink: 0; font-family: var(--font);
     transition: all 0.12s;
 }
-.cv-cert-row:hover .cv-ci-delete { opacity: 0.5; }
-.cv-ci-delete:hover { opacity: 1 !important; color: var(--red); background: var(--red-bg); }
+.cv-ci-delete:hover { color: var(--red); }
 .cv-ci-confirm {
     display: flex; gap: 4px; align-items: center; flex-shrink: 0; margin-left: 4px;
 }
@@ -302,7 +301,12 @@
     cursor: pointer; font-family: var(--font);
 }
 .cv-ci-no:hover { background: var(--surface-alt); }
-.cv-ci-outdated { opacity: 0.6; border-left: 3px solid var(--amber); }
+.cv-ci-outdated { opacity: 0.55; border-left: 3px solid var(--amber); }
+.cv-outdated-banner {
+    padding: 8px 12px; margin-bottom: 10px;
+    background: var(--amber-bg); border-radius: 6px; border-left: 3px solid var(--amber);
+    font-size: 11px; color: var(--amber); font-weight: 500; line-height: 1.5;
+}
 .cv-ci-stale {
     font-size: 8px; font-weight: 700; color: var(--amber);
     background: var(--amber-bg); padding: 1px 5px; border-radius: 3px;
@@ -461,11 +465,9 @@ function renderCompletedView() {
                     '</div>' +
                 '</div>' +
             '</div>' +
-            '<div class="cv-hero-status ' + (errCount > 0 ? 'cv-st-err' : 'cv-st-ok') + '">' +
-                (errCount > 0
-                    ? '<span class="cv-st-dot cv-st-dot-err"></span><span>' + errCount + ' parametr' + (errCount > 1 ? 'ów' : '') + ' poza normą</span>'
-                    : '<span class="cv-st-dot cv-st-dot-ok"></span><span>Wszystkie parametry w normie</span>') +
-            '</div>' +
+            (errCount > 0
+                ? '<div class="cv-hero-status cv-st-err"><span class="cv-st-dot cv-st-dot-err"></span><span>' + errCount + ' poza normą</span></div>'
+                : '') +
         '</div>' +
     '</div>';
 
@@ -649,8 +651,14 @@ async function loadCompletedCerts() {
 
     // Issued certificates
     if (certData.certs.length > 0) {
+        var hasOutdated = certData.certs.some(function(c) { return c.nieaktualne; });
         html += '<div class="cv-certs-section">';
         html += '<div class="cv-certs-head">Wystawione</div>';
+        if (hasOutdated) {
+            html += '<div class="cv-outdated-banner">' +
+                'Parametry zostały zmienione po wystawieniu — świadectwa oznaczone jako nieaktualne. Wystaw nowe.' +
+            '</div>';
+        }
         certData.certs.forEach(function(c) {
             var name = c.template_name.replace('.docx', '');
             // Trim common prefixes for display
@@ -671,7 +679,7 @@ async function loadCompletedCerts() {
                     '</div>' +
                     '<span class="cv-ci-pdf">PDF</span>' +
                 '</a>' +
-                '<button class="cv-ci-delete" onclick="event.stopPropagation();deleteCert(' + c.id + ')" title="Usuń świadectwo">&times;</button>' +
+                '<button class="cv-ci-delete" onclick="event.stopPropagation();deleteCert(' + c.id + ')">usuń</button>' +
             '</div>';
         });
         html += '</div>';
