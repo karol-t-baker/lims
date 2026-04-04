@@ -252,7 +252,13 @@
     transition: all 0.12s;
 }
 .cv-edit-btn:hover { background: var(--teal-bg); }
-.cv-edit-btn.active { background: var(--teal); color: #fff; }
+.cv-save-btn {
+    font-size: 9px; font-weight: 600; color: #fff; background: var(--green);
+    border: none; border-radius: 4px; padding: 3px 10px;
+    cursor: pointer; margin-left: 8px; font-family: var(--font);
+    transition: all 0.12s;
+}
+.cv-save-btn:hover { filter: brightness(1.1); }
 .cv-edit-warn {
     display: flex; align-items: center; gap: 8px;
     padding: 8px 14px; margin-bottom: 10px;
@@ -429,7 +435,8 @@ function renderCompletedView() {
     var canEdit = isZbiornik;
     var paramsHtml = '<div class="cv-params">' +
         '<div class="cv-params-head">Parametry końcowe' +
-            (canEdit ? ' <button class="cv-edit-btn" onclick="toggleEditParams()" id="cv-edit-toggle">edytuj</button>' : '') +
+            (canEdit ? ' <button class="cv-edit-btn" onclick="toggleEditParams()" id="cv-edit-toggle">edytuj</button>' +
+                   '<button class="cv-save-btn" onclick="toggleEditParams()" id="cv-save-toggle" style="display:none;">✓ Zakończ edycję</button>' : '') +
         '</div>';
     var lastSekcja = lastAnaliza || 'analiza_koncowa';
     pola.forEach(function(pole) {
@@ -556,14 +563,26 @@ function renderCompletedView() {
 
 function toggleEditParams() {
     var inputs = document.querySelectorAll('.cv-p-input');
-    var btn = document.getElementById('cv-edit-toggle');
+    var editBtn = document.getElementById('cv-edit-toggle');
+    var saveBtn = document.getElementById('cv-save-toggle');
     var isEditing = !inputs[0].readOnly;
-    inputs.forEach(function(inp) { inp.readOnly = isEditing; });
-    btn.textContent = isEditing ? 'edytuj' : 'edycja aktywna';
-    btn.classList.toggle('active', !isEditing);
-    // Show warning if has certs
-    var warning = document.getElementById('cv-edit-warning');
-    if (!isEditing && !warning) {
+
+    if (!isEditing) {
+        // Exiting edit mode
+        inputs.forEach(function(inp) { inp.readOnly = true; });
+        editBtn.style.display = '';
+        saveBtn.style.display = 'none';
+        var warning = document.getElementById('cv-edit-warning');
+        if (warning) warning.remove();
+        // Reload to refresh certs + dots
+        if (typeof loadBatch === 'function') loadBatch(ebrId);
+    } else {
+        // Entering edit mode
+        inputs.forEach(function(inp) { inp.readOnly = false; });
+        editBtn.style.display = 'none';
+        saveBtn.style.display = '';
+        inputs[0].focus();
+        // Show warning if has certs
         var certsEl = document.getElementById('cv-certs');
         if (certsEl && certsEl.querySelector('.cv-cert-issued')) {
             var w = document.createElement('div');
@@ -572,8 +591,6 @@ function toggleEditParams() {
             w.innerHTML = '<span class="cv-ew-icon">!</span> Edycja parametrów oznacza wystawione świadectwa jako nieaktualne';
             certsEl.parentElement.insertBefore(w, certsEl);
         }
-    } else if (isEditing && warning) {
-        warning.remove();
     }
 }
 
