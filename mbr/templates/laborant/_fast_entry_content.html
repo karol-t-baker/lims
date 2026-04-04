@@ -432,6 +432,32 @@
 .cv-row-btn-issue:hover { background: #cce9ea; border-color: var(--teal); }
 .cv-row-btn-issue:disabled { opacity: 0.5; cursor: default; }
 
+.cv-popup-overlay {
+  display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.35); z-index: 9000; align-items: center; justify-content: center;
+}
+.cv-popup-overlay.active { display: flex; }
+.cv-popup {
+  background: #fff; border-radius: 12px; padding: 24px;
+  min-width: 340px; max-width: 440px; box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+}
+.cv-popup h3 { margin: 0 0 16px 0; font-size: 15px; font-weight: 700; color: var(--text); }
+.cv-popup-field { margin-bottom: 12px; }
+.cv-popup-field label { display: block; font-size: 12px; font-weight: 600; color: var(--text-sec); margin-bottom: 4px; }
+.cv-popup-field input {
+  width: 100%; padding: 8px 10px; border: 1.5px solid var(--border); border-radius: 6px;
+  font-size: 13px; box-sizing: border-box;
+}
+.cv-popup-field input:focus { border-color: var(--teal); outline: none; }
+.cv-popup-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+.cv-popup-btn {
+  padding: 8px 18px; border-radius: 6px; font-size: 13px; font-weight: 600;
+  cursor: pointer; border: 1.5px solid var(--border); background: #fff; color: var(--text);
+}
+.cv-popup-btn:hover { background: var(--surface-alt); }
+.cv-popup-btn-ok { background: var(--teal); color: #fff; border-color: var(--teal); }
+.cv-popup-btn-ok:hover { opacity: 0.9; }
+
 .cv-head-badge { font-size: 9px; font-weight: 600; padding: 2px 7px; border-radius: 6px; margin-left: 8px; vertical-align: middle; }
 .cv-hb-ok { background: var(--green-bg); color: var(--green); }
 .cv-hb-err { background: var(--red-bg); color: var(--red); }
@@ -456,6 +482,17 @@
 .cv-list-empty { padding: 14px; font-size: 12px; color: var(--text-dim); text-align: center; }
 
 </style>
+
+<div class="cv-popup-overlay" id="cv-popup-overlay">
+  <div class="cv-popup">
+    <h3>Dodatkowe dane świadectwa</h3>
+    <div id="cv-popup-fields"></div>
+    <div class="cv-popup-actions">
+      <button class="cv-popup-btn" onclick="closeCertPopup()">Anuluj</button>
+      <button class="cv-popup-btn cv-popup-btn-ok" onclick="confirmCertPopup()">Wystaw</button>
+    </div>
+  </div>
+</div>
 
 <script>
 {# Set globals for this batch — use var so re-loading a different batch doesn't throw const-redeclaration error #}
@@ -798,10 +835,11 @@ async function loadCompletedCerts() {
     if (tmplData.templates.length > 0) {
         html += '<div class="cv-list-sep">Wystaw nowe</div>';
         tmplData.templates.forEach(function(t) {
+            var rf = JSON.stringify(t.required_fields || []);
             html += '<div class="cv-row cv-row-tmpl">' +
                 '<div class="cv-row-dot tmpl"></div>' +
                 '<span class="cv-row-name">' + t.display + '</span>' +
-                '<button class="cv-row-btn-issue" onclick="generateCertInline(this,\'' + t.filename.replace(/'/g, "\\'") + '\')">+ Wystaw</button>' +
+                '<button class="cv-row-btn-issue" onclick=\'issueCert(this,"' + t.filename.replace(/"/g, '\\"') + '",' + rf + ')\'>+ Wystaw</button>' +
             '</div>';
         });
     }
@@ -842,7 +880,57 @@ function deleteCert(certId, btn) {
     }
 }
 
-async function generateCertInline(btn, filename) {
+var _pendingCert = {btn: null, variantId: null};
+
+function issueCert(btn, variantId, requiredFields) {
+    if (!requiredFields || requiredFields.length === 0) {
+        doGenerateCert(btn, variantId, {});
+        return;
+    }
+    _pendingCert = {btn: btn, variantId: variantId};
+    var fieldsHtml = '';
+    var fieldDefs = {
+        'has_order_number': {label: 'Numer zamówienia / Order No.', key: 'order_number'},
+        'has_certificate_number': {label: 'Numer certyfikatu / Certificate No.', key: 'certificate_number'},
+        'has_avon_code': {label: 'Kod AVON / AVON code', key: 'avon_code'},
+        'has_avon_name': {label: 'Nazwa AVON / AVON name (INCI)', key: 'avon_name'},
+    };
+    requiredFields.forEach(function(flag) {
+        var def = fieldDefs[flag];
+        if (def) {
+            fieldsHtml += '<div class="cv-popup-field">' +
+                '<label>' + def.label + '</label>' +
+                '<input type="text" id="cv-field-' + def.key + '" data-key="' + def.key + '">' +
+                '</div>';
+        }
+    });
+    document.getElementById('cv-popup-fields').innerHTML = fieldsHtml;
+    document.getElementById('cv-popup-overlay').classList.add('active');
+    var first = document.querySelector('#cv-popup-fields input');
+    if (first) setTimeout(function() { first.focus(); }, 100);
+}
+
+function closeCertPopup() {
+    document.getElementById('cv-popup-overlay').classList.remove('active');
+    _pendingCert = {btn: null, variantId: null};
+}
+
+function confirmCertPopup() {
+    var extra = {};
+    var inputs = document.querySelectorAll('#cv-popup-fields input');
+    var valid = true;
+    inputs.forEach(function(inp) {
+        var val = inp.value.trim();
+        if (!val) { inp.style.borderColor = '#ef4444'; valid = false; }
+        else { inp.style.borderColor = ''; }
+        extra[inp.dataset.key] = val;
+    });
+    if (!valid) return;
+    closeCertPopup();
+    doGenerateCert(_pendingCert.btn, _pendingCert.variantId, extra);
+}
+
+async function doGenerateCert(btn, variantId, extraFields) {
     btn.disabled = true;
     btn.style.opacity = '0.5';
     var origText = btn.innerHTML;
@@ -850,16 +938,17 @@ async function generateCertInline(btn, filename) {
     var resp = await fetch('/api/cert/generate', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ebr_id: ebrId, template_name: filename})
+        body: JSON.stringify({ebr_id: ebrId, variant_id: variantId, extra_fields: extraFields})
     });
     var data = await resp.json();
     if (data.ok) {
         window.open('/api/cert/' + data.cert_id + '/pdf', '_blank');
-        loadCompletedCerts(); // Refresh the whole section
+        loadCompletedCerts();
     } else {
         btn.disabled = false;
         btn.style.opacity = '1';
         btn.innerHTML = origText;
+        alert('Błąd: ' + (data.error || 'Nieznany błąd'));
     }
 }
 
