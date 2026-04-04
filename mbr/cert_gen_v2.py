@@ -2,16 +2,24 @@
 
 Replaces the old docx-parsing system (cert_gen.py) with a config-driven approach
 using cert_config.json for product/variant definitions.
+
+Rendering: docxtpl fills .docx master template → Gotenberg converts to PDF.
 """
 import copy
+import io
 import json
+import tempfile
 from datetime import date, datetime
 from pathlib import Path
 
-from flask import render_template
+import requests
+from docxtpl import DocxTemplate
 
 _CONFIG_PATH = Path(__file__).resolve().parent / "cert_config.json"
+_TEMPLATE_PATH = Path(__file__).resolve().parent / "templates" / "cert_master_template.docx"
 OUTPUT_DIR = Path(__file__).resolve().parent.parent / "data" / "swiadectwa"
+
+GOTENBERG_URL = "http://localhost:3000"
 
 _cached_config: dict | None = None
 
@@ -188,7 +196,7 @@ def build_context(
     # Calculate dates
     dt_produkcji = ""
     dt_waznosci = ""
-    dt_wystawienia = date.today().strftime("%d.%m.%Y")
+    dt_wystawienia = date.today().strftime("%Y-%m-%d")
 
     if dt_start:
         if isinstance(dt_start, datetime):
@@ -202,13 +210,13 @@ def build_context(
                 dt_obj = None
 
         if dt_obj:
-            dt_produkcji = dt_obj.strftime("%d.%m.%Y")
+            dt_produkcji = dt_obj.strftime("%Y-%m-%d")
             expiry_months = product_cfg.get("expiry_months", 12)
             # Add expiry_months
             year = dt_obj.year + (dt_obj.month - 1 + expiry_months) // 12
             month = (dt_obj.month - 1 + expiry_months) % 12 + 1
             day = min(dt_obj.day, _days_in_month(year, month))
-            dt_waznosci = date(year, month, day).strftime("%d.%m.%Y")
+            dt_waznosci = date(year, month, day).strftime("%Y-%m-%d")
 
     # Optional fields from flags + extra_fields
     extra = extra_fields or {}
@@ -250,6 +258,27 @@ def _days_in_month(year: int, month: int) -> int:
 # ---------------------------------------------------------------------------
 # 6. generate_certificate_pdf
 # ---------------------------------------------------------------------------
+def _docxtpl_render(context: dict) -> bytes:
+    """Render the master .docx template with context, return .docx bytes."""
+    tpl = DocxTemplate(str(_TEMPLATE_PATH))
+    tpl.render(context)
+    buf = io.BytesIO()
+    tpl.save(buf)
+    return buf.getvalue()
+
+
+def _gotenberg_convert(docx_bytes: bytes) -> bytes:
+    """Send .docx to Gotenberg, return PDF bytes."""
+    resp = requests.post(
+        f"{GOTENBERG_URL}/forms/libreoffice/convert",
+        files={"files": ("certificate.docx", docx_bytes,
+                         "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+        timeout=30,
+    )
+    resp.raise_for_status()
+    return resp.content
+
+
 def generate_certificate_pdf(
     produkt: str,
     variant_id: str,
@@ -258,20 +287,14 @@ def generate_certificate_pdf(
     wyniki_flat: dict,
     extra_fields: dict | None = None,
 ) -> bytes:
-    """Build context, render cert_master.html template, convert to PDF with weasyprint.
+    """Build context, render .docx via docxtpl, convert to PDF via Gotenberg.
 
     Returns:
         PDF file content as bytes.
     """
-    from weasyprint import HTML
-
     ctx = build_context(produkt, variant_id, nr_partii, dt_start, wyniki_flat, extra_fields)
-    # Logo path as file:// URI for weasyprint
-    logo_file = Path(__file__).parent / "static" / "chemco_logo.png"
-    ctx["logo_path"] = logo_file.as_uri() if logo_file.exists() else ""
-    html = render_template("pdf/cert_master.html", **ctx)
-    base_url = str(Path(__file__).parent / "static")
-    return HTML(string=html, base_url=base_url).write_pdf()
+    docx_bytes = _docxtpl_render(ctx)
+    return _gotenberg_convert(docx_bytes)
 
 
 # ---------------------------------------------------------------------------
