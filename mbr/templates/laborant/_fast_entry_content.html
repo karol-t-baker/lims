@@ -227,6 +227,55 @@
     margin-top: 12px;
 }
 
+/* ═══ COMPLETED VIEW (hero style) ═══ */
+.cv-hero { border-radius: 10px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 14px; }
+.cv-hero-bg { background: linear-gradient(135deg, #0d7377 0%, #085c60 100%); padding: 22px 22px 18px; color: #fff; }
+.cv-hero-bg.cv-hero-zbiornik { background: linear-gradient(135deg, #0d7377 0%, #085c60 100%); }
+.cv-hero-label { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.6; }
+.cv-hero-nr { font-size: 32px; font-weight: 900; line-height: 1; margin-top: 4px; }
+.cv-hero-product { font-size: 14px; opacity: 0.7; margin-top: 5px; }
+.cv-hero-status { padding: 12px 22px; background: var(--surface); border-top: 1px solid var(--border); display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 600; }
+.cv-st-ok { color: var(--green); }
+.cv-st-err { color: var(--red); }
+.cv-st-icon { font-size: 16px; }
+
+.cv-params { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
+.cv-params-head { padding: 9px 16px; background: var(--surface-alt); border-bottom: 1px solid var(--border); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-dim); }
+.cv-param { display: flex; align-items: center; padding: 8px 16px; border-bottom: 1px solid var(--border-subtle, #f0ece4); gap: 10px; }
+.cv-param:last-child { border-bottom: none; }
+.cv-p-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.cv-dot-ok { background: var(--green); }
+.cv-dot-err { background: var(--red); }
+.cv-p-label { flex: 1; font-size: 12px; color: var(--text-sec); }
+.cv-p-val { font-family: var(--mono); font-size: 15px; font-weight: 700; min-width: 60px; text-align: right; }
+.cv-val-err { color: var(--red); }
+.cv-p-norm { font-family: var(--mono); font-size: 10px; color: var(--text-dim); width: 75px; text-align: right; }
+
+/* Stages (szarża) */
+.cv-stages { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.cv-stage-btn { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--surface); font-size: 11px; font-weight: 600; cursor: pointer; color: var(--text-dim); font-family: var(--font); transition: all 0.12s; }
+.cv-stage-btn:hover { color: var(--text-sec); border-color: var(--text-dim); }
+.cv-stage-btn.active { background: var(--text); color: #fff; border-color: var(--text); }
+.cv-stage-body { display: none; }
+.cv-stage-body.active { display: block; }
+
+/* Pump cards */
+.cv-pump { display: flex; gap: 10px; margin-top: 12px; }
+.cv-pump-card { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; text-align: center; }
+.cv-pump-arrow { font-size: 20px; color: var(--teal); margin-bottom: 4px; }
+.cv-pump-nr { font-size: 18px; font-weight: 800; }
+.cv-pump-kg { font-family: var(--mono); font-size: 22px; font-weight: 900; margin-top: 4px; }
+.cv-pump-kg span { font-size: 12px; font-weight: 400; color: var(--text-sec); }
+
+/* Certs (zbiornik) */
+.cv-certs { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-top: 12px; }
+.cv-certs-head { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-dim); margin-bottom: 10px; }
+.cv-certs-empty { font-size: 12px; color: var(--text-dim); }
+.cv-cert-chip { display: flex; align-items: center; gap: 10px; background: var(--teal-bg); border: 1px solid #c5e8e8; border-radius: 6px; padding: 9px 12px; text-decoration: none; color: var(--text); cursor: pointer; transition: background 0.15s; margin-bottom: 6px; }
+.cv-cert-chip:hover { background: #d0ecec; }
+.cv-cert-name { font-weight: 600; font-size: 12px; flex: 1; }
+.cv-cert-pdf { font-size: 10px; font-weight: 700; color: var(--teal); }
+
 .cert-opt {
     display: flex; align-items: center; justify-content: space-between;
     padding: 12px 20px; cursor: pointer;
@@ -282,11 +331,178 @@ function isCyclicProduct() {
 }
 
 function renderSections() {
+    if (ebrStatus === 'completed') {
+        renderCompletedView();
+        return;
+    }
     if (isCyclicProduct()) {
         renderCyclicSections();
     } else {
         renderLinearSections();
     }
+}
+
+function renderCompletedView() {
+    var container = document.getElementById('sections-container');
+    container.innerHTML = '';
+    var isZbiornik = ebrTyp === 'zbiornik';
+
+    // Find last analiza round's wyniki (final results)
+    var lastAnaliza = null;
+    var lastN = 0;
+    for (var key in wyniki) {
+        if (key.startsWith('analiza__')) {
+            var n = parseInt(key.split('__')[1]);
+            if (n > lastN) { lastN = n; lastAnaliza = key; }
+        } else if (key === 'analiza_koncowa') {
+            lastAnaliza = key;
+            lastN = 999;
+        }
+    }
+
+    var pola = getPola(lastAnaliza || 'analiza__1');
+    var finalWyniki = wyniki[lastAnaliza] || {};
+    var errCount = 0;
+    var okCount = 0;
+    Object.values(finalWyniki).forEach(function(r) {
+        if (r.w_limicie === 0) errCount++;
+        else if (r.w_limicie === 1) okCount++;
+    });
+
+    // Hero
+    var heroHtml = '<div class="cv-hero">' +
+        '<div class="cv-hero-bg' + (isZbiornik ? ' cv-hero-zbiornik' : '') + '">' +
+            '<div class="cv-hero-label">' + (isZbiornik ? 'Zbiornik' : 'Szarża') + '</div>' +
+            '<div class="cv-hero-nr">{{ ebr.nr_partii }}</div>' +
+            '<div class="cv-hero-product">{{ ebr.produkt | short_product }}</div>' +
+        '</div>' +
+        '<div class="cv-hero-status ' + (errCount > 0 ? 'cv-st-err' : 'cv-st-ok') + '">' +
+            (errCount > 0
+                ? '<span class="cv-st-icon">!</span><span>' + errCount + ' poza normą</span>'
+                : '<span class="cv-st-icon">✓</span><span>Wszystkie parametry OK</span>') +
+        '</div>' +
+    '</div>';
+
+    // Params list
+    var paramsHtml = '<div class="cv-params">' +
+        '<div class="cv-params-head">Parametry końcowe</div>';
+    pola.forEach(function(pole) {
+        var r = finalWyniki[pole.kod];
+        if (!r || r.wartosc == null) return;
+        var ok = r.w_limicie === 1;
+        var normText = '';
+        if (pole.min != null && pole.max != null) normText = pole.min + ' – ' + pole.max;
+        else if (pole.min != null) normText = '> ' + pole.min;
+        else if (pole.max != null) normText = '< ' + pole.max;
+
+        paramsHtml += '<div class="cv-param">' +
+            '<div class="cv-p-dot ' + (ok ? 'cv-dot-ok' : 'cv-dot-err') + '"></div>' +
+            '<span class="cv-p-label">' + esc(pole.label) + '</span>' +
+            '<span class="cv-p-val ' + (ok ? '' : 'cv-val-err') + '">' + r.wartosc + '</span>' +
+            '<span class="cv-p-norm">' + normText + '</span>' +
+        '</div>';
+    });
+    paramsHtml += '</div>';
+
+    var html = heroHtml + paramsHtml;
+
+    if (isZbiornik) {
+        // Cert list loaded async
+        html += '<div class="cv-certs" id="cv-certs"></div>';
+    } else {
+        // Stage selector for szarża
+        var stages = [];
+        var sortedKeys = Object.keys(wyniki).sort(function(a, b) {
+            var na = a.match(/__(\d+)$/); var nb = b.match(/__(\d+)$/);
+            var an = na ? parseInt(na[1]) : 999; var bn = nb ? parseInt(nb[1]) : 999;
+            if (an !== bn) return an - bn;
+            return a < b ? -1 : 1;
+        });
+        sortedKeys.forEach(function(key) {
+            stages.push(key);
+        });
+
+        if (stages.length > 1) {
+            html += '<div class="cv-stages">';
+            stages.forEach(function(key, idx) {
+                var base = key.replace(/__\d+$/, '');
+                var n = parseInt((key.match(/__(\d+)$/) || [0, 0])[1]);
+                var label = typeof getCyclicSectionTitle === 'function' && n > 0
+                    ? getCyclicSectionTitle(base, n)
+                    : key;
+                html += '<button class="cv-stage-btn' + (idx === stages.length - 1 ? ' active' : '') + '" onclick="showCompletedStage(this,\'' + key + '\')">' + label + '</button>';
+            });
+            html += '</div>';
+
+            // Stage content containers
+            stages.forEach(function(key, idx) {
+                var stagePola = getPola(key);
+                var stageW = wyniki[key] || {};
+                var visible = idx === stages.length - 1;
+                html += '<div class="cv-stage-body' + (visible ? ' active' : '') + '" data-stage="' + key + '">';
+                html += '<div class="cv-params"><div class="cv-params-head">' + key + '</div>';
+                stagePola.forEach(function(pole) {
+                    var r = stageW[pole.kod];
+                    if (!r || r.wartosc == null) return;
+                    var ok = r.w_limicie === 1;
+                    html += '<div class="cv-param">' +
+                        '<div class="cv-p-dot ' + (ok ? 'cv-dot-ok' : 'cv-dot-err') + '"></div>' +
+                        '<span class="cv-p-label">' + esc(pole.label) + '</span>' +
+                        '<span class="cv-p-val ' + (ok ? '' : 'cv-val-err') + '">' + r.wartosc + '</span>' +
+                    '</div>';
+                });
+                html += '</div></div>';
+            });
+        }
+
+        // Przepompowanie
+        var pump = {{ ebr.przepompowanie_json | default('null') | safe }};
+        if (pump && pump.length > 0) {
+            html += '<div class="cv-pump">';
+            pump.forEach(function(p) {
+                if (!p.nr) return;
+                html += '<div class="cv-pump-card">' +
+                    '<div class="cv-pump-arrow">→</div>' +
+                    '<div class="cv-pump-nr">' + esc(p.nr) + '</div>' +
+                    (p.kg ? '<div class="cv-pump-kg">' + p.kg + ' <span>kg</span></div>' : '') +
+                '</div>';
+            });
+            html += '</div>';
+        }
+    }
+
+    container.innerHTML = html;
+
+    // Load certs for zbiornik
+    if (isZbiornik && typeof loadCertHistory === 'function') {
+        loadCompletedCerts();
+    }
+}
+
+function showCompletedStage(btn, key) {
+    btn.parentElement.querySelectorAll('.cv-stage-btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    var container = btn.closest('#sections-container') || document.getElementById('sections-container');
+    container.querySelectorAll('.cv-stage-body').forEach(function(s) { s.classList.toggle('active', s.dataset.stage === key); });
+}
+
+async function loadCompletedCerts() {
+    var resp = await fetch('/api/cert/list?ebr_id=' + ebrId);
+    var data = await resp.json();
+    var el = document.getElementById('cv-certs');
+    if (!el) return;
+    var html = '<div class="cv-certs-head">Świadectwa jakości</div>';
+    if (data.certs.length === 0) {
+        html += '<div class="cv-certs-empty">Brak wystawionych świadectw</div>';
+    } else {
+        data.certs.forEach(function(c) {
+            var name = c.template_name.replace('.docx', '');
+            html += '<a href="/api/cert/' + c.id + '/pdf" target="_blank" class="cv-cert-chip">' +
+                '<span class="cv-cert-name">' + name + '</span>' +
+                '<span class="cv-cert-pdf">PDF</span></a>';
+        });
+    }
+    el.innerHTML = html;
 }
 
 // --- Linear rendering (zbiornik, simple products) — original logic ---
