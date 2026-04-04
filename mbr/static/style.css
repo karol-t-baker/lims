@@ -1677,14 +1677,14 @@ body {
 .ch-tab:hover { color: var(--text-sec); background: var(--surface-alt); }
 .ch-tab.active { background: var(--teal); color: white; box-shadow: 0 1px 3px rgba(13,115,119,0.25); }
 /* Product-colored registry tabs */
-.ch-tab.ch-prod-k7 { background: var(--prod-k7-bg); color: var(--prod-k7); }
-.ch-tab.ch-prod-k7.active { background: var(--prod-k7); color: #fff; box-shadow: 0 2px 8px color-mix(in srgb, var(--prod-k7) 40%, transparent); font-weight: 700; }
-.ch-tab.ch-prod-gl { background: var(--prod-gl-bg); color: var(--prod-gl); }
-.ch-tab.ch-prod-gl.active { background: var(--prod-gl); color: #fff; box-shadow: 0 2px 8px color-mix(in srgb, var(--prod-gl) 40%, transparent); font-weight: 700; }
-.ch-tab.ch-prod-glo { background: var(--prod-glo-bg); color: var(--prod-glo); }
-.ch-tab.ch-prod-glo.active { background: var(--prod-glo); color: #fff; box-shadow: 0 2px 8px color-mix(in srgb, var(--prod-glo) 40%, transparent); font-weight: 700; }
-.ch-tab.ch-prod-glol { background: var(--prod-glol-bg); color: var(--prod-glol); }
-.ch-tab.ch-prod-glol.active { background: var(--prod-glol); color: #fff; box-shadow: 0 2px 8px color-mix(in srgb, var(--prod-glol) 40%, transparent); font-weight: 700; }
+.ch-tab.ch-prod-k7 { background: transparent; color: color-mix(in srgb, var(--prod-k7) 50%, var(--text-dim)); }
+.ch-tab.ch-prod-k7.active { background: var(--prod-k7); color: #fff; box-shadow: 0 2px 8px color-mix(in srgb, var(--prod-k7) 40%, transparent); }
+.ch-tab.ch-prod-gl { background: transparent; color: color-mix(in srgb, var(--prod-gl) 50%, var(--text-dim)); }
+.ch-tab.ch-prod-gl.active { background: var(--prod-gl); color: #fff; box-shadow: 0 2px 8px color-mix(in srgb, var(--prod-gl) 40%, transparent); }
+.ch-tab.ch-prod-glo { background: transparent; color: color-mix(in srgb, var(--prod-glo) 50%, var(--text-dim)); }
+.ch-tab.ch-prod-glo.active { background: var(--prod-glo); color: #fff; box-shadow: 0 2px 8px color-mix(in srgb, var(--prod-glo) 40%, transparent); }
+.ch-tab.ch-prod-glol { background: transparent; color: color-mix(in srgb, var(--prod-glol) 50%, var(--text-dim)); }
+.ch-tab.ch-prod-glol.active { background: var(--prod-glol); color: #fff; box-shadow: 0 2px 8px color-mix(in srgb, var(--prod-glol) 40%, transparent); }
 
 .ch-more { position: relative; }
 .ch-more-btn { display: flex; align-items: center; }
