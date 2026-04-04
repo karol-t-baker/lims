@@ -361,14 +361,7 @@ document.getElementById('new-batch-form').addEventListener('submit', function(e)
     document.getElementById('nr-partii-input').value = zbVal;
     document.getElementById('nr-partii-input-zb').removeAttribute('name');
     document.getElementById('nr-partii-input').removeAttribute('readonly');
-    var zbNr = document.querySelector('#step-2b input[name="nr_zbiornika"]');
-    if (zbNr) {
-      var hidden = document.createElement('input');
-      hidden.type = 'hidden';
-      hidden.name = 'nr_mieszalnika';
-      hidden.value = zbNr.value.trim();
-      zbNr.form.appendChild(hidden);
-    }
+    // nr_zbiornika is already a named input in the form — it will be sent directly
   }
 });
 </script>

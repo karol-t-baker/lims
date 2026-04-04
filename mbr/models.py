@@ -594,7 +594,7 @@ def list_completed_registry(
 ) -> list[dict]:
     """Get completed batches with all wyniki for registry table view."""
     sql = """
-        SELECT eb.ebr_id, eb.batch_id, eb.nr_partii, mt.produkt, eb.dt_end, eb.typ, eb.nr_mieszalnika
+        SELECT eb.ebr_id, eb.batch_id, eb.nr_partii, mt.produkt, eb.dt_end, eb.typ, eb.nr_zbiornika
         FROM ebr_batches eb
         JOIN mbr_templates mt ON mt.mbr_id = eb.mbr_id
         WHERE eb.status = 'completed'
@@ -704,6 +704,7 @@ def create_ebr(
     operator: str,
     typ: str = 'szarza',
     nastaw: int | None = None,
+    nr_zbiornika: str = '',
 ) -> int | None:
     """Create new EBR from active MBR. Returns ebr_id or None if no active MBR."""
     mbr = get_active_mbr(db, produkt)
@@ -713,10 +714,10 @@ def create_ebr(
     now = datetime.now().isoformat(timespec="seconds")
     cur = db.execute(
         "INSERT INTO ebr_batches (mbr_id, batch_id, nr_partii, nr_amidatora, "
-        "nr_mieszalnika, wielkosc_szarzy_kg, dt_start, operator, typ, nastaw) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "nr_mieszalnika, wielkosc_szarzy_kg, dt_start, operator, typ, nastaw, nr_zbiornika) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (mbr["mbr_id"], batch_id, nr_partii, nr_amidatora,
-         nr_mieszalnika, wielkosc_kg, now, operator, typ, nastaw),
+         nr_mieszalnika, wielkosc_kg, now, operator, typ, nastaw, nr_zbiornika),
     )
     db.commit()
     return cur.lastrowid

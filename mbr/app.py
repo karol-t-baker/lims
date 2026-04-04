@@ -321,6 +321,7 @@ def szarze_new():
             operator=session["user"]["login"],
             typ=typ,
             nastaw=int(wielkosc_kg) if wielkosc_kg else None,
+            nr_zbiornika=request.form.get("nr_zbiornika", ""),
         )
 
     if ebr_id is None:
