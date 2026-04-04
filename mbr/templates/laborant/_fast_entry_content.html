@@ -500,7 +500,7 @@ function renderCompletedView() {
     container.innerHTML = html;
 
     // Load certs for zbiornik
-    if (isZbiornik && typeof loadCertHistory === 'function') {
+    if (isZbiornik) {
         loadCompletedCerts();
     }
 }
