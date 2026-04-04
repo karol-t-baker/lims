@@ -236,7 +236,7 @@ def build_context(
     return {
         "company": cfg["company"],
         "footer": cfg["footer"],
-        "display_name": product_cfg["display_name"],
+        "display_name": product_cfg["display_name"] + (" MB" if has_rspo else ""),
         "spec_number": spec_number,
         "cas_number": product_cfg.get("cas_number", ""),
         "nr_partii": nr_partii,
