@@ -528,55 +528,73 @@ def api_cert_templates():
     produkt = request.args.get("produkt", "")
     if not produkt:
         return jsonify({"templates": []})
-    from mbr.cert_gen import list_templates_for_product
-    templates = list_templates_for_product(produkt)
+    from mbr.cert_gen_v2 import get_variants, get_required_fields
+    variants = get_variants(produkt)
+    templates = []
+    for v in variants:
+        templates.append({
+            "filename": v["id"],
+            "display": v["label"],
+            "flags": v["flags"],
+            "required_fields": get_required_fields(produkt, v["id"]),
+        })
     return jsonify({"templates": templates})
 
 
 @app.route("/api/cert/generate", methods=["POST"])
 @login_required
 def api_cert_generate():
-    data = request.get_json(silent=True)
-    if not data:
-        return jsonify({"error": "Invalid JSON"}), 400
+    data = request.get_json(silent=True) or {}
     ebr_id = data.get("ebr_id")
-    template_name = data.get("template_name")
-    if not ebr_id or not template_name:
-        return jsonify({"error": "ebr_id and template_name required"}), 400
+    variant_id = data.get("variant_id") or data.get("template_name")
+    extra_fields = data.get("extra_fields", {})
 
-    from mbr.cert_gen import generate_certificate_pdf, save_certificate_pdf
+    if not ebr_id or not variant_id:
+        return jsonify({"ok": False, "error": "Missing ebr_id or variant_id"}), 400
+
+    from mbr.cert_gen_v2 import generate_certificate_pdf, save_certificate_pdf, get_variants
 
     with db_session() as db:
         ebr = get_ebr(db, ebr_id)
-        if ebr is None:
-            return jsonify({"error": "EBR not found"}), 404
-        wyniki = get_ebr_wyniki(db, ebr_id)
+        if not ebr:
+            return jsonify({"ok": False, "error": "EBR not found"}), 404
 
-        # Flatten wyniki: latest value per kod across all sekcjas
+        wyniki = get_ebr_wyniki(db, ebr_id)
         wyniki_flat = {}
         for sekcja_data in wyniki.values():
             for kod, row in sekcja_data.items():
                 wyniki_flat[kod] = row
 
-        # Resolve wystawil: shift workers or session login
+        # Resolve wystawil
         shift_ids = session.get("shift_workers", [])
         if shift_ids:
-            placeholders = ",".join("?" * len(shift_ids))
-            workers = db.execute(
-                f"SELECT inicjaly, nickname FROM workers WHERE id IN ({placeholders})",
-                shift_ids
-            ).fetchall()
-            wystawil = ", ".join(w["nickname"] or w["inicjaly"] for w in workers)
+            workers = []
+            for wid in shift_ids:
+                w = db.execute("SELECT nickname FROM workers WHERE id=?", (wid,)).fetchone()
+                if w:
+                    workers.append(w["nickname"])
+            wystawil = ", ".join(workers) if workers else session["user"]["login"]
         else:
             wystawil = session["user"]["login"]
 
-        pdf_bytes = generate_certificate_pdf(template_name, dict(ebr), wyniki_flat)
-        pdf_path = save_certificate_pdf(
-            pdf_bytes, ebr["produkt"], template_name, ebr["nr_partii"]
-        )
-        cert_id = create_swiadectwo(
-            db, ebr_id, template_name, ebr["nr_partii"], pdf_path, wystawil
-        )
+        # Find variant label for filename
+        variants = get_variants(ebr["produkt"])
+        variant_label = variant_id
+        for v in variants:
+            if v["id"] == variant_id:
+                variant_label = v["label"]
+                break
+
+        try:
+            pdf_bytes = generate_certificate_pdf(
+                ebr["produkt"], variant_id, ebr["nr_partii"],
+                ebr.get("dt_start"), wyniki_flat, extra_fields,
+            )
+        except Exception as e:
+            return jsonify({"ok": False, "error": str(e)}), 500
+
+        pdf_path = save_certificate_pdf(pdf_bytes, ebr["produkt"], variant_label, ebr["nr_partii"])
+        cert_id = create_swiadectwo(db, ebr_id, variant_label, ebr["nr_partii"], pdf_path, wystawil)
 
     return jsonify({"ok": True, "cert_id": cert_id, "pdf_path": pdf_path})
 
