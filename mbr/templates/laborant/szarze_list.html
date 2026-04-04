@@ -108,6 +108,27 @@
     font-family: var(--font); color: var(--text); background: var(--surface);
   }
   .sr-select:focus { outline: none; border-color: var(--teal); }
+  .sr-product-row { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+  .sr-qp {
+    padding: 4px 8px; border: 1px solid var(--border); border-radius: 5px;
+    font-size: 10px; font-weight: 600; font-family: var(--font);
+    background: var(--surface); color: var(--text-sec); cursor: pointer;
+  }
+  .sr-qp:hover { border-color: var(--teal); color: var(--text); }
+  .sr-qp.active { background: var(--teal); color: #fff; border-color: var(--teal); }
+  .sr-search {
+    flex: 1; min-width: 60px; padding: 4px 8px; border: 1px solid var(--border);
+    border-radius: 5px; font-size: 10px; font-family: var(--font);
+    background: var(--surface); color: var(--text);
+  }
+  .sr-search:focus { outline: none; border-color: var(--teal); }
+  .sr-search-results {
+    padding: 2px 12px; border-bottom: 1px solid var(--border);
+  }
+  .sr-search-item {
+    padding: 4px 8px; font-size: 11px; cursor: pointer; border-radius: 4px;
+  }
+  .sr-search-item:hover { background: var(--surface-alt); }
   .sr-type-seg { margin-top: 2px; }
   .sr-typ { font-size: 8px; font-weight: 700; color: var(--text-dim); background: var(--surface-alt); padding: 1px 4px; border-radius: 3px; }
 
@@ -154,11 +175,14 @@
     {# ═══ MODE: Registry (completed) ═══ #}
     <div id="sb-mode-registry" style="display:none;">
       <div class="sr-filters">
-        <select class="sr-select" id="sr-product" onchange="loadSidebarRegistry()">
-          {% for p in products %}
-          <option value="{{ p.produkt }}">{{ p.produkt|short_product }}</option>
-          {% endfor %}
-        </select>
+        <div class="sr-product-row">
+          <button class="sr-qp{% if not request.args.get('sr_prod') or request.args.get('sr_prod') == 'Chegina_K7' %} active{% endif %}" onclick="pickSrProduct(this,'Chegina_K7')">K7</button>
+          <button class="sr-qp" onclick="pickSrProduct(this,'Chegina_K40GL')">K40GL</button>
+          <button class="sr-qp" onclick="pickSrProduct(this,'Chegina_K40GLO')">K40GLO</button>
+          <button class="sr-qp" onclick="pickSrProduct(this,'Chegina_K40GLOL')">K40GLOL</button>
+          <input class="sr-search" id="sr-product-search" type="text" placeholder="Szukaj produktu..." oninput="searchSrProduct(this.value)">
+        </div>
+        <div class="sr-search-results" id="sr-search-results" style="display:none;"></div>
         <div class="sb-seg sr-type-seg">
           <div class="sb-pill active" data-sr-typ="zbiornik" onclick="setSrType('zbiornik',this)">Zbiorniki</div>
           <div class="sb-pill" data-sr-typ="szarza" onclick="setSrType('szarza',this)">Szarże</div>
@@ -555,11 +579,45 @@ function setSrType(typ, btn) {
   loadSidebarRegistry();
 }
 
+var _srProduct = 'Chegina_K7';
+var _allProducts = {{ products|map(attribute='produkt')|list|tojson }};
+
+function pickSrProduct(btn, produkt) {
+  _srProduct = produkt;
+  document.querySelectorAll('.sr-qp').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  document.getElementById('sr-product-search').value = '';
+  document.getElementById('sr-search-results').style.display = 'none';
+  loadSidebarRegistry();
+}
+
+function searchSrProduct(query) {
+  var results = document.getElementById('sr-search-results');
+  if (!query || query.length < 2) { results.style.display = 'none'; return; }
+  var q = query.toLowerCase();
+  var matches = _allProducts.filter(function(p) { return p.toLowerCase().indexOf(q) >= 0; });
+  if (matches.length === 0) { results.style.display = 'none'; return; }
+  var html = '';
+  matches.forEach(function(p) {
+    html += '<div class="sr-search-item" onclick="selectSrProduct(\'' + p + '\')">' + p.replace('_', ' ') + '</div>';
+  });
+  results.innerHTML = html;
+  results.style.display = '';
+}
+
+function selectSrProduct(produkt) {
+  _srProduct = produkt;
+  document.querySelectorAll('.sr-qp').forEach(function(b) { b.classList.remove('active'); });
+  document.getElementById('sr-product-search').value = produkt.replace('_', ' ');
+  document.getElementById('sr-search-results').style.display = 'none';
+  loadSidebarRegistry();
+}
+
 async function loadSidebarRegistry() {
   var panel = document.getElementById('sidebar-registry');
   panel.innerHTML = '<div style="padding:16px;color:var(--text-dim);font-size:11px;">Ładowanie...</div>';
 
-  var produkt = document.getElementById('sr-product').value || 'Chegina_K7';
+  var produkt = _srProduct;
   var url = '/api/registry?produkt=' + encodeURIComponent(produkt);
   if (_srTyp) url += '&typ=' + _srTyp;
 

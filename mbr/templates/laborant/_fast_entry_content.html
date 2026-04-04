@@ -218,23 +218,27 @@
     content: ''; position: absolute; top: -18px; right: -18px;
     width: 72px; height: 72px; border-radius: 50%; background: rgba(0,0,0,.04);
 }
-.cv-h2-card.cv-prod-k7 { background: var(--prod-k7-bg); border-color: #f9a8d4; box-shadow: 0 1px 0 #fff inset, 0 4px 0 0 rgba(219,39,119,.12), 0 6px 24px rgba(219,39,119,.08); }
-.cv-h2-card.cv-prod-k7::before { background: rgba(219,39,119,.08); }
-.cv-h2-card.cv-prod-glol { background: var(--prod-glol-bg); border-color: #93c5fd; box-shadow: 0 1px 0 #fff inset, 0 4px 0 0 rgba(37,99,235,.12), 0 6px 24px rgba(37,99,235,.08); }
-.cv-h2-card.cv-prod-glol::before { background: rgba(37,99,235,.08); }
-.cv-h2-card.cv-prod-glo { background: var(--prod-glo-bg); border-color: #c4b5fd; box-shadow: 0 1px 0 #fff inset, 0 4px 0 0 rgba(124,58,237,.12), 0 6px 24px rgba(124,58,237,.08); }
-.cv-h2-card.cv-prod-glo::before { background: rgba(124,58,237,.08); }
-.cv-h2-card.cv-prod-gl { background: var(--prod-gl-bg); border-color: #5eead4; box-shadow: 0 1px 0 #fff inset, 0 4px 0 0 rgba(13,148,136,.12), 0 6px 24px rgba(13,148,136,.08); }
-.cv-h2-card.cv-prod-gl::before { background: rgba(13,148,136,.08); }
+/* Product color theme via CSS custom properties */
+.cv-prod-k7 { --pc: var(--prod-k7); --pc-bg: var(--prod-k7-bg); }
+.cv-prod-glol { --pc: var(--prod-glol); --pc-bg: var(--prod-glol-bg); }
+.cv-prod-glo { --pc: var(--prod-glo); --pc-bg: var(--prod-glo-bg); }
+.cv-prod-gl { --pc: var(--prod-gl); --pc-bg: var(--prod-gl-bg); }
+.cv-prod-kk { --pc: var(--prod-kk); --pc-bg: var(--prod-kk-bg); }
+.cv-prod-chelamid { --pc: var(--prod-chelamid); --pc-bg: var(--prod-chelamid-bg); }
+.cv-prod-cheminox { --pc: var(--prod-cheminox); --pc-bg: var(--prod-cheminox-bg); }
+.cv-prod-monamid { --pc: var(--prod-monamid); --pc-bg: var(--prod-monamid-bg); }
+.cv-prod-alkinol { --pc: var(--prod-alkinol); --pc-bg: var(--prod-alkinol-bg); }
+.cv-prod-chemal { --pc: var(--prod-chemal); --pc-bg: var(--prod-chemal-bg); }
+.cv-prod-other { --pc: var(--prod-other); --pc-bg: var(--prod-other-bg); }
+
+.cv-h2-card[class*="cv-prod-"] { background: var(--pc-bg); border-color: color-mix(in srgb, var(--pc) 30%, transparent); box-shadow: 0 1px 0 #fff inset, 0 4px 0 0 color-mix(in srgb, var(--pc) 12%, transparent), 0 6px 24px color-mix(in srgb, var(--pc) 8%, transparent); }
+.cv-h2-card[class*="cv-prod-"]::before { background: color-mix(in srgb, var(--pc) 8%, transparent); }
 
 .cv-h2-corner {
     position: absolute; top: 0; right: 0; width: 0; height: 0;
     border-left: 20px solid transparent; border-top: 20px solid rgba(0,0,0,.1);
 }
-.cv-prod-k7 .cv-h2-corner { border-top-color: rgba(219,39,119,.2); }
-.cv-prod-glol .cv-h2-corner { border-top-color: rgba(37,99,235,.2); }
-.cv-prod-glo .cv-h2-corner { border-top-color: rgba(124,58,237,.2); }
-.cv-prod-gl .cv-h2-corner { border-top-color: rgba(13,148,136,.2); }
+[class*="cv-prod-"] .cv-h2-corner { border-top-color: color-mix(in srgb, var(--pc) 20%, transparent); }
 
 .cv-h2-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
 
@@ -244,10 +248,7 @@
     font-family: var(--mono); font-size: 10px; font-weight: 600;
     letter-spacing: .1em; padding: 3px 9px; border-radius: 4px;
 }
-.cv-prod-k7 .cv-h2-badge { background: var(--prod-k7); }
-.cv-prod-glol .cv-h2-badge { background: var(--prod-glol); }
-.cv-prod-glo .cv-h2-badge { background: var(--prod-glo); }
-.cv-prod-gl .cv-h2-badge { background: var(--prod-gl); }
+[class*="cv-prod-"] .cv-h2-badge { background: var(--pc); }
 
 .cv-h2-status-chip {
     font-family: var(--mono); font-size: 9px; font-weight: 600;
@@ -260,16 +261,10 @@
     font-family: 'Fraunces', serif; font-size: 44px; font-weight: 900;
     line-height: 1; letter-spacing: -.03em; margin-bottom: 10px; color: var(--text);
 }
-.cv-prod-k7 .cv-h2-nr { color: var(--prod-k7); }
-.cv-prod-glol .cv-h2-nr { color: var(--prod-glol); }
-.cv-prod-glo .cv-h2-nr { color: var(--prod-glo); }
-.cv-prod-gl .cv-h2-nr { color: var(--prod-gl); }
+[class*="cv-prod-"] .cv-h2-nr { color: var(--pc); }
 
 .cv-h2-divider { height: 1px; margin: 10px 0; background: rgba(0,0,0,.1); }
-.cv-prod-k7 .cv-h2-divider { background: rgba(219,39,119,.2); }
-.cv-prod-glol .cv-h2-divider { background: rgba(37,99,235,.2); }
-.cv-prod-glo .cv-h2-divider { background: rgba(124,58,237,.2); }
-.cv-prod-gl .cv-h2-divider { background: rgba(13,148,136,.2); }
+[class*="cv-prod-"] .cv-h2-divider { background: color-mix(in srgb, var(--pc) 20%, transparent); }
 
 .cv-h2-info { display: flex; gap: 0; flex-wrap: wrap; }
 .cv-h2-item { flex: 1; min-width: 80px; }
@@ -277,10 +272,7 @@
     font-family: var(--mono); font-size: 8.5px; font-weight: 600;
     text-transform: uppercase; letter-spacing: .1em; color: var(--text-dim);
 }
-.cv-prod-k7 .cv-h2-key { color: rgba(219,39,119,.5); }
-.cv-prod-glol .cv-h2-key { color: rgba(37,99,235,.5); }
-.cv-prod-glo .cv-h2-key { color: rgba(124,58,237,.5); }
-.cv-prod-gl .cv-h2-key { color: rgba(13,148,136,.5); }
+[class*="cv-prod-"] .cv-h2-key { color: color-mix(in srgb, var(--pc) 50%, transparent); }
 
 .cv-h2-val { font-size: 12px; font-weight: 700; color: var(--text); margin-top: 2px; }
 
@@ -296,15 +288,9 @@
     letter-spacing: .08em; padding: 2px 7px; border-radius: 3px;
     background: var(--text-sec); color: #fff;
 }
-.cv-prod-k7 .cv-tb-badge { background: var(--prod-k7); }
-.cv-prod-glol .cv-tb-badge { background: var(--prod-glol); }
-.cv-prod-glo .cv-tb-badge { background: var(--prod-glo); }
-.cv-prod-gl .cv-tb-badge { background: var(--prod-gl); }
+[class*="cv-prod-"] .cv-tb-badge { background: var(--pc); }
 .cv-tb-nr { font-family: 'Fraunces', serif; font-size: 18px; font-weight: 900; color: var(--text); }
-.cv-prod-k7 .cv-tb-nr { color: var(--prod-k7); }
-.cv-prod-glol .cv-tb-nr { color: var(--prod-glol); }
-.cv-prod-glo .cv-tb-nr { color: var(--prod-glo); }
-.cv-prod-gl .cv-tb-nr { color: var(--prod-gl); }
+[class*="cv-prod-"] .cv-tb-nr { color: var(--pc); }
 .cv-tb-meta { font-size: 11px; color: var(--text-dim); }
 .cv-tb-inner .cv-h2-status-chip { margin-left: auto; }
 
@@ -314,10 +300,7 @@
     text-transform: uppercase; transform: rotate(-3deg);
     color: rgba(0,0,0,.15);
 }
-.cv-prod-k7 .cv-h2-stamp { color: rgba(219,39,119,.3); }
-.cv-prod-glol .cv-h2-stamp { color: rgba(37,99,235,.3); }
-.cv-prod-glo .cv-h2-stamp { color: rgba(124,58,237,.3); }
-.cv-prod-gl .cv-h2-stamp { color: rgba(13,148,136,.3); }
+[class*="cv-prod-"] .cv-h2-stamp { color: color-mix(in srgb, var(--pc) 30%, transparent); }
 
 .cv-params { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
 .cv-params-head { padding: 9px 16px; background: var(--surface-alt); border-bottom: 1px solid var(--border); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-dim); }
@@ -574,10 +557,16 @@ function renderCompletedView() {
     // Determine product color class
     var prodCls = 'cv-prod-other';
     var prodName = '{{ ebr.produkt }}';
-    if (prodName.indexOf('K7') >= 0 && prodName.indexOf('K7G') < 0 && prodName.indexOf('K7B') < 0) prodCls = 'cv-prod-k7';
-    else if (prodName.indexOf('K40GLOL') >= 0) prodCls = 'cv-prod-glol';
-    else if (prodName.indexOf('K40GLO') >= 0 && prodName.indexOf('K40GLOL') < 0) prodCls = 'cv-prod-glo';
-    else if (prodName.indexOf('K40GL') >= 0 && prodName.indexOf('K40GLO') < 0) prodCls = 'cv-prod-gl';
+    if (prodName.indexOf('K40GLOL') >= 0) prodCls = 'cv-prod-glol';
+    else if (prodName.indexOf('K40GLO') >= 0) prodCls = 'cv-prod-glo';
+    else if (prodName.indexOf('K40GL') >= 0) prodCls = 'cv-prod-gl';
+    else if (prodName.indexOf('KK') >= 0) prodCls = 'cv-prod-kk';
+    else if (prodName.indexOf('K7') >= 0) prodCls = 'cv-prod-k7';
+    else if (prodName.indexOf('Chelamid') >= 0) prodCls = 'cv-prod-chelamid';
+    else if (prodName.indexOf('Cheminox') >= 0) prodCls = 'cv-prod-cheminox';
+    else if (prodName.indexOf('Monamid') >= 0) prodCls = 'cv-prod-monamid';
+    else if (prodName.indexOf('Alkinol') >= 0 || prodName.indexOf('Alstermid') >= 0) prodCls = 'cv-prod-alkinol';
+    else if (prodName.indexOf('Chemal') >= 0 || prodName.indexOf('HSH') >= 0) prodCls = 'cv-prod-chemal';
 
     var statusChip = errCount > 0
         ? '<div class="cv-h2-status-chip cv-h2-sc-err">' + errCount + ' POZA NORMĄ</div>'

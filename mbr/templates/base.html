@@ -359,6 +359,7 @@ document.addEventListener('keydown', function(e) {
     var regModal = document.getElementById('reg-modal');
     if (regModal && regModal.classList.contains('show')) { if (typeof closeModal === 'function') closeModal(); }
     else if (typeof openNewBatchModal === 'function') openNewBatchModal();
+    else location.href = '/laborant/szarze';
   }
   if (e.key === 'f' || e.key === 'F') {
     e.preventDefault();
