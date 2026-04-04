@@ -9,7 +9,9 @@
  *   4. "Zatwierdz wynik" writes average to form field + saves complete samples
  */
 
-const CALC_METHODS = {
+if (typeof CALC_METHODS !== 'undefined') { /* already loaded */ } else {
+
+var CALC_METHODS = {
     procent_sa:   { name: '%SA',   method: 'Dwufazowa Epton',      formula: '% = (V * C * M) / (m * 10)', factor: 3.261 },
     procent_nacl: { name: '%NaCl', method: 'Argentometryczna Mohr', formula: '% = (V * 0.00585 * 100) / m', factor: 0.585 },
     procent_aa:   { name: '%AA',   method: 'Alkacymetria',          formula: '% = (V * C * M) / (m * 10)', factor: 3.015 },
@@ -352,3 +354,5 @@ window.recalc = recalc;
 window.acceptCalc = acceptCalc;
 window.addSample = addSample;
 window.onSampleInput = onSampleInput;
+
+} // end guard: CALC_METHODS already defined
