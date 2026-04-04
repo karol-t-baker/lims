@@ -373,9 +373,13 @@
           <div class="sb-pill" data-regtyp="szarza" onclick="filterRegistryType('szarza',this)">Szarze</div>
           <div class="sb-pill active" data-regtyp="zbiornik" onclick="filterRegistryType('zbiornik',this)">Zbiorniki</div>
         </div>
-        <input class="reg-search" type="text" id="reg-zbiornik-search" placeholder="Nr zbiornika..." oninput="filterRegistryRows()">
+        <div class="reg-search-wrap">
+          <span class="reg-search-m">M</span>
+          <input class="reg-search" type="number" min="1" max="99" id="reg-zbiornik-search" placeholder="nr" oninput="filterRegistryRows()">
+        </div>
       </div>
       <div class="reg-legend">
+        <span class="reg-legend-title">Legenda:</span>
         <span class="reg-legend-item"><span class="td-zbiornik" style="font-size:8px;padding:1px 4px;">M16</span> nr zbiornika</span>
         <span class="reg-legend-item"><span class="td-cert-badge" style="font-size:7px;padding:1px 4px;">CoA</span> świadectwo jakości</span>
       </div>
@@ -799,12 +803,12 @@ function filterRegistryType(typ, btn) {
 }
 
 function filterRegistryRows() {
-  var q = (document.getElementById('reg-zbiornik-search').value || '').toLowerCase().trim();
+  var q = (document.getElementById('reg-zbiornik-search').value || '').trim();
   var rows = document.querySelectorAll('#reg-table-wrap tbody tr');
   rows.forEach(function(row) {
     if (!q) { row.style.display = ''; return; }
-    var text = row.querySelector('.td-nr') ? row.querySelector('.td-nr').textContent.toLowerCase() : '';
-    row.style.display = text.indexOf(q) >= 0 ? '' : 'none';
+    var text = row.querySelector('.td-nr') ? row.querySelector('.td-nr').textContent : '';
+    row.style.display = text.indexOf('M' + q) >= 0 ? '' : 'none';
   });
 }
 
