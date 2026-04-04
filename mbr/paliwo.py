@@ -18,7 +18,8 @@ STAWKA_DZIENNA = 15.68  # 345/22
 LIMIT_KM = 300
 
 GOTENBERG_URL = "http://localhost:3000"
-_TEMPLATE_PATH = Path(__file__).resolve().parent / "templates" / "paliwo_master.docx"
+_TEMPLATE_PATH_1 = Path(__file__).resolve().parent / "templates" / "paliwo_master.docx"
+_TEMPLATE_PATH_2 = Path(__file__).resolve().parent / "templates" / "paliwo_master_2.docx"
 
 MIESIACE = {
     1: 'styczeń', 2: 'luty', 3: 'marzec', 4: 'kwiecień',
@@ -131,12 +132,32 @@ def calculate(dni_urlopu: int) -> dict:
 # ---------------------------------------------------------------------------
 # PDF generation
 # ---------------------------------------------------------------------------
-def generate_pdf(osoba: dict, dni_urlopu: int, year: int = None, month: int = None) -> bytes:
-    """Generate fuel reimbursement PDF.
+def _build_person_context(osoba: dict, dni_urlopu: int, year: int, month: int, suffix: str = '') -> dict:
+    """Build template context for one person (optionally with _2 suffix for second person)."""
+    data_wystawienia = last_workday(year, month)
+    miesiac = f"{MIESIACE[month]} {year}"
+    calc = calculate(dni_urlopu)
+
+    ctx = {
+        'imie_nazwisko': osoba['imie_nazwisko'],
+        'data_wystawienia': data_wystawienia.strftime('%d.%m.%Y'),
+        'stanowisko': osoba['stanowisko'],
+        'nr_rejestracyjny': osoba['nr_rejestracyjny'],
+        'miesiac': miesiac,
+        'miesiac_ryczalt': miesiac,
+        **calc,
+    }
+    if suffix:
+        return {f"{k}{suffix}": v for k, v in ctx.items()}
+    return ctx
+
+
+def generate_pdf(osoby: list[dict], dni_list: list[int], year: int = None, month: int = None) -> bytes:
+    """Generate fuel reimbursement PDF for 1 or 2 persons.
 
     Args:
-        osoba: dict with imie_nazwisko, stanowisko, nr_rejestracyjny
-        dni_urlopu: number of leave/sick days
+        osoby: list of 1 or 2 person dicts
+        dni_list: list of leave days per person (same length as osoby)
         year, month: override (default: current month)
 
     Returns:
@@ -148,28 +169,19 @@ def generate_pdf(osoba: dict, dni_urlopu: int, year: int = None, month: int = No
     if month is None:
         month = today.month
 
-    data_wystawienia = last_workday(year, month)
-    miesiac = f"{MIESIACE[month]} {year}"
+    if len(osoby) == 1:
+        template_path = _TEMPLATE_PATH_1
+        context = _build_person_context(osoby[0], dni_list[0], year, month)
+    else:
+        template_path = _TEMPLATE_PATH_2
+        context = _build_person_context(osoby[0], dni_list[0], year, month)
+        context.update(_build_person_context(osoby[1], dni_list[1], year, month, suffix='_2'))
 
-    calc = calculate(dni_urlopu)
-
-    context = {
-        'imie_nazwisko': osoba['imie_nazwisko'],
-        'data_wystawienia': data_wystawienia.strftime('%d.%m.%Y'),
-        'stanowisko': osoba['stanowisko'],
-        'nr_rejestracyjny': osoba['nr_rejestracyjny'],
-        'miesiac': miesiac,
-        'miesiac_ryczalt': miesiac,
-        **calc,
-    }
-
-    # Render docx
-    tpl = DocxTemplate(str(_TEMPLATE_PATH))
+    tpl = DocxTemplate(str(template_path))
     tpl.render(context)
     buf = io.BytesIO()
     tpl.save(buf)
 
-    # Convert to PDF via Gotenberg
     resp = requests.post(
         f"{GOTENBERG_URL}/forms/libreoffice/convert",
         files={"files": ("wniosek.docx", buf.getvalue(),

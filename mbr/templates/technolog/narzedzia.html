@@ -77,36 +77,57 @@
       {# Generate form #}
       <div class="pal-row pal-row-head" style="margin-top:16px;">
         <span class="pal-h">Generuj wniosek</span>
+        <div class="pal-count-switch">
+          <label class="pal-radio"><input type="radio" name="pal-count" value="1" checked onchange="palSwitchCount(1)"> 1 osoba</label>
+          <label class="pal-radio"><input type="radio" name="pal-count" value="2" onchange="palSwitchCount(2)"> 2 osoby</label>
+        </div>
       </div>
       <div class="pal-gen">
         <div class="pal-gen-row">
-          <label class="pal-label">Osoba</label>
-          <select class="pal-select" id="pal-gen-osoba"></select>
-        </div>
-        <div class="pal-gen-row">
           <label class="pal-label">Miesiąc</label>
           <span class="pal-auto" id="pal-gen-miesiac">—</span>
-        </div>
-        <div class="pal-gen-row">
-          <label class="pal-label">Data wystawienia</label>
+          <span style="margin-left:16px;"><label class="pal-label" style="width:auto;">Data wystawienia:</label></span>
           <span class="pal-auto" id="pal-gen-data">—</span>
         </div>
-        <div class="pal-gen-row">
-          <label class="pal-label">Dni nieobecności</label>
-          <input class="pal-input pal-input-sm" type="number" min="0" max="22" value="0" id="pal-gen-dni" oninput="palRecalc()">
+
+        <div class="pal-person-block">
+          <div class="pal-person-label">Osoba 1</div>
+          <div class="pal-gen-row">
+            <label class="pal-label">Osoba</label>
+            <select class="pal-select" id="pal-gen-osoba"></select>
+          </div>
+          <div class="pal-gen-row">
+            <label class="pal-label">Dni nieobecności</label>
+            <input class="pal-input pal-input-sm" type="number" min="0" max="22" value="0" id="pal-gen-dni" oninput="palRecalc()">
+            <span class="pal-auto pal-mono" style="margin-left:8px;" id="pal-gen-potracenie">0,00 zł</span>
+            <span style="color:var(--text-dim);font-size:10px;margin-left:2px;">potrącenie</span>
+          </div>
+          <div class="pal-gen-row">
+            <label class="pal-label">Do wypłaty</label>
+            <span class="pal-auto pal-mono pal-bold" id="pal-gen-wyplata">345,00 zł</span>
+            <span class="pal-auto pal-slownie" style="margin-left:10px;" id="pal-gen-slownie">—</span>
+          </div>
         </div>
-        <div class="pal-gen-row">
-          <label class="pal-label">Potrącenie</label>
-          <span class="pal-auto pal-mono" id="pal-gen-potracenie">0,00 zł</span>
+
+        <div class="pal-person-block" id="pal-person-2" style="display:none;">
+          <div class="pal-person-label">Osoba 2</div>
+          <div class="pal-gen-row">
+            <label class="pal-label">Osoba</label>
+            <select class="pal-select" id="pal-gen-osoba-2"></select>
+          </div>
+          <div class="pal-gen-row">
+            <label class="pal-label">Dni nieobecności</label>
+            <input class="pal-input pal-input-sm" type="number" min="0" max="22" value="0" id="pal-gen-dni-2" oninput="palRecalc2()">
+            <span class="pal-auto pal-mono" style="margin-left:8px;" id="pal-gen-potracenie-2">0,00 zł</span>
+            <span style="color:var(--text-dim);font-size:10px;margin-left:2px;">potrącenie</span>
+          </div>
+          <div class="pal-gen-row">
+            <label class="pal-label">Do wypłaty</label>
+            <span class="pal-auto pal-mono pal-bold" id="pal-gen-wyplata-2">345,00 zł</span>
+            <span class="pal-auto pal-slownie" style="margin-left:10px;" id="pal-gen-slownie-2">—</span>
+          </div>
         </div>
-        <div class="pal-gen-row">
-          <label class="pal-label">Ryczałt do wypłaty</label>
-          <span class="pal-auto pal-mono pal-bold" id="pal-gen-wyplata">345,00 zł</span>
-        </div>
-        <div class="pal-gen-row">
-          <label class="pal-label">Słownie</label>
-          <span class="pal-auto pal-slownie" id="pal-gen-slownie">—</span>
-        </div>
+
         <button class="pal-gen-btn" onclick="palGeneruj()">Generuj PDF</button>
       </div>
     </div>
@@ -323,6 +344,17 @@
   cursor: pointer; font-family: var(--font);
 }
 .pal-gen-btn:hover { opacity: 0.9; }
+.pal-count-switch { display: flex; gap: 10px; }
+.pal-radio { font-size: 11px; color: var(--text-sec); cursor: pointer; display: flex; align-items: center; gap: 3px; }
+.pal-radio input { margin: 0; }
+.pal-person-block {
+  border: 1px solid var(--border-subtle, #f0ece4); border-radius: 8px;
+  padding: 10px 12px; margin-bottom: 10px;
+}
+.pal-person-label {
+  font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--text-dim); margin-bottom: 6px;
+}
 </style>
 
 <script>
@@ -356,11 +388,20 @@ function palRenderList() {
 }
 
 function palUpdateDropdown() {
-  var sel = document.getElementById('pal-gen-osoba');
-  sel.innerHTML = '<option value="">— wybierz —</option>';
-  _palOsoby.forEach(function(o) {
-    sel.innerHTML += '<option value="' + o.id + '">' + o.imie_nazwisko + ' (' + o.nr_rejestracyjny + ')</option>';
+  ['pal-gen-osoba', 'pal-gen-osoba-2'].forEach(function(id) {
+    var sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = '<option value="">— wybierz —</option>';
+    _palOsoby.forEach(function(o) {
+      sel.innerHTML += '<option value="' + o.id + '">' + o.imie_nazwisko + ' (' + o.nr_rejestracyjny + ')</option>';
+    });
   });
+}
+
+var _palCount = 1;
+function palSwitchCount(n) {
+  _palCount = n;
+  document.getElementById('pal-person-2').style.display = n === 2 ? '' : 'none';
 }
 
 function palShowAdd() {
@@ -427,14 +468,33 @@ async function palRecalc() {
   document.getElementById('pal-gen-slownie').textContent = d.kwota_slownie;
 }
 
+async function palRecalc2() {
+  var dni = parseInt(document.getElementById('pal-gen-dni-2').value) || 0;
+  var resp = await fetch('/api/paliwo/oblicz?dni=' + dni);
+  var d = await resp.json();
+  document.getElementById('pal-gen-potracenie-2').textContent = d.potracenie + ' zł';
+  document.getElementById('pal-gen-wyplata-2').textContent = d.ryczalt_do_wyplaty + ' zł';
+  document.getElementById('pal-gen-slownie-2').textContent = d.kwota_slownie;
+}
+
 async function palGeneruj() {
   var osobaId = document.getElementById('pal-gen-osoba').value;
   var dni = parseInt(document.getElementById('pal-gen-dni').value) || 0;
-  if (!osobaId) { alert('Wybierz osobę'); return; }
+  if (!osobaId) { alert('Wybierz osobę 1'); return; }
+
+  var osoby = [{osoba_id: parseInt(osobaId), dni_urlopu: dni}];
+
+  if (_palCount === 2) {
+    var osobaId2 = document.getElementById('pal-gen-osoba-2').value;
+    var dni2 = parseInt(document.getElementById('pal-gen-dni-2').value) || 0;
+    if (!osobaId2) { alert('Wybierz osobę 2'); return; }
+    osoby.push({osoba_id: parseInt(osobaId2), dni_urlopu: dni2});
+  }
+
   var resp = await fetch('/api/paliwo/generuj', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({osoba_id: parseInt(osobaId), dni_urlopu: dni})
+    body: JSON.stringify({osoby: osoby})
   });
   if (resp.ok) {
     var blob = await resp.blob();

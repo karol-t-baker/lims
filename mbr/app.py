@@ -286,15 +286,22 @@ def api_paliwo_oblicz():
 def api_paliwo_generuj():
     from mbr.paliwo import generate_pdf, get_osoba, init_paliwo_tables
     data = request.get_json(silent=True) or {}
-    osoba_id = data.get("osoba_id")
-    dni_urlopu = int(data.get("dni_urlopu", 0))
+    osoby_data = data.get("osoby", [])
+    if not osoby_data:
+        # Backwards compat: single person
+        osoby_data = [{"osoba_id": data.get("osoba_id"), "dni_urlopu": int(data.get("dni_urlopu", 0))}]
     with db_session() as db:
         init_paliwo_tables(db)
-        osoba = get_osoba(db, osoba_id)
-    if not osoba:
-        return jsonify({"ok": False, "error": "Osoba nie znaleziona"}), 404
+        osoby = []
+        dni_list = []
+        for od in osoby_data:
+            osoba = get_osoba(db, od["osoba_id"])
+            if not osoba:
+                return jsonify({"ok": False, "error": f"Osoba {od['osoba_id']} nie znaleziona"}), 404
+            osoby.append(osoba)
+            dni_list.append(int(od.get("dni_urlopu", 0)))
     try:
-        pdf_bytes = generate_pdf(osoba, dni_urlopu)
+        pdf_bytes = generate_pdf(osoby, dni_list)
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
     from flask import Response
