@@ -1,0 +1,2327 @@
+{
+  "company": {
+    "name": "PPU Chemco Spółka z o.o.",
+    "address": "ul. Kościuszki 19, 83-033 Sobowidz",
+    "email": "biuro@chemco.pl",
+    "bdo": "000003546"
+  },
+  "footer": {
+    "country_pl": "Polska",
+    "country_en": "Poland",
+    "issuer_pl": "Specjalista ds. KJ",
+    "issuer_en": "Quality Control Specialist",
+    "clause_pl": "Dokument utworzony elektronicznie, nie wymaga podpisu.",
+    "clause_en": "The certificate is not signed as it is electronically edited."
+  },
+  "products": {
+    "Chegina_K40GLOL": {
+      "display_name": "Chegina K40GLOL",
+      "spec_number": "P833",
+      "cas_number": "147170-44-3",
+      "expiry_months": 12,
+      "opinion_pl": "Produkt odpowiada wymaganiom P833",
+      "opinion_en": "The product complies with P833",
+      "parameters": [
+        {
+          "id": "barwa_hz",
+          "name_pl": "Barwa w skali Hazena",
+          "name_en": "Colour (Hazen scale)",
+          "requirement": "max 150",
+          "method": "L928",
+          "data_field": "barwa_hz",
+          "format": "0"
+        },
+        {
+          "id": "odour",
+          "name_pl": "Zapach",
+          "name_en": "Odour",
+          "requirement": "słaby /faint",
+          "method": "organoleptycznie /organoleptic",
+          "data_field": null,
+          "qualitative_result": "zgodny /right"
+        },
+        {
+          "id": "appearance",
+          "name_pl": "Wygląd",
+          "name_en": "Appearance",
+          "requirement": "klarowna ciecz /clear liquid",
+          "method": "organoleptycznie /organoleptic",
+          "data_field": null,
+          "qualitative_result": "zgodny /right"
+        },
+        {
+          "id": "ph",
+          "name_pl": "pH (20°C)",
+          "name_en": "pH (20°C)",
+          "requirement": "4,50-5,50",
+          "method": "L905",
+          "data_field": "ph_10proc",
+          "format": "2"
+        },
+        {
+          "id": "active_matter",
+          "name_pl": "Substancja aktywna [%]",
+          "name_en": "Active matter [%]",
+          "requirement": "37,0-42,0",
+          "method": "L932",
+          "data_field": "sa",
+          "format": "1"
+        },
+        {
+          "id": "nacl",
+          "name_pl": "NaCl [%]",
+          "name_en": "NaCl [%]",
+          "requirement": "5,8-7,3",
+          "method": "L941",
+          "data_field": "nacl",
+          "format": "1"
+        },
+        {
+          "id": "dry_matter",
+          "name_pl": "Sucha masa [%]",
+          "name_en": "Dry matter [%]",
+          "requirement": "min. 44,0",
+          "method": "L903",
+          "data_field": "sm",
+          "format": "1"
+        },
+        {
+          "id": "h2o",
+          "name_pl": "H2O [%]",
+          "name_en": "H2O [%]",
+          "requirement": "52,0-56,0",
+          "method": "L903",
+          "data_field": "h2o",
+          "format": "1"
+        },
+        {
+          "id": "free_amine",
+          "name_pl": "Wolna kokamidopropylodimetyloamina [%]",
+          "name_en": "Free cocamidopropyldimethylamine [%]",
+          "requirement": "max 0,30",
+          "method": "L904",
+          "data_field": "wolna_amina",
+          "format": "2"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Chegina K40GLOL",
+          "flags": []
+        },
+        {
+          "id": "loreal",
+          "label": "Chegina K40GLOL — Loreal MB",
+          "flags": ["has_certificate_number", "has_rspo"],
+          "overrides": {
+            "spec_number": "P826",
+            "opinion_pl": "Produkt odpowiada wymaganiom P826",
+            "opinion_en": "The product complies with P826",
+            "remove_parameters": ["dry_matter", "h2o"]
+          }
+        },
+        {
+          "id": "loreal_belgia",
+          "label": "Chegina K40GLOL — Loreal Belgia MB",
+          "flags": ["has_order_number", "has_certificate_number", "has_rspo"],
+          "overrides": {
+            "spec_number": "P826",
+            "opinion_pl": "Produkt odpowiada wymaganiom P826",
+            "opinion_en": "The product complies with P826",
+            "remove_parameters": ["dry_matter", "h2o"]
+          }
+        },
+        {
+          "id": "loreal_wlochy",
+          "label": "Chegina K40GLOL — Loreal Włochy MB",
+          "flags": ["has_order_number", "has_certificate_number", "has_rspo"],
+          "overrides": {
+            "spec_number": "P826",
+            "opinion_pl": "Produkt odpowiada wymaganiom P826",
+            "opinion_en": "The product complies with P826",
+            "remove_parameters": ["dry_matter", "h2o"]
+          }
+        },
+        {
+          "id": "kosmepol",
+          "label": "Chegina K40GLOL — Kosmepol MB",
+          "flags": ["has_order_number", "has_certificate_number", "has_rspo"],
+          "overrides": {
+            "spec_number": "P826",
+            "opinion_pl": "Produkt odpowiada wymaganiom P826",
+            "opinion_en": "The product complies with P826",
+            "remove_parameters": ["dry_matter", "h2o"]
+          }
+        }
+      ]
+    },
+    "Chegina_K40GLO": {
+      "display_name": "Chegina K40GLO",
+      "spec_number": "P825",
+      "cas_number": "147170-44-3",
+      "expiry_months": 12,
+      "opinion_pl": "Produkt odpowiada wymaganiom P825",
+      "opinion_en": "The product complies with P825",
+      "parameters": [
+        {
+          "id": "dry_matter",
+          "name_pl": "Sucha masa [%]",
+          "name_en": "Dry matter [%]",
+          "requirement": "min 44,0",
+          "method": "L903",
+          "data_field": "sm",
+          "format": "1"
+        },
+        {
+          "id": "nacl",
+          "name_pl": "NaCl [%]",
+          "name_en": "NaCl [%]",
+          "requirement": "5,8-7,3",
+          "method": "L941",
+          "data_field": "nacl",
+          "format": "1"
+        },
+        {
+          "id": "barwa_hz",
+          "name_pl": "Barwa w skali Hazena",
+          "name_en": "Colour (Hazen scale)",
+          "requirement": "max 200",
+          "method": "L928",
+          "data_field": "barwa_hz",
+          "format": "0"
+        },
+        {
+          "id": "ph",
+          "name_pl": "pH (10%, aq)",
+          "name_en": "pH (10%, aq)",
+          "requirement": "5,00-7,00",
+          "method": "L905",
+          "data_field": "ph_10proc",
+          "format": "2"
+        },
+        {
+          "id": "active_matter",
+          "name_pl": "Substancja aktywna [%]",
+          "name_en": "Active matter [%]",
+          "requirement": "min 37,0",
+          "method": "L932",
+          "data_field": "sa",
+          "format": "1"
+        },
+        {
+          "id": "density",
+          "name_pl": "Gęstość (20°C) [g/cm3]",
+          "name_en": "Density (20°C) [g/cm3]",
+          "requirement": "1,05-1,09",
+          "method": "L917",
+          "data_field": "gestosc",
+          "format": "2"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Chegina K40GLO",
+          "flags": []
+        },
+        {
+          "id": "mb",
+          "label": "Chegina K40GLO — MB",
+          "flags": ["has_certificate_number", "has_rspo"]
+        },
+        {
+          "id": "nr_zam",
+          "label": "Chegina K40GLO — NR_ZAM",
+          "flags": ["has_order_number"]
+        },
+        {
+          "id": "mb_nr_zam",
+          "label": "Chegina K40GLO — MB+NR_ZAM",
+          "flags": ["has_order_number", "has_certificate_number", "has_rspo"]
+        }
+      ]
+    },
+    "Chegina_K40GL": {
+      "display_name": "Chegina K40GL",
+      "spec_number": "P827",
+      "cas_number": "1334422-09-1",
+      "expiry_months": 12,
+      "opinion_pl": "Produkt odpowiada wymaganiom P827",
+      "opinion_en": "The product complies with P827",
+      "parameters": [
+        {
+          "id": "dry_matter",
+          "name_pl": "Sucha masa [%]",
+          "name_en": "Dry matter [%]",
+          "requirement": "min 44,0",
+          "method": "L903",
+          "data_field": "sm",
+          "format": "1"
+        },
+        {
+          "id": "nacl",
+          "name_pl": "NaCl [%]",
+          "name_en": "NaCl [%]",
+          "requirement": "5,8-7,3",
+          "method": "L941",
+          "data_field": "nacl",
+          "format": "1"
+        },
+        {
+          "id": "barwa_hz",
+          "name_pl": "Barwa w skali Hazena",
+          "name_en": "Colour (Hazen scale)",
+          "requirement": "max 150",
+          "method": "L928",
+          "data_field": "barwa_hz",
+          "format": "0"
+        },
+        {
+          "id": "ph",
+          "name_pl": "pH (10%, aq)",
+          "name_en": "pH (10%, aq)",
+          "requirement": "4,50-5,50",
+          "method": "L905",
+          "data_field": "ph_10proc",
+          "format": "2"
+        },
+        {
+          "id": "active_matter",
+          "name_pl": "Substancja aktywna [%]",
+          "name_en": "Active matter [%]",
+          "requirement": "min 37,0",
+          "method": "L932",
+          "data_field": "sa",
+          "format": "1"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Chegina K40GL",
+          "flags": []
+        },
+        {
+          "id": "mb",
+          "label": "Chegina K40GL — MB",
+          "flags": ["has_certificate_number", "has_rspo"]
+        },
+        {
+          "id": "nr_zam",
+          "label": "Chegina K40GL — NR_ZAM",
+          "flags": ["has_order_number"]
+        },
+        {
+          "id": "adam_partner",
+          "label": "Chegina K40GL — ADAM&PARTNER",
+          "flags": ["has_order_number"],
+          "overrides": {
+            "add_parameters": [
+              {
+                "id": "h2o2",
+                "name_pl": "Nadtlenki w przeliczeniu na H2O2 [%]",
+                "name_en": "Peroxides as H2O2 [%]",
+                "requirement": "max 0,00",
+                "method": "L901",
+                "data_field": "h2o2",
+                "format": "2"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "Chegina_K40GLN": {
+      "display_name": "Chegina K40GLN",
+      "spec_number": "P836",
+      "cas_number": "1334422-09-1",
+      "expiry_months": 12,
+      "opinion_pl": "Produkt odpowiada wymaganiom P836",
+      "opinion_en": "The product complies with P836",
+      "parameters": [
+        {
+          "id": "barwa_hz",
+          "name_pl": "Barwa w skali Hazena",
+          "name_en": "Colour (Hazen scale)",
+          "requirement": "max 150",
+          "method": "L928",
+          "data_field": "barwa_hz",
+          "format": "0"
+        },
+        {
+          "id": "odour",
+          "name_pl": "Zapach",
+          "name_en": "Odour",
+          "requirement": "słaby /faint",
+          "method": "organoleptycznie /organoleptic",
+          "data_field": null,
+          "qualitative_result": "zgodny /right"
+        },
+        {
+          "id": "appearance",
+          "name_pl": "Wygląd",
+          "name_en": "Appearance",
+          "requirement": "klarowna ciecz /clear liquid",
+          "method": "organoleptycznie /organoleptic",
+          "data_field": null,
+          "qualitative_result": "zgodny /right"
+        },
+        {
+          "id": "ph",
+          "name_pl": "pH (20°C)",
+          "name_en": "pH (20°C)",
+          "requirement": "4,50-5,50",
+          "method": "L905",
+          "data_field": "ph_10proc",
+          "format": "2"
+        },
+        {
+          "id": "active_matter",
+          "name_pl": "Substancja aktywna [%]",
+          "name_en": "Active matter [%]",
+          "requirement": "37,6-40,0",
+          "method": "L932",
+          "data_field": "sa",
+          "format": "1"
+        },
+        {
+          "id": "nacl",
+          "name_pl": "NaCl [%]",
+          "name_en": "NaCl [%]",
+          "requirement": "5,8-7,3",
+          "method": "L941",
+          "data_field": "nacl",
+          "format": "1"
+        },
+        {
+          "id": "dry_matter",
+          "name_pl": "Sucha masa [%]",
+          "name_en": "Dry matter [%]",
+          "requirement": "min 44,0",
+          "method": "L903",
+          "data_field": "sm",
+          "format": "1"
+        },
+        {
+          "id": "h2o",
+          "name_pl": "H2O [%]",
+          "name_en": "H2O [%]",
+          "requirement": "max. 56,0",
+          "method": "L903",
+          "data_field": "h2o",
+          "format": "1"
+        },
+        {
+          "id": "free_aminoamide",
+          "name_pl": "Zawartość wolnego aminoamidu [%]",
+          "name_en": "Free aminoamide [%]",
+          "requirement": "max 0,30",
+          "method": "L904",
+          "data_field": "wolna_amina",
+          "format": "2"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Chegina K40GLN",
+          "flags": []
+        },
+        {
+          "id": "mb",
+          "label": "Chegina K40GLN — MB",
+          "flags": ["has_certificate_number", "has_rspo"]
+        }
+      ]
+    },
+    "Chegina_K40GLOS": {
+      "display_name": "Chegina K40GLOS",
+      "spec_number": "P834",
+      "cas_number": "147170-44-3",
+      "expiry_months": 12,
+      "opinion_pl": "Produkt odpowiada wymaganiom P834",
+      "opinion_en": "The product complies with P834",
+      "parameters": [
+        {
+          "id": "barwa_hz",
+          "name_pl": "Barwa w skali Hazena",
+          "name_en": "Colour (Hazen scale)",
+          "requirement": "max 150",
+          "method": "L928",
+          "data_field": "barwa_hz",
+          "format": "0"
+        },
+        {
+          "id": "odour",
+          "name_pl": "Zapach",
+          "name_en": "Odour",
+          "requirement": "słaby /faint",
+          "method": "organoleptycznie /organoleptic",
+          "data_field": null,
+          "qualitative_result": "zgodny /right"
+        },
+        {
+          "id": "appearance",
+          "name_pl": "Wygląd",
+          "name_en": "Appearance",
+          "requirement": "klarowna ciecz /clear liquid",
+          "method": "organoleptycznie /organoleptic",
+          "data_field": null,
+          "qualitative_result": "zgodny /right"
+        },
+        {
+          "id": "ph",
+          "name_pl": "pH (20°C)",
+          "name_en": "pH (20°C)",
+          "requirement": "4,50-5,50",
+          "method": "L905",
+          "data_field": "ph_10proc",
+          "format": "2"
+        },
+        {
+          "id": "active_matter",
+          "name_pl": "Substancja aktywna [%]",
+          "name_en": "Active matter [%]",
+          "requirement": "39,0-42,0",
+          "method": "L932",
+          "data_field": "sa",
+          "format": "1"
+        },
+        {
+          "id": "nacl",
+          "name_pl": "NaCl [%]",
+          "name_en": "NaCl [%]",
+          "requirement": "5,8-7,3",
+          "method": "L941",
+          "data_field": "nacl",
+          "format": "1"
+        },
+        {
+          "id": "dry_matter",
+          "name_pl": "Sucha masa [%]",
+          "name_en": "Dry matter [%]",
+          "requirement": "min 44,8",
+          "method": "L903",
+          "data_field": "sm",
+          "format": "1"
+        },
+        {
+          "id": "h2o",
+          "name_pl": "H2O [%]",
+          "name_en": "H2O [%]",
+          "requirement": "52,0-55,2",
+          "method": "L903",
+          "data_field": "h2o",
+          "format": "1"
+        },
+        {
+          "id": "free_amine",
+          "name_pl": "Wolna kokamidopropylodimetyloamina [%]",
+          "name_en": "Free cocamidopropyldimethylamine [%]",
+          "requirement": "max 0,30",
+          "method": "L904",
+          "data_field": "wolna_amina",
+          "format": "2"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Chegina K40GLOS",
+          "flags": []
+        },
+        {
+          "id": "mb",
+          "label": "Chegina K40GLOS — MB",
+          "flags": ["has_certificate_number", "has_rspo"]
+        }
+      ]
+    },
+    "Chegina_GLOL40": {
+      "display_name": "Chegina GLOL40",
+      "spec_number": "P826",
+      "cas_number": "147170-44-3",
+      "expiry_months": 12,
+      "opinion_pl": "Produkt odpowiada wymaganiom P826",
+      "opinion_en": "The product complies with P826",
+      "parameters": [
+        {
+          "id": "colour",
+          "name_pl": "Barwa",
+          "name_en": "Colour",
+          "requirement": "jasnożółty /pale yellow",
+          "method": "organoleptycznie /organoleptic",
+          "data_field": null,
+          "qualitative_result": "zgodny /right"
+        },
+        {
+          "id": "odour",
+          "name_pl": "Zapach",
+          "name_en": "Odour",
+          "requirement": "charakterystyczny słaby /characteristic faint",
+          "method": "organoleptycznie /organoleptic",
+          "data_field": null,
+          "qualitative_result": "zgodny /right"
+        },
+        {
+          "id": "appearance",
+          "name_pl": "Wygląd",
+          "name_en": "Appearance",
+          "requirement": "klarowna ciecz /clear liquid",
+          "method": "organoleptycznie /organoleptic",
+          "data_field": null,
+          "qualitative_result": "zgodny /right"
+        },
+        {
+          "id": "ph",
+          "name_pl": "pH",
+          "name_en": "pH",
+          "requirement": "4,50-5,50",
+          "method": "L905",
+          "data_field": "ph_10proc",
+          "format": "2"
+        },
+        {
+          "id": "active_matter",
+          "name_pl": "Substancja aktywna [%]",
+          "name_en": "Active matter [%]",
+          "requirement": "37,0-42,0",
+          "method": "L932",
+          "data_field": "sa",
+          "format": "1"
+        },
+        {
+          "id": "free_amine",
+          "name_pl": "Wolna kokamidopropylodimetyloamina [%]",
+          "name_en": "Free cocamidopropyldimethylamine [%]",
+          "requirement": "max 0,30",
+          "method": "L904",
+          "data_field": "wolna_amina",
+          "format": "2"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Chegina GLOL40",
+          "flags": []
+        },
+        {
+          "id": "mb",
+          "label": "Chegina GLOL40 — MB",
+          "flags": ["has_certificate_number", "has_rspo"]
+        },
+        {
+          "id": "nr_zam",
+          "label": "Chegina GLOL40 — NR_ZAM",
+          "flags": ["has_order_number"]
+        },
+        {
+          "id": "oqema",
+          "label": "Chegina GLOL40 — OQEMA MB",
+          "flags": ["has_certificate_number", "has_rspo"],
+          "overrides": {
+            "add_parameters": [
+              {
+                "id": "nacl",
+                "name_pl": "NaCl [%]",
+                "name_en": "NaCl [%]",
+                "requirement": "5,8-7,3",
+                "method": "L941",
+                "data_field": "nacl",
+                "format": "1"
+              },
+              {
+                "id": "h2o",
+                "name_pl": "H2O [%]",
+                "name_en": "H2O [%]",
+                "requirement": "52,0-56,0",
+                "method": "L903",
+                "data_field": "h2o",
+                "format": "1"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "Chegina_K7": {
+      "display_name": "Chegina K7",
+      "spec_number": "P819",
+      "cas_number": "1334422-09-1",
+      "expiry_months": 12,
+      "opinion_pl": "Produkt odpowiada wymaganiom P819",
+      "opinion_en": "The product complies with P819",
+      "parameters": [
+        {
+          "id": "dry_matter",
+          "name_pl": "Sucha masa [%]",
+          "name_en": "Dry matter [%]",
+          "requirement": "min 35,5",
+          "method": "L903",
+          "data_field": "sm",
+          "format": "1"
+        },
+        {
+          "id": "nd20",
+          "name_pl": "Wsp. załamania światła (nD20)",
+          "name_en": "Refraction (nD20)",
+          "requirement": "1,3800-1,3950",
+          "method": "PN-EN ISO 6320:2017-04",
+          "data_field": "nd20",
+          "format": "4"
+        },
+        {
+          "id": "barwa_jod",
+          "name_pl": "Barwa w skali jodowej",
+          "name_en": "Colour (Iodine scale)",
+          "requirement": "max 3",
+          "method": "L928",
+          "data_field": "barwa_fau",
+          "format": "0"
+        },
+        {
+          "id": "active_matter",
+          "name_pl": "Substancja aktywna [%]",
+          "name_en": "Active matter [%]",
+          "requirement": "30,0-32,0",
+          "method": "L932",
+          "data_field": "sa",
+          "format": "1"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Chegina K7",
+          "flags": []
+        },
+        {
+          "id": "mb",
+          "label": "Chegina K7 — MB",
+          "flags": ["has_certificate_number", "has_rspo"]
+        },
+        {
+          "id": "nr_zam",
+          "label": "Chegina K7 — NR_ZAM",
+          "flags": ["has_order_number"]
+        },
+        {
+          "id": "adam_partner",
+          "label": "Chegina K7 — ADAM&PARTNER",
+          "flags": ["has_order_number"],
+          "overrides": {
+            "add_parameters": [
+              {
+                "id": "h2o2",
+                "name_pl": "Nadtlenki w przeliczeniu na H2O2 [%]",
+                "name_en": "Peroxides as H2O2 [%]",
+                "requirement": "max 0,00",
+                "method": "L901",
+                "data_field": "h2o2",
+                "format": "2"
+              }
+            ]
+          }
+        },
+        {
+          "id": "dr_miele",
+          "label": "Chegina K7 — DR. MIELE",
+          "flags": ["has_order_number", "has_certificate_number"]
+        }
+      ]
+    },
+    "Chegina_K7B": {
+      "display_name": "Chegina K7B",
+      "spec_number": "P837",
+      "cas_number": "",
+      "expiry_months": 12,
+      "opinion_pl": "Produkt odpowiada wymaganiom P837",
+      "opinion_en": "The product complies with P837",
+      "parameters": [
+        {
+          "id": "dry_matter",
+          "name_pl": "Sucha masa [%]",
+          "name_en": "Dry matter [%]",
+          "requirement": "36-38",
+          "method": "L903",
+          "data_field": "sm",
+          "format": "1"
+        },
+        {
+          "id": "barwa_jod",
+          "name_pl": "Barwa w skali jodowej",
+          "name_en": "Colour (Iodine scale)",
+          "requirement": "max 2",
+          "method": "L928",
+          "data_field": "barwa_fau",
+          "format": "0"
+        },
+        {
+          "id": "active_matter",
+          "name_pl": "Substancja aktywna [%]",
+          "name_en": "Active matter [%]",
+          "requirement": "29-31",
+          "method": "L932",
+          "data_field": "sa",
+          "format": "1"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Chegina K7B",
+          "flags": []
+        },
+        {
+          "id": "mb",
+          "label": "Chegina K7B — MB",
+          "flags": ["has_certificate_number", "has_rspo"]
+        },
+        {
+          "id": "nr_zam",
+          "label": "Chegina K7B — NR_ZAM",
+          "flags": ["has_order_number"]
+        }
+      ]
+    },
+    "Chegina_KK": {
+      "display_name": "Chegina KK",
+      "spec_number": "P818",
+      "cas_number": "",
+      "expiry_months": 12,
+      "opinion_pl": "Produkt odpowiada wymaganiom P818",
+      "opinion_en": "The product complies with P818",
+      "parameters": [
+        {
+          "id": "odour",
+          "name_pl": "Zapach",
+          "name_en": "Odour",
+          "requirement": "charakterystyczny, słaby tłuszczowo-aminowy /characteristic, faint fatty-amine",
+          "method": "organoleptycznie /organoleptic",
+          "data_field": null,
+          "qualitative_result": "zgodny /right"
+        },
+        {
+          "id": "appearance",
+          "name_pl": "Wygląd",
+          "name_en": "Appearance",
+          "requirement": "klarowna ciecz /clear liquid",
+          "method": "organoleptycznie /organoleptic",
+          "data_field": null,
+          "qualitative_result": "zgodny /right"
+        },
+        {
+          "id": "ph",
+          "name_pl": "pH (10%, 25°C)",
+          "name_en": "pH (10%, 25°C)",
+          "requirement": "5,00-7,00",
+          "method": "L905",
+          "data_field": "ph_10proc",
+          "format": "2"
+        },
+        {
+          "id": "nacl",
+          "name_pl": "NaCl [%]",
+          "name_en": "NaCl [%]",
+          "requirement": "4,0-6,0",
+          "method": "L941",
+          "data_field": "nacl",
+          "format": "1"
+        },
+        {
+          "id": "active_matter",
+          "name_pl": "Substancja aktywna [%]",
+          "name_en": "Active matter [%]",
+          "requirement": "29,0-32,0",
+          "method": "L932",
+          "data_field": "sa",
+          "format": "1"
+        },
+        {
+          "id": "free_aminoamide",
+          "name_pl": "Zawartość wolnego aminoamidu [%]",
+          "name_en": "Free aminoamide [%]",
+          "requirement": "max 0,50",
+          "method": "L904",
+          "data_field": "wolna_amina",
+          "format": "2"
+        },
+        {
+          "id": "barwa_jod",
+          "name_pl": "Barwa w skali jodowej",
+          "name_en": "Colour (Iodine scale)",
+          "requirement": "max 1",
+          "method": "L928",
+          "data_field": "barwa_fau",
+          "format": "0"
+        },
+        {
+          "id": "mca",
+          "name_pl": "MCA [ppm]",
+          "name_en": "MCA [ppm]",
+          "requirement": "max 3000",
+          "method": "metoda zew. /external method",
+          "data_field": "mca",
+          "format": "0"
+        },
+        {
+          "id": "dca",
+          "name_pl": "DCA [ppm]",
+          "name_en": "DCA [ppm]",
+          "requirement": "max 400",
+          "method": "metoda zew. /external method",
+          "data_field": "dca",
+          "format": "0"
+        },
+        {
+          "id": "dmapa",
+          "name_pl": "DMAPA [ppm]",
+          "name_en": "DMAPA [ppm]",
+          "requirement": "max 100",
+          "method": "metoda zew. /external method",
+          "data_field": "dmapa",
+          "format": "0"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Chegina KK",
+          "flags": []
+        },
+        {
+          "id": "avon",
+          "label": "Chegina KK — AVON",
+          "flags": ["has_avon_code", "has_avon_name", "has_order_number", "has_certificate_number", "has_rspo"]
+        },
+        {
+          "id": "lehvoss",
+          "label": "Chegina KK — LEHVOSS",
+          "flags": ["has_avon_code", "has_avon_name"]
+        },
+        {
+          "id": "prime",
+          "label": "Chegina KK — PRIME",
+          "flags": ["has_order_number", "has_certificate_number", "has_rspo", "has_avon_code", "has_avon_name"]
+        },
+        {
+          "id": "revada",
+          "label": "Chegina KK — REVADA",
+          "flags": ["has_order_number"]
+        },
+        {
+          "id": "skinchem",
+          "label": "Chegina KK — SKINCHEM",
+          "flags": ["has_order_number"]
+        }
+      ]
+    },
+    "Chegina_CC": {
+      "display_name": "Chegina CC",
+      "spec_number": "P828",
+      "cas_number": "66455-29-6",
+      "expiry_months": 12,
+      "opinion_pl": "Produkt odpowiada wymaganiom P828",
+      "opinion_en": "The product complies with P828",
+      "parameters": [
+        {
+          "id": "appearance",
+          "name_pl": "Wygląd",
+          "name_en": "Appearance",
+          "requirement": "klarowna ciecz /clear liquid",
+          "method": "organoleptycznie /organoleptic",
+          "data_field": null,
+          "qualitative_result": "zgodny /right"
+        },
+        {
+          "id": "barwa_hz",
+          "name_pl": "Barwa w skali Hazena",
+          "name_en": "Colour (Hazen scale)",
+          "requirement": "max 250",
+          "method": "L928",
+          "data_field": "barwa_hz",
+          "format": "0"
+        },
+        {
+          "id": "odour",
+          "name_pl": "Zapach",
+          "name_en": "Odour",
+          "requirement": "charakterystyczny, słaby /faint, characteristic",
+          "method": "organoleptycznie /organoleptic",
+          "data_field": null,
+          "qualitative_result": "zgodny /right"
+        },
+        {
+          "id": "ph",
+          "name_pl": "pH (5%, aq, 25°C)",
+          "name_en": "pH (5%, aq, 25°C)",
+          "requirement": "6,00-8,00",
+          "method": "L905",
+          "data_field": "ph_10proc",
+          "format": "2"
+        },
+        {
+          "id": "active_matter",
+          "name_pl": "Substancja aktywna [%]",
+          "name_en": "Active matter [%]",
+          "requirement": "29,0-33,0",
+          "method": "L932",
+          "data_field": "sa",
+          "format": "1"
+        },
+        {
+          "id": "alkalinity",
+          "name_pl": "Alkaliczność [meq/g]",
+          "name_en": "Total alkalinity [meq/g]",
+          "requirement": "1,15-1,30",
+          "method": "L921",
+          "data_field": "alkalicznosc",
+          "format": "2"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Chegina CC",
+          "flags": []
+        }
+      ]
+    },
+    "Chegina_CCR": {
+      "display_name": "Chegina CCR",
+      "spec_number": "P829",
+      "cas_number": "66455-29-6",
+      "expiry_months": 12,
+      "opinion_pl": "Produkt odpowiada wymaganiom P829",
+      "opinion_en": "The product complies with P829",
+      "parameters": [
+        {
+          "id": "appearance",
+          "name_pl": "Wygląd",
+          "name_en": "Appearance",
+          "requirement": "klarowna ciecz /clear liquid",
+          "method": "organoleptycznie /organoleptic",
+          "data_field": null,
+          "qualitative_result": "zgodny /right"
+        },
+        {
+          "id": "barwa_hz",
+          "name_pl": "Barwa w skali Hazena",
+          "name_en": "Color (Hazen scale)",
+          "requirement": "max 250",
+          "method": "L928",
+          "data_field": "barwa_hz",
+          "format": "0"
+        },
+        {
+          "id": "odour",
+          "name_pl": "Zapach",
+          "name_en": "Odour",
+          "requirement": "charakterystyczny słaby /faint characteristic",
+          "method": "organoleptycznie /organoleptic",
+          "data_field": null,
+          "qualitative_result": "zgodny /right"
+        },
+        {
+          "id": "ph",
+          "name_pl": "pH (5%, aq, 25°C)",
+          "name_en": "pH (5%, aq, 25°C)",
+          "requirement": "6,00-8,00",
+          "method": "L905",
+          "data_field": "ph_10proc",
+          "format": "2"
+        },
+        {
+          "id": "active_matter",
+          "name_pl": "Substancja aktywna [%]",
+          "name_en": "Active matter [%]",
+          "requirement": "29,0-31,5",
+          "method": "L932",
+          "data_field": "sa",
+          "format": "1"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Chegina CCR",
+          "flags": []
+        }
+      ]
+    },
+    "Chelamid_DK": {
+      "display_name": "Chelamid DK",
+      "spec_number": "P816",
+      "cas_number": "68155-07-7",
+      "expiry_months": 12,
+      "opinion_pl": "Produkt odpowiada wymaganiom P816",
+      "opinion_en": "The product complies with P816",
+      "parameters": [
+        {
+          "id": "dea",
+          "name_pl": "DEA [%]",
+          "name_en": "DEA [%]",
+          "requirement": "< 3,00",
+          "method": "L910",
+          "data_field": "dea",
+          "format": "2"
+        },
+        {
+          "id": "barwa_jod",
+          "name_pl": "Barwa w skali jodowej",
+          "name_en": "Colour (Iodine scale)",
+          "requirement": "max 6",
+          "method": "L928",
+          "data_field": "barwa_fau",
+          "format": "0"
+        },
+        {
+          "id": "ph",
+          "name_pl": "pH (1%, aq)",
+          "name_en": "pH (1%, aq)",
+          "requirement": "max 11,00",
+          "method": "L905",
+          "data_field": "ph_10proc",
+          "format": "2"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Chelamid DK",
+          "flags": []
+        },
+        {
+          "id": "mb",
+          "label": "Chelamid DK — MB",
+          "flags": ["has_certificate_number", "has_rspo"]
+        },
+        {
+          "id": "nr_zam",
+          "label": "Chelamid DK — NR_ZAM",
+          "flags": ["has_order_number"]
+        },
+        {
+          "id": "mb_nr_zam",
+          "label": "Chelamid DK — MB+NR_ZAM",
+          "flags": ["has_order_number", "has_certificate_number", "has_rspo"]
+        },
+        {
+          "id": "pelna",
+          "label": "Chelamid DK — PEŁNA",
+          "flags": [],
+          "overrides": {
+            "add_parameters": [
+              {
+                "id": "dietanolamide",
+                "name_pl": "Dietanoloamid [%]",
+                "name_en": "Diethanoloamide [%]",
+                "requirement": "80,0-90,0",
+                "method": "L910",
+                "data_field": "dietanolamina",
+                "format": "1"
+              },
+              {
+                "id": "form",
+                "name_pl": "Postać",
+                "name_en": "Form",
+                "requirement": "klarowna żółta ciecz /clear yellow liquid",
+                "method": "organoleptycznie /organoleptic",
+                "data_field": null,
+                "qualitative_result": "zgodny /right"
+              }
+            ]
+          }
+        },
+        {
+          "id": "pelna_nr_zam",
+          "label": "Chelamid DK — PEŁNA+NR_ZAM",
+          "flags": ["has_order_number"],
+          "overrides": {
+            "add_parameters": [
+              {
+                "id": "dietanolamide",
+                "name_pl": "Dietanoloamid [%]",
+                "name_en": "Diethanoloamide [%]",
+                "requirement": "80,0-90,0",
+                "method": "L910",
+                "data_field": "dietanolamina",
+                "format": "1"
+              },
+              {
+                "id": "form",
+                "name_pl": "Postać",
+                "name_en": "Form",
+                "requirement": "klarowna żółta ciecz /clear yellow liquid",
+                "method": "organoleptycznie /organoleptic",
+                "data_field": null,
+                "qualitative_result": "zgodny /right"
+              }
+            ]
+          }
+        },
+        {
+          "id": "elin",
+          "label": "Chelamid DK — ELIN",
+          "flags": ["has_order_number", "has_certificate_number", "has_rspo"],
+          "overrides": {
+            "add_parameters": [
+              {
+                "id": "dietanolamide",
+                "name_pl": "Dietanoloamid [%]",
+                "name_en": "Diethanoloamide [%]",
+                "requirement": "80,0-90,0",
+                "method": "L910",
+                "data_field": "dietanolamina",
+                "format": "1"
+              },
+              {
+                "id": "form",
+                "name_pl": "Postać",
+                "name_en": "Form",
+                "requirement": "klarowna żółta ciecz /clear yellow liquid",
+                "method": "organoleptycznie /organoleptic",
+                "data_field": null,
+                "qualitative_result": "zgodny /right"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "Cheminox_K": {
+      "display_name": "Cheminox K",
+      "spec_number": "P822",
+      "cas_number": "1471314-81-4",
+      "expiry_months": 12,
+      "opinion_pl": "Produkt odpowiada wymaganiom P822",
+      "opinion_en": "The product complies with P822",
+      "parameters": [
+        {
+          "id": "dry_matter",
+          "name_pl": "Sucha masa [%]",
+          "name_en": "Dry matter [%]",
+          "requirement": "30,0-35,0",
+          "method": "L903",
+          "data_field": "sm",
+          "format": "1"
+        },
+        {
+          "id": "active_matter",
+          "name_pl": "Substancja aktywna [%]",
+          "name_en": "Active matter [%]",
+          "requirement": "30,0-35,0",
+          "method": "L903",
+          "data_field": "sa",
+          "format": "1"
+        },
+        {
+          "id": "barwa_jod",
+          "name_pl": "Barwa w skali jodowej",
+          "name_en": "Colour (Iodine scale)",
+          "requirement": "max 2",
+          "method": "L928",
+          "data_field": "barwa_fau",
+          "format": "0"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Cheminox K",
+          "flags": []
+        },
+        {
+          "id": "mb",
+          "label": "Cheminox K — MB",
+          "flags": ["has_certificate_number", "has_rspo"]
+        },
+        {
+          "id": "nr_zam",
+          "label": "Cheminox K — NR_ZAM",
+          "flags": ["has_order_number"]
+        }
+      ]
+    },
+    "Cheminox_K35": {
+      "display_name": "Cheminox K 35",
+      "spec_number": "P835",
+      "cas_number": "1471314-81-4",
+      "expiry_months": 12,
+      "opinion_pl": "Produkt odpowiada wymaganiom P835",
+      "opinion_en": "The product complies with P835",
+      "parameters": [
+        {
+          "id": "dry_matter",
+          "name_pl": "Sucha masa [%]",
+          "name_en": "Dry matter [%]",
+          "requirement": "34,0-36,0",
+          "method": "L903",
+          "data_field": "sm",
+          "format": "1"
+        },
+        {
+          "id": "active_matter",
+          "name_pl": "Substancja aktywna [%]",
+          "name_en": "Active matter [%]",
+          "requirement": "34,0-36,0",
+          "method": "L903",
+          "data_field": "sa",
+          "format": "1"
+        },
+        {
+          "id": "barwa_jod",
+          "name_pl": "Barwa w skali jodowej",
+          "name_en": "Colour (Iodine scale)",
+          "requirement": "max 2",
+          "method": "L928",
+          "data_field": "barwa_fau",
+          "format": "0"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Cheminox K 35",
+          "flags": []
+        },
+        {
+          "id": "nr_zam",
+          "label": "Cheminox K 35 — NR_ZAM",
+          "flags": ["has_order_number"]
+        }
+      ]
+    },
+    "Monamid_KO": {
+      "display_name": "Monamid KO",
+      "spec_number": "P833",
+      "cas_number": "69227-24-3",
+      "expiry_months": 12,
+      "opinion_pl": "Produkt odpowiada wymaganiom P833",
+      "opinion_en": "The product complies with P833",
+      "parameters": [
+        {
+          "id": "barwa_gardner",
+          "name_pl": "Barwa w skali Gardnera",
+          "name_en": "Colour (Gardner scale)",
+          "requirement": "max 5",
+          "method": "L948",
+          "data_field": "barwa_fau",
+          "format": "0"
+        },
+        {
+          "id": "odour",
+          "name_pl": "Zapach",
+          "name_en": "Odour",
+          "requirement": "charakterystyczny aminowy /characteristic, amine-like",
+          "method": "organoleptycznie /organoleptic",
+          "data_field": null,
+          "qualitative_result": "zgodny /right"
+        },
+        {
+          "id": "appearance",
+          "name_pl": "Wygląd",
+          "name_en": "Appearance",
+          "requirement": "substancja stała, woskowa /flakes, waxy",
+          "method": "organoleptycznie /organoleptic",
+          "data_field": null,
+          "qualitative_result": "zgodny /right"
+        },
+        {
+          "id": "wkt",
+          "name_pl": "Wolne kwasy tłuszczowe [%] (kwas laurynowy M=200,3)",
+          "name_en": "Free fatty acids [%] as lauric acid",
+          "requirement": "max 0,5",
+          "method": "L925",
+          "data_field": "wkt",
+          "format": "1"
+        },
+        {
+          "id": "mea",
+          "name_pl": "MEA [%] (M=61,1 g/mol)",
+          "name_en": "MEA [%]",
+          "requirement": "max 1,5",
+          "method": "L953",
+          "data_field": "mea",
+          "format": "1"
+        },
+        {
+          "id": "estry",
+          "name_pl": "Estry [%]",
+          "name_en": "Esters [%]",
+          "requirement": "max 6,0",
+          "method": "L952",
+          "data_field": "estry",
+          "format": "1"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Monamid KO",
+          "flags": []
+        },
+        {
+          "id": "nr_zam",
+          "label": "Monamid KO — NR_ZAM",
+          "flags": ["has_order_number"]
+        },
+        {
+          "id": "avon",
+          "label": "Monamid KO — AVON",
+          "flags": ["has_avon_code", "has_avon_name", "has_order_number", "has_certificate_number", "has_rspo"],
+          "overrides": {
+            "add_parameters": [
+              {
+                "id": "wolny_glikol",
+                "name_pl": "Gliceryna [%]",
+                "name_en": "Glycerine [%]",
+                "requirement": "max 11,0",
+                "method": "L954",
+                "data_field": "wolny_glikol",
+                "format": "1"
+              }
+            ]
+          }
+        },
+        {
+          "id": "ghp",
+          "label": "Monamid KO — GHP",
+          "flags": [],
+          "overrides": {
+            "remove_parameters": ["barwa_gardner"],
+            "add_parameters": [
+              {
+                "id": "barwa_gardner",
+                "name_pl": "Barwa w skali Gardnera",
+                "name_en": "Colour (Gardner scale)",
+                "requirement": "max 6",
+                "method": "L948",
+                "data_field": "barwa_fau",
+                "format": "0"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "Monamid_K": {
+      "display_name": "Monamid K",
+      "spec_number": "P824",
+      "cas_number": "",
+      "expiry_months": 12,
+      "opinion_pl": "Produkt odpowiada wymaganiom P824",
+      "opinion_en": "The product complies with P824",
+      "parameters": [
+        {
+          "id": "barwa_jod",
+          "name_pl": "Barwa w skali jodowej",
+          "name_en": "Colour (Iodine scale)",
+          "requirement": "max 5",
+          "method": "L928",
+          "data_field": "barwa_fau",
+          "format": "0"
+        },
+        {
+          "id": "wkt",
+          "name_pl": "Wolne kwasy tłuszczowe [%] (kwas laurynowy)",
+          "name_en": "Free fatty acids [%] as lauric acid",
+          "requirement": "max 1,0",
+          "method": "L925",
+          "data_field": "wkt",
+          "format": "1"
+        },
+        {
+          "id": "mea",
+          "name_pl": "MEA [%] (M=61,1 g/mol)",
+          "name_en": "MEA [%]",
+          "requirement": "max 1,5",
+          "method": "L933",
+          "data_field": "mea",
+          "format": "1"
+        },
+        {
+          "id": "estry",
+          "name_pl": "Estry [%] (laurynian metylu)",
+          "name_en": "Esters [%] as methyl laurate",
+          "requirement": "max 6,0",
+          "method": "L952",
+          "data_field": "estry",
+          "format": "1"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Monamid K",
+          "flags": []
+        }
+      ]
+    },
+    "Alkinol": {
+      "display_name": "Alkinol",
+      "spec_number": "P801",
+      "cas_number": "",
+      "expiry_months": 12,
+      "opinion_pl": "Produkt odpowiada wymaganiom P801",
+      "opinion_en": "The product complies with P801",
+      "parameters": [
+        {
+          "id": "barwa_jod",
+          "name_pl": "Barwa w skali jodowej",
+          "name_en": "Colour (Iodine scale)",
+          "requirement": "max 2",
+          "method": "L928",
+          "data_field": "barwa_fau",
+          "format": "0"
+        },
+        {
+          "id": "odour",
+          "name_pl": "Zapach",
+          "name_en": "Odour",
+          "requirement": "charakterystyczny /characteristic",
+          "method": "organoleptycznie /organoleptic",
+          "data_field": null,
+          "qualitative_result": "zgodny /right"
+        },
+        {
+          "id": "appearance",
+          "name_pl": "Wygląd",
+          "name_en": "Appearance",
+          "requirement": "wosk /wax",
+          "method": "P801",
+          "data_field": null,
+          "qualitative_result": "zgodny /right"
+        },
+        {
+          "id": "lk",
+          "name_pl": "Liczba kwasowa [mg KOH/g]",
+          "name_en": "Acid value [mg KOH/g]",
+          "requirement": "max 2,00",
+          "method": "PN-EN ISO 660:2021-03",
+          "data_field": "lk",
+          "format": "2"
+        },
+        {
+          "id": "lz",
+          "name_pl": "Liczba zmydlania [mg KOH/g]",
+          "name_en": "Saponification value [mg KOH/g]",
+          "requirement": "max 2,00",
+          "method": "PN-EN ISO 3657:2024-01",
+          "data_field": "lz",
+          "format": "2"
+        },
+        {
+          "id": "t_kropl",
+          "name_pl": "Temperatura kroplenia [°C]",
+          "name_en": "Dropping point [°C]",
+          "requirement": "47,0-55,0",
+          "method": "L934",
+          "data_field": "t_kropl",
+          "format": "1"
+        },
+        {
+          "id": "lh",
+          "name_pl": "Liczba hydroksylowa [mg KOH/g]",
+          "name_en": "Hydroxyl value [mg KOH/g]",
+          "requirement": "135-160",
+          "method": "L929",
+          "data_field": "lh",
+          "format": "0"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Alkinol",
+          "flags": []
+        }
+      ]
+    },
+    "Alkinol_B": {
+      "display_name": "Alkinol B",
+      "spec_number": "P801",
+      "cas_number": "",
+      "expiry_months": 12,
+      "opinion_pl": "Produkt odpowiada wymaganiom P801",
+      "opinion_en": "The product complies with P801",
+      "parameters": [
+        {
+          "id": "barwa_jod",
+          "name_pl": "Barwa w skali jodowej",
+          "name_en": "Colour (Iodine scale)",
+          "requirement": "max 2",
+          "method": "L928",
+          "data_field": "barwa_fau",
+          "format": "0"
+        },
+        {
+          "id": "odour",
+          "name_pl": "Zapach",
+          "name_en": "Odour",
+          "requirement": "charakterystyczny /characteristic",
+          "method": "organoleptycznie /organoleptic",
+          "data_field": null,
+          "qualitative_result": "zgodny /right"
+        },
+        {
+          "id": "appearance",
+          "name_pl": "Wygląd",
+          "name_en": "Appearance",
+          "requirement": "wosk /wax",
+          "method": "P801",
+          "data_field": null,
+          "qualitative_result": "zgodny /right"
+        },
+        {
+          "id": "lk",
+          "name_pl": "Liczba kwasowa [mg KOH/g]",
+          "name_en": "Acid value [mg KOH/g]",
+          "requirement": "max 2,00",
+          "method": "PN-EN ISO 660:2021-03",
+          "data_field": "lk",
+          "format": "2"
+        },
+        {
+          "id": "lz",
+          "name_pl": "Liczba zmydlania [mg KOH/g]",
+          "name_en": "Saponification value [mg KOH/g]",
+          "requirement": "max 2,00",
+          "method": "PN-EN ISO 3657:2024-01",
+          "data_field": "lz",
+          "format": "2"
+        },
+        {
+          "id": "t_kropl",
+          "name_pl": "Temperatura kroplenia [°C]",
+          "name_en": "Dropping point [°C]",
+          "requirement": "47,0-55,0",
+          "method": "L934",
+          "data_field": "t_kropl",
+          "format": "1"
+        },
+        {
+          "id": "lh",
+          "name_pl": "Liczba hydroksylowa [mg KOH/g]",
+          "name_en": "Hydroxyl value [mg KOH/g]",
+          "requirement": "155-180",
+          "method": "L929",
+          "data_field": "lh",
+          "format": "0"
+        },
+        {
+          "id": "li",
+          "name_pl": "Liczba jodowa [g I2/100g]",
+          "name_en": "Iodine value [g I2/100g]",
+          "requirement": "max 2,00",
+          "method": "PN-EN ISO 3961:2018-09",
+          "data_field": "li",
+          "format": "2"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Alkinol B",
+          "flags": []
+        },
+        {
+          "id": "mb",
+          "label": "Alkinol B — MB",
+          "flags": ["has_certificate_number", "has_rspo"]
+        },
+        {
+          "id": "avon",
+          "label": "Alkinol B — AVON",
+          "flags": ["has_avon_code", "has_avon_name", "has_order_number", "has_certificate_number", "has_rspo"]
+        }
+      ]
+    },
+    "Alstermid_K": {
+      "display_name": "Alstermid K",
+      "spec_number": "P806",
+      "cas_number": "7651-02-7",
+      "expiry_months": 12,
+      "opinion_pl": "Produkt odpowiada wymaganiom P806",
+      "opinion_en": "The product complies with P806",
+      "parameters": [
+        {
+          "id": "lk",
+          "name_pl": "Liczba kwasowa [mg KOH/g]",
+          "name_en": "Acid value [mg KOH/g]",
+          "requirement": "max 15,0",
+          "method": "PN-EN ISO 660:2021-03",
+          "data_field": "lk",
+          "format": "1"
+        },
+        {
+          "id": "la",
+          "name_pl": "Liczba aminowa [mg KOH/g]",
+          "name_en": "Amine value [mg KOH/g]",
+          "requirement": "130-160",
+          "method": "L914",
+          "data_field": "la",
+          "format": "0"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Alstermid K",
+          "flags": []
+        }
+      ]
+    },
+    "Glikoster_P": {
+      "display_name": "Glikoster P",
+      "spec_number": "P804",
+      "cas_number": "1323-39-3",
+      "expiry_months": 12,
+      "opinion_pl": "Produkt odpowiada wymaganiom P804",
+      "opinion_en": "The product complies with P804",
+      "parameters": [
+        {
+          "id": "barwa_jod",
+          "name_pl": "Barwa w skali jodowej",
+          "name_en": "Colour (Iodine scale)",
+          "requirement": "max 2",
+          "method": "L928",
+          "data_field": "barwa_fau",
+          "format": "0"
+        },
+        {
+          "id": "odour",
+          "name_pl": "Zapach",
+          "name_en": "Odour",
+          "requirement": "charakterystyczny /characteristic",
+          "method": "organoleptycznie /organoleptic",
+          "data_field": null,
+          "qualitative_result": "zgodny /right"
+        },
+        {
+          "id": "appearance",
+          "name_pl": "Wygląd",
+          "name_en": "Appearance",
+          "requirement": "substancja woskowa /wax",
+          "method": "P804",
+          "data_field": null,
+          "qualitative_result": "zgodny /right"
+        },
+        {
+          "id": "lk",
+          "name_pl": "Liczba kwasowa [mg KOH/g]",
+          "name_en": "Acid value [mg KOH/g]",
+          "requirement": "max 3,0",
+          "method": "PN-EN ISO 660:2021-03",
+          "data_field": "lk",
+          "format": "1"
+        },
+        {
+          "id": "wolny_glikol",
+          "name_pl": "Wolny glikol [%]",
+          "name_en": "Free glycol [%]",
+          "requirement": "max 3,0",
+          "method": "L909",
+          "data_field": "wolny_glikol",
+          "format": "1"
+        },
+        {
+          "id": "lh",
+          "name_pl": "Liczba hydroksylowa [mg KOH/g]",
+          "name_en": "Hydroxyl value [mg KOH/g]",
+          "requirement": "70,0-130,0",
+          "method": "L929",
+          "data_field": "lh",
+          "format": "1"
+        },
+        {
+          "id": "monoestry",
+          "name_pl": "Monoestry [%]",
+          "name_en": "Monoesters [%]",
+          "requirement": "47,0-55,0",
+          "method": "L930",
+          "data_field": "monoestry",
+          "format": "1"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Glikoster P",
+          "flags": []
+        },
+        {
+          "id": "avon",
+          "label": "Glikoster P — AVON",
+          "flags": ["has_avon_code", "has_avon_name", "has_order_number", "has_certificate_number", "has_rspo"]
+        }
+      ]
+    },
+    "Dister_E": {
+      "display_name": "Dister E",
+      "spec_number": "P805",
+      "cas_number": "91031-31-1",
+      "expiry_months": 12,
+      "opinion_pl": "Produkt odpowiada wymaganiom P805",
+      "opinion_en": "The product complies with P805",
+      "parameters": [
+        {
+          "id": "lk",
+          "name_pl": "Liczba kwasowa [mg KOH/g]",
+          "name_en": "Acid value [mg KOH/g]",
+          "requirement": "max 6,00",
+          "method": "PN-EN ISO 660:2021-03",
+          "data_field": "lk",
+          "format": "2"
+        },
+        {
+          "id": "wolny_glikol",
+          "name_pl": "Wolny glikol etylenowy [%]",
+          "name_en": "Free ethylene glycol [%]",
+          "requirement": "<1,00",
+          "method": "L909",
+          "data_field": "wolny_glikol",
+          "format": "2"
+        },
+        {
+          "id": "lh",
+          "name_pl": "Liczba hydroksylowa [mg KOH/g]",
+          "name_en": "Hydroxyl value [mg KOH/g]",
+          "requirement": "max 54,0",
+          "method": "L929",
+          "data_field": "lh",
+          "format": "1"
+        },
+        {
+          "id": "lz",
+          "name_pl": "Liczba zmydlenia [mg KOH/g]",
+          "name_en": "Saponification value [mg KOH/g]",
+          "requirement": "188-200",
+          "method": "PN-EN ISO 3657:2024-01",
+          "data_field": "lz",
+          "format": "0"
+        },
+        {
+          "id": "t_topn",
+          "name_pl": "Temperatura topnienia [°C]",
+          "name_en": "Melting point [°C]",
+          "requirement": "58,0-64,0",
+          "method": "L934",
+          "data_field": "t_topn",
+          "format": "1"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Dister E",
+          "flags": []
+        }
+      ]
+    },
+    "Monester_O": {
+      "display_name": "Monester O",
+      "spec_number": "P802",
+      "cas_number": "68424-61-3",
+      "expiry_months": 12,
+      "opinion_pl": "Produkt odpowiada wymaganiom P802",
+      "opinion_en": "The product complies with P802",
+      "parameters": [
+        {
+          "id": "lk",
+          "name_pl": "Liczba kwasowa [mg KOH/g]",
+          "name_en": "Acid value [mg KOH/g]",
+          "requirement": "max 3,00",
+          "method": "PN-EN ISO 660:2021-03",
+          "data_field": "lk",
+          "format": "2"
+        },
+        {
+          "id": "lz",
+          "name_pl": "Liczba zmydlania [mg KOH/g]",
+          "name_en": "Saponification value [mg KOH/g]",
+          "requirement": "150-170",
+          "method": "PN-EN ISO 3657:2024-01",
+          "data_field": "lz",
+          "format": "0"
+        },
+        {
+          "id": "nd20",
+          "name_pl": "Wsp. załamania światła nD20",
+          "name_en": "Refraction index nD20",
+          "requirement": "1,4680-1,4730",
+          "method": "PN-EN ISO 6320:2017-04",
+          "data_field": "nd20",
+          "format": "4"
+        },
+        {
+          "id": "li",
+          "name_pl": "Liczba jodowa [g I2/100g]",
+          "name_en": "Iodine value [g I2/100g]",
+          "requirement": "63,0-83,0",
+          "method": "PN-EN ISO 3961:2018-09",
+          "data_field": "li",
+          "format": "1"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Monester O",
+          "flags": []
+        }
+      ]
+    },
+    "Monester_S": {
+      "display_name": "Monester S",
+      "spec_number": "P803",
+      "cas_number": "31566-31-1",
+      "expiry_months": 12,
+      "opinion_pl": "Produkt odpowiada wymaganiom P803",
+      "opinion_en": "The product complies with P803",
+      "parameters": [
+        {
+          "id": "lk",
+          "name_pl": "Liczba kwasowa [mg KOH/g]",
+          "name_en": "Acid value [mg KOH/g]",
+          "requirement": "max 3",
+          "method": "PN-EN ISO 660:2021-03",
+          "data_field": "lk",
+          "format": "0"
+        },
+        {
+          "id": "t_kropl",
+          "name_pl": "Temperatura kroplenia [°C]",
+          "name_en": "Dropping point [°C]",
+          "requirement": "54,0-60,0",
+          "method": "L934",
+          "data_field": "t_kropl",
+          "format": "1"
+        },
+        {
+          "id": "lz",
+          "name_pl": "Liczba zmydlania [mg KOH/g]",
+          "name_en": "Saponification value [mg KOH/g]",
+          "requirement": "145-185",
+          "method": "PN-EN ISO 3657:2024-01",
+          "data_field": "lz",
+          "format": "0"
+        },
+        {
+          "id": "li",
+          "name_pl": "Liczba jodowa [g I2/100g]",
+          "name_en": "Iodine value [g I2/100g]",
+          "requirement": "max 5,00",
+          "method": "PN-EN ISO 3961:2018-09",
+          "data_field": "li",
+          "format": "2"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Monester S",
+          "flags": []
+        }
+      ]
+    },
+    "Citrowax": {
+      "display_name": "Citrowax",
+      "spec_number": "P808",
+      "cas_number": "7775-50-0",
+      "expiry_months": 12,
+      "opinion_pl": "Produkt odpowiada wymaganiom P808",
+      "opinion_en": "The product complies with P808",
+      "parameters": [
+        {
+          "id": "lk",
+          "name_pl": "Liczba kwasowa [mg KOH/g]",
+          "name_en": "Acid value [mg KOH/g]",
+          "requirement": "max 1,00",
+          "method": "PN-EN ISO 660:2021-03",
+          "data_field": "lk",
+          "format": "2"
+        },
+        {
+          "id": "t_kropl",
+          "name_pl": "Temperatura kroplenia [°C]",
+          "name_en": "Dropping point [°C]",
+          "requirement": "48,0-52,0",
+          "method": "L934",
+          "data_field": "t_kropl",
+          "format": "1"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Citrowax",
+          "flags": []
+        }
+      ]
+    },
+    "Perlico_45": {
+      "display_name": "Perlico 45",
+      "spec_number": "P809",
+      "cas_number": "",
+      "expiry_months": 12,
+      "opinion_pl": "Produkt odpowiada wymaganiom P809",
+      "opinion_en": "The product complies with P809",
+      "parameters": [
+        {
+          "id": "dry_matter",
+          "name_pl": "Sucha masa [%]",
+          "name_en": "Dry matter [%]",
+          "requirement": "43,0-45,0",
+          "method": "L903",
+          "data_field": "sm",
+          "format": "1"
+        },
+        {
+          "id": "ph",
+          "name_pl": "pH (10%, aq, 20°C)",
+          "name_en": "pH (10%, aq, 20°C)",
+          "requirement": "5,00-9,00",
+          "method": "L905",
+          "data_field": "ph_10proc",
+          "format": "2"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Perlico 45",
+          "flags": []
+        },
+        {
+          "id": "nr_zam",
+          "label": "Perlico 45 — NR_ZAM",
+          "flags": ["has_order_number"]
+        },
+        {
+          "id": "reuse",
+          "label": "Perlico 45 — REUSE",
+          "flags": []
+        }
+      ]
+    },
+    "Chemal_CS_3070": {
+      "display_name": "Chemal CS 30/70",
+      "spec_number": "",
+      "cas_number": "67762-27-0",
+      "expiry_months": 12,
+      "opinion_pl": "Produkt odpowiada wymaganiom",
+      "opinion_en": "The product complies with requirements",
+      "parameters": [
+        {
+          "id": "lh",
+          "name_pl": "Liczba hydroksylowa [mg KOH/g]",
+          "name_en": "Hydroxyl number [mg KOH/g]",
+          "requirement": "210-220",
+          "method": "L955",
+          "data_field": "lh",
+          "format": "0"
+        },
+        {
+          "id": "lk",
+          "name_pl": "Liczba kwasowa [mg KOH/g]",
+          "name_en": "Acid value [mg KOH/g]",
+          "requirement": "max 0,2",
+          "method": "zgodnie z świadectwem dostawcy",
+          "data_field": "lk",
+          "format": "1"
+        },
+        {
+          "id": "lz",
+          "name_pl": "Liczba zmydlenia [mg KOH/g]",
+          "name_en": "Saponification value [mg KOH/g]",
+          "requirement": "max 1,2",
+          "method": "zgodnie z świadectwem dostawcy",
+          "data_field": "lz",
+          "format": "1"
+        },
+        {
+          "id": "li",
+          "name_pl": "Liczba jodowa [g I2/100g]",
+          "name_en": "Iodine value [g I2/100g]",
+          "requirement": "max 1,0",
+          "method": "zgodnie z świadectwem dostawcy",
+          "data_field": "li",
+          "format": "1"
+        },
+        {
+          "id": "c16",
+          "name_pl": "%C16",
+          "name_en": "%C16",
+          "requirement": "25-35",
+          "method": "zgodnie z świadectwem dostawcy",
+          "data_field": null,
+          "qualitative_result": null
+        },
+        {
+          "id": "c18",
+          "name_pl": "%C18",
+          "name_en": "%C18",
+          "requirement": "60-75",
+          "method": "zgodnie z świadectwem dostawcy",
+          "data_field": null,
+          "qualitative_result": null
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Chemal CS 30/70",
+          "flags": []
+        },
+        {
+          "id": "mb",
+          "label": "Chemal CS 30/70 — MB",
+          "flags": ["has_certificate_number", "has_rspo"]
+        },
+        {
+          "id": "nr_zam",
+          "label": "Chemal CS 30/70 — NR_ZAM",
+          "flags": ["has_order_number"]
+        }
+      ]
+    },
+    "Chemal_CS_5050": {
+      "display_name": "Chemal CS 50/50",
+      "spec_number": "",
+      "cas_number": "67762-27-0",
+      "expiry_months": 12,
+      "opinion_pl": "Produkt odpowiada wymaganiom",
+      "opinion_en": "The product complies with requirements",
+      "parameters": [
+        {
+          "id": "lh",
+          "name_pl": "Liczba hydroksylowa [mg KOH/g]",
+          "name_en": "Hydroxyl number [mg KOH/g]",
+          "requirement": "210-225",
+          "method": "L955",
+          "data_field": "lh",
+          "format": "0"
+        },
+        {
+          "id": "lk",
+          "name_pl": "Liczba kwasowa [mg KOH/g]",
+          "name_en": "Acid value [mg KOH/g]",
+          "requirement": "max 0,2",
+          "method": "zgodnie z świadectwem dostawcy",
+          "data_field": "lk",
+          "format": "1"
+        },
+        {
+          "id": "lz",
+          "name_pl": "Liczba zmydlenia [mg KOH/g]",
+          "name_en": "Saponification value [mg KOH/g]",
+          "requirement": "max 1,2",
+          "method": "zgodnie z świadectwem dostawcy",
+          "data_field": "lz",
+          "format": "1"
+        },
+        {
+          "id": "li",
+          "name_pl": "Liczba jodowa [g I2/100g]",
+          "name_en": "Iodine value [g I2/100g]",
+          "requirement": "max 1,0",
+          "method": "zgodnie z świadectwem dostawcy",
+          "data_field": "li",
+          "format": "1"
+        },
+        {
+          "id": "c16",
+          "name_pl": "%C16",
+          "name_en": "%C16",
+          "requirement": "45-55",
+          "method": "zgodnie z świadectwem dostawcy",
+          "data_field": null,
+          "qualitative_result": null
+        },
+        {
+          "id": "c18",
+          "name_pl": "%C18",
+          "name_en": "%C18",
+          "requirement": "45-55",
+          "method": "zgodnie z świadectwem dostawcy",
+          "data_field": null,
+          "qualitative_result": null
+        }
+      ],
+      "variants": [
+        {
+          "id": "mb",
+          "label": "Chemal CS 50/50 — MB",
+          "flags": ["has_certificate_number", "has_rspo"]
+        }
+      ]
+    },
+    "HSH_CS_3070": {
+      "display_name": "HSH CS 30/70",
+      "spec_number": "",
+      "cas_number": "67762-27-0",
+      "expiry_months": 12,
+      "opinion_pl": "Produkt odpowiada wymaganiom",
+      "opinion_en": "The product complies with requirements",
+      "parameters": [
+        {
+          "id": "lh",
+          "name_pl": "Liczba hydroksylowa [mg KOH/g]",
+          "name_en": "Hydroxyl number [mg KOH/g]",
+          "requirement": "210-220",
+          "method": "60064737*",
+          "data_field": "lh",
+          "format": "0"
+        },
+        {
+          "id": "lk",
+          "name_pl": "Liczba kwasowa [mg KOH/g]",
+          "name_en": "Acid value [mg KOH/g]",
+          "requirement": "max 0,1",
+          "method": "60065250*",
+          "data_field": "lk",
+          "format": "1"
+        },
+        {
+          "id": "lz",
+          "name_pl": "Liczba zmydlenia [mg KOH/g]",
+          "name_en": "Saponification value [mg KOH/g]",
+          "requirement": "max 1,0",
+          "method": "60065250*",
+          "data_field": "lz",
+          "format": "1"
+        },
+        {
+          "id": "li",
+          "name_pl": "Liczba jodowa [g I2/100g]",
+          "name_en": "Iodine value [g I2/100g]",
+          "requirement": "max 1,0",
+          "method": "60065250*",
+          "data_field": "li",
+          "format": "1"
+        },
+        {
+          "id": "c16",
+          "name_pl": "%C16",
+          "name_en": "%C16",
+          "requirement": "25-32",
+          "method": "60065250*",
+          "data_field": null,
+          "qualitative_result": null
+        },
+        {
+          "id": "c18",
+          "name_pl": "%C18",
+          "name_en": "%C18",
+          "requirement": "65-75",
+          "method": "60065250*",
+          "data_field": null,
+          "qualitative_result": null
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "HSH CS 30/70",
+          "flags": []
+        },
+        {
+          "id": "mb",
+          "label": "HSH CS 30/70 — MB",
+          "flags": ["has_certificate_number", "has_rspo"]
+        }
+      ]
+    },
+    "SLES": {
+      "display_name": "SLES",
+      "spec_number": "P834",
+      "cas_number": "",
+      "expiry_months": 12,
+      "opinion_pl": "Produkt odpowiada wymaganiom P834",
+      "opinion_en": "The product complies with P834",
+      "parameters": [
+        {
+          "id": "colour",
+          "name_pl": "Barwa",
+          "name_en": "Colour",
+          "requirement": "bezbarwna-jasnożółta /clear to light yellow",
+          "method": "organoleptycznie /organoleptic",
+          "data_field": null,
+          "qualitative_result": "zgodny /right"
+        },
+        {
+          "id": "ph",
+          "name_pl": "pH (3%, aq)",
+          "name_en": "pH (3%, aq)",
+          "requirement": "6,50-7,50",
+          "method": "L905",
+          "data_field": "ph_10proc",
+          "format": "2"
+        },
+        {
+          "id": "active_matter",
+          "name_pl": "Substancja aktywna [%]",
+          "name_en": "Active matter [%]",
+          "requirement": "25,0-28,0",
+          "method": "L920",
+          "data_field": "sa",
+          "format": "1"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "SLES",
+          "flags": []
+        }
+      ]
+    },
+    "Kwas_Stearynowy": {
+      "display_name": "Kwas Stearynowy",
+      "spec_number": "P830",
+      "cas_number": "67701-03-5",
+      "expiry_months": 12,
+      "opinion_pl": "Produkt odpowiada wymaganiom P830",
+      "opinion_en": "The product complies with P830",
+      "parameters": [
+        {
+          "id": "lk",
+          "name_pl": "Liczba kwasowa [mg KOH/g]",
+          "name_en": "Acid value [mg KOH/g]",
+          "requirement": "206-212",
+          "method": "PN-EN ISO 660:2021-03",
+          "data_field": "lk",
+          "format": "0"
+        },
+        {
+          "id": "t_kropl",
+          "name_pl": "Temperatura kroplenia [°C]",
+          "name_en": "Dropping point [°C]",
+          "requirement": "54,0-56,5",
+          "method": "metoda dostawcy surowca",
+          "data_field": "t_kropl",
+          "format": "1"
+        },
+        {
+          "id": "li",
+          "name_pl": "Liczba jodowa [g I2/100g]",
+          "name_en": "Iodine value [g I2/100g]",
+          "requirement": "max 0,50",
+          "method": "metoda dostawcy surowca",
+          "data_field": "li",
+          "format": "2"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Kwas Stearynowy",
+          "flags": []
+        }
+      ]
+    }
+  }
+}
