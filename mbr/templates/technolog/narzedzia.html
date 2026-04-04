@@ -49,6 +49,69 @@
     {% endif %}
   </div>
 
+  {# ═══ PALIWO — Fuel reimbursement section ═══ #}
+  <div class="narz-section">
+    <div class="narz-section-label">Wniosek paliwo — ryczałt</div>
+
+    <div class="pal-card">
+      <div class="pal-row pal-row-head">
+        <span class="pal-h">Osoby</span>
+        <button class="pal-add-btn" onclick="palShowAdd()">+ Dodaj</button>
+      </div>
+
+      {# Add/Edit form (hidden by default) #}
+      <div class="pal-form" id="pal-form" style="display:none;">
+        <input type="hidden" id="pal-edit-id">
+        <div class="pal-form-row">
+          <input class="pal-input" id="pal-inp-name" placeholder="Imię i nazwisko">
+          <input class="pal-input" id="pal-inp-stanowisko" placeholder="Stanowisko">
+          <input class="pal-input pal-input-sm" id="pal-inp-rej" placeholder="Nr rejestracyjny">
+          <button class="pal-btn-save" onclick="palSave()">Zapisz</button>
+          <button class="pal-btn-cancel" onclick="palCancelForm()">Anuluj</button>
+        </div>
+      </div>
+
+      {# Persons list #}
+      <div id="pal-osoby-list"></div>
+
+      {# Generate form #}
+      <div class="pal-row pal-row-head" style="margin-top:16px;">
+        <span class="pal-h">Generuj wniosek</span>
+      </div>
+      <div class="pal-gen">
+        <div class="pal-gen-row">
+          <label class="pal-label">Osoba</label>
+          <select class="pal-select" id="pal-gen-osoba"></select>
+        </div>
+        <div class="pal-gen-row">
+          <label class="pal-label">Miesiąc</label>
+          <span class="pal-auto" id="pal-gen-miesiac">—</span>
+        </div>
+        <div class="pal-gen-row">
+          <label class="pal-label">Data wystawienia</label>
+          <span class="pal-auto" id="pal-gen-data">—</span>
+        </div>
+        <div class="pal-gen-row">
+          <label class="pal-label">Dni nieobecności</label>
+          <input class="pal-input pal-input-sm" type="number" min="0" max="22" value="0" id="pal-gen-dni" oninput="palRecalc()">
+        </div>
+        <div class="pal-gen-row">
+          <label class="pal-label">Potrącenie</label>
+          <span class="pal-auto pal-mono" id="pal-gen-potracenie">0,00 zł</span>
+        </div>
+        <div class="pal-gen-row">
+          <label class="pal-label">Ryczałt do wypłaty</label>
+          <span class="pal-auto pal-mono pal-bold" id="pal-gen-wyplata">345,00 zł</span>
+        </div>
+        <div class="pal-gen-row">
+          <label class="pal-label">Słownie</label>
+          <span class="pal-auto pal-slownie" id="pal-gen-slownie">—</span>
+        </div>
+        <button class="pal-gen-btn" onclick="palGeneruj()">Generuj PDF</button>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <style>
@@ -191,5 +254,200 @@
   color: var(--text-dim);
   padding: 16px 0;
 }
+
+/* ═══ Paliwo section ═══ */
+.pal-card {
+  border: 1px solid var(--border); border-radius: 12px;
+  background: var(--surface); overflow: hidden;
+}
+.pal-row { padding: 10px 16px; }
+.pal-row-head {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface-alt); border-bottom: 1px solid var(--border);
+  padding: 10px 16px;
+}
+.pal-h { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: var(--text-sec); }
+.pal-add-btn {
+  font-size: 11px; font-weight: 600; color: var(--teal); background: none;
+  border: 1px solid var(--teal); border-radius: 5px; padding: 3px 10px;
+  cursor: pointer; font-family: var(--font);
+}
+.pal-add-btn:hover { background: var(--teal); color: #fff; }
+
+.pal-form { padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--teal-bg); }
+.pal-form-row { display: flex; gap: 6px; align-items: center; }
+.pal-input {
+  padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px;
+  font-size: 12px; font-family: var(--font); flex: 1; min-width: 0;
+}
+.pal-input:focus { outline: none; border-color: var(--teal); }
+.pal-input-sm { flex: 0 0 120px; }
+.pal-btn-save {
+  padding: 6px 14px; background: var(--teal); color: #fff; border: none;
+  border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; font-family: var(--font);
+}
+.pal-btn-cancel {
+  padding: 6px 10px; background: none; border: 1px solid var(--border);
+  border-radius: 6px; font-size: 11px; cursor: pointer; color: var(--text-sec); font-family: var(--font);
+}
+
+.pal-osoba {
+  display: flex; align-items: center; gap: 10px; padding: 8px 16px;
+  border-bottom: 1px solid var(--border-subtle, #f0ece4); font-size: 12px;
+}
+.pal-osoba:last-child { border-bottom: none; }
+.pal-osoba-name { font-weight: 600; flex: 1; }
+.pal-osoba-info { color: var(--text-dim); font-size: 11px; }
+.pal-osoba-rej { font-family: var(--mono); font-size: 11px; color: var(--text-sec); }
+.pal-osoba-btn {
+  background: none; border: none; cursor: pointer; padding: 2px 6px;
+  font-size: 11px; color: var(--text-dim); border-radius: 4px;
+}
+.pal-osoba-btn:hover { background: var(--surface-alt); color: var(--text); }
+.pal-osoba-btn.del:hover { color: var(--red); }
+
+.pal-gen { padding: 12px 16px; }
+.pal-gen-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.pal-label { font-size: 11px; color: var(--text-dim); width: 130px; flex-shrink: 0; }
+.pal-auto { font-size: 12px; color: var(--text); }
+.pal-select {
+  padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px;
+  font-size: 12px; font-family: var(--font); min-width: 200px;
+}
+.pal-mono { font-family: var(--mono); }
+.pal-bold { font-weight: 700; }
+.pal-slownie { font-size: 11px; color: var(--text-sec); font-style: italic; }
+.pal-gen-btn {
+  margin-top: 12px; padding: 8px 20px; background: var(--teal); color: #fff;
+  border: none; border-radius: 8px; font-size: 12px; font-weight: 600;
+  cursor: pointer; font-family: var(--font);
+}
+.pal-gen-btn:hover { opacity: 0.9; }
 </style>
+
+<script>
+var _palOsoby = [];
+
+async function palLoadOsoby() {
+  var resp = await fetch('/api/paliwo/osoby');
+  var data = await resp.json();
+  _palOsoby = data.osoby || [];
+  palRenderList();
+  palUpdateDropdown();
+}
+
+function palRenderList() {
+  var el = document.getElementById('pal-osoby-list');
+  if (!_palOsoby.length) {
+    el.innerHTML = '<div style="padding:12px 16px;color:var(--text-dim);font-size:11px;">Brak osób. Dodaj pierwszą.</div>';
+    return;
+  }
+  var html = '';
+  _palOsoby.forEach(function(o) {
+    html += '<div class="pal-osoba">' +
+      '<span class="pal-osoba-name">' + o.imie_nazwisko + '</span>' +
+      '<span class="pal-osoba-info">' + o.stanowisko + '</span>' +
+      '<span class="pal-osoba-rej">' + o.nr_rejestracyjny + '</span>' +
+      '<button class="pal-osoba-btn" onclick="palEdit(' + o.id + ')">edytuj</button>' +
+      '<button class="pal-osoba-btn del" onclick="palDelete(' + o.id + ',this)">usuń</button>' +
+    '</div>';
+  });
+  el.innerHTML = html;
+}
+
+function palUpdateDropdown() {
+  var sel = document.getElementById('pal-gen-osoba');
+  sel.innerHTML = '<option value="">— wybierz —</option>';
+  _palOsoby.forEach(function(o) {
+    sel.innerHTML += '<option value="' + o.id + '">' + o.imie_nazwisko + ' (' + o.nr_rejestracyjny + ')</option>';
+  });
+}
+
+function palShowAdd() {
+  document.getElementById('pal-edit-id').value = '';
+  document.getElementById('pal-inp-name').value = '';
+  document.getElementById('pal-inp-stanowisko').value = '';
+  document.getElementById('pal-inp-rej').value = '';
+  document.getElementById('pal-form').style.display = '';
+  document.getElementById('pal-inp-name').focus();
+}
+
+function palEdit(id) {
+  var o = _palOsoby.find(function(x) { return x.id === id; });
+  if (!o) return;
+  document.getElementById('pal-edit-id').value = id;
+  document.getElementById('pal-inp-name').value = o.imie_nazwisko;
+  document.getElementById('pal-inp-stanowisko').value = o.stanowisko;
+  document.getElementById('pal-inp-rej').value = o.nr_rejestracyjny;
+  document.getElementById('pal-form').style.display = '';
+  document.getElementById('pal-inp-name').focus();
+}
+
+function palCancelForm() {
+  document.getElementById('pal-form').style.display = 'none';
+}
+
+async function palSave() {
+  var editId = document.getElementById('pal-edit-id').value;
+  var body = {
+    imie_nazwisko: document.getElementById('pal-inp-name').value.trim(),
+    stanowisko: document.getElementById('pal-inp-stanowisko').value.trim(),
+    nr_rejestracyjny: document.getElementById('pal-inp-rej').value.trim(),
+  };
+  if (!body.imie_nazwisko || !body.stanowisko || !body.nr_rejestracyjny) return;
+  if (editId) {
+    await fetch('/api/paliwo/osoby/' + editId, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+  } else {
+    await fetch('/api/paliwo/osoby', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+  }
+  palCancelForm();
+  palLoadOsoby();
+}
+
+async function palDelete(id, btn) {
+  if (btn.dataset.confirm === 'yes') {
+    await fetch('/api/paliwo/osoby/' + id, {method:'DELETE'});
+    palLoadOsoby();
+  } else {
+    btn.dataset.confirm = 'yes';
+    btn.textContent = 'potwierdź';
+    btn.style.color = 'var(--red)';
+    setTimeout(function() { btn.dataset.confirm = ''; btn.textContent = 'usuń'; btn.style.color = ''; }, 3000);
+  }
+}
+
+async function palRecalc() {
+  var dni = parseInt(document.getElementById('pal-gen-dni').value) || 0;
+  var resp = await fetch('/api/paliwo/oblicz?dni=' + dni);
+  var d = await resp.json();
+  document.getElementById('pal-gen-miesiac').textContent = d.miesiac;
+  document.getElementById('pal-gen-data').textContent = d.data_wystawienia;
+  document.getElementById('pal-gen-potracenie').textContent = d.potracenie + ' zł';
+  document.getElementById('pal-gen-wyplata').textContent = d.ryczalt_do_wyplaty + ' zł';
+  document.getElementById('pal-gen-slownie').textContent = d.kwota_slownie;
+}
+
+async function palGeneruj() {
+  var osobaId = document.getElementById('pal-gen-osoba').value;
+  var dni = parseInt(document.getElementById('pal-gen-dni').value) || 0;
+  if (!osobaId) { alert('Wybierz osobę'); return; }
+  var resp = await fetch('/api/paliwo/generuj', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({osoba_id: parseInt(osobaId), dni_urlopu: dni})
+  });
+  if (resp.ok) {
+    var blob = await resp.blob();
+    var url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  } else {
+    var err = await resp.json();
+    alert('Błąd: ' + (err.error || 'Nieznany'));
+  }
+}
+
+// Init
+palLoadOsoby();
+palRecalc();
+</script>
 {% endblock %}
