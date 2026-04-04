@@ -1235,7 +1235,13 @@ function renderOneSection(container, opts) {
 
 
 function validateField(input) {
-    var val = parseFloat(input.value);
+    // Normalize: replace dot with comma for Polish notation
+    if (input.value.indexOf('.') >= 0) {
+        var pos = input.selectionStart;
+        input.value = input.value.replace(/\./g, ',');
+        input.setSelectionRange(pos, pos);
+    }
+    var val = parseFloat(input.value.replace(',', '.'));
     var min = input.dataset.min !== '' ? parseFloat(input.dataset.min) : null;
     var max = input.dataset.max !== '' ? parseFloat(input.dataset.max) : null;
     var komentarz = document.querySelector('textarea[data-komentarz="' + input.dataset.kod + '"][data-sekcja="' + input.dataset.sekcja + '"]');
@@ -1322,7 +1328,7 @@ function doSaveField(input, sekcja, kod) {
     var komentarz = document.querySelector('textarea[data-komentarz="' + kod + '"][data-sekcja="' + sekcja + '"]');
     var values = {};
     values[kod] = {
-        wartosc: input.value,
+        wartosc: input.value.replace(',', '.'),
         komentarz: komentarz ? komentarz.value : ""
     };
 
