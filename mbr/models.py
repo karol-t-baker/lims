@@ -115,6 +115,31 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             wpisal          TEXT NOT NULL,
             UNIQUE(ebr_id, sekcja, kod_parametru)
         );
+
+        CREATE TABLE IF NOT EXISTS ebr_etapy_analizy (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            ebr_id          INTEGER NOT NULL,
+            etap            TEXT NOT NULL,
+            runda           INTEGER DEFAULT 1,
+            kod_parametru   TEXT NOT NULL,
+            wartosc         REAL,
+            dt_wpisu        TEXT,
+            wpisal          TEXT,
+            UNIQUE(ebr_id, etap, runda, kod_parametru)
+        );
+
+        CREATE TABLE IF NOT EXISTS ebr_korekty (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            ebr_id          INTEGER NOT NULL,
+            etap            TEXT NOT NULL,
+            po_rundzie      INTEGER,
+            substancja      TEXT NOT NULL,
+            ilosc_kg        REAL,
+            zalecil         TEXT,
+            wykonano        INTEGER DEFAULT 0,
+            dt_zalecenia    TEXT,
+            dt_wykonania    TEXT
+        );
     """)
     db.execute("""
         CREATE TABLE IF NOT EXISTS workers (
