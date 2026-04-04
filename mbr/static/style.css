@@ -1508,88 +1508,39 @@ body {
   font-family: var(--mono); font-size: 9px; margin-left: 2px; opacity: 0.6;
 }
 
-/* Batch card */
+/* Batch card — compact row */
 .batch-card {
-  position: relative;
-  padding: 10px 12px;
-  margin: 3px 0;
-  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.12s;
-  border: 1px solid var(--border-subtle, #f0ece4);
+  border-bottom: 1px solid var(--border-subtle, #f0ece4);
+  transition: background 0.1s;
 }
-.batch-card:hover { border-color: var(--border); }
-.batch-card.active { border-color: var(--teal); background: #fafefe; }
+.batch-card:hover { background: var(--surface-alt); }
+.batch-card.active { background: var(--teal-bg); }
 
-/* Card header row */
-.bc-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
-.bc-nr {
-  font-size: 13px; font-weight: 700;
-}
-.bc-product {
-  font-size: 11px; font-weight: 700; color: var(--text-sec);
-}
-.batch-card.typ-zbiornik .bc-product {
-  color: var(--blue);
-}
-.bc-typ-icon { display: none; }
+.bc-nr { font-weight: 700; font-family: var(--mono); font-size: 12px; white-space: nowrap; }
+.bc-typ-badge { font-size: 8px; font-weight: 700; color: var(--text-dim); background: var(--surface-alt); padding: 1px 4px; border-radius: 3px; flex-shrink: 0; }
 
-/* Card meta row */
-.bc-meta { display: none; }
+/* Product sticker — highlighter colors matching lab convention */
+.bc-product-sticker {
+  font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px;
+  white-space: nowrap; flex-shrink: 0;
+}
+.prod-k7 { background: #fce7f3; color: #9d174d; }          /* różowy */
+.prod-glol { background: #dbeafe; color: #1e40af; }         /* niebieski */
+.prod-glo { background: #ede9fe; color: #5b21b6; }          /* fioletowy */
+.prod-gl { background: #ccfbf1; color: #0f766e; }           /* zielono-niebieski */
+.prod-other { background: var(--surface-alt); color: var(--text-sec); }
 
-/* Progress bar */
-.bc-progress {
-  margin: 6px 0 4px; display: flex; align-items: center; gap: 0;
-}
-.bc-bar {
-  flex: 1; height: 3px; border-radius: 2px; background: var(--border-subtle, #f0ece4);
-  overflow: hidden;
-}
-.bc-bar-fill {
-  height: 100%; border-radius: 2px;
-  background: var(--teal);
-  transition: width 0.3s ease;
-}
-/* Stage-colored progress bars */
-.stg-stand .bc-bar-fill { background: var(--amber); }
-.stg-koncowa .bc-bar-fill { background: #d97706; }
-.stg-done .bc-bar-fill { background: var(--green); }
-.bc-bar-fill.alert { background: var(--red); }
-.bc-pct { display: none; }
-
-/* Status row */
-.bc-status {
-  display: flex; align-items: center; justify-content: space-between;
-}
-.bc-status-dot { display: none; }
-.bc-status {
-  font-size: 10px; color: var(--text-dim);
-}
-.bc-status.alert { color: var(--red); }
-.bc-status.in_progress { color: var(--teal); }
-.bc-status.done { color: var(--green); }
-.bc-badge {
-  font-size: 9px; font-weight: 500; padding: 2px 7px; border-radius: 8px;
-}
-.bc-b-progress { background: var(--teal-bg); color: var(--teal); }
-.stg-stand .bc-b-progress { background: var(--amber-bg); color: var(--amber); }
-.stg-koncowa .bc-b-progress { background: #fef3c7; color: #d97706; }
-.bc-b-done { background: var(--green-bg); color: var(--green); }
-.bc-b-wait { background: var(--surface-alt); color: var(--text-dim); }
-.bc-b-err { background: var(--red-bg); color: var(--red); }
-
-/* Stage-colored status text */
-.stg-stand .bc-status.in_progress { color: var(--amber); }
-.stg-koncowa .bc-status.in_progress { color: #d97706; }
-.stg-stand .bc-status.waiting { color: var(--amber); }
-.stg-koncowa .bc-status.waiting { color: #d97706; }
-.bc-status.alert .bc-status-dot { background: var(--red); }
-.bc-status.alert { color: var(--red); }
-.bc-status.done .bc-status-dot { background: var(--green); }
-.bc-status.done { color: var(--green); }
-.bc-status.in_progress .bc-status-dot { background: var(--teal); animation: pulse 1.5s infinite; }
-.bc-status.in_progress { color: var(--teal); }
-@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+.bc-stage { margin-left: auto; flex-shrink: 0; font-size: 10px; }
+.bc-st-ok { color: var(--green); font-weight: 700; }
+.bc-st-err { color: var(--red); font-weight: 700; font-size: 9px; }
+.bc-st-progress { color: var(--teal); }
+.bc-st-wait { color: var(--text-dim); }
 
 /* Filter clear button */
 .filter-clear-btn {

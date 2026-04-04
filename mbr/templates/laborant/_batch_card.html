@@ -1,42 +1,33 @@
-{# Reusable batch card macro for sidebars and lists.
+{# Compact batch row for sidebar lists.
    Usage: {% from "laborant/_batch_card.html" import batch_card %}
-          {{ batch_card(b, active=(b.ebr_id == current_id), onclick_url=url) }}
+          {{ batch_card(b) }}
 #}
-{%- macro _stage_cls(name) -%}
-{%- if 'Standaryzacja' in name|default('') and 'Analiza' not in name|default('') -%}stg-stand
-{%- elif 'końcowa' in name|default('') or 'Przed' in name|default('') -%}stg-koncowa
-{%- elif 'Gotowy' in name|default('') -%}stg-done
-{%- else -%}stg-default{%- endif -%}
+{%- macro _product_color(produkt) -%}
+{%- if 'K7' in produkt and 'K7G' not in produkt and 'K7B' not in produkt -%}prod-k7
+{%- elif 'K40GLOL' in produkt -%}prod-glol
+{%- elif 'K40GLO' in produkt and 'K40GLOL' not in produkt -%}prod-glo
+{%- elif 'K40GL' in produkt and 'K40GLO' not in produkt -%}prod-gl
+{%- else -%}prod-other{%- endif -%}
 {%- endmacro -%}
 
 {% macro batch_card(b, active=false, onclick_url='') %}
-<div class="batch-card {{ 'typ-zbiornik' if b.typ == 'zbiornik' else '' }} {{ 'status-alert' if b.out_of_limit > 0 else '' }} {{ 'active' if active else '' }} {{ _stage_cls(b.stage_name) }}"
+<div class="batch-card {{ 'active' if active else '' }}"
      data-typ="{{ b.typ or 'szarza' }}" data-produkt="{{ b.produkt }}" data-nr="{{ b.nr_partii }}"
      data-ebr-id="{{ b.ebr_id }}"
      {% if onclick_url %}onclick="location.href='{{ onclick_url }}'"{% endif %}>
-  <div class="bc-top">
-    <span class="bc-nr">{{ b.nr_partii }}</span>
-    <span class="bc-product">{{ b.produkt|short_product }}</span>
-  </div>
-  <div class="bc-progress">
-    <div class="bc-bar">
-      <div class="bc-bar-fill {{ 'alert' if b.out_of_limit > 0 else '' }}" style="width:{{ b.progress_pct|default(0) }}%"></div>
-    </div>
-  </div>
-  <div class="bc-status {{ b.stage_status|default('waiting') }}">
+  <span class="bc-nr">{{ b.nr_partii }}</span>
+  {% if b.typ == 'zbiornik' %}<span class="bc-typ-badge">ZB</span>{% endif %}
+  <span class="bc-product-sticker {{ _product_color(b.produkt) }}">{{ b.produkt|short_product }}</span>
+  <span class="bc-stage">
     {% if b.out_of_limit > 0 %}
-      <span>{{ b.out_of_limit }} poza limitem</span>
-      <span class="bc-badge bc-b-err">!!</span>
-    {% elif b.stage_status == 'in_progress' %}
-      <span>{{ b.stage_name|default('W toku') }}</span>
-      <span class="bc-badge bc-b-progress">w toku</span>
+      <span class="bc-st-err">{{ b.out_of_limit }} poza</span>
     {% elif b.stage_status == 'done' %}
-      <span>{{ b.stage_name|default('Gotowy') }}</span>
-      <span class="bc-badge bc-b-done">OK</span>
+      <span class="bc-st-ok">✓</span>
+    {% elif b.stage_status == 'in_progress' %}
+      <span class="bc-st-progress">●</span>
     {% else %}
-      <span>{{ b.stage_name|default('Oczekuje') }}</span>
-      <span class="bc-badge bc-b-wait">oczekuje</span>
+      <span class="bc-st-wait">○</span>
     {% endif %}
-  </div>
+  </span>
 </div>
 {% endmacro %}
