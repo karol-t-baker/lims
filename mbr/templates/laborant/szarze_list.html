@@ -96,7 +96,37 @@
   .se-pending .se-name { color: var(--text-dim); font-weight: 500; }
   .se-detail { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
 
-  /* Sidebar registry (simplified) */
+  /* Sidebar registry mode */
+  #sb-mode-registry { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+  .sr-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px; border-bottom: 1px solid var(--border);
+    background: var(--green-bg);
+  }
+  .sr-back {
+    width: 26px; height: 26px; border-radius: 6px; border: none;
+    background: none; cursor: pointer; color: var(--text-sec);
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.12s; flex-shrink: 0;
+  }
+  .sr-back:hover { background: var(--surface); color: var(--text); }
+  .sr-title {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 700; color: var(--green);
+  }
+  .sr-filters {
+    padding: 8px 12px; border-bottom: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .sr-select {
+    width: 100%; padding: 6px 8px; border: 1px solid var(--border);
+    border-radius: 6px; font-size: 11px; font-weight: 600;
+    font-family: var(--font); color: var(--text); background: var(--surface);
+  }
+  .sr-select:focus { outline: none; border-color: var(--teal); }
+  .sr-type-seg { margin-top: 2px; }
+  .sr-typ { font-size: 8px; font-weight: 700; color: var(--text-dim); background: var(--surface-alt); padding: 1px 4px; border-radius: 3px; }
+
   .sr-item {
     display: flex; align-items: center; gap: 8px;
     padding: 9px 10px; border-radius: 6px; cursor: pointer;
@@ -113,30 +143,58 @@
 {% endblock %}
 
 {% block sidebar %}
-{# Detail-mode sidebar (hidden by default, slides open when viewing a batch) #}
 <div id="detail-sidebar">
   <div class="sb-inner">
-    <div class="sb-search">
-      <input type="text" placeholder="Szukaj szarzy..." oninput="filterSidebarCards(this.value)">
-    </div>
-    <div class="sb-filters">
-      <div class="sb-seg">
-        <div class="sb-pill active" onclick="switchSidebarTab('etapy',this)">Etapy</div>
-        <div class="sb-pill" onclick="switchSidebarTab('szarze',this)">Szarze</div>
-        <div class="sb-pill" onclick="switchSidebarTab('zbiorniki',this)">Zbiorniki</div>
-        <div class="sb-pill" onclick="switchSidebarTab('rejestr',this)">Rejestr</div>
+    {# ═══ MODE: Active batches ═══ #}
+    <div id="sb-mode-active">
+      <div class="sb-search">
+        <input type="text" placeholder="Szukaj szarzy..." oninput="filterSidebarCards(this.value)">
+      </div>
+      <div class="sb-filters">
+        <div class="sb-seg">
+          <div class="sb-pill active" onclick="switchSidebarTab('etapy',this)">Etapy</div>
+          <div class="sb-pill" onclick="switchSidebarTab('szarze',this)">Szarze</div>
+          <div class="sb-pill" onclick="switchSidebarTab('zbiorniki',this)">Zbiorniki</div>
+        </div>
+      </div>
+      <div class="sb-list" id="sidebar-etapy" style="display:flex; flex-direction:column; gap:0; padding:8px 10px;">
+        <div style="color:var(--text-dim);font-size:11px;padding:16px 4px;">Wybierz szarżę aby zobaczyć etapy.</div>
+      </div>
+      <div class="sb-list" id="sidebar-batch-list" style="display:none;">
+        {% for b in batches %}
+        {{ batch_card(b) }}
+        {% endfor %}
       </div>
     </div>
-    <div class="sb-list" id="sidebar-etapy" style="display:flex; flex-direction:column; gap:0; padding:8px 10px;">
-      <div class="sb-etapy-placeholder" style="color:var(--text-dim);font-size:11px;padding:16px 4px;">Wybierz szarżę aby zobaczyć etapy.</div>
+
+    {# ═══ MODE: Registry (completed) ═══ #}
+    <div id="sb-mode-registry" style="display:none;">
+      <div class="sr-header">
+        <button class="sr-back" onclick="setSidebarMode('active')" title="Wróć do aktywnych">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:14px;height:14px;"><path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/></svg>
+        </button>
+        <div class="sr-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" style="width:14px;height:14px;flex-shrink:0;"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></svg>
+          Rejestr ukończonych
+        </div>
+      </div>
+      <div class="sr-filters">
+        <select class="sr-select" id="sr-product" onchange="loadSidebarRegistry()">
+          <option value="Chegina_K7">K7</option>
+          <option value="Chegina_K40GL">K40GL</option>
+          <option value="Chegina_K40GLO">K40GLO</option>
+          <option value="Chegina_K40GLOL">K40GLOL</option>
+        </select>
+        <div class="sb-seg sr-type-seg">
+          <div class="sb-pill active" data-sr-typ="zbiornik" onclick="setSrType('zbiornik',this)">Zbiorniki</div>
+          <div class="sb-pill" data-sr-typ="szarza" onclick="setSrType('szarza',this)">Szarże</div>
+          <div class="sb-pill" data-sr-typ="" onclick="setSrType('',this)">Wszystkie</div>
+        </div>
+      </div>
+      <div class="sb-list" id="sidebar-registry" style="padding:4px 8px;">
+      </div>
     </div>
-    <div class="sb-list" id="sidebar-batch-list" style="display:none;">
-      {% for b in batches %}
-      {{ batch_card(b) }}
-      {% endfor %}
-    </div>
-    <div class="sb-list" id="sidebar-registry" style="display:none; padding:4px 8px;">
-    </div>
+
     <div class="sb-footer"></div>
   </div>
 </div>
@@ -403,10 +461,9 @@ async function loadBatch(ebrId) {
   // Update sidebar etapy view (after scripts set globals)
   setTimeout(function() {
     renderSidebarEtapy();
-    // If completed, auto-switch sidebar to Rejestr tab
+    // If completed, switch sidebar to registry mode
     if (typeof ebrStatus !== 'undefined' && ebrStatus === 'completed') {
-      var regBtn = document.querySelector('.sb-pill[onclick*="rejestr"]');
-      if (regBtn) switchSidebarTab('rejestr', regBtn);
+      setSidebarMode('registry');
     }
   }, 50);
 }
@@ -452,23 +509,18 @@ document.addEventListener('click', (e) => {
 let currentSidebarTab = 'etapy';
 
 function switchSidebarTab(tab, btn) {
-  btn.parentElement.querySelectorAll('.sb-pill').forEach(p => p.classList.remove('active'));
+  btn.parentElement.querySelectorAll('.sb-pill').forEach(function(p) { p.classList.remove('active'); });
   btn.classList.add('active');
   currentSidebarTab = tab;
 
   var etapyPanel = document.getElementById('sidebar-etapy');
   var listPanel = document.getElementById('sidebar-batch-list');
-  var regPanel = document.getElementById('sidebar-registry');
 
   etapyPanel.style.display = 'none';
   listPanel.style.display = 'none';
-  regPanel.style.display = 'none';
 
   if (tab === 'etapy') {
     etapyPanel.style.display = 'flex';
-  } else if (tab === 'rejestr') {
-    regPanel.style.display = '';
-    loadSidebarRegistry();
   } else {
     listPanel.style.display = '';
     document.querySelectorAll('#sidebar-batch-list .batch-card').forEach(function(c) {
@@ -478,24 +530,41 @@ function switchSidebarTab(tab, btn) {
   }
 }
 
-var _sidebarRegistryLoaded = false;
+// ═══ Sidebar mode: active vs registry ═══
+
+function setSidebarMode(mode) {
+  var activeMode = document.getElementById('sb-mode-active');
+  var registryMode = document.getElementById('sb-mode-registry');
+  if (mode === 'registry') {
+    activeMode.style.display = 'none';
+    registryMode.style.display = '';
+    loadSidebarRegistry();
+  } else {
+    activeMode.style.display = '';
+    registryMode.style.display = 'none';
+    // Return to dashboard
+    showDashboard();
+  }
+}
+
+var _srTyp = 'zbiornik';
+
+function setSrType(typ, btn) {
+  _srTyp = typ;
+  btn.parentElement.querySelectorAll('.sb-pill').forEach(function(p) { p.classList.remove('active'); });
+  btn.classList.add('active');
+  loadSidebarRegistry();
+}
+
 async function loadSidebarRegistry() {
   var panel = document.getElementById('sidebar-registry');
-  if (_sidebarRegistryLoaded) return;
   panel.innerHTML = '<div style="padding:16px;color:var(--text-dim);font-size:11px;">Ładowanie...</div>';
 
-  // Get product from detail-panel globals (set by _fast_entry_content.html)
-  var produkt = '';
-  try {
-    var topbarText = document.getElementById('topbar-title').textContent || '';
-    // Try to get produkt from the loaded partial's globals
-    if (typeof window.ebrId !== 'undefined') {
-      // Fetch from the batch card in sidebar
-      var activeCard = document.querySelector('.batch-card.active[data-produkt]');
-      if (activeCard) produkt = activeCard.dataset.produkt;
-    }
-  } catch(e) {}
-  var resp = await fetch('/api/registry?produkt=' + encodeURIComponent(produkt || 'Chegina_K7'));
+  var produkt = document.getElementById('sr-product').value || 'Chegina_K7';
+  var url = '/api/registry?produkt=' + encodeURIComponent(produkt);
+  if (_srTyp) url += '&typ=' + _srTyp;
+
+  var resp = await fetch(url);
   var data = await resp.json();
 
   var html = '';
@@ -510,15 +579,16 @@ async function loadSidebarRegistry() {
         dtStr = parts[2] + '.' + parts[1];
       }
       var isActive = currentEbrId && b.ebr_id === currentEbrId;
+      var typBadge = b.typ === 'zbiornik' ? '<span class="sr-typ">ZB</span>' : '';
       html += '<div class="sr-item' + (isActive ? ' active' : '') + (hasErr ? ' err' : '') + '" onclick="loadBatch(' + b.ebr_id + ')">' +
         '<span class="sr-nr">' + b.nr_partii + '</span>' +
+        typBadge +
         '<span class="sr-status">' + (hasErr ? '!!' : '✓') + '</span>' +
         '<span class="sr-date">' + dtStr + '</span>' +
       '</div>';
     });
   }
   panel.innerHTML = html;
-  _sidebarRegistryLoaded = true;
 }
 
 function filterSidebarCards(q) {
