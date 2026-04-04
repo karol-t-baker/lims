@@ -1089,6 +1089,10 @@ body {
 .q-batch { font-weight: 600; }
 .q-product { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 5px; white-space: nowrap; display: inline-block; }
 .q-stage-sticker { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 5px; background: var(--teal-bg, #e6f5f5); color: var(--teal); white-space: nowrap; display: inline-block; }
+.q-stage-sticker.etap-st { background: var(--stage-stand-bg); color: var(--stage-stand); }
+.q-stage-sticker.etap-ak { background: var(--stage-koncowa-bg); color: var(--stage-koncowa); }
+.q-stage-sticker.etap-an { background: var(--teal-bg); color: var(--teal); }
+.q-stage-sticker.etap-go { background: var(--stage-done-bg); color: var(--stage-done); }
 .q-time { font-family: var(--mono); font-size: 12px; color: var(--text-sec); }
 .q-priority { font-size: 10px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
 .q-priority.urgent { background: var(--red-bg); color: var(--red); }

@@ -311,7 +311,7 @@
           <td><span class="q-batch">{{ b.nr_partii }}</span></td>
           <td><span class="q-product {{ product_color(b.produkt) }}">{{ b.produkt|short_product }}</span></td>
           <td><span class="typ-badge {{ b.typ or 'szarza' }}">{{ b.typ or 'szarza' }}</span></td>
-          <td><span class="q-stage-sticker">{{ b.stage_name|default('—') }}</span></td>
+          <td><span class="q-stage-sticker {% if 'Standaryzacja' in b.stage_name|default('') and 'Analiza' not in b.stage_name|default('') %}etap-st{% elif 'końcowa' in b.stage_name|default('') %}etap-ak{% elif 'Analiza' in b.stage_name|default('') %}etap-an{% elif 'Gotowy' in b.stage_name|default('') %}etap-go{% endif %}">{{ b.stage_name|default('—') }}</span></td>
           <td>
             {% if b.out_of_limit > 0 %}<span class="q-priority urgent">{{ b.out_of_limit }} poza limitem</span>
             {% elif b.stage_status == 'in_progress' %}<span class="q-priority normal">&#9881; W trakcie</span>
