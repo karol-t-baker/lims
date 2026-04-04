@@ -209,7 +209,7 @@
 .cv-hero { border-radius: 10px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 14px; }
 /* Hero sticker card — exact mockup V2 */
 .cv-h2-card {
-    max-width: 400px; background: var(--surface-alt); border: 1.5px solid var(--border);
+    background: var(--surface-alt); border: 1.5px solid var(--border);
     border-radius: 8px; padding: 18px 20px 16px; position: relative; overflow: hidden;
     margin-bottom: 14px;
     box-shadow: 0 1px 0 #fff inset, 0 4px 0 0 rgba(0,0,0,.06), 0 6px 24px rgba(0,0,0,.04);
@@ -283,6 +283,30 @@
 .cv-prod-gl .cv-h2-key { color: rgba(13,148,136,.5); }
 
 .cv-h2-val { font-size: 12px; font-weight: 700; color: var(--text); margin-top: 2px; }
+
+/* Dynamic topbar matching hero */
+.cv-topbar { animation: slideDown 0.2s ease; }
+@keyframes slideDown { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+.cv-tb-inner {
+    display: flex; align-items: center; gap: 10px; width: 100%; padding: 0 4px;
+}
+.cv-tb-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-family: var(--mono); font-size: 9px; font-weight: 600;
+    letter-spacing: .08em; padding: 2px 7px; border-radius: 3px;
+    background: var(--text-sec); color: #fff;
+}
+.cv-prod-k7 .cv-tb-badge { background: var(--prod-k7); }
+.cv-prod-glol .cv-tb-badge { background: var(--prod-glol); }
+.cv-prod-glo .cv-tb-badge { background: var(--prod-glo); }
+.cv-prod-gl .cv-tb-badge { background: var(--prod-gl); }
+.cv-tb-nr { font-family: 'Fraunces', serif; font-size: 18px; font-weight: 900; color: var(--text); }
+.cv-prod-k7 .cv-tb-nr { color: var(--prod-k7); }
+.cv-prod-glol .cv-tb-nr { color: var(--prod-glol); }
+.cv-prod-glo .cv-tb-nr { color: var(--prod-glo); }
+.cv-prod-gl .cv-tb-nr { color: var(--prod-gl); }
+.cv-tb-meta { font-size: 11px; color: var(--text-dim); }
+.cv-tb-inner .cv-h2-status-chip { margin-left: auto; }
 
 .cv-h2-stamp {
     position: absolute; bottom: 10px; right: 14px;
@@ -666,6 +690,29 @@ function renderCompletedView() {
     // Load certs for zbiornik
     if (isZbiornik) {
         loadCompletedCerts();
+    }
+
+    // Dynamic topbar — hide when hero visible, show on scroll past hero
+    var topbar = document.getElementById('topbar');
+    if (topbar) {
+        topbar.style.display = 'none';
+        topbar.classList.add('cv-topbar');
+        // Set topbar content to match hero style
+        topbar.innerHTML = '<div class="cv-tb-inner ' + prodCls + '">' +
+            '<span class="cv-tb-badge"><span>▶</span> {{ ebr.produkt | short_product }}</span>' +
+            '<span class="cv-tb-nr">{{ ebr.nr_partii }}</span>' +
+            '<span class="cv-tb-meta">' + (isZbiornik ? 'Zbiornik' : 'Szarża') + ' · {{ ebr.dt_end | pl_date if ebr.dt_end else ebr.dt_start | pl_date }}</span>' +
+            statusChip +
+        '</div>';
+
+        // IntersectionObserver on hero
+        var heroEl = container.querySelector('.cv-h2-card');
+        if (heroEl) {
+            var observer = new IntersectionObserver(function(entries) {
+                topbar.style.display = entries[0].isIntersecting ? 'none' : '';
+            }, { threshold: 0.1 });
+            observer.observe(heroEl);
+        }
     }
 }
 
