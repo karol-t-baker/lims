@@ -688,7 +688,7 @@ function renderCompletedView() {
                     html += '<div class="cv-param">' +
                         '<div class="cv-p-dot ' + (ok ? 'cv-dot-ok' : 'cv-dot-err') + '"></div>' +
                         '<span class="cv-p-label">' + esc(pole.label) + '</span>' +
-                        '<span class="cv-p-val ' + (ok ? '' : 'cv-val-err') + '">' + r.wartosc + '</span>' +
+                        '<span class="cv-p-val ' + (ok ? '' : 'cv-val-err') + '">' + String(r.wartosc).replace('.', ',') + '</span>' +
                         '<span class="cv-p-norm">' + normText + '</span>' +
                     '</div>';
                 });
@@ -1165,7 +1165,7 @@ function renderOneSection(container, opts) {
     var fieldsHtml = '<div class="fg">';
     pola.forEach(function(pole) {
         var existing = sekWyniki[pole.kod];
-        var val = existing ? existing.wartosc : '';
+        var val = existing ? String(existing.wartosc).replace('.', ',') : '';
         var komentarzVal = existing ? (existing.komentarz || '') : '';
         var isTitr = pole.measurement_type === 'titracja' || TITR_TAGS_LEGACY.includes(pole.kod);
         var isObl = pole.measurement_type === 'obliczeniowy';

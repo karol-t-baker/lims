@@ -297,7 +297,7 @@ function renderSections() {
         let fieldsHtml = '<div class="fg wide">';
         pola.forEach(pole => {
             const existing = sekWyniki[pole.kod];
-            const val = existing ? existing.wartosc : '';
+            const val = existing ? String(existing.wartosc).replace('.', ',') : '';
             const komentarzVal = existing ? (existing.komentarz || '') : '';
             const isTitr = pole.measurement_type === 'titracja' || TITR_TAGS_LEGACY.includes(pole.kod);
             const isObl = pole.measurement_type === 'obliczeniowy';
@@ -380,7 +380,7 @@ function renderReferences() {
             const existing = sekWyniki[pole.kod];
             const currentInput = document.querySelector(`input[data-kod="${pole.kod}"][data-sekcja="${sekcja}"]`);
             const liveVal = currentInput && currentInput.value !== '' ? currentInput.value : null;
-            const savedVal = existing ? existing.wartosc : null;
+            const savedVal = existing ? String(existing.wartosc).replace('.', ',') : null;
             const displayVal = liveVal || savedVal;
 
             let valHtml;

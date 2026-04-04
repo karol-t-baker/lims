@@ -874,7 +874,7 @@ function renderRegistryTable(columns, batches) {
       var w = b.wyniki[col.kod];
       if (w && w.wartosc != null) {
         var cls = w.w_limicie ? 'val-ok' : 'val-err';
-        html += '<td class="' + cls + '">' + w.wartosc + '</td>';
+        html += '<td class="' + cls + '">' + String(w.wartosc).replace('.', ',') + '</td>';
       } else {
         html += '<td style="color:var(--text-dim)">\u2014</td>';
       }
