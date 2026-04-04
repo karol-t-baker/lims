@@ -580,7 +580,7 @@ function setSrType(typ, btn) {
 }
 
 var _srProduct = 'Chegina_K7';
-var _allProducts = {{ products|map(attribute='produkt')|list|tojson }};
+var _allProducts = {{ products|tojson }};
 
 function pickSrProduct(btn, produkt) {
   _srProduct = produkt;
