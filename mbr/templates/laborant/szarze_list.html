@@ -116,14 +116,14 @@
   }
   .sr-qp:hover { color: var(--text); }
   .sr-qp.active { color: #fff; }
-  .sr-qp.sr-prod-k7 { background: var(--prod-k7-bg); color: var(--prod-k7); border: none; }
-  .sr-qp.sr-prod-k7.active { background: var(--prod-k7); color: #fff; }
-  .sr-qp.sr-prod-gl { background: var(--prod-gl-bg); color: var(--prod-gl); border: none; }
-  .sr-qp.sr-prod-gl.active { background: var(--prod-gl); color: #fff; }
-  .sr-qp.sr-prod-glo { background: var(--prod-glo-bg); color: var(--prod-glo); border: none; }
-  .sr-qp.sr-prod-glo.active { background: var(--prod-glo); color: #fff; }
-  .sr-qp.sr-prod-glol { background: var(--prod-glol-bg); color: var(--prod-glol); border: none; }
-  .sr-qp.sr-prod-glol.active { background: var(--prod-glol); color: #fff; }
+  .sr-qp.sr-prod-k7 { background: transparent; color: color-mix(in srgb, var(--prod-k7) 50%, var(--text-dim)); border: none; }
+  .sr-qp.sr-prod-k7.active { background: var(--prod-k7); color: #fff; box-shadow: 0 1px 6px color-mix(in srgb, var(--prod-k7) 35%, transparent); }
+  .sr-qp.sr-prod-gl { background: transparent; color: color-mix(in srgb, var(--prod-gl) 50%, var(--text-dim)); border: none; }
+  .sr-qp.sr-prod-gl.active { background: var(--prod-gl); color: #fff; box-shadow: 0 1px 6px color-mix(in srgb, var(--prod-gl) 35%, transparent); }
+  .sr-qp.sr-prod-glo { background: transparent; color: color-mix(in srgb, var(--prod-glo) 50%, var(--text-dim)); border: none; }
+  .sr-qp.sr-prod-glo.active { background: var(--prod-glo); color: #fff; box-shadow: 0 1px 6px color-mix(in srgb, var(--prod-glo) 35%, transparent); }
+  .sr-qp.sr-prod-glol { background: transparent; color: color-mix(in srgb, var(--prod-glol) 50%, var(--text-dim)); border: none; }
+  .sr-qp.sr-prod-glol.active { background: var(--prod-glol); color: #fff; box-shadow: 0 1px 6px color-mix(in srgb, var(--prod-glol) 35%, transparent); }
   .sr-search {
     flex: 1; min-width: 60px; padding: 4px 8px; border: 1px solid var(--border);
     border-radius: 5px; font-size: 10px; font-family: var(--font);
