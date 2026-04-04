@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<style>
+@page {
+  size: A4;
+  margin: 20mm 18mm;
+}
+body {
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 10pt;
+  color: #000;
+  margin: 0;
+  padding: 0;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────── */
+.cert-header {
+  display: table;
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 10pt;
+}
+.cert-header-logo {
+  display: table-cell;
+  width: 35%;
+  vertical-align: middle;
+  font-size: 13pt;
+  font-weight: bold;
+}
+.cert-header-logo .company-sub {
+  font-size: 8.5pt;
+  font-weight: normal;
+  margin-top: 2pt;
+}
+.cert-header-title {
+  display: table-cell;
+  text-align: center;
+  vertical-align: middle;
+  padding: 4pt 8pt;
+}
+.cert-header-title .cert-title-main {
+  font-size: 13pt;
+  font-weight: bold;
+  display: block;
+}
+.cert-header-title .cert-title-sub {
+  font-size: 10pt;
+  font-style: italic;
+  display: block;
+}
+.cert-header-title .cert-product {
+  font-size: 12pt;
+  font-weight: bold;
+  margin-top: 4pt;
+  display: block;
+}
+.cert-header-tds {
+  display: table-cell;
+  width: 25%;
+  text-align: right;
+  vertical-align: top;
+  font-size: 8.5pt;
+}
+hr.cert-divider {
+  border: none;
+  border-top: 2px solid #000;
+  margin: 6pt 0 10pt 0;
+}
+
+/* ── AVON fields ───────────────────────────────────────────────────── */
+.avon-section {
+  margin-bottom: 10pt;
+  font-size: 9.5pt;
+}
+.avon-section span {
+  font-weight: bold;
+}
+
+/* ── Meta table ─────────────────────────────────────────────────────── */
+table.meta-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 10pt;
+  font-size: 9.5pt;
+}
+table.meta-table td {
+  padding: 3pt 6pt;
+  border: 1px solid #000;
+}
+table.meta-table td.meta-label {
+  font-weight: bold;
+  width: 30%;
+  background: #f5f5f5;
+}
+
+/* ── Results table ──────────────────────────────────────────────────── */
+table.results-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 12pt;
+  font-size: 9.5pt;
+}
+table.results-table th {
+  border: 1px solid #000;
+  padding: 4pt 6pt;
+  background: #ececec;
+  font-weight: bold;
+  text-align: center;
+  font-size: 9pt;
+}
+table.results-table td {
+  border: 1px solid #000;
+  padding: 3pt 6pt;
+  vertical-align: middle;
+}
+table.results-table td.col-param {
+  width: 38%;
+}
+table.results-table td.col-req {
+  width: 22%;
+  text-align: center;
+}
+table.results-table td.col-method {
+  width: 18%;
+  text-align: center;
+  font-size: 8.5pt;
+}
+table.results-table td.col-result {
+  width: 22%;
+  text-align: center;
+  font-weight: bold;
+}
+table.results-table td.col-result.empty-result {
+  color: #777;
+  font-weight: normal;
+}
+
+/* ── Opinion ────────────────────────────────────────────────────────── */
+.opinion-section {
+  margin: 10pt 0;
+  font-size: 9.5pt;
+}
+.opinion-section .opinion-label {
+  font-weight: bold;
+  margin-bottom: 3pt;
+}
+.opinion-text {
+  padding: 4pt 6pt;
+  border-left: 3px solid #000;
+  margin-left: 4pt;
+}
+
+/* ── Footer ─────────────────────────────────────────────────────────── */
+.cert-footer {
+  margin-top: 18pt;
+  font-size: 9pt;
+}
+.cert-footer-date {
+  margin-bottom: 16pt;
+}
+.cert-footer-sig {
+  display: table;
+  width: 100%;
+}
+.cert-footer-sig-left {
+  display: table-cell;
+  width: 50%;
+  vertical-align: top;
+}
+.cert-footer-sig-right {
+  display: table-cell;
+  width: 50%;
+  vertical-align: top;
+  text-align: right;
+}
+.sig-line {
+  margin-top: 30pt;
+  border-top: 1px solid #000;
+  padding-top: 3pt;
+  font-size: 8.5pt;
+  width: 160pt;
+}
+.sig-line-right {
+  margin-top: 30pt;
+  border-top: 1px solid #000;
+  padding-top: 3pt;
+  font-size: 8.5pt;
+  width: 160pt;
+  margin-left: auto;
+}
+.electronic-notice {
+  margin-top: 14pt;
+  font-size: 8pt;
+  font-weight: bold;
+  border-top: 1px solid #ccc;
+  padding-top: 5pt;
+}
+.electronic-notice-sub {
+  font-size: 7.5pt;
+  font-weight: normal;
+  font-style: italic;
+  margin-top: 2pt;
+}
+</style>
+</head>
+<body>
+
+<!-- ── Certificate Header ─────────────────────────────────────────── -->
+<div class="cert-header">
+  <div class="cert-header-logo">
+    {{ company.name }}
+    <div class="company-sub">
+      {{ company.address }}<br>
+      {{ company.email }}{% if company.bdo %}<br>BDO: {{ company.bdo }}{% endif %}
+    </div>
+  </div>
+  <div class="cert-header-title">
+    <span class="cert-title-main">&#346;wiadectwo Jako&#347;ci</span>
+    <span class="cert-title-sub">/ Certificate of Analysis</span>
+    {% if display_name %}
+    <span class="cert-product">{{ display_name }}</span>
+    {% endif %}
+  </div>
+  <div class="cert-header-tds">
+    {% if spec_number %}
+    Specyfikacja / Specification: {{ spec_number }}<br>
+    {% endif %}
+    {% if cas_number %}CAS: {{ cas_number }}{% endif %}
+  </div>
+</div>
+<hr class="cert-divider">
+
+<!-- ── AVON fields (conditional) ──────────────────────────────────── -->
+{% if avon_code %}
+<div class="avon-section">
+  <span>AVON code:</span> {{ avon_code }}
+  {% if avon_name %}&nbsp;&nbsp;&nbsp;<span>AVON name:</span> {{ avon_name }}{% endif %}
+</div>
+{% endif %}
+
+<!-- ── Metadata Table ─────────────────────────────────────────────── -->
+<table class="meta-table">
+  <tr>
+    <td class="meta-label">Partia / Batch</td>
+    <td>{{ nr_partii }}</td>
+    <td class="meta-label">Kraj pochodzenia / Country of origin</td>
+    <td>{{ footer.country_pl }} / {{ footer.country_en }}</td>
+  </tr>
+  <tr>
+    <td class="meta-label">Data produkcji / Production date</td>
+    <td>{{ dt_produkcji }}</td>
+    <td class="meta-label">Data wa&#380;no&#347;ci / Expiry date</td>
+    <td>{{ dt_waznosci }}</td>
+  </tr>
+  {% if order_number %}
+  <tr>
+    <td class="meta-label">Numer zam&#243;wienia / Order number</td>
+    <td colspan="3">{{ order_number }}</td>
+  </tr>
+  {% endif %}
+  {% if certificate_number %}
+  <tr>
+    <td class="meta-label">Numer &#347;wiadectwa / Certificate number</td>
+    <td colspan="3">
+      {{ certificate_number }}
+      {% if has_rspo %}&nbsp;&nbsp;&nbsp;<strong>RSPO</strong>{% endif %}
+    </td>
+  </tr>
+  {% endif %}
+</table>
+
+<!-- ── Results Table ──────────────────────────────────────────────── -->
+<table class="results-table">
+  <thead>
+    <tr>
+      <th>Parametr oznaczany<br><em>/ Characteristic</em></th>
+      <th>Wymagania<br><em>/ Requirement</em></th>
+      <th>Metoda bada&#324;<br><em>/ Test method</em></th>
+      <th>Wynik<br><em>/ Result</em></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr>
+      <td class="col-param">{{ row.name_pl }}<br><em>/ {{ row.name_en }}</em></td>
+      <td class="col-req">{{ row.requirement }}</td>
+      <td class="col-method">{{ row.method }}</td>
+      {% if row.result %}
+        <td class="col-result">{{ row.result }}</td>
+      {% else %}
+        <td class="col-result empty-result">&mdash;</td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<!-- ── Opinion ────────────────────────────────────────────────────── -->
+{% if opinion_pl or opinion_en %}
+<div class="opinion-section">
+  <div class="opinion-label">Opinia Laboratorium KJ / Opinion of Quality Control Laboratory:</div>
+  <div class="opinion-text">
+    {% if opinion_pl %}{{ opinion_pl }}{% endif %}
+    {% if opinion_pl and opinion_en %}<br>{% endif %}
+    {% if opinion_en %}<em>{{ opinion_en }}</em>{% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Footer ─────────────────────────────────────────────────────── -->
+<div class="cert-footer">
+  <div class="cert-footer-date">Sobowidz, {{ dt_wystawienia }}</div>
+  <div class="cert-footer-sig">
+    <div class="cert-footer-sig-left">
+      <div class="sig-line">{{ footer.issuer_pl }}<br><em>{{ footer.issuer_en }}</em></div>
+    </div>
+    <div class="cert-footer-sig-right">
+      <div class="sig-line-right">{{ footer.clause_pl }}<br><em>{{ footer.clause_en }}</em></div>
+    </div>
+  </div>
+  <div class="electronic-notice">
+    Dokument utworzony elektronicznie, nie wymaga podpisu.
+    <div class="electronic-notice-sub">The certificate is not signed as it is electronically edited.</div>
+  </div>
+</div>
+
+</body>
+</html>
