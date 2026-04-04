@@ -207,9 +207,13 @@
 
 /* ═══ COMPLETED VIEW (hero style) ═══ */
 .cv-hero { border-radius: 10px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 14px; }
-.cv-hero-bg { background: linear-gradient(135deg, #0d7377 0%, #085c60 100%); padding: 22px 22px 18px; color: #fff; }
-.cv-hero-bg.cv-hero-zbiornik { background: linear-gradient(135deg, #0d7377 0%, #085c60 100%); }
-.cv-hero-bg.cv-hero-szarza { background: linear-gradient(135deg, #2c2416 0%, #4a3c28 100%); color: #f0ece4; }
+.cv-hero-bg { padding: 22px 22px 18px; color: #fff; background: linear-gradient(135deg, #0d7377 0%, #085c60 100%); }
+/* Product-colored heroes */
+.cv-hero-bg.cv-prod-k7 { background: linear-gradient(135deg, var(--prod-k7) 0%, #a21d56 100%); }
+.cv-hero-bg.cv-prod-glol { background: linear-gradient(135deg, var(--prod-glol) 0%, #1d4ed8 100%); }
+.cv-hero-bg.cv-prod-glo { background: linear-gradient(135deg, var(--prod-glo) 0%, #5b21b6 100%); }
+.cv-hero-bg.cv-prod-gl { background: linear-gradient(135deg, var(--prod-gl) 0%, #0f766e 100%); }
+.cv-hero-bg.cv-prod-other { background: linear-gradient(135deg, #6b6155 0%, #4a3c28 100%); color: #f0ece4; }
 .cv-hero-label { font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.6; }
 .cv-hero-nr { font-size: 32px; font-weight: 900; line-height: 1; margin-top: 4px; }
 .cv-hero-product { font-size: 14px; opacity: 0.7; margin-top: 5px; }
@@ -363,7 +367,16 @@ function renderCompletedView() {
 
     // Hero
     var heroHtml = '<div class="cv-hero">' +
-        '<div class="cv-hero-bg' + (isZbiornik ? ' cv-hero-zbiornik' : ' cv-hero-szarza') + '">' +
+    // Determine product color class
+    var prodCls = 'cv-prod-other';
+    var prodName = '{{ ebr.produkt }}';
+    if (prodName.indexOf('K7') >= 0 && prodName.indexOf('K7G') < 0 && prodName.indexOf('K7B') < 0) prodCls = 'cv-prod-k7';
+    else if (prodName.indexOf('K40GLOL') >= 0) prodCls = 'cv-prod-glol';
+    else if (prodName.indexOf('K40GLO') >= 0 && prodName.indexOf('K40GLOL') < 0) prodCls = 'cv-prod-glo';
+    else if (prodName.indexOf('K40GL') >= 0 && prodName.indexOf('K40GLO') < 0) prodCls = 'cv-prod-gl';
+
+    var heroHtml = '<div class="cv-hero">' +
+        '<div class="cv-hero-bg ' + prodCls + '">' +
             '<div class="cv-hero-label">' + (isZbiornik ? 'Zbiornik' : 'Szarża') + '</div>' +
             '<div class="cv-hero-nr">{{ ebr.nr_partii }}</div>' +
             '<div class="cv-hero-product">{{ ebr.produkt | short_product }}</div>' +

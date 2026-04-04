@@ -19,7 +19,7 @@
   {% if b.typ == 'zbiornik' %}<span class="bc-typ-badge">ZB</span>{% endif %}
   <span class="bc-product-sticker {{ _product_color(b.produkt) }}">{{ b.produkt|short_product }}</span>
   {% if b.stage_name and b.typ != 'zbiornik' %}
-  <span class="bc-etap-badge">
+  <span class="bc-etap-badge {% if 'Standaryzacja' in b.stage_name|default('') and 'Analiza' not in b.stage_name|default('') %}etap-st{% elif 'końcowa' in b.stage_name|default('') %}etap-ak{% elif 'Analiza' in b.stage_name|default('') %}etap-an{% elif 'Gotowy' in b.stage_name|default('') %}etap-go{% endif %}">
     {%- if 'Standaryzacja' in b.stage_name|default('') and 'Analiza' not in b.stage_name|default('') -%}ST
     {%- elif 'końcowa' in b.stage_name|default('') -%}AK
     {%- elif 'Analiza' in b.stage_name|default('') -%}AN

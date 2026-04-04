@@ -1561,9 +1561,13 @@ body {
 
 .bc-etap-badge {
   font-size: 8px; font-weight: 700; padding: 1px 4px; border-radius: 3px;
-  background: var(--surface-alt); color: var(--text-dim);
   letter-spacing: 0.3px; flex-shrink: 0;
+  background: var(--surface-alt); color: var(--text-dim);
 }
+.bc-etap-badge.etap-st { background: var(--stage-stand-bg); color: var(--stage-stand); }
+.bc-etap-badge.etap-ak { background: var(--stage-koncowa-bg); color: var(--stage-koncowa); }
+.bc-etap-badge.etap-an { background: var(--teal-bg); color: var(--teal); }
+.bc-etap-badge.etap-go { background: var(--stage-done-bg); color: var(--stage-done); }
 .bc-stage { margin-left: auto; flex-shrink: 0; font-size: 10px; }
 .bc-st-ok { color: var(--green); font-weight: 700; }
 .bc-st-err { color: var(--red); font-weight: 700; font-size: 9px; }
