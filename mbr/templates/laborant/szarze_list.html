@@ -484,11 +484,17 @@ async function loadSidebarRegistry() {
   if (_sidebarRegistryLoaded) return;
   panel.innerHTML = '<div style="padding:16px;color:var(--text-dim);font-size:11px;">Ładowanie...</div>';
 
-  // Load recent completed for current product (or all)
+  // Get product from detail-panel globals (set by _fast_entry_content.html)
   var produkt = '';
-  if (typeof parametry !== 'undefined' && typeof ebrTyp !== 'undefined') {
-    produkt = '{{ ebr.produkt | default("") }}' || '';
-  }
+  try {
+    var topbarText = document.getElementById('topbar-title').textContent || '';
+    // Try to get produkt from the loaded partial's globals
+    if (typeof window.ebrId !== 'undefined') {
+      // Fetch from the batch card in sidebar
+      var activeCard = document.querySelector('.batch-card.active[data-produkt]');
+      if (activeCard) produkt = activeCard.dataset.produkt;
+    }
+  } catch(e) {}
   var resp = await fetch('/api/registry?produkt=' + encodeURIComponent(produkt || 'Chegina_K7'));
   var data = await resp.json();
 
