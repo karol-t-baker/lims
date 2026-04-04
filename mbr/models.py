@@ -144,7 +144,8 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             nr_partii       TEXT NOT NULL,
             pdf_path        TEXT NOT NULL,
             dt_wystawienia  TEXT NOT NULL,
-            wystawil        TEXT NOT NULL
+            wystawil        TEXT NOT NULL,
+            nieaktualne     INTEGER DEFAULT 0
         )
     """)
     db.execute("CREATE INDEX IF NOT EXISTS idx_wyniki_ebr_limicie ON ebr_wyniki(ebr_id, w_limicie, dt_wpisu)")
@@ -178,6 +179,13 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
         db.execute("ALTER TABLE workers ADD COLUMN avatar_icon INTEGER DEFAULT 0")
         db.execute("ALTER TABLE workers ADD COLUMN avatar_color INTEGER DEFAULT 0")
         db.commit()
+
+    # Migration: add nieaktualne column to swiadectwa if not exists
+    try:
+        db.execute("ALTER TABLE swiadectwa ADD COLUMN nieaktualne INTEGER DEFAULT 0")
+        db.commit()
+    except Exception:
+        pass
 
 
 # ---------------------------------------------------------------------------
@@ -1058,6 +1066,15 @@ def create_swiadectwo(db, ebr_id, template_name, nr_partii, pdf_path, wystawil):
     )
     db.commit()
     return cur.lastrowid
+
+
+def mark_swiadectwa_outdated(db, ebr_id):
+    """Mark all certificates for this EBR as outdated (parameters changed)."""
+    db.execute(
+        "UPDATE swiadectwa SET nieaktualne = 1 WHERE ebr_id = ? AND (nieaktualne IS NULL OR nieaktualne = 0)",
+        (ebr_id,),
+    )
+    db.commit()
 
 
 def list_swiadectwa(db, ebr_id):

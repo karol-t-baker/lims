@@ -20,7 +20,7 @@ from mbr.models import (
     sync_ebr_to_v4, next_nr_partii, PRODUCTS,
     list_completed_registry, get_registry_columns, list_completed_products,
     list_workers, update_worker_profile, update_worker_nickname,
-    create_swiadectwo, list_swiadectwa,
+    create_swiadectwo, list_swiadectwa, mark_swiadectwa_outdated,
 )
 
 app = Flask(__name__)
@@ -382,6 +382,9 @@ def save_entry(ebr_id):
         ebr = get_ebr(db, ebr_id)
         save_wyniki(db, ebr_id, sekcja, values, user, ebr=ebr)
         sync_ebr_to_v4(db, ebr_id, ebr=ebr)
+        # If completed zbiornik — mark existing certificates as outdated
+        if ebr and ebr["status"] == "completed" and ebr.get("typ") == "zbiornik":
+            mark_swiadectwa_outdated(db, ebr_id)
     return jsonify({"ok": True})
 
 

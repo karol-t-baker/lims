@@ -233,6 +233,44 @@
 .cv-p-val { font-family: var(--mono); font-size: 15px; font-weight: 700; min-width: 60px; text-align: right; }
 .cv-val-err { color: var(--red); }
 .cv-p-norm { font-family: var(--mono); font-size: 10px; color: var(--text-dim); width: 75px; text-align: right; }
+.cv-p-input {
+    font-family: var(--mono); font-size: 15px; font-weight: 700;
+    min-width: 60px; width: 80px; text-align: right; border: none;
+    background: transparent; color: var(--text); padding: 2px 4px;
+    -moz-appearance: textfield; transition: all 0.12s;
+}
+.cv-p-input::-webkit-outer-spin-button, .cv-p-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.cv-p-input[readonly] { cursor: default; }
+.cv-p-input:not([readonly]) { background: var(--surface); border: 1.5px solid var(--border); border-radius: 4px; }
+.cv-p-input:not([readonly]):focus { outline: none; border-color: var(--teal); }
+.cv-p-input.ok { color: var(--green); }
+.cv-p-input.err { color: var(--red); }
+.cv-edit-btn {
+    font-size: 9px; font-weight: 600; color: var(--teal); background: none;
+    border: 1px solid var(--teal); border-radius: 4px; padding: 2px 8px;
+    cursor: pointer; margin-left: 8px; font-family: var(--font);
+    transition: all 0.12s;
+}
+.cv-edit-btn:hover { background: var(--teal-bg); }
+.cv-edit-btn.active { background: var(--teal); color: #fff; }
+.cv-edit-warn {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px; margin-bottom: 10px;
+    background: var(--amber-bg); border-radius: 6px;
+    font-size: 11px; font-weight: 500; color: var(--amber);
+}
+.cv-ew-icon {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--amber); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; flex-shrink: 0;
+}
+.cv-ci-outdated { opacity: 0.6; }
+.cv-ci-stale {
+    font-size: 8px; font-weight: 700; color: var(--amber);
+    background: var(--amber-bg); padding: 1px 5px; border-radius: 3px;
+    margin-left: 6px; text-transform: uppercase; letter-spacing: 0.3px;
+}
 .cv-head-badge { font-size: 9px; font-weight: 600; padding: 2px 7px; border-radius: 6px; margin-left: 8px; vertical-align: middle; }
 .cv-hb-ok { background: var(--green-bg); color: var(--green); }
 .cv-hb-err { background: var(--red-bg); color: var(--red); }
@@ -387,13 +425,17 @@ function renderCompletedView() {
         '</div>' +
     '</div>';
 
-    // Params list
+    // Params list — editable for zbiornik
+    var canEdit = isZbiornik;
     var paramsHtml = '<div class="cv-params">' +
-        '<div class="cv-params-head">Parametry końcowe</div>';
+        '<div class="cv-params-head">Parametry końcowe' +
+            (canEdit ? ' <button class="cv-edit-btn" onclick="toggleEditParams()" id="cv-edit-toggle">edytuj</button>' : '') +
+        '</div>';
+    var lastSekcja = lastAnaliza || 'analiza_koncowa';
     pola.forEach(function(pole) {
         var r = finalWyniki[pole.kod];
-        if (!r || r.wartosc == null) return;
-        var ok = r.w_limicie === 1;
+        var val = r ? r.wartosc : '';
+        var ok = r ? r.w_limicie === 1 : true;
         var normText = '';
         if (pole.min != null && pole.max != null) normText = pole.min + ' – ' + pole.max;
         else if (pole.min != null) normText = '> ' + pole.min;
@@ -401,9 +443,16 @@ function renderCompletedView() {
 
         paramsHtml += '<div class="cv-param">' +
             '<div class="cv-p-dot ' + (ok ? 'cv-dot-ok' : 'cv-dot-err') + '"></div>' +
-            '<span class="cv-p-label">' + esc(pole.label) + '</span>' +
-            '<span class="cv-p-val ' + (ok ? '' : 'cv-val-err') + '">' + r.wartosc + '</span>' +
-            '<span class="cv-p-norm">' + normText + '</span>' +
+            '<span class="cv-p-label">' + esc(pole.label) + '</span>';
+        if (canEdit) {
+            paramsHtml += '<input class="cv-p-input" type="number" step="any" value="' + (val !== null && val !== '' ? val : '') + '"' +
+                ' data-kod="' + esc(pole.kod) + '" data-sekcja="' + esc(lastSekcja) + '"' +
+                ' data-min="' + (pole.min != null ? pole.min : '') + '" data-max="' + (pole.max != null ? pole.max : '') + '"' +
+                ' readonly oninput="validateField(this); autoSaveField(this)" onblur="doSaveField(this, this.dataset.sekcja, this.dataset.kod)">';
+        } else {
+            paramsHtml += '<span class="cv-p-val ' + (ok ? '' : 'cv-val-err') + '">' + (val !== null && val !== '' ? val : '—') + '</span>';
+        }
+        paramsHtml += '<span class="cv-p-norm">' + normText + '</span>' +
         '</div>';
     });
     paramsHtml += '</div>';
@@ -505,6 +554,29 @@ function renderCompletedView() {
     }
 }
 
+function toggleEditParams() {
+    var inputs = document.querySelectorAll('.cv-p-input');
+    var btn = document.getElementById('cv-edit-toggle');
+    var isEditing = !inputs[0].readOnly;
+    inputs.forEach(function(inp) { inp.readOnly = isEditing; });
+    btn.textContent = isEditing ? 'edytuj' : 'edycja aktywna';
+    btn.classList.toggle('active', !isEditing);
+    // Show warning if has certs
+    var warning = document.getElementById('cv-edit-warning');
+    if (!isEditing && !warning) {
+        var certsEl = document.getElementById('cv-certs');
+        if (certsEl && certsEl.querySelector('.cv-cert-issued')) {
+            var w = document.createElement('div');
+            w.id = 'cv-edit-warning';
+            w.className = 'cv-edit-warn';
+            w.innerHTML = '<span class="cv-ew-icon">!</span> Edycja parametrów oznacza wystawione świadectwa jako nieaktualne';
+            certsEl.parentElement.insertBefore(w, certsEl);
+        }
+    } else if (isEditing && warning) {
+        warning.remove();
+    }
+}
+
 function showCompletedStage(btn, key) {
     btn.parentElement.querySelectorAll('.cv-stage-btn').forEach(function(b) { b.classList.remove('active'); });
     btn.classList.add('active');
@@ -539,10 +611,12 @@ async function loadCompletedCerts() {
                 display = display.replace(p, '');
             });
             var dt = c.dt_wystawienia ? c.dt_wystawienia.substring(0, 10) : '';
-            html += '<a href="/api/cert/' + c.id + '/pdf" target="_blank" class="cv-cert-issued">' +
+            var outdated = c.nieaktualne ? ' cv-ci-outdated' : '';
+            var outdatedBadge = c.nieaktualne ? '<span class="cv-ci-stale">nieaktualne</span>' : '';
+            html += '<a href="/api/cert/' + c.id + '/pdf" target="_blank" class="cv-cert-issued' + outdated + '">' +
                 '<div class="cv-ci-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" style="width:16px;height:16px;"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>' +
                 '<div class="cv-ci-info">' +
-                    '<div class="cv-ci-name">' + display + '</div>' +
+                    '<div class="cv-ci-name">' + display + outdatedBadge + '</div>' +
                     '<div class="cv-ci-meta">' + dt + (c.wystawil ? ' · ' + c.wystawil : '') + '</div>' +
                 '</div>' +
                 '<span class="cv-ci-pdf">PDF</span>' +
