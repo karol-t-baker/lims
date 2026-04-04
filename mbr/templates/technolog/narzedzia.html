@@ -67,95 +67,93 @@
 
 </div>
 
-{# ═══ PALIWO MODAL — fullscreen dashboard ═══ #}
+{# ═══ PALIWO MODAL — split layout ═══ #}
 <div class="pal-overlay" id="pal-overlay" onclick="if(event.target===this)closePaliwoModal()">
   <div class="pal-modal">
-    <div class="pal-topbar">
-      <div class="pal-topbar-left">
-        <button class="pal-back" onclick="closePaliwoModal()">&larr;</button>
-        <span class="pal-topbar-title">Wniosek paliwo — ryczałt samochodowy</span>
-      </div>
-      <span class="pal-topbar-badge" id="pal-month-badge">—</span>
+    <!-- Topbar -->
+    <div class="pal-top">
+      <span class="pal-top-title">Ryczałt paliwowy</span>
+      <span class="pal-top-badge" id="pal-badge">—</span>
+      <button class="pal-top-close" onclick="closePaliwoModal()">&times;</button>
     </div>
 
-    <div class="pal-body">
-      {# Stats row #}
-      <div class="pal-stats">
-        <div class="pal-stat"><div class="pal-stat-val">345,00</div><div class="pal-stat-label">Ryczałt (zł)</div></div>
-        <div class="pal-stat"><div class="pal-stat-val">15,68</div><div class="pal-stat-label">Stawka/dzień</div></div>
-        <div class="pal-stat"><div class="pal-stat-val" id="pal-stat-potracenie">0,00</div><div class="pal-stat-label">Potrącenie</div></div>
-        <div class="pal-stat pal-stat-accent"><div class="pal-stat-val" id="pal-stat-wyplata">345,00</div><div class="pal-stat-label">Do wypłaty</div></div>
+    <div class="pal-split">
+      <!-- LEFT: Persons (40%) -->
+      <div class="pal-left">
+        <div class="pal-sec-label">Osoby</div>
+        <div class="pal-persons" id="pal-osoby-list"></div>
+        <!-- Add form (hidden) -->
+        <div class="pal-add-wrap">
+          <div class="pal-add-form" id="pal-form" style="display:none;">
+            <input type="hidden" id="pal-edit-id">
+            <div class="pal-add-row">
+              <div class="pal-fg"><label class="pal-fl">Imię i nazwisko</label><input class="pal-fi" id="pal-inp-name"></div>
+              <div class="pal-fg"><label class="pal-fl">Stanowisko</label><input class="pal-fi" id="pal-inp-stanowisko"></div>
+            </div>
+            <div class="pal-add-row">
+              <div class="pal-fg"><label class="pal-fl">Nr rejestracyjny</label><input class="pal-fi" id="pal-inp-rej"></div>
+              <div class="pal-add-btns">
+                <button class="pal-btn-cancel" onclick="palCancelForm()">Anuluj</button>
+                <button class="pal-btn-save" onclick="palSave()">Zapisz</button>
+              </div>
+            </div>
+          </div>
+          <button class="pal-btn-add" id="pal-btn-add" onclick="palShowAdd()">+ Dodaj osobę</button>
+        </div>
       </div>
 
-      <div class="pal-grid">
-        {# Left: Osoby #}
-        <div class="pal-panel">
-          <div class="pal-panel-head">
-            <span class="pal-panel-title">Osoby</span>
-            <button class="pal-add-btn" onclick="palShowAdd()">+ Dodaj</button>
-          </div>
-          <div class="pal-form" id="pal-form" style="display:none;">
-            <input type="hidden" id="pal-edit-id">
-            <input class="pal-inp" id="pal-inp-name" placeholder="Imię i nazwisko">
-            <input class="pal-inp" id="pal-inp-stanowisko" placeholder="Stanowisko">
-            <input class="pal-inp" id="pal-inp-rej" placeholder="Nr rejestracyjny">
-            <div class="pal-form-btns">
-              <button class="pal-btn-save" onclick="palSave()">Zapisz</button>
-              <button class="pal-btn-cancel" onclick="palCancelForm()">Anuluj</button>
-            </div>
-          </div>
-          <div id="pal-osoby-list"></div>
+      <!-- RIGHT: Stats + Generator (60%) -->
+      <div class="pal-right">
+        <div class="pal-sec-label">Parametry</div>
+        <div class="pal-stats">
+          <div class="pal-st"><div class="pal-st-label">Ryczałt</div><div class="pal-st-val pal-st-teal">345,00</div></div>
+          <div class="pal-st"><div class="pal-st-label">Stawka/dzień</div><div class="pal-st-val">15,68</div></div>
+          <div class="pal-st"><div class="pal-st-label">Potrącenie</div><div class="pal-st-val" id="pal-stat-pot">0,00</div></div>
+          <div class="pal-st pal-st-accent"><div class="pal-st-label">Do wypłaty</div><div class="pal-st-val" id="pal-stat-wyp">345,00</div></div>
         </div>
 
-        {# Right: Generator #}
-        <div class="pal-panel">
-          <div class="pal-panel-head">
-            <span class="pal-panel-title">Generator wniosku</span>
+        <div class="pal-sec-label">Generator</div>
+        <div class="pal-gen">
+          <!-- Toggle 1/2 -->
+          <div class="pal-toggle">
+            <button class="pal-tg active" onclick="palSetCount(1,this)">1 osoba</button>
+            <button class="pal-tg" onclick="palSetCount(2,this)">2 osoby</button>
           </div>
-          <div class="pal-gen-content">
-            <div class="pal-toggle">
-              <label class="pal-tgl"><input type="radio" name="pal-count" value="1" checked onchange="palSwitchCount(1)"><span>1 osoba</span></label>
-              <label class="pal-tgl"><input type="radio" name="pal-count" value="2" onchange="palSwitchCount(2)"><span>2 osoby</span></label>
-            </div>
 
-            <div class="pal-meta-row">
-              <div class="pal-meta"><div class="pal-meta-label">Miesiąc</div><div class="pal-meta-val" id="pal-gen-miesiac">—</div></div>
-              <div class="pal-meta"><div class="pal-meta-label">Data wystawienia</div><div class="pal-meta-val" id="pal-gen-data">—</div></div>
-            </div>
-
-            <div class="pal-person-block">
-              <div class="pal-person-label">Osoba 1</div>
-              <select class="pal-sel" id="pal-gen-osoba"><option value="">— wybierz —</option></select>
-              <div class="pal-days-row">
-                <label>Dni nieobecności</label>
-                <input class="pal-days-inp" type="number" min="0" max="22" value="0" id="pal-gen-dni" oninput="palRecalc()">
-              </div>
-              <div class="pal-result-row">
-                <div class="pal-res"><span class="pal-res-label">Potrącenie</span><span class="pal-res-val" id="pal-gen-potracenie">0,00 zł</span></div>
-                <div class="pal-res pal-res-accent"><span class="pal-res-label">Do wypłaty</span><span class="pal-res-val" id="pal-gen-wyplata">345,00 zł</span></div>
-              </div>
-              <div class="pal-slownie" id="pal-gen-slownie">—</div>
-            </div>
-
-            <div class="pal-person-block" id="pal-person-2" style="display:none;">
-              <div class="pal-person-label">Osoba 2</div>
-              <select class="pal-sel" id="pal-gen-osoba-2"><option value="">— wybierz —</option></select>
-              <div class="pal-days-row">
-                <label>Dni nieobecności</label>
-                <input class="pal-days-inp" type="number" min="0" max="22" value="0" id="pal-gen-dni-2" oninput="palRecalc2()">
-              </div>
-              <div class="pal-result-row">
-                <div class="pal-res"><span class="pal-res-label">Potrącenie</span><span class="pal-res-val" id="pal-gen-potracenie-2">0,00 zł</span></div>
-                <div class="pal-res pal-res-accent"><span class="pal-res-label">Do wypłaty</span><span class="pal-res-val" id="pal-gen-wyplata-2">345,00 zł</span></div>
-              </div>
-              <div class="pal-slownie" id="pal-gen-slownie-2">—</div>
-            </div>
-
-            <button class="pal-gen-btn" onclick="palGeneruj()">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:16px;height:16px;"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-              Generuj PDF
-            </button>
+          <!-- Meta row: month + date -->
+          <div class="pal-meta-row">
+            <div class="pal-meta"><div class="pal-fl">Miesiąc</div><div class="pal-meta-val" id="pal-gen-miesiac">—</div></div>
+            <div class="pal-meta"><div class="pal-fl">Data wystawienia</div><div class="pal-meta-val" id="pal-gen-data">—</div></div>
           </div>
+
+          <!-- Person 1 block -->
+          <div class="pal-person-block">
+            <div class="pal-pb-label">Osoba 1</div>
+            <select class="pal-sel" id="pal-gen-osoba"><option value="">— wybierz —</option></select>
+            <div class="pal-days"><label class="pal-fl">Dni nieobecności</label><input class="pal-days-inp" type="number" min="0" max="22" value="0" id="pal-gen-dni" oninput="palRecalc()"></div>
+            <div class="pal-calc">
+              <div class="pal-calc-item"><div class="pal-fl">Potrącenie</div><div class="pal-calc-val" id="pal-gen-potracenie">0,00 zł</div></div>
+              <div class="pal-calc-item pal-calc-accent"><div class="pal-fl">Do wypłaty</div><div class="pal-calc-val" id="pal-gen-wyplata">345,00 zł</div></div>
+            </div>
+            <div class="pal-slownie" id="pal-gen-slownie">—</div>
+          </div>
+
+          <!-- Person 2 block (hidden) -->
+          <div class="pal-person-block" id="pal-person-2" style="display:none;">
+            <div class="pal-pb-label">Osoba 2</div>
+            <select class="pal-sel" id="pal-gen-osoba-2"><option value="">— wybierz —</option></select>
+            <div class="pal-days"><label class="pal-fl">Dni nieobecności</label><input class="pal-days-inp" type="number" min="0" max="22" value="0" id="pal-gen-dni-2" oninput="palRecalc2()"></div>
+            <div class="pal-calc">
+              <div class="pal-calc-item"><div class="pal-fl">Potrącenie</div><div class="pal-calc-val" id="pal-gen-potracenie-2">0,00 zł</div></div>
+              <div class="pal-calc-item pal-calc-accent"><div class="pal-fl">Do wypłaty</div><div class="pal-calc-val" id="pal-gen-wyplata-2">345,00 zł</div></div>
+            </div>
+            <div class="pal-slownie" id="pal-gen-slownie-2">—</div>
+          </div>
+
+          <button class="pal-gen-btn" onclick="palGeneruj()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:15px;height:15px;"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            Generuj PDF
+          </button>
         </div>
       </div>
     </div>
@@ -303,160 +301,84 @@
   padding: 16px 0;
 }
 
-/* ═══ Paliwo modal ═══ */
-.pal-overlay {
-  display: none; position: fixed; inset: 0; z-index: 600;
-  background: rgba(0,0,0,0.4); backdrop-filter: blur(4px);
-  align-items: center; justify-content: center;
-}
-.pal-overlay.active { display: flex; }
-.pal-modal {
-  background: var(--bg); width: 94vw; max-width: 960px; height: 90vh; max-height: 700px;
-  border-radius: 14px; overflow: hidden; display: flex; flex-direction: column;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
-}
-.pal-topbar {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 20px; background: var(--teal); color: #fff; flex-shrink: 0;
-}
-.pal-topbar-left { display: flex; align-items: center; gap: 10px; }
-.pal-back {
-  background: rgba(255,255,255,0.15); border: none; color: #fff; width: 28px; height: 28px;
-  border-radius: 6px; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;
-}
-.pal-back:hover { background: rgba(255,255,255,0.25); }
-.pal-topbar-title { font-size: 14px; font-weight: 600; }
-.pal-topbar-badge {
-  background: rgba(255,255,255,0.15); padding: 4px 12px; border-radius: 20px; font-size: 11px;
-}
-.pal-body { flex: 1; overflow-y: auto; padding: 16px 20px; }
-.pal-stats {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px;
-}
-.pal-stat {
-  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
-  padding: 14px; text-align: center;
-}
-.pal-stat-val { font-size: 22px; font-weight: 700; color: var(--teal); font-family: var(--mono); }
-.pal-stat-label { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
-.pal-stat-accent { background: var(--teal); border-color: var(--teal); }
-.pal-stat-accent .pal-stat-val { color: #fff; }
-.pal-stat-accent .pal-stat-label { color: rgba(255,255,255,0.7); }
+/* ═══ Paliwo modal — split layout ═══ */
+.pal-overlay { display:none; position:fixed; inset:0; z-index:600; background:rgba(0,0,0,0.3); backdrop-filter:blur(3px); align-items:center; justify-content:center; }
+.pal-overlay.active { display:flex; }
+.pal-modal { background:var(--surface); width:94vw; max-width:920px; height:88vh; max-height:680px; border-radius:var(--radius); overflow:hidden; display:flex; flex-direction:column; box-shadow:0 12px 40px rgba(0,0,0,0.15); }
+.pal-top { display:flex; align-items:center; gap:10px; padding:10px 18px; border-bottom:1px solid var(--border); background:var(--surface); flex-shrink:0; }
+.pal-top-title { font-size:14px; font-weight:600; color:var(--text); }
+.pal-top-badge { font-size:10px; font-weight:600; background:var(--teal-bg); color:var(--teal); padding:3px 10px; border-radius:20px; text-transform:uppercase; letter-spacing:0.5px; }
+.pal-top-close { margin-left:auto; width:28px; height:28px; border:none; background:var(--surface-alt); border-radius:6px; cursor:pointer; font-size:16px; color:var(--text-dim); display:flex; align-items:center; justify-content:center; }
+.pal-top-close:hover { background:var(--border); }
 
-.pal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.pal-panel {
-  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
-}
-.pal-panel-head {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 16px; background: var(--surface-alt); border-bottom: 1px solid var(--border);
-}
-.pal-panel-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; color: var(--text-sec); }
-.pal-add-btn {
-  font-size: 10px; font-weight: 600; color: var(--teal); background: none;
-  border: 1px solid var(--teal); border-radius: 5px; padding: 3px 10px;
-  cursor: pointer; font-family: var(--font);
-}
-.pal-add-btn:hover { background: var(--teal); color: #fff; }
+.pal-split { display:flex; flex:1; overflow:hidden; }
+.pal-left { width:38%; border-right:1px solid var(--border); display:flex; flex-direction:column; overflow-y:auto; }
+.pal-right { width:62%; display:flex; flex-direction:column; overflow-y:auto; }
 
-.pal-form { padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--teal-bg); display: flex; flex-direction: column; gap: 6px; }
-.pal-inp {
-  padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px;
-  font-size: 12px; font-family: var(--font); width: 100%;
-}
-.pal-inp:focus { outline: none; border-color: var(--teal); }
-.pal-form-btns { display: flex; gap: 6px; }
-.pal-btn-save {
-  padding: 6px 14px; background: var(--teal); color: #fff; border: none;
-  border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; font-family: var(--font);
-}
-.pal-btn-cancel {
-  padding: 6px 10px; background: none; border: 1px solid var(--border);
-  border-radius: 6px; font-size: 11px; cursor: pointer; color: var(--text-sec); font-family: var(--font);
-}
+.pal-sec-label { font-size:9px; font-weight:600; text-transform:uppercase; letter-spacing:1.2px; color:var(--text-dim); padding:12px 18px 6px; }
+.pal-persons { padding:4px 14px; display:flex; flex-direction:column; gap:4px; }
+.pal-osoba { display:flex; align-items:center; gap:8px; padding:8px 10px; border:1px solid var(--border-subtle); border-radius:8px; transition:all 0.12s; cursor:default; }
+.pal-osoba:hover { border-color:var(--teal); background:var(--teal-bg); }
+.pal-osoba-av { width:30px; height:30px; border-radius:50%; background:var(--teal); color:#fff; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:600; flex-shrink:0; }
+.pal-osoba-info { flex:1; min-width:0; }
+.pal-osoba-name { font-size:12px; font-weight:600; }
+.pal-osoba-meta { font-size:10px; color:var(--text-dim); }
+.pal-osoba-plate { font-family:var(--mono); font-size:9px; background:var(--surface-alt); padding:2px 5px; border-radius:3px; color:var(--text-sec); }
+.pal-osoba-btn { background:none; border:none; cursor:pointer; padding:2px 5px; font-size:11px; color:var(--text-dim); border-radius:4px; }
+.pal-osoba-btn:hover { background:var(--surface-alt); color:var(--text); }
+.pal-osoba-btn.del:hover { color:var(--red); background:var(--red-bg); }
 
-.pal-osoba {
-  display: flex; align-items: center; gap: 10px; padding: 8px 14px;
-  border-bottom: 1px solid var(--border-subtle, #f0ece4); font-size: 12px;
-}
-.pal-osoba:last-child { border-bottom: none; }
-.pal-osoba-avatar {
-  width: 32px; height: 32px; border-radius: 50%; background: var(--teal);
-  color: #fff; display: flex; align-items: center; justify-content: center;
-  font-weight: 600; font-size: 11px; flex-shrink: 0;
-}
-.pal-osoba-name { font-weight: 600; flex: 1; }
-.pal-osoba-info { color: var(--text-dim); font-size: 11px; }
-.pal-osoba-rej { font-family: var(--mono); font-size: 10px; color: var(--text-sec); background: var(--surface-alt); padding: 2px 6px; border-radius: 3px; }
-.pal-osoba-btn {
-  background: none; border: none; cursor: pointer; padding: 2px 6px;
-  font-size: 11px; color: var(--text-dim); border-radius: 4px;
-}
-.pal-osoba-btn:hover { background: var(--surface-alt); color: var(--text); }
-.pal-osoba-btn.del:hover { color: var(--red); }
+.pal-add-wrap { padding:8px 14px; }
+.pal-add-form { border:1px dashed var(--border); border-radius:8px; padding:10px; display:flex; flex-direction:column; gap:6px; }
+.pal-add-row { display:flex; gap:6px; }
+.pal-fg { display:flex; flex-direction:column; gap:2px; flex:1; }
+.pal-fl { font-size:9px; text-transform:uppercase; letter-spacing:0.8px; color:var(--text-dim); font-weight:600; }
+.pal-fi { padding:6px 8px; border:1px solid var(--border); border-radius:6px; font-size:11px; font-family:var(--font); outline:none; }
+.pal-fi:focus { border-color:var(--teal); }
+.pal-add-btns { display:flex; gap:4px; align-items:flex-end; }
+.pal-btn-save { padding:6px 12px; background:var(--teal); color:#fff; border:none; border-radius:6px; font-size:10px; font-weight:600; cursor:pointer; font-family:var(--font); }
+.pal-btn-cancel { padding:6px 10px; background:none; border:1px solid var(--border); border-radius:6px; font-size:10px; cursor:pointer; color:var(--text-sec); font-family:var(--font); }
+.pal-btn-add { display:flex; align-items:center; justify-content:center; gap:4px; width:100%; padding:7px; border:1px dashed var(--border); border-radius:8px; background:transparent; cursor:pointer; font-size:11px; color:var(--teal); font-weight:500; font-family:var(--font); }
+.pal-btn-add:hover { background:var(--teal-bg); border-color:var(--teal); }
 
-.pal-gen-content { padding: 12px 14px; }
-.pal-toggle {
-  display: flex; background: var(--surface-alt); border-radius: 8px; padding: 3px; margin-bottom: 12px;
-}
-.pal-tgl { flex: 1; text-align: center; cursor: pointer; }
-.pal-tgl input { display: none; }
-.pal-tgl span {
-  display: block; padding: 6px; border-radius: 6px; font-size: 11px; font-weight: 600;
-  color: var(--text-dim); transition: all 0.15s;
-}
-.pal-tgl input:checked + span { background: var(--surface); color: var(--teal); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+.pal-stats { display:flex; gap:6px; padding:4px 18px 12px; }
+.pal-st { background:var(--surface-alt); border-radius:8px; padding:8px 10px; flex:1; }
+.pal-st-label { font-size:9px; text-transform:uppercase; letter-spacing:0.8px; color:var(--text-dim); font-weight:500; }
+.pal-st-val { font-size:16px; font-weight:700; font-family:var(--mono); color:var(--text); margin-top:1px; }
+.pal-st-teal { color:var(--teal); }
+.pal-st-accent { background:var(--teal); }
+.pal-st-accent .pal-st-label { color:rgba(255,255,255,0.7); }
+.pal-st-accent .pal-st-val { color:#fff; }
 
-.pal-meta-row { display: flex; gap: 10px; margin-bottom: 12px; }
-.pal-meta { flex: 1; background: var(--surface-alt); border-radius: 6px; padding: 8px 10px; }
-.pal-meta-label { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.3px; }
-.pal-meta-val { font-size: 13px; font-weight: 600; color: var(--text); margin-top: 2px; }
-
-.pal-person-block {
-  border: 1px solid var(--border); border-radius: 8px;
-  padding: 10px 12px; margin-bottom: 10px;
-}
-.pal-person-label {
-  font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
-  color: var(--text-dim); margin-bottom: 8px;
-}
-.pal-sel {
-  width: 100%; padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px;
-  font-size: 12px; font-family: var(--font); margin-bottom: 8px;
-}
-.pal-sel:focus { outline: none; border-color: var(--teal); }
-.pal-days-row {
-  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
-}
-.pal-days-row label { font-size: 11px; color: var(--text-dim); }
-.pal-days-inp {
-  width: 60px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px;
-  font-size: 13px; font-family: var(--mono); font-weight: 600; text-align: center;
-}
-.pal-days-inp:focus { outline: none; border-color: var(--teal); }
-.pal-result-row { display: flex; gap: 8px; margin-bottom: 6px; }
-.pal-res {
-  flex: 1; background: var(--surface-alt); border-radius: 6px; padding: 8px 10px;
-  display: flex; align-items: center; justify-content: space-between;
-}
-.pal-res-label { font-size: 11px; color: var(--text-dim); }
-.pal-res-val { font-size: 13px; font-weight: 600; font-family: var(--mono); color: var(--text); }
-.pal-res-accent { background: var(--teal); }
-.pal-res-accent .pal-res-label { color: rgba(255,255,255,0.7); }
-.pal-res-accent .pal-res-val { color: #fff; }
-.pal-slownie { font-size: 10px; color: var(--text-dim); font-style: italic; }
-
-.pal-gen-btn {
-  margin-top: 12px; width: 100%; padding: 10px; background: var(--teal); color: #fff;
-  border: none; border-radius: 8px; font-size: 13px; font-weight: 600;
-  cursor: pointer; font-family: var(--font); display: flex; align-items: center;
-  justify-content: center; gap: 8px;
-}
-.pal-gen-btn:hover { opacity: 0.9; }
+.pal-gen { padding:6px 18px 18px; display:flex; flex-direction:column; gap:12px; }
+.pal-toggle { display:flex; gap:4px; }
+.pal-tg { padding:5px 14px; border:1px solid var(--border); border-radius:20px; background:var(--surface); cursor:pointer; font-size:11px; font-weight:500; font-family:var(--font); color:var(--text-sec); transition:all 0.12s; }
+.pal-tg.active { background:var(--teal); color:#fff; border-color:var(--teal); }
+.pal-meta-row { display:flex; gap:8px; }
+.pal-meta { flex:1; background:var(--surface-alt); border-radius:6px; padding:6px 10px; }
+.pal-meta-val { font-size:12px; font-weight:600; color:var(--text); margin-top:1px; }
+.pal-person-block { border:1px solid var(--border-subtle); border-radius:8px; padding:10px; }
+.pal-pb-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-dim); margin-bottom:6px; }
+.pal-sel { width:100%; padding:6px 8px; border:1px solid var(--border); border-radius:6px; font-size:11px; font-family:var(--font); margin-bottom:6px; outline:none; }
+.pal-sel:focus { border-color:var(--teal); }
+.pal-days { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+.pal-days label { font-size:10px; color:var(--text-dim); }
+.pal-days-inp { width:50px; padding:5px 6px; border:1px solid var(--border); border-radius:6px; font-size:12px; font-family:var(--mono); font-weight:600; text-align:center; outline:none; }
+.pal-days-inp:focus { border-color:var(--teal); }
+.pal-calc { display:flex; gap:6px; margin-bottom:4px; }
+.pal-calc-item { flex:1; background:var(--surface-alt); border-radius:6px; padding:6px 8px; display:flex; align-items:center; justify-content:space-between; }
+.pal-calc-val { font-size:12px; font-weight:600; font-family:var(--mono); color:var(--text); }
+.pal-calc-accent { background:var(--teal); }
+.pal-calc-accent .pal-fl { color:rgba(255,255,255,0.7); }
+.pal-calc-accent .pal-calc-val { color:#fff; }
+.pal-slownie { font-size:10px; color:var(--text-dim); font-style:italic; }
+.pal-gen-btn { width:100%; padding:10px; background:var(--teal); color:#fff; border:none; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; font-family:var(--font); display:flex; align-items:center; justify-content:center; gap:6px; }
+.pal-gen-btn:hover { opacity:0.9; }
 </style>
 
 <script>
 var _palOsoby = [];
+var _palCount = 1;
 
 function openPaliwoModal() {
   document.getElementById('pal-overlay').classList.add('active');
@@ -472,45 +394,40 @@ async function palLoadOsoby() {
   var data = await resp.json();
   _palOsoby = data.osoby || [];
   palRenderList();
-  palUpdateDropdown();
+  palUpdateDropdowns();
 }
 
 function palRenderList() {
   var el = document.getElementById('pal-osoby-list');
   if (!_palOsoby.length) {
-    el.innerHTML = '<div style="padding:12px 16px;color:var(--text-dim);font-size:11px;">Brak osób. Dodaj pierwszą.</div>';
+    el.innerHTML = '<div style="padding:12px;color:var(--text-dim);font-size:11px;">Brak osób. Dodaj pierwszą.</div>';
     return;
   }
   var html = '';
   _palOsoby.forEach(function(o) {
     var initials = o.imie_nazwisko.split(' ').map(function(w){return w[0]}).join('').toUpperCase();
     html += '<div class="pal-osoba">' +
-      '<div class="pal-osoba-avatar">' + initials + '</div>' +
-      '<span class="pal-osoba-name">' + o.imie_nazwisko + '</span>' +
-      '<span class="pal-osoba-info">' + o.stanowisko + '</span>' +
-      '<span class="pal-osoba-rej">' + o.nr_rejestracyjny + '</span>' +
-      '<button class="pal-osoba-btn" onclick="palEdit(' + o.id + ')">edytuj</button>' +
-      '<button class="pal-osoba-btn del" onclick="palDelete(' + o.id + ',this)">usuń</button>' +
+      '<div class="pal-osoba-av">' + initials + '</div>' +
+      '<div class="pal-osoba-info"><div class="pal-osoba-name">' + o.imie_nazwisko + '</div><div class="pal-osoba-meta">' + o.stanowisko + '</div></div>' +
+      '<span class="pal-osoba-plate">' + o.nr_rejestracyjny + '</span>' +
+      '<button class="pal-osoba-btn" onclick="palEdit(' + o.id + ')">&#9998;</button>' +
+      '<button class="pal-osoba-btn del" onclick="palDelete(' + o.id + ',this)">&#10005;</button>' +
     '</div>';
   });
   el.innerHTML = html;
 }
 
-function palUpdateDropdown() {
+function palUpdateDropdowns() {
   ['pal-gen-osoba', 'pal-gen-osoba-2'].forEach(function(id) {
     var sel = document.getElementById(id);
     if (!sel) return;
+    var cur = sel.value;
     sel.innerHTML = '<option value="">— wybierz —</option>';
     _palOsoby.forEach(function(o) {
       sel.innerHTML += '<option value="' + o.id + '">' + o.imie_nazwisko + ' (' + o.nr_rejestracyjny + ')</option>';
     });
+    if (cur) sel.value = cur;
   });
-}
-
-var _palCount = 1;
-function palSwitchCount(n) {
-  _palCount = n;
-  document.getElementById('pal-person-2').style.display = n === 2 ? '' : 'none';
 }
 
 function palShowAdd() {
@@ -519,24 +436,24 @@ function palShowAdd() {
   document.getElementById('pal-inp-stanowisko').value = '';
   document.getElementById('pal-inp-rej').value = '';
   document.getElementById('pal-form').style.display = '';
+  document.getElementById('pal-btn-add').style.display = 'none';
   document.getElementById('pal-inp-name').focus();
 }
-
 function palEdit(id) {
-  var o = _palOsoby.find(function(x) { return x.id === id; });
+  var o = _palOsoby.find(function(x){return x.id === id});
   if (!o) return;
   document.getElementById('pal-edit-id').value = id;
   document.getElementById('pal-inp-name').value = o.imie_nazwisko;
   document.getElementById('pal-inp-stanowisko').value = o.stanowisko;
   document.getElementById('pal-inp-rej').value = o.nr_rejestracyjny;
   document.getElementById('pal-form').style.display = '';
+  document.getElementById('pal-btn-add').style.display = 'none';
   document.getElementById('pal-inp-name').focus();
 }
-
 function palCancelForm() {
   document.getElementById('pal-form').style.display = 'none';
+  document.getElementById('pal-btn-add').style.display = '';
 }
-
 async function palSave() {
   var editId = document.getElementById('pal-edit-id').value;
   var body = {
@@ -553,17 +470,23 @@ async function palSave() {
   palCancelForm();
   palLoadOsoby();
 }
-
 async function palDelete(id, btn) {
   if (btn.dataset.confirm === 'yes') {
     await fetch('/api/paliwo/osoby/' + id, {method:'DELETE'});
     palLoadOsoby();
   } else {
     btn.dataset.confirm = 'yes';
-    btn.textContent = 'potwierdź';
+    btn.textContent = '?';
     btn.style.color = 'var(--red)';
-    setTimeout(function() { btn.dataset.confirm = ''; btn.textContent = 'usuń'; btn.style.color = ''; }, 3000);
+    setTimeout(function() { btn.dataset.confirm = ''; btn.textContent = '✕'; btn.style.color = ''; }, 3000);
   }
+}
+
+function palSetCount(n, btn) {
+  _palCount = n;
+  document.querySelectorAll('.pal-tg').forEach(function(b){b.classList.remove('active')});
+  btn.classList.add('active');
+  document.getElementById('pal-person-2').style.display = n === 2 ? '' : 'none';
 }
 
 async function palRecalc() {
@@ -572,14 +495,13 @@ async function palRecalc() {
   var d = await resp.json();
   document.getElementById('pal-gen-miesiac').textContent = d.miesiac;
   document.getElementById('pal-gen-data').textContent = d.data_wystawienia;
-  document.getElementById('pal-month-badge').textContent = d.miesiac;
-  document.getElementById('pal-stat-potracenie').textContent = d.potracenie;
-  document.getElementById('pal-stat-wyplata').textContent = d.ryczalt_do_wyplaty;
+  document.getElementById('pal-badge').textContent = d.miesiac;
   document.getElementById('pal-gen-potracenie').textContent = d.potracenie + ' zł';
   document.getElementById('pal-gen-wyplata').textContent = d.ryczalt_do_wyplaty + ' zł';
   document.getElementById('pal-gen-slownie').textContent = d.kwota_slownie;
+  document.getElementById('pal-stat-pot').textContent = d.potracenie;
+  document.getElementById('pal-stat-wyp').textContent = d.ryczalt_do_wyplaty;
 }
-
 async function palRecalc2() {
   var dni = parseInt(document.getElementById('pal-gen-dni-2').value) || 0;
   var resp = await fetch('/api/paliwo/oblicz?dni=' + dni);
@@ -593,31 +515,24 @@ async function palGeneruj() {
   var osobaId = document.getElementById('pal-gen-osoba').value;
   var dni = parseInt(document.getElementById('pal-gen-dni').value) || 0;
   if (!osobaId) { alert('Wybierz osobę 1'); return; }
-
   var osoby = [{osoba_id: parseInt(osobaId), dni_urlopu: dni}];
-
   if (_palCount === 2) {
     var osobaId2 = document.getElementById('pal-gen-osoba-2').value;
     var dni2 = parseInt(document.getElementById('pal-gen-dni-2').value) || 0;
     if (!osobaId2) { alert('Wybierz osobę 2'); return; }
     osoby.push({osoba_id: parseInt(osobaId2), dni_urlopu: dni2});
   }
-
   var resp = await fetch('/api/paliwo/generuj', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
+    method: 'POST', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({osoby: osoby})
   });
   if (resp.ok) {
     var blob = await resp.blob();
-    var url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
+    window.open(URL.createObjectURL(blob), '_blank');
   } else {
     var err = await resp.json();
     alert('Błąd: ' + (err.error || 'Nieznany'));
   }
 }
-
-// Init — load only when modal opens (via openPaliwoModal)
 </script>
 {% endblock %}
