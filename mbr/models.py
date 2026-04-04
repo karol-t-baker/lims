@@ -618,6 +618,11 @@ def list_completed_registry(
             (d["ebr_id"],)
         ).fetchall()
         d["wyniki"] = {w["kod_parametru"]: dict(w) for w in wyniki}
+        cert = db.execute(
+            "SELECT COUNT(*) as cnt FROM swiadectwa WHERE ebr_id = ? AND nieaktualne = 0",
+            (d["ebr_id"],)
+        ).fetchone()
+        d["cert_count"] = cert["cnt"] if cert else 0
         result.append(d)
     return result
 

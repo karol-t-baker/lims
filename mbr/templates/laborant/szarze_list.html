@@ -862,6 +862,7 @@ function renderRegistryTable(columns, batches) {
     html += '<th class="th-param"><div class="th-param-name">' + (col.label || col.kod) + '</div>';
     html += '<div class="th-param-limit">' + limitStr + '</div></th>';
   });
+  html += '<th class="th-cert">Św.</th>';
   html += '<th class="th-status">Status</th></tr></thead><tbody>';
 
   batches.forEach(function(b) {
@@ -883,6 +884,7 @@ function renderRegistryTable(columns, batches) {
         html += '<td style="color:var(--text-dim)">\u2014</td>';
       }
     });
+    html += '<td class="td-cert">' + (b.cert_count > 0 ? '<span class="cert-dot cert-yes" title="' + b.cert_count + ' świadectw">&#10003;</span>' : '<span class="cert-dot cert-no" title="Brak świadectwa">&mdash;</span>') + '</td>';
     html += '<td class="' + (hasErr ? 'status-err' : 'status-ok') + '">' + (hasErr ? '!!' : 'OK') + '</td>';
     html += '</tr>';
   });
