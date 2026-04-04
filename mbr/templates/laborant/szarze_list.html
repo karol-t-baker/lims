@@ -390,6 +390,7 @@
 let currentView = 'dashboard';
 let currentEbrId = null;
 let _heroObserver = null;
+let _loadGen = 0;
 
 // ═══ RAIL: wide (dashboard) ↔ narrow (detail) ═══
 
@@ -408,12 +409,14 @@ function narrowRail() {
 // ═══ SPA NAVIGATION ═══
 
 async function loadBatch(ebrId) {
-  // Cleanup previous hero observer
+  // Cleanup + race condition guard
+  const gen = ++_loadGen;
   if (_heroObserver) { _heroObserver.disconnect(); _heroObserver = null; }
 
   const resp = await fetch(`/laborant/ebr/${ebrId}/partial`);
-  if (!resp.ok) return;
+  if (!resp.ok || gen !== _loadGen) return;
   const html = await resp.text();
+  if (gen !== _loadGen) return;
 
   // Switch panels — hide both dashboard and registry
   document.getElementById('panel-dashboard').style.display = 'none';
@@ -477,7 +480,7 @@ async function loadBatch(ebrId) {
   }, 50);
 }
 
-function showDashboard() {
+function showDashboard(skipHistory) {
   document.getElementById('panel-dashboard').style.display = '';
   document.getElementById('panel-detail').style.display = 'none';
   document.getElementById('panel-detail').innerHTML = '';
@@ -491,7 +494,7 @@ function showDashboard() {
   expandRail();
   document.getElementById('detail-sidebar').classList.remove('open');
 
-  history.pushState({view: 'dashboard'}, '', '/laborant/szarze');
+  if (!skipHistory) history.pushState({view: 'dashboard'}, '', '/laborant/szarze');
   currentView = 'dashboard';
   currentEbrId = null;
 }
@@ -500,12 +503,21 @@ function showDashboard() {
 window.addEventListener('popstate', (e) => {
   if (e.state && e.state.view === 'detail' && e.state.ebrId) loadBatch(e.state.ebrId);
   else if (e.state && e.state.view === 'registry') showRegistry(e.state.produkt, true);
-  else showDashboard();
+  else showDashboard(true);
 });
 
 // Deep link: if URL is /laborant/ebr/N
 const _dm = window.location.pathname.match(/\/laborant\/ebr\/(\d+)/);
-if (_dm) { loadBatch(parseInt(_dm[1])); } else { expandRail(); }
+if (_dm) {
+  loadBatch(parseInt(_dm[1]));
+} else {
+  var _params = new URLSearchParams(window.location.search);
+  if (_params.get('view') === 'registry') {
+    showRegistry(_params.get('produkt') || 'Chegina_K7', true);
+  } else {
+    expandRail();
+  }
+}
 
 // Batch card click delegation (sidebar + dashboard table)
 document.addEventListener('click', (e) => {
@@ -551,8 +563,6 @@ function setSidebarMode(mode) {
   } else {
     activeMode.style.display = '';
     registryMode.style.display = 'none';
-    // Return to dashboard
-    showDashboard();
   }
 }
 
@@ -858,12 +868,6 @@ document.addEventListener('click', function(e) {
   }
 });
 
-// Deep link: handle ?view=registry
-(function() {
-  var params = new URLSearchParams(window.location.search);
-  if (params.get('view') === 'registry') {
-    showRegistry(params.get('produkt') || 'Chegina_K7', true);
-  }
-})();
+// Deep link for ?view=registry now handled in the unified _dm block above
 </script>
 {% endblock %}
