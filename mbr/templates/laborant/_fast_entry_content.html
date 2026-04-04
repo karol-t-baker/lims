@@ -572,13 +572,13 @@ function renderCompletedView() {
     var heroHtml = '<div class="cv-h2-card ' + prodCls + '">' +
         '<div class="cv-h2-corner"></div>' +
         '<div class="cv-h2-top">' +
-            '<div class="cv-h2-badge"><span>▶</span> {{ ebr.produkt | short_product }}</div>' +
+            '<div class="cv-h2-badge"><span>▶</span> {{ ebr.produkt | replace("_", " ") }}</div>' +
             statusChip +
         '</div>' +
         '<div class="cv-h2-nr">{{ ebr.nr_partii }}</div>' +
         '<div class="cv-h2-divider"></div>' +
         '<div class="cv-h2-info">' +
-            '<div class="cv-h2-item"><div class="cv-h2-key">Typ</div><div class="cv-h2-val">' + (isZbiornik ? 'Zbiornik' : 'Szarża') + '</div></div>' +
+            '<div class="cv-h2-item"><div class="cv-h2-key">Typ</div><div class="cv-h2-val">' + (isZbiornik ? 'Zbiornik{% if ebr.nr_mieszalnika and ebr.typ == "zbiornik" %} {{ ebr.nr_mieszalnika }}{% endif %}' : 'Szarża') + '</div></div>' +
             '<div class="cv-h2-item"><div class="cv-h2-key">Data</div><div class="cv-h2-val">{{ ebr.dt_end | pl_date if ebr.dt_end else ebr.dt_start | pl_date }}</div></div>' +
             (ebrNastaw ? '<div class="cv-h2-item"><div class="cv-h2-key">Nastaw</div><div class="cv-h2-val">' + Math.round(ebrNastaw) + ' kg</div></div>' : '') +
             {% if ebr.nr_amidatora %}(!isZbiornik ? '<div class="cv-h2-item"><div class="cv-h2-key">Amider</div><div class="cv-h2-val">A-{{ ebr.nr_amidatora }}</div></div>' : '') +{% endif %}
@@ -722,9 +722,9 @@ function renderCompletedView() {
         topbar.classList.add('cv-topbar');
         // Set topbar content to match hero style
         topbar.innerHTML = '<div class="cv-tb-inner ' + prodCls + '">' +
-            '<span class="cv-tb-badge"><span>▶</span> {{ ebr.produkt | short_product }}</span>' +
+            '<span class="cv-tb-badge"><span>▶</span> {{ ebr.produkt | replace("_", " ") }}</span>' +
             '<span class="cv-tb-nr">{{ ebr.nr_partii }}</span>' +
-            '<span class="cv-tb-meta">' + (isZbiornik ? 'Zbiornik' : 'Szarża') + ' · {{ ebr.dt_end | pl_date if ebr.dt_end else ebr.dt_start | pl_date }}</span>' +
+            '<span class="cv-tb-meta">' + (isZbiornik ? 'Zbiornik{% if ebr.nr_mieszalnika and ebr.typ == "zbiornik" %} {{ ebr.nr_mieszalnika }}{% endif %}' : 'Szarża') + ' · {{ ebr.dt_end | pl_date if ebr.dt_end else ebr.dt_start | pl_date }}</span>' +
             statusChip +
         '</div>';
 

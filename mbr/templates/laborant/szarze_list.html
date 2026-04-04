@@ -863,7 +863,7 @@ function renderRegistryTable(columns, batches) {
   batches.forEach(function(b) {
     var hasErr = columns.some(function(c) { return b.wyniki[c.kod] && b.wyniki[c.kod].w_limicie === 0; });
     html += '<tr onclick="loadBatch(' + b.ebr_id + ')">';
-    html += '<td class="td-nr">' + b.nr_partii + (b.typ === 'zbiornik' ? ' <span class="td-zbiornik">ZB</span>' : '') + (b.cert_count > 0 ? ' <span class="td-cert-badge">CoA</span>' : '') + '</td>';
+    html += '<td class="td-nr">' + b.nr_partii + (b.typ === 'zbiornik' ? ' <span class="td-zbiornik">' + (b.nr_mieszalnika ? b.nr_mieszalnika : 'ZB') + '</span>' : '') + (b.cert_count > 0 ? ' <span class="td-cert-badge">CoA</span>' : '') + '</td>';
     var dtStr = '\u2014';
     if (b.dt_end) {
       var parts = b.dt_end.substring(0, 10).split('-');

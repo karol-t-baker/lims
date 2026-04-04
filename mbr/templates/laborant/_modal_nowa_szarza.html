@@ -355,12 +355,20 @@ document.getElementById('new-batch-form').addEventListener('submit', function(e)
     return false;
   }
 
-  // Sync zbiornik nr_partii
+  // Sync zbiornik nr_partii + save nr_zbiornika as nr_mieszalnika
   if (currentTyp === 'zbiornik') {
     var zbVal = document.getElementById('nr-partii-input-zb').value;
     document.getElementById('nr-partii-input').value = zbVal;
     document.getElementById('nr-partii-input-zb').removeAttribute('name');
     document.getElementById('nr-partii-input').removeAttribute('readonly');
+    var zbNr = document.querySelector('#step-2b input[name="nr_zbiornika"]');
+    if (zbNr) {
+      var hidden = document.createElement('input');
+      hidden.type = 'hidden';
+      hidden.name = 'nr_mieszalnika';
+      hidden.value = zbNr.value.trim();
+      zbNr.form.appendChild(hidden);
+    }
   }
 });
 </script>
