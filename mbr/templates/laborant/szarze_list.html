@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "laborant/_batch_card.html" import batch_card, _product_color %}
+{% from "laborant/_batch_card.html" import batch_card, product_color %}
 
 {% block title %}Szarze EBR{% endblock %}
 {% block nav_szarze %}active{% endblock %}
@@ -309,7 +309,7 @@
             data-produkt="{{ b.produkt }}" data-typ="{{ b.typ or 'szarza' }}" data-nr="{{ b.nr_partii }}"
             data-ebr-id="{{ b.ebr_id }}" style="cursor:pointer;" onclick="loadBatch({{ b.ebr_id }})">
           <td><span class="q-batch">{{ b.nr_partii }}</span></td>
-          <td><span class="q-product {{ _product_color(b.produkt) }}">{{ b.produkt|short_product }}</span></td>
+          <td><span class="q-product {{ product_color(b.produkt) }}">{{ b.produkt|short_product }}</span></td>
           <td><span class="typ-badge {{ b.typ or 'szarza' }}">{{ b.typ or 'szarza' }}</span></td>
           <td><span class="q-stage-sticker">{{ b.stage_name|default('—') }}</span></td>
           <td>
