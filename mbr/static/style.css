@@ -1618,6 +1618,22 @@ body {
 .bc-st-progress { color: var(--teal); }
 .bc-st-wait { color: var(--text-dim); }
 
+/* Registry search + legend */
+.reg-search {
+  padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px;
+  font-size: 11px; font-family: var(--font); color: var(--text);
+  background: var(--surface); width: 110px;
+}
+.reg-search:focus { outline: none; border-color: var(--teal); }
+.reg-search::placeholder { color: var(--text-dim); }
+.reg-legend {
+  display: flex; gap: 14px; margin-top: 6px;
+  font-size: 10px; color: var(--text-dim);
+}
+.reg-legend-item {
+  display: flex; align-items: center; gap: 4px;
+}
+
 /* Filter clear button */
 .filter-clear-btn {
   padding: 5px 10px; border-radius: 5px; border: 1px solid var(--red);
