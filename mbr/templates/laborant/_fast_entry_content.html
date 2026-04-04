@@ -1196,7 +1196,7 @@ function renderOneSection(container, opts) {
                 (isTitr && !isReadonly ? 'data-kod="' + esc(pole.kod) + '" data-tag="' + esc(pole.tag) + '" data-sekcja="' + esc(sekcja) + '"' : '') + ' ' + calcMethodAttr + '>' +
                 '<div class="status-dot"></div>' +
                 '<label>' + esc(pole.label) + '</label>' +
-                '<input type="number" step="any"' +
+                '<input type="text" inputmode="decimal"' +
                     ' data-kod="' + esc(pole.kod) + '"' +
                     ' data-sekcja="' + esc(sekcja) + '"' +
                     ' data-tag="' + esc(pole.tag) + '"' +
@@ -1556,13 +1556,13 @@ function esc(s) {
 // Disable scroll + arrow keys on number inputs — cleanup old listeners to avoid pileup
 if (window._wheelHandler) document.removeEventListener('wheel', window._wheelHandler);
 window._wheelHandler = function(e) {
-    if (e.target.matches('input[type="number"]')) e.target.blur();
+    if (e.target.matches('input[type="number"], input[inputmode="decimal"]')) e.target.blur();
 };
 document.addEventListener('wheel', window._wheelHandler, {passive: true});
 
 if (window._keydownHandler) document.removeEventListener('keydown', window._keydownHandler);
 window._keydownHandler = function(e) {
-    if (e.target.matches('input[type="number"]') && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) e.preventDefault();
+    if (e.target.matches('input[type="number"], input[inputmode="decimal"]') && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) e.preventDefault();
 };
 document.addEventListener('keydown', window._keydownHandler);
 
