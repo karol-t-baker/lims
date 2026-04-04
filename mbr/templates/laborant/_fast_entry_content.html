@@ -277,73 +277,78 @@
     display: flex; align-items: center; justify-content: center;
     font-size: 10px; font-weight: 700; flex-shrink: 0;
 }
-/* Certificate list — variant 3 mixed list */
+/* Certificate list — variant 3 exact */
 .cv-outdated-banner {
-    display: flex; align-items: center; gap: 8px;
-    padding: 8px 14px; margin: 12px 14px 0;
-    background: var(--amber-bg); border-radius: 6px;
-    font-size: 11px; color: var(--amber); font-weight: 500; line-height: 1.5;
+    display: flex; align-items: flex-start; gap: 10px;
+    background: var(--amber-bg); border: 1px solid #fcd34d; border-radius: 8px;
+    padding: 10px 14px; margin: 12px 14px 0;
+    font-size: 12px; color: var(--amber);
 }
-.cv-list { }
+.cv-outdated-banner strong { font-weight: 700; }
+.cv-outdated-banner svg { flex-shrink: 0; margin-top: 1px; }
+
+.cv-list { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
 .cv-list-sep {
-    padding: 6px 14px; font-size: 10px; font-weight: 700;
-    letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim);
-    background: var(--surface-alt); border-bottom: 1px solid var(--border-subtle, #f0ece4);
+    font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text-dim);
+    background: var(--surface-alt); padding: 5px 14px;
+    border-bottom: 1px solid var(--border-subtle, #f0ece4);
 }
 .cv-row {
     display: flex; align-items: center; gap: 10px;
     padding: 10px 14px; border-bottom: 1px solid var(--border-subtle, #f0ece4);
+    background: var(--surface);
 }
 .cv-row:last-child { border-bottom: none; }
 
-/* Dots */
 .cv-row-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: var(--teal); }
 .cv-row-dot.stale { background: var(--red); }
 .cv-row-dot.tmpl { background: none; border: 1.5px solid var(--border); }
 
-/* Name */
 .cv-row-name { font-size: 13px; font-weight: 600; color: var(--text); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-/* Meta */
 .cv-row-meta { font-size: 11px; color: var(--text-sec); flex-shrink: 0; white-space: nowrap; }
 
-/* Badges */
 .cv-row-badge-ok {
-    font-size: 9px; font-weight: 600; color: var(--green); background: var(--green-bg);
-    padding: 2px 8px; border-radius: 4px; flex-shrink: 0;
+    display: inline-flex; align-items: center; font-size: 10px; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--green); background: var(--green-bg); border: 1px solid #86efac;
+    border-radius: 4px; padding: 1px 6px; flex-shrink: 0;
 }
 .cv-row-badge-stale {
-    font-size: 9px; font-weight: 600; color: var(--red); background: var(--red-bg);
-    padding: 2px 8px; border-radius: 4px; flex-shrink: 0;
+    display: inline-flex; align-items: center; font-size: 10px; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--red); background: var(--red-bg); border: 1px solid #fca5a5;
+    border-radius: 4px; padding: 1px 6px; flex-shrink: 0;
 }
 
-/* Actions */
 .cv-row-pdf {
-    font-size: 10px; font-weight: 600; color: var(--teal);
-    text-decoration: none; flex-shrink: 0;
+    font-size: 11px; font-weight: 600; color: var(--teal);
+    text-decoration: none; flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px;
 }
 .cv-row-pdf:hover { text-decoration: underline; }
-.cv-row-del {
-    border: none; background: none; padding: 2px 4px;
-    color: var(--text-dim); cursor: pointer; font-size: 10px;
-    font-family: var(--font); flex-shrink: 0; transition: color 0.12s;
-}
-.cv-row-del:hover { color: var(--red); }
-.cv-row-del.cv-del-active { color: var(--red); font-weight: 600; }
 
-/* Stale row */
+.cv-row-del {
+    font-size: 11px; font-weight: 600; color: var(--text-dim);
+    background: none; border: 1px solid var(--border); border-radius: 5px;
+    padding: 3px 9px; cursor: pointer; font-family: var(--font);
+    flex-shrink: 0; transition: all 0.15s; white-space: nowrap;
+}
+.cv-row-del:hover { color: var(--red); border-color: #fca5a5; background: var(--red-bg); }
+.cv-row-del.cv-del-active {
+    color: var(--red); background: var(--red-bg); border-color: #fca5a5; font-weight: 700;
+}
+
 .cv-row-stale { background: #fffafa; }
 
-/* Template row */
 .cv-row-tmpl { background: var(--surface-alt); }
 .cv-row-tmpl .cv-row-name { font-weight: 500; color: var(--text-sec); }
 .cv-row-btn-issue {
-    font-size: 10px; font-weight: 600; color: var(--teal);
-    background: var(--teal-bg); border: none; padding: 4px 10px;
-    border-radius: 4px; cursor: pointer; font-family: var(--font);
-    flex-shrink: 0; transition: all 0.12s;
+    font-size: 11px; font-weight: 600; color: var(--teal);
+    background: var(--teal-bg); border: 1px solid #99d1d3; border-radius: 5px;
+    padding: 3px 10px; cursor: pointer; font-family: var(--font);
+    flex-shrink: 0; transition: all 0.15s; white-space: nowrap;
 }
-.cv-row-btn-issue:hover { background: #d0ecec; }
+.cv-row-btn-issue:hover { background: #cce9ea; border-color: var(--teal); }
 .cv-row-btn-issue:disabled { opacity: 0.5; cursor: default; }
 
 .cv-head-badge { font-size: 9px; font-weight: 600; padding: 2px 7px; border-radius: 6px; margin-left: 8px; vertical-align: middle; }
@@ -656,7 +661,8 @@ async function loadCompletedCerts() {
     // Warning banner
     if (hasOutdated) {
         html += '<div class="cv-outdated-banner">' +
-            'Parametry zmienione po wystawieniu — oznaczone świadectwa nieaktualne.' +
+            '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1.5L1 14h14L8 1.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 6v4M8 11.5v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>' +
+            '<div><strong>Uwaga:</strong> parametry zmienione po wystawieniu świadectw.</div>' +
         '</div>';
     }
 
