@@ -78,8 +78,8 @@ def short_product_filter(value):
 
 
 @app.context_processor
-def inject_today():
-    return {'today': datetime.now().strftime('%d.%m.%Y')}
+def inject_globals():
+    return {'today': datetime.now().strftime('%d.%m.%Y'), 'products': PRODUCTS}
 
 
 # ---------------------------------------------------------------------------
