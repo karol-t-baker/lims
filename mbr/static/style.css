@@ -1677,14 +1677,14 @@ body {
 .ch-tab:hover { color: var(--text-sec); background: var(--surface-alt); }
 .ch-tab.active { background: var(--teal); color: white; box-shadow: 0 1px 3px rgba(13,115,119,0.25); }
 /* Product-colored registry tabs */
-.ch-prod-k7.active { background: var(--prod-k7); box-shadow: 0 1px 3px color-mix(in srgb, var(--prod-k7) 25%, transparent); }
-.ch-prod-gl.active { background: var(--prod-gl); box-shadow: 0 1px 3px color-mix(in srgb, var(--prod-gl) 25%, transparent); }
-.ch-prod-glo.active { background: var(--prod-glo); box-shadow: 0 1px 3px color-mix(in srgb, var(--prod-glo) 25%, transparent); }
-.ch-prod-glol.active { background: var(--prod-glol); box-shadow: 0 1px 3px color-mix(in srgb, var(--prod-glol) 25%, transparent); }
-.ch-prod-k7:not(.active) { color: var(--prod-k7); border-color: transparent; }
-.ch-prod-gl:not(.active) { color: var(--prod-gl); border-color: transparent; }
-.ch-prod-glo:not(.active) { color: var(--prod-glo); border-color: transparent; }
-.ch-prod-glol:not(.active) { color: var(--prod-glol); border-color: transparent; }
+.ch-prod-k7 { background: var(--prod-k7-bg); color: var(--prod-k7); border: none; }
+.ch-prod-k7.active { background: var(--prod-k7); color: #fff; }
+.ch-prod-gl { background: var(--prod-gl-bg); color: var(--prod-gl); border: none; }
+.ch-prod-gl.active { background: var(--prod-gl); color: #fff; }
+.ch-prod-glo { background: var(--prod-glo-bg); color: var(--prod-glo); border: none; }
+.ch-prod-glo.active { background: var(--prod-glo); color: #fff; }
+.ch-prod-glol { background: var(--prod-glol-bg); color: var(--prod-glol); border: none; }
+.ch-prod-glol.active { background: var(--prod-glol); color: #fff; }
 
 .ch-more { position: relative; }
 .ch-more-btn { display: flex; align-items: center; }
