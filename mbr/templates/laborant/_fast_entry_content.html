@@ -545,7 +545,9 @@ function renderCompletedView() {
         }
     }
 
-    var pola = getPola(lastAnaliza || 'analiza__1');
+    var fallbackSekcja = isZbiornik ? 'analiza_koncowa' : 'analiza__1';
+    var pola = getPola(lastAnaliza || fallbackSekcja);
+    if (!pola.length && lastAnaliza) pola = getPola(fallbackSekcja);
     var finalWyniki = wyniki[lastAnaliza] || {};
     var errCount = 0;
     var okCount = 0;
@@ -597,7 +599,7 @@ function renderCompletedView() {
             (canEdit ? ' <button class="cv-edit-btn" onclick="startEditParams()" id="cv-edit-toggle">edytuj</button>' +
                    '<button class="cv-save-btn" onclick="finishEditParams()" id="cv-save-toggle" style="display:none;">✓ Zakończ edycję</button>' : '') +
         '</div>';
-    var lastSekcja = lastAnaliza || 'analiza_koncowa';
+    var lastSekcja = lastAnaliza || fallbackSekcja;
     pola.forEach(function(pole) {
         var r = finalWyniki[pole.kod];
         var val = r ? r.wartosc : '';
