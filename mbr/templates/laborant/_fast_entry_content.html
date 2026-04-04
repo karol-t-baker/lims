@@ -277,16 +277,6 @@
     display: flex; align-items: center; justify-content: center;
     font-size: 10px; font-weight: 700; flex-shrink: 0;
 }
-/* Certificate list — variant 3 exact */
-.cv-outdated-banner {
-    display: flex; align-items: flex-start; gap: 10px;
-    background: var(--amber-bg); border: 1px solid #fcd34d; border-radius: 8px;
-    padding: 10px 14px; margin: 12px 14px 0;
-    font-size: 12px; color: var(--amber);
-}
-.cv-outdated-banner strong { font-weight: 700; }
-.cv-outdated-banner svg { flex-shrink: 0; margin-top: 1px; }
-
 .cv-list { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
 .cv-list-sep {
     font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
@@ -371,8 +361,8 @@
 .cv-pump-kg { font-family: var(--mono); font-size: 22px; font-weight: 900; margin-top: 4px; }
 .cv-pump-kg span { font-size: 12px; font-weight: 400; color: var(--text-sec); }
 
-.cv-certs { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-top: 12px; }
-.cv-certs-empty { font-size: 12px; color: var(--text-dim); padding: 14px 16px; }
+.cv-certs { margin-top: 12px; }
+.cv-list-empty { padding: 14px; font-size: 12px; color: var(--text-dim); text-align: center; }
 
 </style>
 
@@ -656,15 +646,6 @@ async function loadCompletedCerts() {
     var tmplData = await tmplResp.json();
 
     var html = '';
-    var hasOutdated = certData.certs.some(function(c) { return c.nieaktualne; });
-
-    // Warning banner
-    if (hasOutdated) {
-        html += '<div class="cv-outdated-banner">' +
-            '<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1.5L1 14h14L8 1.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M8 6v4M8 11.5v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>' +
-            '<div><strong>Uwaga:</strong> parametry zmienione po wystawieniu świadectw.</div>' +
-        '</div>';
-    }
 
     // Single mixed list
     html += '<div class="cv-list">';
@@ -707,11 +688,14 @@ async function loadCompletedCerts() {
         });
     }
 
-    html += '</div>';
-
-    if (!certData.certs.length && !tmplData.templates.length) {
-        html = '<div class="cv-certs-empty">Brak wzorów świadectw dla tego produktu.</div>';
+    if (!certData.certs.length && tmplData.templates.length) {
+        // Insert "Brak świadectw" before templates separator — find first sep
+        html = html.replace('<div class="cv-list-sep">Wystaw', '<div class="cv-list-empty">Brak wystawionych świadectw</div><div class="cv-list-sep">Wystaw');
+    } else if (!certData.certs.length && !tmplData.templates.length) {
+        html += '<div class="cv-list-empty">Brak świadectw</div>';
     }
+
+    html += '</div>';
 
     el.innerHTML = html;
 }
