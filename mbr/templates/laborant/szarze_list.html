@@ -274,9 +274,8 @@
 
     {# Filtry #}
     <div class="filters">
-      <span class="form-label" style="margin:0;white-space:nowrap;">Produkt:</span>
-      <select class="form-select" onchange="applyTableFilters()" id="filter-produkt" style="width:auto;min-width:120px;">
-        <option value="">Wszystkie</option>
+      <select class="fl-select" onchange="applyTableFilters()" id="filter-produkt">
+        <option value="">Produkt</option>
         {% set active_products = [] %}
         {% for b in batches %}{% if b.produkt not in active_products %}{% if active_products.append(b.produkt) %}{% endif %}{% endif %}{% endfor %}
         {% for b in recent %}{% if b.produkt not in active_products %}{% if active_products.append(b.produkt) %}{% endif %}{% endif %}{% endfor %}
@@ -284,15 +283,13 @@
         <option value="{{ p }}">{{ p|short_product }}</option>
         {% endfor %}
       </select>
-      <span class="form-label" style="margin:0;white-space:nowrap;">Typ:</span>
-      <select class="form-select" onchange="applyTableFilters()" id="filter-typ" style="width:auto;min-width:100px;">
-        <option value="">Wszystkie</option>
+      <select class="fl-select" onchange="applyTableFilters()" id="filter-typ">
+        <option value="">Typ</option>
         <option value="szarza">Szarze</option>
         <option value="zbiornik">Zbiorniki</option>
       </select>
-      <span class="form-label" style="margin:0;white-space:nowrap;">Nr:</span>
-      <input class="form-input" type="text" placeholder="nr szarzy/zbiornika..." id="filter-nr" oninput="applyTableFilters()" style="width:120px;">
-      <button type="button" class="filter-clear-btn" id="filter-clear-btn" onclick="clearFilters()" title="Wyczysc filtry" style="display:none;">&#10005; Wyczysc</button>
+      <input class="fl-input" type="text" placeholder="Nr partii..." id="filter-nr" oninput="applyTableFilters()">
+      <button type="button" class="fl-clear" id="filter-clear-btn" onclick="clearFilters()" style="display:none;">&times;</button>
     </div>
 
     {# Tabela otwartych — flex-grow fills remaining space #}
