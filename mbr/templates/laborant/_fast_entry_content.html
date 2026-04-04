@@ -329,6 +329,7 @@
     font-family: var(--font); flex-shrink: 0; transition: color 0.12s;
 }
 .cv-row-del:hover { color: var(--red); }
+.cv-row-del.cv-del-active { color: var(--red); font-weight: 600; }
 
 /* Stale row */
 .cv-row-stale { background: #fffafa; }
@@ -345,19 +346,6 @@
 .cv-row-btn-issue:hover { background: #d0ecec; }
 .cv-row-btn-issue:disabled { opacity: 0.5; cursor: default; }
 
-/* Delete confirmation */
-.cv-del-confirm { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
-.cv-del-yes {
-    font-size: 9px; font-weight: 600; padding: 3px 8px; border-radius: 4px;
-    border: none; background: var(--red); color: #fff; cursor: pointer; font-family: var(--font);
-}
-.cv-del-yes:hover { filter: brightness(1.1); }
-.cv-del-no {
-    font-size: 9px; font-weight: 500; padding: 3px 8px; border-radius: 4px;
-    border: 1px solid var(--border); background: var(--surface); color: var(--text-dim);
-    cursor: pointer; font-family: var(--font);
-}
-.cv-del-no:hover { background: var(--surface-alt); }
 .cv-head-badge { font-size: 9px; font-weight: 600; padding: 2px 7px; border-radius: 6px; margin-left: 8px; vertical-align: middle; }
 .cv-hb-ok { background: var(--green-bg); color: var(--green); }
 .cv-hb-err { background: var(--red-bg); color: var(--red); }
@@ -696,7 +684,7 @@ async function loadCompletedCerts() {
                     ? '<span class="cv-row-badge-stale">Nieaktualne</span>'
                     : '<span class="cv-row-badge-ok">OK</span>') +
                 '<a href="/api/cert/' + c.id + '/pdf" target="_blank" class="cv-row-pdf">PDF</a>' +
-                '<button class="cv-row-del" onclick="event.stopPropagation();deleteCert(' + c.id + ')">Usuń</button>' +
+                '<button class="cv-row-del" onclick="event.stopPropagation();deleteCert(' + c.id + ',this)">Usuń</button>' +
             '</div>';
         });
     }
@@ -722,27 +710,28 @@ async function loadCompletedCerts() {
     el.innerHTML = html;
 }
 
-function deleteCert(certId) {
-    var row = document.querySelector('.cv-row-del[onclick*="' + certId + '"]').closest('.cv-row');
-    var delBtn = row.querySelector('.cv-row-del');
-    delBtn.style.display = 'none';
-    var confirmDiv = document.createElement('div');
-    confirmDiv.className = 'cv-del-confirm';
-    confirmDiv.innerHTML = '<button class="cv-del-yes" onclick="doDeleteCert(' + certId + ',this)">usuń</button>' +
-        '<button class="cv-del-no" onclick="cancelDeleteCert(this)">nie</button>';
-    row.appendChild(confirmDiv);
-}
-
-async function doDeleteCert(certId, btn) {
-    btn.textContent = '...';
-    var resp = await fetch('/api/cert/' + certId, {method: 'DELETE'});
-    if (resp.ok) loadCompletedCerts();
-}
-
-function cancelDeleteCert(btn) {
-    var row = btn.closest('.cv-row');
-    row.querySelector('.cv-del-confirm').remove();
-    row.querySelector('.cv-row-del').style.display = '';
+function deleteCert(certId, btn) {
+    if (btn.dataset.confirm === 'yes') {
+        // Second click — delete
+        btn.textContent = '...';
+        btn.disabled = true;
+        fetch('/api/cert/' + certId, {method: 'DELETE'}).then(function(resp) {
+            if (resp.ok) loadCompletedCerts();
+        });
+    } else {
+        // First click — change to confirm
+        btn.dataset.confirm = 'yes';
+        btn.textContent = 'Potwierdź';
+        btn.classList.add('cv-del-active');
+        // Auto-reset after 3s
+        setTimeout(function() {
+            if (btn.dataset.confirm === 'yes') {
+                btn.dataset.confirm = '';
+                btn.textContent = 'Usuń';
+                btn.classList.remove('cv-del-active');
+            }
+        }, 3000);
+    }
 }
 
 async function generateCertInline(btn, filename) {
