@@ -8,10 +8,12 @@ Template: T118 | Spec: P833 | CAS: 147170-44-3
 ## Przebieg procesu
 
 ```
-AMIDOWANIE → SMCA → CZWARTORZĘDOWANIE → SULFONOWANIE → UTLENIENIE (kw.cytrynowy + perhydrol) → STANDARYZACJA → ANALIZA KOŃCOWA → PRZEPOMPOWANIE
+AMIDOWANIE → SMCA → CZWARTORZĘDOWANIE → SULFONOWANIE → UTLENIENIE (kw.cytrynowy + perhydrol) → ROZJAŚNIANIE → STANDARYZACJA → ANALIZA KOŃCOWA → PRZEPOMPOWANIE
 ```
 
-**Kluczowa różnica vs K7:** Etap utlenienia wymaga DWÓCH kroków — najpierw kwas cytrynowy, potem perhydrol. K7 używa tylko perhydrolu.
+**Kluczowe różnice vs K7:**
+- Etap utlenienia wymaga DWÓCH kroków — najpierw kwas cytrynowy, potem perhydrol. K7 używa tylko perhydrolu.
+- Dodatkowy etap ROZJAŚNIANIA (wybielania) po utlenieniu — dodatkowe porcje perhydrolu w celu poprawy barwy.
 
 ---
 
@@ -156,7 +158,39 @@ AMIDOWANIE → SMCA → CZWARTORZĘDOWANIE → SULFONOWANIE → UTLENIENIE (kw.c
 
 ---
 
-## Etap 6: STANDARYZACJA (cykliczny)
+## Etap 6: ROZJAŚNIANIE (WYBIELANIE)
+
+**Cel:** Poprawa barwy produktu przez dodatkowe utlenienie perhydrolem. Etap opcjonalny — stosowany gdy barwa po utlenieniu jest zbyt ciemna.
+
+### Operacje:
+1. Dozowanie Perhydrolu (5-50 kg, może w kilku porcjach)
+2. Mieszanie i oczekiwanie na reakcję (30-60 min)
+3. Analiza barwy
+
+### Etap analityczny (powtarzany po każdej porcji):
+| Parametr | Skrót | Typ | Kryterium |
+|----------|-------|-----|-----------|
+| pH 10% | ph_10proc | bezpośredni | monitorowanie (nie powinno znacząco się zmienić) |
+| %H₂O₂ | h2o2 | titracja (manganometryczna, f=0.17) | 0.005 - 0.050% (tymczasowo wyższe) |
+| Barwa FAU | barwa_fau | bezpośredni | cel: < 5 FAU |
+| Barwa Hz | barwa_hz | bezpośredni | cel: < 150 Hz |
+
+### Warunek przejścia dalej:
+- Barwa akceptowalna (FAU < 5, Hz < 150)
+- %H₂O₂ resztkowy w kontrolowanym zakresie (rozkłada się z czasem)
+
+### Możliwe korekty:
+- Dodatkowa porcja perhydrolu (jeśli barwa nadal za ciemna)
+- Wydłużenie czasu mieszania (H₂O₂ potrzebuje czasu na reakcję)
+
+### Uwagi:
+- Nadmiar perhydrolu → %H₂O₂ resztkowy za wysoki → trzeba poczekać na rozkład
+- Zbyt dużo perhydrolu może pogorszyć inne parametry
+- Etap może być pominięty jeśli barwa po utlenieniu jest wystarczająco jasna
+
+---
+
+## Etap 7: STANDARYZACJA (cykliczny)
 
 **Cel:** Doprowadzenie produktu do specyfikacji P833/P826
 
@@ -207,7 +241,7 @@ AMIDOWANIE → SMCA → CZWARTORZĘDOWANIE → SULFONOWANIE → UTLENIENIE (kw.c
 
 ---
 
-## Etap 7: ANALIZA KOŃCOWA
+## Etap 8: ANALIZA KOŃCOWA
 
 **Cel:** Potwierdzenie zgodności ze specyfikacją P833
 
@@ -231,7 +265,7 @@ AMIDOWANIE → SMCA → CZWARTORZĘDOWANIE → SULFONOWANIE → UTLENIENIE (kw.c
 
 ---
 
-## Etap 8: PRZEPOMPOWANIE
+## Etap 9: PRZEPOMPOWANIE
 
 **Cel:** Transfer produktu do zbiornika magazynowego
 
