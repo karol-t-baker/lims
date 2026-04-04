@@ -76,32 +76,10 @@
 </div>
 {% else %}
 <div id="detail-footer" class="footer">
-  <div id="cert-history"></div>
   <div class="f-sp"></div>
-  {% if ebr.typ == 'zbiornik' %}
-  <button class="btn btn-o" onclick="openCertPicker()">Wystaw świadectwo</button>
-  {% endif %}
   <a href="/pdf/ebr/{{ ebr.ebr_id }}" class="btn btn-p" target="_blank">PDF</a>
 </div>
 {% endif %}
-
-<!-- Certificate template picker -->
-<div class="modal-overlay" id="cert-picker" onclick="if(event.target===this)this.classList.remove('show')">
-  <div class="modal" style="max-width:440px;">
-    <div class="modal-head">
-      <div class="modal-icon" style="background:var(--teal-bg);color:var(--teal);">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" style="width:20px;height:20px;"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-      </div>
-      <div class="modal-titles">
-        <div class="modal-title">Wystaw świadectwo</div>
-        <div class="modal-subtitle">Wybierz wzór</div>
-      </div>
-      <button class="modal-close" onclick="document.getElementById('cert-picker').classList.remove('show')">&times;</button>
-    </div>
-    <div class="modal-body" id="cert-template-list" style="padding:0;max-height:50vh;overflow-y:auto;">
-    </div>
-  </div>
-</div>
 
 <style>
 /* Inline pump form in footer */
@@ -267,30 +245,40 @@
 .cv-pump-kg { font-family: var(--mono); font-size: 22px; font-weight: 900; margin-top: 4px; }
 .cv-pump-kg span { font-size: 12px; font-weight: 400; color: var(--text-sec); }
 
-/* Certs (zbiornik) */
-.cv-certs { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-top: 12px; }
-.cv-certs-head { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-dim); margin-bottom: 10px; }
-.cv-certs-empty { font-size: 12px; color: var(--text-dim); }
-.cv-cert-chip { display: flex; align-items: center; gap: 10px; background: var(--teal-bg); border: 1px solid #c5e8e8; border-radius: 6px; padding: 9px 12px; text-decoration: none; color: var(--text); cursor: pointer; transition: background 0.15s; margin-bottom: 6px; }
-.cv-cert-chip:hover { background: #d0ecec; }
-.cv-cert-name { font-weight: 600; font-size: 12px; flex: 1; }
-.cv-cert-pdf { font-size: 10px; font-weight: 700; color: var(--teal); }
+/* Certs section */
+.cv-certs { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-top: 12px; }
+.cv-certs-section { padding: 14px 16px; }
+.cv-certs-section + .cv-certs-section { border-top: 1px solid var(--border-subtle, #f0ece4); }
+.cv-certs-head { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-dim); margin-bottom: 10px; }
+.cv-certs-empty { font-size: 12px; color: var(--text-dim); padding: 14px 16px; }
 
-.cert-opt {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 12px 20px; cursor: pointer;
-    border-bottom: 1px solid var(--border-subtle, #f0ece4);
-    transition: background 0.1s; font-size: 12px;
+/* Issued cert cards */
+.cv-cert-issued {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: 8px; margin-bottom: 4px;
+    text-decoration: none; color: var(--text);
+    background: var(--surface-alt); transition: all 0.12s; cursor: pointer;
 }
-.cert-opt:hover { background: var(--teal-bg); }
-.cert-opt:last-child { border-bottom: none; }
-.cert-opt-name { font-weight: 500; }
-.cert-hist-link {
-    font-size: 10px; color: var(--teal); text-decoration: none;
-    margin-right: 6px; padding: 2px 6px; border-radius: 4px;
-    background: var(--teal-bg);
+.cv-cert-issued:hover { background: var(--teal-bg); }
+.cv-ci-icon { color: var(--teal); flex-shrink: 0; }
+.cv-ci-info { flex: 1; min-width: 0; }
+.cv-ci-name { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cv-ci-meta { font-size: 10px; color: var(--text-dim); margin-top: 1px; }
+.cv-ci-pdf { font-size: 9px; font-weight: 700; color: var(--teal); background: var(--teal-bg); padding: 3px 8px; border-radius: 4px; flex-shrink: 0; }
+
+/* Template picker grid */
+.cv-tmpl-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.cv-tmpl-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 12px; border-radius: 6px;
+    border: 1px dashed var(--border); background: var(--surface);
+    font-size: 11px; font-weight: 500; font-family: var(--font);
+    color: var(--text-sec); cursor: pointer; transition: all 0.12s;
 }
-.cert-hist-link:hover { text-decoration: underline; }
+.cv-tmpl-btn:hover { border-color: var(--teal); color: var(--teal); border-style: solid; background: var(--teal-bg); }
+.cv-tmpl-btn:disabled { opacity: 0.5; cursor: default; }
+.cv-tmpl-btn svg { color: var(--text-dim); }
+
 </style>
 
 <script>
@@ -487,22 +475,84 @@ function showCompletedStage(btn, key) {
 }
 
 async function loadCompletedCerts() {
-    var resp = await fetch('/api/cert/list?ebr_id=' + ebrId);
-    var data = await resp.json();
     var el = document.getElementById('cv-certs');
     if (!el) return;
-    var html = '<div class="cv-certs-head">Świadectwa jakości</div>';
-    if (data.certs.length === 0) {
-        html += '<div class="cv-certs-empty">Brak wystawionych świadectw</div>';
-    } else {
-        data.certs.forEach(function(c) {
+
+    // Load both certs and templates in parallel
+    var [certResp, tmplResp] = await Promise.all([
+        fetch('/api/cert/list?ebr_id=' + ebrId),
+        fetch('/api/cert/templates?produkt=' + encodeURIComponent('{{ ebr.produkt }}'))
+    ]);
+    var certData = await certResp.json();
+    var tmplData = await tmplResp.json();
+
+    var html = '';
+
+    // Issued certificates
+    if (certData.certs.length > 0) {
+        html += '<div class="cv-certs-section">';
+        html += '<div class="cv-certs-head">Wystawione</div>';
+        certData.certs.forEach(function(c) {
             var name = c.template_name.replace('.docx', '');
-            html += '<a href="/api/cert/' + c.id + '/pdf" target="_blank" class="cv-cert-chip">' +
-                '<span class="cv-cert-name">' + name + '</span>' +
-                '<span class="cv-cert-pdf">PDF</span></a>';
+            // Trim common prefixes for display
+            var display = name;
+            ['Świadectwo_Certificate-', 'Świadectwo_Certificate- ', 'ŚwiadectwoCertificate-',
+             'Certificate Świadectwo-', 'Świadectwo-Certificate - '].forEach(function(p) {
+                display = display.replace(p, '');
+            });
+            var dt = c.dt_wystawienia ? c.dt_wystawienia.substring(0, 10) : '';
+            html += '<a href="/api/cert/' + c.id + '/pdf" target="_blank" class="cv-cert-issued">' +
+                '<div class="cv-ci-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" style="width:16px;height:16px;"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>' +
+                '<div class="cv-ci-info">' +
+                    '<div class="cv-ci-name">' + display + '</div>' +
+                    '<div class="cv-ci-meta">' + dt + (c.wystawil ? ' · ' + c.wystawil : '') + '</div>' +
+                '</div>' +
+                '<span class="cv-ci-pdf">PDF</span>' +
+            '</a>';
         });
+        html += '</div>';
     }
+
+    // Template picker
+    if (tmplData.templates.length > 0) {
+        html += '<div class="cv-certs-section">';
+        html += '<div class="cv-certs-head">Wystaw nowe</div>';
+        html += '<div class="cv-tmpl-grid">';
+        tmplData.templates.forEach(function(t) {
+            html += '<button class="cv-tmpl-btn" onclick="generateCertInline(this,\'' + t.filename.replace(/'/g, "\\'") + '\')">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" style="width:14px;height:14px;flex-shrink:0;"><path d="M12 5v14M5 12h14"/></svg>' +
+                '<span>' + t.display + '</span>' +
+            '</button>';
+        });
+        html += '</div></div>';
+    }
+
+    if (!certData.certs.length && !tmplData.templates.length) {
+        html = '<div class="cv-certs-empty">Brak wzorów świadectw dla tego produktu.</div>';
+    }
+
     el.innerHTML = html;
+}
+
+async function generateCertInline(btn, filename) {
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+    var origText = btn.innerHTML;
+    btn.innerHTML = '<span>Generowanie...</span>';
+    var resp = await fetch('/api/cert/generate', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ebr_id: ebrId, template_name: filename})
+    });
+    var data = await resp.json();
+    if (data.ok) {
+        window.open('/api/cert/' + data.cert_id + '/pdf', '_blank');
+        loadCompletedCerts(); // Refresh the whole section
+    } else {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.innerHTML = origText;
+    }
 }
 
 // --- Linear rendering (zbiornik, simple products) — original logic ---
@@ -1123,55 +1173,8 @@ document.addEventListener('keydown', function(e) {
 renderSections();
 setupComputedFields();
 
-async function openCertPicker() {
-    document.getElementById('cert-picker').classList.add('show');
-    document.getElementById('cert-template-list').innerHTML = '<div style="padding:20px;color:var(--text-dim);font-size:12px;text-align:center;">Ładowanie...</div>';
-    var resp = await fetch('/api/cert/templates?produkt=' + encodeURIComponent('{{ ebr.produkt }}'));
-    var data = await resp.json();
-    var list = document.getElementById('cert-template-list');
-    if (data.templates.length === 0) {
-        list.innerHTML = '<div style="padding:20px;color:var(--text-dim);font-size:12px;text-align:center;">Brak wzorów dla tego produktu.</div>';
-        return;
-    }
-    list.innerHTML = data.templates.map(function(t) {
-        return '<div class="cert-opt" onclick="generateCert(this, \'' + t.filename.replace(/'/g, "\\'") + '\')">' +
-            '<span class="cert-opt-name">' + t.display + '</span>' +
-            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:14px;height:14px;color:var(--text-dim);flex-shrink:0;"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>' +
-        '</div>';
-    }).join('');
-}
-
-async function generateCert(el, filename) {
-    el.style.opacity = '0.5';
-    el.style.pointerEvents = 'none';
-    var resp = await fetch('/api/cert/generate', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ebr_id: ebrId, template_name: filename})
-    });
-    var data = await resp.json();
-    if (data.ok) {
-        document.getElementById('cert-picker').classList.remove('show');
-        window.open('/api/cert/' + data.cert_id + '/pdf', '_blank');
-        loadCertHistory();
-    } else {
-        el.style.opacity = '1';
-        el.style.pointerEvents = '';
-    }
-}
-
-async function loadCertHistory() {
-    var resp = await fetch('/api/cert/list?ebr_id=' + ebrId);
-    var data = await resp.json();
-    var el = document.getElementById('cert-history');
-    if (!el || data.certs.length === 0) return;
-    el.innerHTML = data.certs.map(function(c) {
-        var name = c.template_name.replace('.docx', '').substring(0, 35);
-        return '<a href="/api/cert/' + c.id + '/pdf" target="_blank" class="cert-hist-link">' + name + '</a>';
-    }).join('');
-}
-
-if (ebrStatus === 'completed') { loadCertHistory(); }
+// openCertPicker kept as alias for any remaining references
+function openCertPicker() { loadCompletedCerts(); }
 </script>
 
 <script src="/static/calculator.js"></script>
