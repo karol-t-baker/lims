@@ -558,7 +558,7 @@ function renderCompletedView() {
             '<div class="cv-h2-item"><div class="cv-h2-key">Typ</div><div class="cv-h2-val">' + (isZbiornik ? 'Zbiornik' : 'Szarża') + '</div></div>' +
             '<div class="cv-h2-item"><div class="cv-h2-key">Data</div><div class="cv-h2-val">{{ ebr.dt_end | pl_date if ebr.dt_end else ebr.dt_start | pl_date }}</div></div>' +
             (ebrNastaw ? '<div class="cv-h2-item"><div class="cv-h2-key">Nastaw</div><div class="cv-h2-val">' + Math.round(ebrNastaw) + ' kg</div></div>' : '') +
-            (!isZbiornik && '{{ ebr.nr_amidatora }}' ? '<div class="cv-h2-item"><div class="cv-h2-key">Amider</div><div class="cv-h2-val">A-{{ ebr.nr_amidatora or "?" }}</div></div>' : '') +
+            {% if ebr.nr_amidatora %}(!isZbiornik ? '<div class="cv-h2-item"><div class="cv-h2-key">Amider</div><div class="cv-h2-val">A-{{ ebr.nr_amidatora }}</div></div>' : '') +{% endif %}
         '</div>' +
         '<div class="cv-h2-stamp">KJ-LAB · 2026</div>' +
     '</div>';
@@ -1218,7 +1218,13 @@ async function saveSection(sekcja) {
 }
 
 
-var _saveTimers = {};
+// Clear stale timers from previous batch load
+if (window._saveTimers) {
+    Object.values(window._saveTimers).forEach(function(t) { clearTimeout(t); });
+}
+window._saveTimers = {};
+var _saveTimers = window._saveTimers;
+var _saveEbrId = ebrId; // capture at script init time
 
 function autoSaveField(input) {
     var sekcja = input.dataset.sekcja;
@@ -1234,6 +1240,9 @@ function autoSaveField(input) {
 }
 
 function doSaveField(input, sekcja, kod) {
+    // Clear pending debounce to prevent double-save
+    var key = sekcja + '__' + kod;
+    if (_saveTimers[key]) { clearTimeout(_saveTimers[key]); delete _saveTimers[key]; }
     if (input.value === '') return;
     var komentarz = document.querySelector('textarea[data-komentarz="' + kod + '"][data-sekcja="' + sekcja + '"]');
     var values = {};
@@ -1244,7 +1253,7 @@ function doSaveField(input, sekcja, kod) {
 
     input.style.outline = '2px solid var(--teal)';
 
-    fetch('/laborant/ebr/' + ebrId + '/save', {
+    fetch('/laborant/ebr/' + _saveEbrId + '/save', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({sekcja: sekcja, values: values})
@@ -1463,18 +1472,18 @@ function esc(s) {
 }
 
 
-// Disable scroll + arrow keys on number inputs
-document.addEventListener('wheel', function(e) {
-    if (e.target.matches('input[type="number"]')) {
-        e.target.blur();
-    }
-}, {passive: true});
+// Disable scroll + arrow keys on number inputs — cleanup old listeners to avoid pileup
+if (window._wheelHandler) document.removeEventListener('wheel', window._wheelHandler);
+window._wheelHandler = function(e) {
+    if (e.target.matches('input[type="number"]')) e.target.blur();
+};
+document.addEventListener('wheel', window._wheelHandler, {passive: true});
 
-document.addEventListener('keydown', function(e) {
-    if (e.target.matches('input[type="number"]') && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-        e.preventDefault();
-    }
-});
+if (window._keydownHandler) document.removeEventListener('keydown', window._keydownHandler);
+window._keydownHandler = function(e) {
+    if (e.target.matches('input[type="number"]') && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) e.preventDefault();
+};
+document.addEventListener('keydown', window._keydownHandler);
 
 
 // Init

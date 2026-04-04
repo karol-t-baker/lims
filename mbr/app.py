@@ -325,6 +325,11 @@ def szarze_new():
         flash("Brak aktywnego szablonu MBR dla tego produktu.")
     # Return to referring page (fast_entry or szarze_list)
     back = request.form.get("_back") or request.referrer or url_for("szarze_list")
+    # Prevent open redirect — only allow relative paths
+    from urllib.parse import urlparse
+    parsed = urlparse(back)
+    if parsed.netloc and parsed.netloc != request.host:
+        back = url_for("szarze_list")
     return redirect(back)
 
 
@@ -479,7 +484,7 @@ def api_workers():
 def api_shift():
     if request.method == "POST":
         data = request.get_json(silent=True) or {}
-        worker_ids = data.get("worker_ids", [])
+        worker_ids = [int(x) for x in data.get("worker_ids", []) if isinstance(x, (int, float))]
         session["shift_workers"] = worker_ids
         return jsonify({"ok": True})
     return jsonify({"worker_ids": session.get("shift_workers", [])})
@@ -582,9 +587,12 @@ def api_cert_delete(cert_id):
         row = db.execute("SELECT pdf_path FROM swiadectwa WHERE id = ?", (cert_id,)).fetchone()
         if row is None:
             return jsonify({"error": "not found"}), 404
-        # Delete PDF file
+        # Delete PDF file — validate path stays within project
         from pathlib import Path
-        pdf_path = Path(__file__).parent.parent / row["pdf_path"]
+        project_root = Path(__file__).parent.parent
+        pdf_path = (project_root / row["pdf_path"]).resolve()
+        if not str(pdf_path).startswith(str(project_root.resolve())):
+            return jsonify({"error": "invalid path"}), 400
         if pdf_path.exists():
             pdf_path.unlink()
         # Delete DB record
@@ -604,7 +612,9 @@ def api_cert_pdf(cert_id):
         return "Nie znaleziono świadectwa", 404
     from pathlib import Path
     project_root = Path(__file__).parent.parent
-    pdf_path = project_root / row["pdf_path"]
+    pdf_path = (project_root / row["pdf_path"]).resolve()
+    if not str(pdf_path).startswith(str(project_root.resolve())):
+        return "Invalid path", 400
     if not pdf_path.exists():
         return "Plik PDF nie istnieje", 404
     return send_file(str(pdf_path), mimetype="application/pdf")
