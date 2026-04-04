@@ -380,11 +380,30 @@ def save_entry(ebr_id):
 
     with db_session() as db:
         ebr = get_ebr(db, ebr_id)
+
+        # For completed zbiornik: check if values actually changed before marking certs outdated
+        values_changed = False
+        if ebr and ebr["status"] == "completed" and ebr.get("typ") == "zbiornik":
+            old_wyniki = get_ebr_wyniki(db, ebr_id)
+            old_sek = old_wyniki.get(sekcja, {})
+            for kod, entry in values.items():
+                new_val = entry.get("wartosc", "")
+                try:
+                    new_val = float(new_val)
+                except (ValueError, TypeError):
+                    continue
+                old_row = old_sek.get(kod)
+                old_val = old_row["wartosc"] if old_row else None
+                if old_val != new_val:
+                    values_changed = True
+                    break
+
         save_wyniki(db, ebr_id, sekcja, values, user, ebr=ebr)
         sync_ebr_to_v4(db, ebr_id, ebr=ebr)
-        # If completed zbiornik — mark existing certificates as outdated
-        if ebr and ebr["status"] == "completed" and ebr.get("typ") == "zbiornik":
+
+        if values_changed:
             mark_swiadectwa_outdated(db, ebr_id)
+
     return jsonify({"ok": True})
 
 
