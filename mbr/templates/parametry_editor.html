@@ -355,13 +355,19 @@ function renderPanel(p) {
   // Section: bindings
   h += '<div class="pe-sec">Przypisania do etapów' + (p.bindings && p.bindings.length > 0 ? ' <span style="font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0;">(' + p.bindings.length + ')</span>' : '') + '</div>';
 
+  var isOblicz = p.typ === 'obliczeniowy';
   if (p.bindings && p.bindings.length > 0) {
-    h += '<table class="pe-bind"><thead><tr><th>Kontekst</th><th>Produkt</th><th>Naważka [g]</th><th>Min</th><th>Max</th><th style="width:30px;"></th></tr></thead><tbody>';
+    h += '<table class="pe-bind"><thead><tr><th>Kontekst</th><th>Produkt</th>';
+    if (isOblicz) h += '<th>Formuła</th>';
+    h += '<th>Naważka [g]</th><th>Min</th><th>Max</th><th style="width:30px;"></th></tr></thead><tbody>';
     p.bindings.forEach(function(b) {
       h += '<tr>' +
         '<td><span class="pe-ctx ' + ctxCls(b.kontekst) + '">' + b.kontekst + '</span></td>' +
-        '<td>' + (b.produkt ? '<span class="pe-prod">' + b.produkt.replace(/_/g, ' ') + '</span>' : '<span class="pe-prod-default">wszystkie</span>') + '</td>' +
-        '<td><input type="text" inputmode="decimal" value="' + (b.nawazka_g != null ? String(b.nawazka_g).replace('.',',') : '') + '" onclick="event.stopPropagation()" onblur="saveBinding(' + b.id + ',\'nawazka_g\',this)"></td>' +
+        '<td>' + (b.produkt ? '<span class="pe-prod">' + b.produkt.replace(/_/g, ' ') + '</span>' : '<span class="pe-prod-default">wszystkie</span>') + '</td>';
+      if (isOblicz) {
+        h += '<td><input type="text" value="' + esc(b.formula || '') + '" onclick="event.stopPropagation()" onblur="saveBindingText(' + b.id + ',\'formula\',this)" placeholder="(globalna)" style="width:140px;font-family:var(--mono);font-size:10px;"></td>';
+      }
+      h += '<td><input type="text" inputmode="decimal" value="' + (b.nawazka_g != null ? String(b.nawazka_g).replace('.',',') : '') + '" onclick="event.stopPropagation()" onblur="saveBinding(' + b.id + ',\'nawazka_g\',this)"></td>' +
         '<td><input type="text" inputmode="decimal" value="' + (b.min_limit != null ? String(b.min_limit).replace('.',',') : '') + '" onclick="event.stopPropagation()" onblur="saveBinding(' + b.id + ',\'min_limit\',this)"></td>' +
         '<td><input type="text" inputmode="decimal" value="' + (b.max_limit != null ? String(b.max_limit).replace('.',',') : '') + '" onclick="event.stopPropagation()" onblur="saveBinding(' + b.id + ',\'max_limit\',this)"></td>' +
         '<td><button class="pe-bind-del" onclick="event.stopPropagation();deleteBinding(' + b.id + ',' + p.id + ')" title="Usuń">&times;</button></td>' +
@@ -429,6 +435,17 @@ function saveParam(paramId, field, input) {
 
 function saveBinding(bindingId, field, input) {
   var val = parseNum(input.value);
+  var body = {};
+  body[field] = val;
+  fetch('/api/parametry/etapy/' + bindingId, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  }).then(function(r) { flashField(input, r.ok); });
+}
+
+function saveBindingText(bindingId, field, input) {
+  var val = input.value.trim() || null;
   var body = {};
   body[field] = val;
   fetch('/api/parametry/etapy/' + bindingId, {

@@ -246,6 +246,13 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     except Exception:
         pass
 
+    # Migration: add formula override to parametry_etapy (per-product formula)
+    try:
+        db.execute("ALTER TABLE parametry_etapy ADD COLUMN formula TEXT")
+        db.commit()
+    except Exception:
+        pass
+
     # Migration: add metoda_id to parametry_analityczne
     try:
         db.execute("ALTER TABLE parametry_analityczne ADD COLUMN metoda_id INTEGER REFERENCES metody_miareczkowe(id)")

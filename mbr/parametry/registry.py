@@ -40,7 +40,8 @@ def get_parametry_for_kontekst(
             pe.max_limit   AS max,
             pa.precision,
             pe.nawazka_g,
-            pa.formula,
+            pa.formula     AS global_formula,
+            pe.formula     AS binding_formula,
             pa.metoda_id,
             pa.metoda_nazwa,
             pa.metoda_formula,
@@ -94,7 +95,7 @@ def get_parametry_for_kontekst(
             "max": r["max"],
             "precision": r["precision"],
             "nawazka_g": r["nawazka_g"],
-            "formula": r["formula"],
+            "formula": r["binding_formula"] or r["global_formula"],
             "metoda_id": r["metoda_id"],
             "metoda": metoda,
         })
