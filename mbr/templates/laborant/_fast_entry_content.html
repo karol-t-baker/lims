@@ -593,6 +593,12 @@ function isCyclicProduct() {
 }
 
 function renderSections() {
+    // Check if batch has an active process stage — render that instead of standaryzacja/AK
+    var activeProcessStage = null;
+    if (_etapyStatus && _etapyStatus.length > 0 && ebrStatus === 'open') {
+        activeProcessStage = _etapyStatus.find(function(s) { return s.status === 'in_progress'; });
+    }
+
     if (ebrStatus === 'completed') {
         renderCompletedView();
         return;
@@ -601,6 +607,11 @@ function renderSections() {
         renderCyclicSections();
     } else {
         renderLinearSections();
+    }
+
+    // After sections rendered, immediately show active process stage
+    if (activeProcessStage && typeof window.showProcessStage === 'function') {
+        window.showProcessStage(activeProcessStage.etap);
     }
 }
 
@@ -822,13 +833,7 @@ function renderCompletedView() {
         }
     }
 
-    // If batch is open and has process stages, auto-open active stage
-    if (ebrStatus === 'open' && _etapyStatus.length > 0) {
-      var activeStage = _etapyStatus.find(function(s) { return s.status === 'in_progress'; });
-      if (activeStage) {
-        setTimeout(function() { showProcessStage(activeStage.etap); }, 100);
-      }
-    }
+    // Auto-open handled by renderSections() now
 }
 
 function startEditParams() {
@@ -1195,13 +1200,7 @@ function renderCyclicSections() {
         }
     }
 
-    // Auto-open active process stage for open batches with stage tracking
-    if (_etapyStatus.length > 0) {
-      var activeStage = _etapyStatus.find(function(s) { return s.status === 'in_progress'; });
-      if (activeStage) {
-        setTimeout(function() { showProcessStage(activeStage.etap); }, 200);
-      }
-    }
+    // Auto-open handled by renderSections() now
 }
 
 function renderDecisionButtons(container) {
