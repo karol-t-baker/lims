@@ -71,8 +71,10 @@ function buildStatsHtml(results) {
             '</div>' +
             '<div class="calc-convergence-pill ' + convCls + '">' + convIcon + ' ' + convText + ' \u00b7 \u0394 ' + stats.delta.toFixed(4).replace('.', ',') + '</div>' +
             '<div class="calc-stats-row">' +
-                '<div><div class="calc-stat-label">RSD</div><div class="calc-stat-val">' + stats.rsd.toFixed(2).replace('.', ',') + '%</div></div>' +
-                '<div><div class="calc-stat-label">RSM</div><div class="calc-stat-val">' + stats.rsm.toFixed(2).replace('.', ',') + '%</div></div>' +
+                (results.length === 2
+                    ? '<div><div class="calc-stat-label">RSM</div><div class="calc-stat-val">' + stats.rsm.toFixed(2).replace('.', ',') + '%</div></div>'
+                    : '<div><div class="calc-stat-label">RSD</div><div class="calc-stat-val">' + stats.rsd.toFixed(2).replace('.', ',') + '%</div></div>'
+                ) +
                 '<div><div class="calc-stat-label">N</div><div class="calc-stat-val">' + results.length + '</div></div>' +
                 '<div><div class="calc-stat-label">Delta</div><div class="calc-stat-val ' + convCls + '">' + stats.delta.toFixed(4).replace('.', ',') + '</div></div>' +
             '</div>' +
@@ -243,7 +245,6 @@ async function openCalculatorFull(metoda_id, kod, sekcja) {
     var _batchProdukt = (window._batchProdukt || '').toUpperCase();
     // Extract product code: "Chegina_K40GLOL" → "K40GLOL"
     var _prodCode = _batchProdukt.replace('CHEGINA_', '').replace('CHEGINA', '');
-    console.log('[calc] auto-select: _batchProdukt=' + _batchProdukt + ' _prodCode=' + _prodCode);
     _calcState.method.titrants.forEach(function(t) {
         if (t.options && t.options.length > 0 && _batchProdukt) {
             // Match product code against option keywords
@@ -278,7 +279,6 @@ async function openCalculatorFull(metoda_id, kod, sekcja) {
                     if (matched) break;
                 }
             }
-            console.log('[calc] auto-select result: matched=' + (matched ? matched.label + '(' + matched.value + ')' : 'NONE') + ' bestScore=' + bestScore);
             if (matched) {
                 _calcTitrantValues[t.id] = matched.value;
                 t._autoSelected = matched.label;
