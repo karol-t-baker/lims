@@ -5,19 +5,19 @@ app.py — Minimal Flask app for MBR/EBR management.
 import json
 import os
 import socket
-from datetime import datetime, date
+from datetime import datetime
 from urllib.parse import urlparse
 from pathlib import Path
 
-from flask import Flask, Response, redirect, url_for, request, session, render_template, flash, jsonify, abort
+from flask import Flask, redirect, url_for, request, session, render_template, flash, jsonify, abort
 
 from mbr.models import (
     get_db, db_session, init_mbr_tables,
     list_mbr, get_mbr, save_mbr, activate_mbr, clone_mbr,
-    list_ebr_open, list_ebr_completed, list_ebr_recent, export_wyniki_csv,
+    list_ebr_open, list_ebr_completed, list_ebr_recent,
     create_ebr, get_ebr, get_ebr_wyniki, get_round_state, save_wyniki, complete_ebr,
     sync_ebr_to_v4, next_nr_partii, PRODUCTS,
-    list_completed_registry, get_registry_columns, list_completed_products,
+    list_completed_products,
     mark_swiadectwa_outdated,
 )
 from mbr.shared.filters import register_filters
@@ -35,6 +35,8 @@ from mbr.paliwo import paliwo_bp  # noqa: E402
 app.register_blueprint(paliwo_bp)
 from mbr.certs import certs_bp  # noqa: E402
 app.register_blueprint(certs_bp)
+from mbr.registry import registry_bp  # noqa: E402
+app.register_blueprint(registry_bp)
 
 from mbr.shared.decorators import login_required, role_required  # noqa: E402
 
@@ -113,75 +115,6 @@ def tech_dashboard():
     )
 
 
-@app.route("/narzedzia")
-@login_required
-def narzedzia():
-    return render_template("technolog/narzedzia.html", today=date.today().isoformat())
-
-
-@app.route("/narzedzia/wniosek-dojazd")
-@login_required
-def wniosek_dojazd():
-    return render_template("technolog/wniosek_dojazd.html", today=date.today().isoformat())
-
-
-@app.route("/narzedzia/wniosek-dojazd/pdf", methods=["POST"])
-@login_required
-def wniosek_dojazd_pdf():
-    from mbr.pdf_gen import generate_wniosek_dojazd_pdf
-    data = {
-        "imie_nazwisko": request.form.get("imie_nazwisko", ""),
-        "data": request.form.get("data", ""),
-        "skad": request.form.get("skad", ""),
-        "dokad": request.form.get("dokad", ""),
-        "km": float(request.form.get("km", 0)),
-        "stawka": float(request.form.get("stawka", 0.8358)),
-        "cel": request.form.get("cel", ""),
-    }
-    data["kwota"] = round(data["km"] * data["stawka"], 2)
-    pdf_bytes = generate_wniosek_dojazd_pdf(data)
-    return Response(pdf_bytes, mimetype="application/pdf",
-                    headers={"Content-Disposition": "inline; filename=wniosek_dojazd.pdf"})
-
-
-@app.route("/technolog/export")
-@role_required("technolog")
-def tech_export():
-    import csv
-    import io
-
-    with db_session() as db:
-        rows = export_wyniki_csv(db, request.args.get("produkt"))
-    if not rows:
-        return "Brak danych", 404
-    output = io.StringIO()
-    writer = csv.DictWriter(output, fieldnames=rows[0].keys())
-    writer.writeheader()
-    writer.writerows(rows)
-    return Response(
-        output.getvalue(),
-        mimetype="text/csv",
-        headers={"Content-Disposition": "attachment; filename=wyniki_ebr.csv"},
-    )
-
-
-@app.route("/api/next-nr/<produkt>")
-@login_required
-def api_next_nr(produkt):
-    with db_session() as db:
-        nr = next_nr_partii(db, produkt)
-    return jsonify({"nr_partii": nr})
-
-
-@app.route("/api/registry")
-@login_required
-def api_registry():
-    produkt = request.args.get("produkt", "Chegina_K7")
-    typ = request.args.get("typ", "")
-    with db_session() as db:
-        batches = list_completed_registry(db, produkt=produkt, typ=typ or None)
-        columns = get_registry_columns(db, produkt)
-    return jsonify({"batches": batches, "columns": columns, "produkt": produkt})
 
 
 @app.route("/laborant/szarze")
