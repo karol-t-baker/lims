@@ -350,4 +350,9 @@ def save_certificate_pdf(
     full_path = out_dir / pdf_name
     full_path.write_bytes(pdf_bytes)
 
+    # Also save a copy to user's Desktop for quick access
+    desktop = Path.home() / "Desktop"
+    if desktop.exists():
+        (desktop / pdf_name).write_bytes(pdf_bytes)
+
     return str(full_path.relative_to(_PROJECT_ROOT))
