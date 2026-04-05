@@ -1578,32 +1578,40 @@ function showRightPanel(view) {
 }
 
 
-// Right panel switching: titr click → kalkulator, other click → wartości typowe
-if (window._panelBridge) document.removeEventListener('click', window._panelBridge);
-window._panelBridge = function(e) {
-    // Titr field → open calculator
-    var ff = e.target.closest('.ff.titr[data-kod]');
+// Right panel switching: focus on titr input → kalkulator, focus on other input → wartości typowe
+if (window._panelFocusBridge) document.removeEventListener('focusin', window._panelFocusBridge);
+window._panelFocusBridge = function(e) {
+    var input = e.target;
+    if (input.tagName !== 'INPUT' && input.tagName !== 'SELECT') return;
+    // Inside right panel — don't switch
+    if (input.closest('.col-right')) return;
+
+    var ff = input.closest('.ff.titr');
     if (ff) {
-        var kod = ff.dataset.kod;
-        var tag = ff.dataset.tag || kod;
-        var sekcja = ff.dataset.sekcja;
-        var calcMethod = null;
-        try {
-            var raw = ff.dataset.calcMethod;
-            if (raw) calcMethod = JSON.parse(raw);
-        } catch(ex) {}
+        // Titr field focused → open calculator
+        var kod = input.dataset.kod || ff.querySelector('input[data-kod]')?.dataset.kod;
+        var sekcja = input.dataset.sekcja || input.dataset.etap ? ('etap__' + input.dataset.etap + '__' + input.dataset.runda) : '';
+        var metodaId = input.dataset.metodaId;
         showRightPanel('calc');
-        window.openCalculator(tag, kod, sekcja, calcMethod);
+        if (metodaId) {
+            window.openCalculatorFull(parseInt(metodaId), kod, sekcja);
+        } else {
+            var tag = input.dataset.tag || kod;
+            var calcMethod = null;
+            try {
+                var raw = ff.dataset.calcMethod || input.dataset.calcMethod;
+                if (raw) calcMethod = JSON.parse(raw);
+            } catch(ex) {}
+            window.openCalculator(tag, kod, sekcja, calcMethod);
+        }
         return;
     }
-    // Click inside right panel itself → don't switch
-    if (e.target.closest('.col-right')) return;
-    // Click inside any non-titr field or outside fields → show wartości typowe
-    if (e.target.closest('.ff') || e.target.closest('.sec-head') || e.target.closest('.decision-bar') || !e.target.closest('.col-main')) {
+    // Non-titr field focused → wartości typowe
+    if (input.closest('.ff') || input.closest('.section-fields') || input.closest('#ps-stage-content')) {
         showRightPanel('hist');
     }
 };
-document.addEventListener('click', window._panelBridge);
+document.addEventListener('focusin', window._panelFocusBridge);
 
 // Computed fields
 function setupComputedFields() {
@@ -1789,6 +1797,9 @@ window.showProcessStage = function(etapKey) {
 
       // Build extra data attrs for titracja (calculator needs these)
       var extraAttrs = '';
+      if (isTitr && param.metoda_id) {
+        extraAttrs += ' data-metoda-id="' + param.metoda_id + '"';
+      }
       if (isTitr && param.metoda) {
         extraAttrs += ' data-metoda-factor="' + param.metoda.factor + '"';
         extraAttrs += ' data-metoda-nazwa="' + (param.metoda.nazwa || '') + '"';
@@ -1934,7 +1945,6 @@ window.showProcessStage = function(etapKey) {
     html += '</select>' +
         '<span id="ps-korekta-kg-wrap">' +
           '<input id="ps-korekta-kg" type="number" step="0.1" placeholder="kg" style="width:70px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:var(--mono);text-align:center;">' +
-          '<span style="font-size:11px;color:var(--text-dim);">kg</span>' +
         '</span>' +
         '<button onclick="psAddKorekta(\'' + etapKey + '\',' + currentRunda + ')" style="padding:6px 12px;background:var(--amber);color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);white-space:nowrap;">+ Dodaj</button>' +
       '</div></div>';
