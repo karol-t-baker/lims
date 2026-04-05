@@ -114,9 +114,18 @@ PROCESS_STAGES_GLOL = ["amidowanie", "smca", "czwartorzedowanie", "sulfonowanie"
 
 GLOL_PRODUCTS = {"Chegina_K40GLOL", "Chegina_K40GLOS", "Chegina_K40GLOL_HQ", "Chegina_K40GLN", "Chegina_GLOL40"}
 
+# Products that have full process pipeline (ETAPY_FULL or ETAPY_FULL_GLOL)
+FULL_PIPELINE_PRODUCTS = {
+    "Chegina_K7", "Chegina_K40GL", "Chegina_K40GLO", "Chegina_K7B", "Chegina_K7GLO",
+    "Chegina_K40GLOL", "Chegina_K40GLOS", "Chegina_K40GLOL_HQ", "Chegina_K40GLN", "Chegina_GLOL40",
+}
+
 
 def get_process_stages(produkt: str) -> list[str]:
-    """Return ordered list of process stage names for a product."""
+    """Return ordered list of process stage names for a product.
+    Returns empty list for products without full pipeline (ETAPY_SIMPLE)."""
+    if produkt not in FULL_PIPELINE_PRODUCTS:
+        return []
     if produkt in GLOL_PRODUCTS:
         return list(PROCESS_STAGES_GLOL)
     return list(PROCESS_STAGES_K7)
