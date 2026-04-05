@@ -1807,31 +1807,34 @@ window.showProcessStage = function(etapKey) {
     var isLastRunda = rn === currentRunda;
     var rundaEditable = isActive && isLastRunda;
 
-    // Runda header
-    if (currentRunda > 1) {
-      var rundaLabel = isLastRunda && isActive ? 'Runda ' + rn + ' (aktualna)' : 'Runda ' + rn;
-      html += '<div style="padding:6px 16px 2px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-dim);">' + rundaLabel + '</div>';
-    }
+    // Runda card — separate visual block per runda
+    var rundaLabel = isLastRunda && isActive ? 'Runda ' + rn + ' — aktualna' : 'Runda ' + rn;
+    var rundaBorder = isLastRunda && isActive ? 'border-left:3px solid var(--teal);' : (!isLastRunda ? 'border-left:3px solid var(--green);opacity:0.85;' : '');
+    html += '<div style="margin:8px 0;padding:10px 14px;background:var(--surface);border:1px solid var(--border-subtle);border-radius:8px;' + rundaBorder + '">';
+    html += '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:' + (isLastRunda && isActive ? 'var(--teal)' : 'var(--text-dim)') + ';margin-bottom:6px;">' + rundaLabel + '</div>';
 
     html += renderRundaFields(rn, rundaEditable);
+    html += '</div>';
 
-    // Show corrections after this runda (if not last)
+    // Corrections after this runda — amber card between rounds
     var rundaKorekty = stageKorekty.filter(function(k) { return k.po_rundzie === rn; });
     if (rundaKorekty.length > 0) {
+      html += '<div style="margin:4px 0 4px 20px;padding:8px 12px;background:var(--amber-bg);border-radius:6px;border-left:3px solid var(--amber);">';
+      html += '<div style="font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--amber);margin-bottom:4px;">Działanie korygujące</div>';
       rundaKorekty.forEach(function(k) {
-        var kgText = k.ilosc_kg > 0 ? String(k.ilosc_kg).replace('.',',') + ' kg' : '';
-        html += '<div style="padding:4px 16px;display:flex;align-items:center;gap:6px;font-size:11px;">' +
-          '<span style="color:var(--amber);font-weight:600;">↳</span>' +
-          '<span style="font-weight:600;color:var(--amber);">' + k.substancja + '</span>' +
-          (kgText ? '<span style="font-family:var(--mono);color:var(--text-sec);">' + kgText + '</span>' : '') +
-          '<span style="font-size:9px;color:var(--text-dim);">' + (k.wykonano ? '✓' : 'zalecono') + '</span>' +
+        var kgText = k.ilosc_kg > 0 ? ' — ' + String(k.ilosc_kg).replace('.',',') + ' kg' : '';
+        html += '<div style="display:flex;align-items:center;gap:6px;font-size:11px;padding:2px 0;">' +
+          '<span style="font-weight:600;color:var(--text);">' + k.substancja + '</span>' +
+          '<span style="font-family:var(--mono);color:var(--text-sec);font-size:11px;">' + kgText + '</span>' +
+          '<span style="font-size:8px;color:' + (k.wykonano ? 'var(--green)' : 'var(--amber)') + ';margin-left:auto;">' + (k.wykonano ? '✓ wykonano' : 'zalecono') + '</span>' +
         '</div>';
       });
+      html += '</div>';
     }
   }
 
   // Legend
-  html += '<div class="ff-legend">' +
+  html += '<div class="ff-legend" style="margin-top:4px;">' +
     '<span class="ff-leg-item"><span class="status-dot" style="background:var(--green);width:5px;height:5px;display:inline-block;border-radius:50%;"></span> w normie</span>' +
     '<span class="ff-leg-item"><span class="status-dot" style="background:var(--red);width:5px;height:5px;display:inline-block;border-radius:50%;"></span> poza</span>' +
     '<span class="ff-leg-item"><span class="type-tag t-titr">M</span> miareczkowanie</span>' +
