@@ -238,16 +238,40 @@ async function openCalculatorFull(metoda_id, kod, sekcja) {
     // Init titrant values from defaults
     // For titrants with options (e.g. CHEGINY %AA T2=PRODUKT), auto-select based on batch product
     var _batchProdukt = (window._batchProdukt || '').toUpperCase();
+    // Extract product code: "Chegina_K40GLOL" → "K40GLOL"
+    var _prodCode = _batchProdukt.replace('CHEGINA_', '').replace('CHEGINA', '');
     _calcState.method.titrants.forEach(function(t) {
         if (t.options && t.options.length > 0 && _batchProdukt) {
-            // Auto-match product to option
+            // Match product code against option keywords
+            // Options: "K7 / KK / GL" → check if prodCode starts with or equals any keyword
+            // Priority: exact match > startsWith > contains. Longest keyword wins within same priority.
             var matched = null;
+            var bestScore = 0; // 3=exact, 2=startsWith, 1=contains; tiebreak by length
             for (var i = 0; i < t.options.length; i++) {
-                var optLabel = t.options[i].label.toUpperCase();
-                // Check if batch product matches any keyword in option label
-                if (optLabel.split('/').some(function(part) { return _batchProdukt.indexOf(part.trim()) >= 0; })) {
-                    matched = t.options[i];
-                    break;
+                var parts = t.options[i].label.toUpperCase().split('/').map(function(s) { return s.trim(); });
+                for (var j = 0; j < parts.length; j++) {
+                    var part = parts[j];
+                    var score = 0;
+                    if (_prodCode === part) score = 3000 + part.length;
+                    else if (_prodCode.indexOf(part) === 0) score = 2000 + part.length;
+                    else if (_prodCode.indexOf(part) >= 0) score = 1000 + part.length;
+                    if (score > bestScore) {
+                        matched = t.options[i];
+                        bestScore = score;
+                    }
+                }
+            }
+            // If no code match, try full product name (e.g. "Chegina" option for plain "Chegina")
+            if (!matched && _batchProdukt) {
+                for (var k = 0; k < t.options.length; k++) {
+                    var optParts = t.options[k].label.toUpperCase().split('/').map(function(s) { return s.trim(); });
+                    for (var l = 0; l < optParts.length; l++) {
+                        if (_batchProdukt.indexOf(optParts[l]) >= 0 && optParts[l].length > 3) {
+                            matched = t.options[k];
+                            break;
+                        }
+                    }
+                    if (matched) break;
                 }
             }
             if (matched) {
@@ -609,15 +633,31 @@ async function acceptCalc() {
 
     const avg = results.reduce((a, b) => a + b, 0) / results.length;
 
-    // Write to form field
-    const input = document.querySelector(
-        `input[data-kod="${_calcState.kod}"][data-sekcja="${_calcState.sekcja}"]`
-    );
+    // Write to form field — find by kod + sekcja
+    var selector = 'input[data-kod="' + _calcState.kod + '"]';
+    if (_calcState.sekcja) {
+        selector += '[data-sekcja="' + _calcState.sekcja + '"]';
+    }
+    // Also try etap-based selector for process stages
+    var input = document.querySelector(selector);
+    if (!input && _calcState.sekcja && _calcState.sekcja.indexOf('etap__') === 0) {
+        var parts = _calcState.sekcja.split('__');
+        input = document.querySelector('input[data-kod="' + _calcState.kod + '"][data-etap="' + parts[1] + '"][data-runda="' + parts[2] + '"]');
+    }
     if (input) {
-        input.value = avg.toFixed(3);
+        input.value = avg.toFixed(4).replace('.', ',');
         input.classList.add('calc');
         if (typeof validateField === 'function') {
             validateField(input);
+        }
+        // Trigger auto-save (oninput or onblur depending on context)
+        if (input.dataset.etap) {
+            // Process stage field — trigger psAutoSave + psSave
+            if (typeof psAutoSave === 'function') psAutoSave(input);
+            if (typeof psSave === 'function') psSave(input);
+        } else {
+            // Standaryzacja/AK field — trigger doSaveField
+            if (typeof doSaveField === 'function') doSaveField(input, input.dataset.sekcja, input.dataset.kod);
         }
     }
 

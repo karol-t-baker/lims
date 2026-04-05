@@ -1590,8 +1590,12 @@ window._panelFocusBridge = function(e) {
     var ff = input.closest('.ff.titr');
     if (ff) {
         // Titr field focused → open calculator
-        var kod = input.dataset.kod || ff.querySelector('input[data-kod]')?.dataset.kod;
-        var sekcja = input.dataset.sekcja || input.dataset.etap ? ('etap__' + input.dataset.etap + '__' + input.dataset.runda) : '';
+        var kod = input.dataset.kod || (ff.querySelector('input[data-kod]') ? ff.querySelector('input[data-kod]').dataset.kod : '');
+        var sekcja = input.dataset.sekcja;
+        if (!sekcja && input.dataset.etap) {
+            sekcja = 'etap__' + input.dataset.etap + '__' + input.dataset.runda;
+        }
+        sekcja = sekcja || '';
         var metodaId = input.dataset.metodaId;
         showRightPanel('calc');
         if (metodaId) {
