@@ -1328,6 +1328,7 @@ function renderOneSection(container, opts) {
                     ' data-min="' + (pole.min != null ? pole.min : '') + '"' +
                     ' data-max="' + (pole.max != null ? pole.max : '') + '"' +
                     ' data-measurement-type="' + esc(pole.measurement_type || '') + '"' +
+                    (pole.metoda_id ? ' data-metoda-id="' + pole.metoda_id + '"' : '') +
                     (isObl && pole.formula ? ' data-formula="' + esc(pole.formula) + '"' : '') +
                     ' value="' + (val !== '' && val !== null ? String(val).replace('.', ',') : '') + '"' +
                     ' class="' + inputClass.trim() + '"' +

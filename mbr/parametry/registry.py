@@ -198,6 +198,8 @@ def build_parametry_lab(db: sqlite3.Connection, produkt: str) -> dict:
             "precision": p["precision"],
             "measurement_type": p["typ"],
         }
+        if p.get("metoda_id"):
+            pole["metoda_id"] = p["metoda_id"]
         if p["typ"] == "titracja" and p["metoda"] is not None:
             m = p["metoda"]
             pole["calc_method"] = {
