@@ -40,6 +40,12 @@ def narzedzia():
     return render_template("technolog/narzedzia.html", today=date.today().isoformat())
 
 
+@registry_bp.route("/narzedzia/metody")
+@login_required
+def narzedzia_metody():
+    return render_template("technolog/narzedzia_metody.html")
+
+
 @registry_bp.route("/narzedzia/wniosek-dojazd")
 @login_required
 def wniosek_dojazd():

@@ -49,6 +49,63 @@
     {% endif %}
   </div>
 
+  {# ═══ KALKULATORY — metody + corrections ═══ #}
+  <div class="narz-section">
+    <div class="narz-section-label">Kalkulatory</div>
+    <div class="narz-grid">
+
+      {# Card 1: Kalkulator miareczkowy #}
+      <a href="{{ url_for('registry.narzedzia_metody') }}" class="narz-card">
+        <div class="narz-card-icon" style="background:#eff6ff;color:#2563eb;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+        </div>
+        <div class="narz-card-body">
+          <div class="narz-card-name">Kalkulator miareczkowy</div>
+          <div class="narz-card-desc">Metody miareczkowe — wyniki, statystyki, RSD%</div>
+        </div>
+      </a>
+
+      {# Card 2: Korekta wody — inline expandable #}
+      <div class="narz-card narz-card-expand" id="kw-card" onclick="narzExpandCard('kw')">
+        <div class="narz-card-icon" style="background:#ecfdf5;color:#059669;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z"/></svg>
+        </div>
+        <div class="narz-card-body">
+          <div class="narz-card-name" id="kw-title">Korekta wody</div>
+          <div class="narz-card-desc" id="kw-badge">Standaryzacja SA — korekta refraktometryczna</div>
+        </div>
+        <svg class="narz-card-chevron" id="kw-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="narz-calc-panel" id="kw-panel" style="display:none;">
+        <div id="kw-fields"></div>
+        <div class="narz-calc-row">
+          <button class="narz-calc-btn" onclick="event.stopPropagation();narzCalc('kw')">Oblicz</button>
+          <div class="narz-calc-result" id="kw-result"></div>
+        </div>
+      </div>
+
+      {# Card 3: Korekta NaCl — inline expandable #}
+      <div class="narz-card narz-card-expand" id="kn-card" onclick="narzExpandCard('kn')">
+        <div class="narz-card-icon" style="background:#faf5ff;color:#7c3aed;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg>
+        </div>
+        <div class="narz-card-body">
+          <div class="narz-card-name" id="kn-title">Korekta NaCl</div>
+          <div class="narz-card-desc" id="kn-badge">Standaryzacja chlorków — naważka NaCl</div>
+        </div>
+        <svg class="narz-card-chevron" id="kn-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="narz-calc-panel" id="kn-panel" style="display:none;">
+        <div id="kn-fields"></div>
+        <div class="narz-calc-row">
+          <button class="narz-calc-btn" onclick="event.stopPropagation();narzCalc('kn')">Oblicz</button>
+          <div class="narz-calc-result" id="kn-result"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   {# ═══ PALIWO — card entry point ═══ #}
   <div class="narz-section">
     <div class="narz-section-label">Ryczałt samochodowy</div>
@@ -161,6 +218,101 @@
 </div>
 
 <style>
+/* ═══ Correction calculators ═══ */
+.narz-card-expand { cursor: pointer; user-select: none; }
+.narz-card-chevron { width: 16px; height: 16px; color: var(--text-dim); margin-left: auto; flex-shrink: 0; transition: transform 0.2s; }
+.narz-card-chevron.open { transform: rotate(180deg); }
+
+.narz-calc-panel {
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  background: var(--surface-alt);
+  padding: 16px;
+  margin-top: -2px;
+}
+.narz-calc-panel + .narz-card-expand,
+.narz-calc-panel + .narz-calc-panel { margin-top: 8px; }
+
+.narz-calc-field { margin-bottom: 12px; }
+.narz-calc-field label {
+  display: block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+.narz-calc-field input,
+.narz-calc-field select {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 12px;
+  font-family: var(--font);
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+  box-sizing: border-box;
+}
+.narz-calc-field input:focus,
+.narz-calc-field select:focus { border-color: var(--teal); }
+.narz-calc-field .narf-unit {
+  font-size: 9px;
+  color: var(--text-dim);
+  margin-left: 4px;
+}
+
+/* chips */
+.narz-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.narz-chip {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 10px;
+  cursor: pointer;
+  background: var(--surface);
+  color: var(--text-sec);
+  transition: all 0.12s;
+}
+.narz-chip.active { background: var(--teal); color: #fff; border-color: var(--teal); }
+
+.narz-calc-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+}
+.narz-calc-btn {
+  padding: 7px 18px;
+  background: var(--teal);
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font);
+  flex-shrink: 0;
+}
+.narz-calc-btn:hover { opacity: 0.88; }
+.narz-calc-result {
+  font-size: 20px;
+  font-weight: 700;
+  font-family: var(--mono);
+  color: var(--teal);
+}
+.narz-calc-result.neg { color: var(--red, #dc2626); }
+.narz-calc-result small {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-dim);
+  margin-left: 4px;
+}
+
+/* ═══ existing styles below ═══ */
 .narz-page {
   padding: 24px;
   width: 100%;
@@ -377,6 +529,104 @@
 </style>
 
 <script>
+/* ═══ Correction calculators ═══ */
+var _narzCfg = {};           // keyed by calc id: 'kw' -> corrections.woda, 'kn' -> corrections.nacl_stezenie
+var _narzChipVals = {};      // keyed by calcId -> fieldId -> selected numeric value
+
+(function loadCorrectionCfg() {
+  fetch('/api/corrections')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      _narzCfg['kw'] = data.woda || null;
+      _narzCfg['kn'] = data.nacl_stezenie || null;
+      if (_narzCfg['kw']) narzBuildFields('kw', _narzCfg['kw']);
+      if (_narzCfg['kn']) narzBuildFields('kn', _narzCfg['kn']);
+    })
+    .catch(function() {});
+})();
+
+function narzBuildFields(calcId, cfg) {
+  var container = document.getElementById(calcId + '-fields');
+  if (!container) return;
+  _narzChipVals[calcId] = {};
+  var html = '';
+  cfg.fields.forEach(function(f) {
+    html += '<div class="narz-calc-field">';
+    var unitSpan = f.unit ? '<span class="narf-unit">' + f.unit + '</span>' : '';
+    html += '<label>' + f.label + unitSpan + '</label>';
+    if (f.type === 'chips') {
+      html += '<div class="narz-chips" id="' + calcId + '-chips-' + f.id + '">';
+      f.options.forEach(function(opt, i) {
+        html += '<div class="narz-chip' + (i === 0 ? ' active' : '') + '" ' +
+          'data-calc="' + calcId + '" data-field="' + f.id + '" data-val="' + opt.value + '" ' +
+          'onclick="event.stopPropagation();narzChipSelect(this)">' + opt.label + '</div>';
+      });
+      html += '</div>';
+      // set default chip value
+      _narzChipVals[calcId][f.id] = f.options[0].value;
+    } else {
+      html += '<input type="number" step="any" id="' + calcId + '-inp-' + f.id + '" ' +
+        'placeholder="' + (f.placeholder || '') + '" ' +
+        'onclick="event.stopPropagation()" oninput="event.stopPropagation()">';
+    }
+    html += '</div>';
+  });
+  container.innerHTML = html;
+}
+
+function narzChipSelect(el) {
+  var calcId = el.dataset.calc;
+  var fieldId = el.dataset.field;
+  // deactivate siblings
+  var siblings = document.querySelectorAll('#' + calcId + '-chips-' + fieldId + ' .narz-chip');
+  siblings.forEach(function(s) { s.classList.remove('active'); });
+  el.classList.add('active');
+  _narzChipVals[calcId][fieldId] = parseFloat(el.dataset.val);
+}
+
+function narzExpandCard(calcId) {
+  var panel = document.getElementById(calcId + '-panel');
+  var chevron = document.getElementById(calcId + '-chevron');
+  var open = panel.style.display !== 'none';
+  panel.style.display = open ? 'none' : '';
+  if (open) chevron.classList.remove('open');
+  else chevron.classList.add('open');
+}
+
+function narzCalc(calcId) {
+  var cfg = _narzCfg[calcId];
+  var resultEl = document.getElementById(calcId + '-result');
+  if (!cfg || !resultEl) return;
+
+  var vars = {};
+  var valid = true;
+  cfg.fields.forEach(function(f) {
+    if (f.type === 'chips') {
+      vars[f.id] = _narzChipVals[calcId][f.id] || 0;
+    } else {
+      var inp = document.getElementById(calcId + '-inp-' + f.id);
+      var val = inp ? parseFloat(inp.value) : NaN;
+      if (isNaN(val) && !f.optional) { valid = false; inp && (inp.style.borderColor = 'var(--red,#dc2626)'); }
+      else { inp && (inp.style.borderColor = ''); vars[f.id] = isNaN(val) ? 0 : val; }
+    }
+  });
+  if (!valid) { resultEl.innerHTML = '<span style="font-size:11px;color:var(--red,#dc2626)">Uzupełnij pola</span>'; return; }
+
+  try {
+    var keys = Object.keys(vars);
+    var vals = keys.map(function(k) { return vars[k]; });
+    var fn = new Function(keys.join(','), 'return (' + cfg.formula + ');');
+    var result = fn.apply(null, vals);
+    if (!isFinite(result) || isNaN(result)) { resultEl.textContent = '—'; return; }
+    var rounded = Math.round(result * 10) / 10;
+    var neg = rounded < 0;
+    resultEl.className = 'narz-calc-result' + (neg ? ' neg' : '');
+    resultEl.innerHTML = (neg ? '' : '+') + rounded.toLocaleString('pl-PL', {minimumFractionDigits: 1, maximumFractionDigits: 1}) +
+      '<small>' + cfg.unit + '</small>';
+  } catch(e) { resultEl.textContent = 'Błąd'; }
+}
+
+/* ═══ Paliwo modal ═══ */
 var _palOsoby = [];
 var _palCount = 1;
 

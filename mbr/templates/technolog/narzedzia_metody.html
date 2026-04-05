@@ -1,0 +1,478 @@
+{% extends "base.html" %}
+
+{% block title %}Metody miareczkowe{% endblock %}
+{% block nav_narzedzia %}active{% endblock %}
+{% block nav_narzedzia_lab %}active{% endblock %}
+
+{% block topbar %}{% endblock %}
+
+{% block head %}
+<script src="{{ url_for('static', filename='calculator.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="met-layout">
+
+  <!-- LEFT: method list -->
+  <div class="met-sidebar">
+    <div class="met-sidebar-hdr">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" style="width:14px;height:14px;color:var(--text-dim)"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+      <span>Metody</span>
+    </div>
+    <div class="met-method-list" id="met-method-list">
+      <div class="met-loading">Ładowanie…</div>
+    </div>
+  </div>
+
+  <!-- RIGHT: calculator -->
+  <div class="met-main" id="met-main">
+    <div class="met-placeholder">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" style="width:40px;height:40px;color:var(--border)"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+      <div>Wybierz metodę z listy</div>
+    </div>
+  </div>
+
+</div>
+
+<style>
+.met-layout {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ═══ Sidebar ═══ */
+.met-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  overflow-y: auto;
+}
+.met-sidebar-hdr {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 12px 16px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  color: var(--text-sec);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-alt);
+  flex-shrink: 0;
+}
+.met-method-list { padding: 8px 0; }
+.met-loading { padding: 16px; font-size: 11px; color: var(--text-dim); }
+.met-method-item {
+  display: block;
+  padding: 9px 16px;
+  font-size: 12px;
+  color: var(--text-sec);
+  cursor: pointer;
+  transition: background 0.1s;
+  border-left: 3px solid transparent;
+  user-select: none;
+}
+.met-method-item:hover { background: var(--surface-alt); color: var(--text); }
+.met-method-item.active {
+  background: var(--teal-bg);
+  color: var(--teal);
+  border-left-color: var(--teal);
+  font-weight: 600;
+}
+.met-method-badge {
+  font-size: 9px;
+  color: var(--text-dim);
+  margin-top: 1px;
+}
+
+/* ═══ Main area ═══ */
+.met-main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  min-width: 0;
+}
+.met-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 100%;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+/* ═══ Calculator panel ═══ */
+.met-panel-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+.met-panel-method {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-bottom: 20px;
+}
+.met-panel-formula {
+  font-size: 10px;
+  font-family: var(--mono);
+  color: var(--text-dim);
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin-bottom: 20px;
+  word-break: break-all;
+}
+
+/* Titrant inputs */
+.met-titrants {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.met-titrant-fg { display: flex; flex-direction: column; gap: 3px; }
+.met-titrant-fg label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.met-titrant-input,
+.met-titrant-select {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 12px;
+  font-family: var(--font);
+  outline: none;
+  min-width: 130px;
+}
+.met-titrant-input:focus,
+.met-titrant-select:focus { border-color: var(--teal); }
+
+/* Sample table */
+.met-table-wrap { overflow-x: auto; margin-bottom: 16px; }
+.met-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  min-width: 400px;
+}
+.met-table th {
+  text-align: left;
+  padding: 6px 10px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-alt);
+}
+.met-table td {
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--border-subtle, #f0f0f0);
+  vertical-align: middle;
+}
+.met-table-inp {
+  width: 80px;
+  padding: 5px 7px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: var(--mono);
+  text-align: right;
+  outline: none;
+}
+.met-table-inp:focus { border-color: var(--teal); }
+.met-table-result {
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--teal);
+  padding-left: 12px;
+}
+.met-table-del {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 14px;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+.met-table-del:hover { color: var(--red, #dc2626); background: var(--red-bg, #fef2f2); }
+.met-add-row-btn {
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 7px;
+  padding: 6px 14px;
+  font-size: 11px;
+  color: var(--teal);
+  cursor: pointer;
+  font-family: var(--font);
+  font-weight: 500;
+}
+.met-add-row-btn:hover { background: var(--teal-bg); border-color: var(--teal); }
+
+/* Summary */
+.met-summary {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+.met-stat {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 14px;
+  min-width: 90px;
+}
+.met-stat-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+.met-stat-val {
+  font-size: 18px;
+  font-weight: 700;
+  font-family: var(--mono);
+  color: var(--text);
+  margin-top: 1px;
+}
+.met-stat.accent { background: var(--teal); border-color: var(--teal); }
+.met-stat.accent .met-stat-label { color: rgba(255,255,255,0.7); }
+.met-stat.accent .met-stat-val { color: #fff; }
+.met-stat.warn .met-stat-val { color: var(--red, #dc2626); }
+</style>
+
+<script>
+var _metMethods = [];
+var _metActive = null;
+var _metRows = [];
+var _metTitrantVals = {};
+
+(function init() {
+  fetch('/api/metody-miareczkowe')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      _metMethods = data;
+      renderMethodList();
+    })
+    .catch(function() {
+      document.getElementById('met-method-list').innerHTML =
+        '<div class="met-loading" style="color:var(--red,#dc2626)">Błąd ładowania</div>';
+    });
+})();
+
+function renderMethodList() {
+  var el = document.getElementById('met-method-list');
+  if (!_metMethods.length) {
+    el.innerHTML = '<div class="met-loading">Brak metod</div>';
+    return;
+  }
+  var html = '';
+  _metMethods.forEach(function(m) {
+    html += '<div class="met-method-item" data-id="' + m.id + '" onclick="selectMethod(' + m.id + ')">' +
+      '<div>' + m.nazwa + '</div>' +
+      '<div class="met-method-badge">' + (m.metoda || '') + '</div>' +
+    '</div>';
+  });
+  el.innerHTML = html;
+}
+
+function selectMethod(id) {
+  // update sidebar active state
+  document.querySelectorAll('.met-method-item').forEach(function(el) {
+    el.classList.toggle('active', parseInt(el.dataset.id) === id);
+  });
+  // fetch full method
+  fetch('/api/metody-miareczkowe/' + id)
+    .then(function(r) { return r.json(); })
+    .then(function(m) {
+      _metActive = m;
+      _metRows = [];
+      _metTitrantVals = {};
+      // init titrant defaults
+      (m.titrants || []).forEach(function(t) {
+        _metTitrantVals[t.id] = t.default !== undefined ? t.default : 0.1;
+      });
+      // create 2 default rows
+      addSampleRow();
+      addSampleRow();
+      renderPanel();
+    });
+}
+
+function addSampleRow() {
+  var id = Date.now() + Math.random();
+  var vols = (_metActive && _metActive.volumes) ? _metActive.volumes.map(function() { return ''; }) : [''];
+  _metRows.push({ id: id, m: '', vols: vols, on: true });
+}
+
+function renderPanel() {
+  var m = _metActive;
+  var main = document.getElementById('met-main');
+  if (!m) { main.innerHTML = ''; return; }
+
+  var titrantHtml = '';
+  (m.titrants || []).forEach(function(t) {
+    titrantHtml += '<div class="met-titrant-fg"><label>' + (t.label || t.id) + '</label>';
+    if (t.options && t.options.length) {
+      titrantHtml += '<select class="met-titrant-select" id="mt-t-' + t.id + '" onchange="metTitrantChange(\'' + t.id + '\',this.value)">';
+      t.options.forEach(function(o) {
+        var sel = String(o.value) === String(_metTitrantVals[t.id]) ? ' selected' : '';
+        titrantHtml += '<option value="' + o.value + '"' + sel + '>' + o.label + ' (' + o.value + ')</option>';
+      });
+      titrantHtml += '</select>';
+    } else {
+      titrantHtml += '<input class="met-titrant-input" type="number" step="any" id="mt-t-' + t.id + '" ' +
+        'value="' + (_metTitrantVals[t.id] || '') + '" ' +
+        'onchange="metTitrantChange(\'' + t.id + '\',this.value)" ' +
+        'oninput="metTitrantChange(\'' + t.id + '\',this.value)">';
+    }
+    titrantHtml += '</div>';
+  });
+
+  var thead = '<tr>';
+  if (m.mass_required) thead += '<th>Naważka (M)</th>';
+  (m.volumes || []).forEach(function(v) { thead += '<th>' + (v.label || v.id) + '</th>'; });
+  thead += '<th>Wynik</th><th></th></tr>';
+
+  var tbody = '';
+  _metRows.forEach(function(row, ri) {
+    tbody += '<tr id="met-row-' + ri + '">';
+    if (m.mass_required) {
+      tbody += '<td><input class="met-table-inp" type="number" step="any" placeholder="g" value="' + row.m + '" ' +
+        'oninput="metRowChange(' + ri + ',\'m\',this.value)"</td>';
+    }
+    (row.vols || []).forEach(function(v, vi) {
+      tbody += '<td><input class="met-table-inp" type="number" step="any" placeholder="ml" value="' + v + '" ' +
+        'oninput="metRowChange(' + ri + ',\'v' + vi + '\',this.value)"></td>';
+    });
+    var res = calcMetRow(row);
+    tbody += '<td class="met-table-result">' + (res !== null ? res.toFixed(4) : '—') + '</td>';
+    tbody += '<td><button class="met-table-del" onclick="metDelRow(' + ri + ')">&#10005;</button></td>';
+    tbody += '</tr>';
+  });
+
+  var statsHtml = renderStats();
+
+  main.innerHTML =
+    '<div class="met-panel-title">' + m.nazwa + '</div>' +
+    '<div class="met-panel-method">' + (m.metoda || '') + (m.jednostka ? ' &middot; ' + m.jednostka : '') + '</div>' +
+    (m.wzor ? '<div class="met-panel-formula">' + m.wzor + '</div>' : '') +
+    (titrantHtml ? '<div class="met-titrants">' + titrantHtml + '</div>' : '') +
+    '<div class="met-table-wrap"><table class="met-table"><thead>' + thead + '</thead><tbody id="met-tbody">' + tbody + '</tbody></table></div>' +
+    '<button class="met-add-row-btn" onclick="metAddRow()">+ Dodaj próbkę</button>' +
+    '<div class="met-summary" id="met-summary">' + statsHtml + '</div>';
+}
+
+function metTitrantChange(id, val) {
+  _metTitrantVals[id] = parseFloat(val) || 0;
+  refreshResults();
+}
+
+function metRowChange(ri, field, val) {
+  if (!_metRows[ri]) return;
+  if (field === 'm') {
+    _metRows[ri].m = val;
+  } else if (field.startsWith('v')) {
+    var vi = parseInt(field.slice(1));
+    _metRows[ri].vols[vi] = val;
+  }
+  refreshResults();
+}
+
+function metDelRow(ri) {
+  _metRows.splice(ri, 1);
+  renderPanel();
+}
+
+function metAddRow() {
+  if (!_metActive) return;
+  addSampleRow();
+  renderPanel();
+}
+
+function calcMetRow(row) {
+  var m = _metActive;
+  if (!m) return null;
+  var vars = {};
+  if (m.mass_required) {
+    var mass = parseFloat(row.m);
+    if (isNaN(mass) || mass === 0) return null;
+    vars.M = mass;
+  }
+  var anyVol = false;
+  for (var i = 0; i < (m.volumes || []).length; i++) {
+    var v = parseFloat(row.vols[i]);
+    if (isNaN(v)) return null;
+    vars['V' + (i + 1)] = v;
+    anyVol = true;
+  }
+  if (!anyVol && !m.mass_required) return null;
+  (m.titrants || []).forEach(function(t) {
+    vars[t.id] = _metTitrantVals[t.id] !== undefined ? _metTitrantVals[t.id] : (t.default || 0.1);
+  });
+  try {
+    var keys = Object.keys(vars);
+    var vals = keys.map(function(k) { return vars[k]; });
+    var fn = new Function(keys.join(','), 'return (' + m.formula + ');');
+    var r = fn.apply(null, vals);
+    if (!isFinite(r) || isNaN(r)) return null;
+    return r;
+  } catch(e) { return null; }
+}
+
+function refreshResults() {
+  var m = _metActive;
+  if (!m) return;
+  var results = [];
+  _metRows.forEach(function(row, ri) {
+    var res = calcMetRow(row);
+    var td = document.querySelector('#met-row-' + ri + ' .met-table-result');
+    if (td) td.textContent = res !== null ? res.toFixed(4) : '—';
+    if (res !== null) results.push(res);
+  });
+  var summaryEl = document.getElementById('met-summary');
+  if (summaryEl) summaryEl.innerHTML = renderStats(results);
+}
+
+function renderStats(results) {
+  if (!results) {
+    results = _metRows.map(function(row) { return calcMetRow(row); }).filter(function(r) { return r !== null; });
+  }
+  if (results.length < 1) return '<div style="font-size:11px;color:var(--text-dim)">Brak wyników do statystyk</div>';
+
+  var mean = results.reduce(function(a, b) { return a + b; }, 0) / results.length;
+  var html = '<div class="met-stat accent"><div class="met-stat-label">Średnia</div><div class="met-stat-val">' + mean.toFixed(4) + '</div></div>';
+
+  if (results.length >= 2) {
+    var delta = Math.max.apply(null, results) - Math.min.apply(null, results);
+    var variance = results.reduce(function(a, b) { return a + (b - mean) * (b - mean); }, 0) / (results.length - 1);
+    var stdDev = Math.sqrt(variance);
+    var rsd = mean !== 0 ? (stdDev / Math.abs(mean)) * 100 : 0;
+    var rsm = rsd / Math.sqrt(results.length);
+    var warnRsd = rsd > 2;
+    html += '<div class="met-stat"><div class="met-stat-label">&#916;</div><div class="met-stat-val">' + delta.toFixed(4) + '</div></div>';
+    html += '<div class="met-stat' + (warnRsd ? ' warn' : '') + '"><div class="met-stat-label">RSD%</div><div class="met-stat-val">' + rsd.toFixed(2) + '</div></div>';
+    html += '<div class="met-stat"><div class="met-stat-label">RSM%</div><div class="met-stat-val">' + rsm.toFixed(2) + '</div></div>';
+  }
+  return html;
+}
+</script>
+{% endblock %}
