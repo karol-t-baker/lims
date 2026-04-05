@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Ustawienia{% endblock %}
+{% block nav_ustawienia %}active{% endblock %}
+
+{% block topbar_title %}
+  <span style="font-weight:700;">Ustawienia</span>
+{% endblock %}
+
+{% block head %}
+<style>
+.ust-wrap { padding: 24px 28px; max-width: 600px; }
+.ust-section { margin-bottom: 24px; }
+.ust-section-title {
+  font-size: 9px; font-weight: 800; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 1px;
+  margin-bottom: 10px; padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.ust-field { margin-bottom: 14px; }
+.ust-field label {
+  display: block; font-size: 11px; font-weight: 600;
+  color: var(--text-sec); margin-bottom: 4px;
+}
+.ust-field .ust-hint {
+  font-size: 10px; color: var(--text-dim); margin-top: 3px;
+}
+.ust-field input[type="text"] {
+  width: 100%; padding: 8px 12px;
+  border: 1.5px solid var(--border); border-radius: 6px;
+  font-size: 12px; font-family: var(--mono);
+  background: #fff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.ust-field input:focus {
+  border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-bg); outline: none;
+}
+.ust-save {
+  padding: 8px 20px; background: var(--teal); color: #fff;
+  border: none; border-radius: 6px;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  font-family: var(--font);
+  transition: background 0.15s;
+}
+.ust-save:hover { background: var(--teal-dark); }
+.ust-status {
+  display: inline-block; margin-left: 10px;
+  font-size: 11px; color: var(--green);
+  opacity: 0; transition: opacity 0.3s;
+}
+.ust-status.show { opacity: 1; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ust-wrap">
+  <div class="ust-section">
+    <div class="ust-section-title">Świadectwa jakości</div>
+    <div class="ust-field">
+      <label for="cert_output_dir">Ścieżka zapisu PDF świadectw</label>
+      <input type="text" id="cert_output_dir" value="{{ settings.get('cert_output_dir', '') }}" placeholder="np. /Users/tbk/Desktop lub C:\Users\lab\Desktop">
+      <div class="ust-hint">Katalog, do którego zapisywane będą wygenerowane pliki PDF. Domyślnie: Pulpit (~/Desktop/).</div>
+    </div>
+  </div>
+
+  <button class="ust-save" onclick="saveSettings()">Zapisz</button>
+  <span class="ust-status" id="ust-status">Zapisano ✓</span>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function saveSettings() {
+  var data = {
+    cert_output_dir: document.getElementById('cert_output_dir').value.trim()
+  };
+  fetch('/api/settings', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(data)
+  }).then(function(r) {
+    if (r.ok) {
+      var st = document.getElementById('ust-status');
+      st.classList.add('show');
+      setTimeout(function() { st.classList.remove('show'); }, 2000);
+    }
+  });
+}
+</script>
+{% endblock %}

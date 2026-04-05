@@ -144,6 +144,15 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
         )
     """)
     db.execute("""
+        CREATE TABLE IF NOT EXISTS user_settings (
+            id      INTEGER PRIMARY KEY AUTOINCREMENT,
+            login   TEXT NOT NULL,
+            key     TEXT NOT NULL,
+            value   TEXT,
+            UNIQUE(login, key)
+        )
+    """)
+    db.execute("""
         CREATE TABLE IF NOT EXISTS parametry_analityczne (
             id              INTEGER PRIMARY KEY,
             kod             TEXT NOT NULL UNIQUE,
@@ -215,6 +224,13 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     # Migration: add nieaktualne column to swiadectwa if not exists
     try:
         db.execute("ALTER TABLE swiadectwa ADD COLUMN nieaktualne INTEGER DEFAULT 0")
+        db.commit()
+    except Exception:
+        pass
+
+    # Migration: add data_json column to swiadectwa (generation inputs for regeneration)
+    try:
+        db.execute("ALTER TABLE swiadectwa ADD COLUMN data_json TEXT")
         db.commit()
     except Exception:
         pass

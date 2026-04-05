@@ -3,12 +3,12 @@
 from datetime import datetime
 
 
-def create_swiadectwo(db, ebr_id, template_name, nr_partii, pdf_path, wystawil):
+def create_swiadectwo(db, ebr_id, template_name, nr_partii, pdf_path, wystawil, data_json=None):
     now = datetime.now().isoformat(timespec="seconds")
     cur = db.execute(
-        "INSERT INTO swiadectwa (ebr_id, template_name, nr_partii, pdf_path, dt_wystawienia, wystawil) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
-        (ebr_id, template_name, nr_partii, pdf_path, now, wystawil),
+        "INSERT INTO swiadectwa (ebr_id, template_name, nr_partii, pdf_path, dt_wystawienia, wystawil, data_json) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (ebr_id, template_name, nr_partii, pdf_path, now, wystawil, data_json),
     )
     db.commit()
     return cur.lastrowid

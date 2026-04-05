@@ -6,7 +6,7 @@ import csv
 import io
 from datetime import date
 
-from flask import Response, jsonify, render_template, request
+from flask import Response, jsonify, render_template, request, session
 
 from mbr.db import db_session
 from mbr.models import next_nr_partii
@@ -81,3 +81,35 @@ def tech_export():
         mimetype="text/csv",
         headers={"Content-Disposition": "attachment; filename=wyniki_ebr.csv"},
     )
+
+
+# ---------------------------------------------------------------------------
+# User settings
+# ---------------------------------------------------------------------------
+
+@registry_bp.route("/ustawienia")
+@login_required
+def ustawienia():
+    user_login = session["user"]["login"]
+    with db_session() as db:
+        rows = db.execute(
+            "SELECT key, value FROM user_settings WHERE login=?", (user_login,)
+        ).fetchall()
+    settings = {r["key"]: r["value"] for r in rows}
+    return render_template("ustawienia.html", settings=settings)
+
+
+@registry_bp.route("/api/settings", methods=["POST"])
+@login_required
+def api_settings_save():
+    data = request.get_json(silent=True) or {}
+    user_login = session["user"]["login"]
+    with db_session() as db:
+        for key, value in data.items():
+            db.execute(
+                """INSERT INTO user_settings (login, key, value) VALUES (?, ?, ?)
+                   ON CONFLICT(login, key) DO UPDATE SET value=excluded.value""",
+                (user_login, key, value),
+            )
+        db.commit()
+    return jsonify({"ok": True})

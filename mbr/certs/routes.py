@@ -5,7 +5,7 @@ from pathlib import Path
 from flask import Response, abort, jsonify, request, send_file, session
 
 from mbr.certs import certs_bp
-from mbr.certs.generator import generate_certificate_pdf, get_required_fields, get_variants, save_certificate_pdf
+from mbr.certs.generator import generate_certificate_pdf, get_required_fields, get_variants, save_certificate_pdf, save_certificate_data
 from mbr.certs.models import create_swiadectwo, list_swiadectwa
 from mbr.db import db_session
 from mbr.models import get_ebr, get_ebr_wyniki, get_mbr
@@ -84,8 +84,32 @@ def api_cert_generate():
         except Exception as e:
             return jsonify({"ok": False, "error": str(e)}), 500
 
-        pdf_path = save_certificate_pdf(pdf_bytes, ebr["produkt"], variant_label, ebr["nr_partii"])
-        cert_id = create_swiadectwo(db, ebr_id, variant_label, ebr["nr_partii"], pdf_path, wystawil)
+        # Read user's configured output path
+        user_login = session["user"]["login"]
+        setting_row = db.execute(
+            "SELECT value FROM user_settings WHERE login=? AND key='cert_output_dir'",
+            (user_login,),
+        ).fetchone()
+        output_dir = setting_row["value"] if setting_row else None
+
+        # Save PDF to user's configured path (or ~/Desktop/)
+        pdf_path = save_certificate_pdf(pdf_bytes, ebr["produkt"], variant_label, ebr["nr_partii"], output_dir)
+
+        # Save generation data to archive (for regeneration)
+        import json as _json
+        generation_data = {
+            "produkt": ebr["produkt"],
+            "variant_id": variant_id,
+            "variant_label": variant_label,
+            "nr_partii": ebr["nr_partii"],
+            "dt_start": ebr.get("dt_start"),
+            "wyniki_flat": {k: {"wartosc": v.get("wartosc"), "w_limicie": v.get("w_limicie")} for k, v in wyniki_flat.items()},
+            "extra_fields": extra_fields,
+            "wystawil": wystawil,
+        }
+        data_path = save_certificate_data(ebr["produkt"], variant_label, ebr["nr_partii"], generation_data)
+
+        cert_id = create_swiadectwo(db, ebr_id, variant_label, ebr["nr_partii"], pdf_path, wystawil, data_json=_json.dumps(generation_data, ensure_ascii=False))
 
     return jsonify({"ok": True, "cert_id": cert_id, "pdf_path": pdf_path})
 
@@ -119,12 +143,13 @@ def api_cert_pdf(cert_id):
         ).fetchone()
     if row is None:
         return "Nie znaleziono świadectwa", 404
-    project_root = Path(__file__).parent.parent.parent
-    pdf_path = (project_root / row["pdf_path"]).resolve()
-    if not str(pdf_path).startswith(str(project_root.resolve())):
-        return "Invalid path", 400
+    pdf_path = Path(row["pdf_path"])
+    # Support both absolute paths (new) and relative paths (legacy)
+    if not pdf_path.is_absolute():
+        project_root = Path(__file__).parent.parent.parent
+        pdf_path = (project_root / pdf_path).resolve()
     if not pdf_path.exists():
-        return "Plik PDF nie istnieje", 404
+        return "Plik PDF nie istnieje. Sprawdź ścieżkę w Ustawieniach.", 404
     return send_file(str(pdf_path), mimetype="application/pdf")
 
 

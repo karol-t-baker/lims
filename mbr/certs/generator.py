@@ -319,40 +319,66 @@ def generate_certificate_pdf(
 # ---------------------------------------------------------------------------
 # 7. save_certificate_pdf
 # ---------------------------------------------------------------------------
-def save_certificate_pdf(
-    pdf_bytes: bytes,
-    produkt: str,
-    variant_label: str,
-    nr_partii: str,
-) -> str:
-    """Save PDF to data/swiadectwa/{year}/{product_slug}/{label_safe}_{nr_safe}.pdf.
-
-    Returns:
-        Path relative to project root.
-    """
-    year = date.today().year
-    product_slug = produkt.replace(" ", "_")
-
+def _make_pdf_name(variant_label: str, nr_partii: str) -> str:
     label_safe = (
         variant_label
         .replace(" ", "_")
         .replace("/", "_")
         .replace("\\", "_")
-        .replace("\u2014", "-")  # em dash
+        .replace("\u2014", "-")
     )
     nr_safe = nr_partii.replace("/", "_").replace("\\", "_").replace(" ", "_")
+    return f"{label_safe}_{nr_safe}.pdf"
 
-    pdf_name = f"{label_safe}_{nr_safe}.pdf"
+
+def save_certificate_data(
+    produkt: str,
+    variant_label: str,
+    nr_partii: str,
+    generation_data: dict,
+) -> str:
+    """Save generation inputs as JSON to data/swiadectwa/ archive (for regeneration).
+
+    Returns:
+        JSON archive path relative to project root.
+    """
+    year = date.today().year
+    product_slug = produkt.replace(" ", "_")
+    nr_safe = nr_partii.replace("/", "_").replace("\\", "_").replace(" ", "_")
+    label_safe = variant_label.replace(" ", "_").replace("/", "_").replace("\\", "_").replace("\u2014", "-")
 
     out_dir = OUTPUT_DIR / str(year) / product_slug
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    full_path = out_dir / pdf_name
+    json_name = f"{label_safe}_{nr_safe}.json"
+    json_path = out_dir / json_name
+
+    import json
+    json_path.write_text(json.dumps(generation_data, ensure_ascii=False, indent=2), encoding="utf-8")
+    return str(json_path.relative_to(_PROJECT_ROOT))
+
+
+def save_certificate_pdf(
+    pdf_bytes: bytes,
+    produkt: str,
+    variant_label: str,
+    nr_partii: str,
+    output_dir: str | None = None,
+) -> str:
+    """Save PDF to user-configured path (or ~/Desktop/ as fallback).
+
+    Args:
+        output_dir: User-configured directory path. Falls back to ~/Desktop/.
+
+    Returns:
+        Absolute path to the saved PDF.
+    """
+    pdf_name = _make_pdf_name(variant_label, nr_partii)
+
+    target_dir = Path(output_dir) if output_dir else Path.home() / "Desktop"
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    full_path = target_dir / pdf_name
     full_path.write_bytes(pdf_bytes)
 
-    # Also save a copy to user's Desktop for quick access
-    desktop = Path.home() / "Desktop"
-    if desktop.exists():
-        (desktop / pdf_name).write_bytes(pdf_bytes)
-
-    return str(full_path.relative_to(_PROJECT_ROOT))
+    return str(full_path)
