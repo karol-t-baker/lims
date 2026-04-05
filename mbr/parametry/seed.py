@@ -507,6 +507,13 @@ METODY = [
         "titrants_json": [{"id": "T1", "label": "C(KOH)", "default": 0.1}],
     },
     {
+        "nazwa": "Liczba Aminowa (LA)",
+        "formula": "(V1 * T1 * 56.1) / M",
+        "mass_required": 1,
+        "volumes_json": [{"label": "V(HCl) [ml]", "titrant": "T1"}],
+        "titrants_json": [{"id": "T1", "label": "C(HCl)", "default": 0.1}],
+    },
+    {
         "nazwa": "Wolne kwasy t\u0142uszczowe [%]",
         "formula": "(V1 * T1) / 56.1",
         "mass_required": 0,
@@ -557,7 +564,7 @@ _PARAM_METHOD_MAP = {
     "so3": "Siarczyny [%]",
     "h2o2": "Perhydrol [%]",
     "lk": "Liczba Kwasowa (LK)",
-    "la": "Liczba Kwasowa (LK)",
+    "la": "Liczba Aminowa (LA)",
     "wolna_amina": "DMAPA [%]",
     "mea": "MEA [%]",
     "dietanolamina": "DEA [%]",
