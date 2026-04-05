@@ -621,10 +621,14 @@ function switchSidebarTab(tab, btn) {
   etapyPanel.style.display = 'none';
   listPanel.style.display = 'none';
 
+  var dzBtn = document.getElementById('sb-dziennik-btn');
+
   if (tab === 'etapy') {
     etapyPanel.style.display = 'flex';
+    if (dzBtn && (window._etapyStatus || []).length > 0) dzBtn.style.display = '';
   } else {
     listPanel.style.display = '';
+    if (dzBtn) dzBtn.style.display = 'none';
     document.querySelectorAll('#sidebar-batch-list .batch-card').forEach(function(c) {
       if (tab === 'szarze') c.style.display = c.dataset.typ === 'szarza' ? '' : 'none';
       else if (tab === 'zbiorniki') c.style.display = c.dataset.typ === 'zbiornik' ? '' : 'none';
