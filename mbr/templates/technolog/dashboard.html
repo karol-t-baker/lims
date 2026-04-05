@@ -51,7 +51,7 @@
 <div class="dashboard">
 
   {# ═══ FILTER BAR ═══ #}
-  <form method="GET" action="{{ url_for('tech_dashboard') }}" style="display:flex; gap:10px; margin-bottom:16px; align-items:center; flex-wrap:wrap;">
+  <form method="GET" action="{{ url_for('technolog.tech_dashboard') }}" style="display:flex; gap:10px; margin-bottom:16px; align-items:center; flex-wrap:wrap;">
     <label class="form-label" style="margin:0; font-size:12px; font-weight:600;">Produkt:</label>
     <select name="produkt" class="form-select" style="width:auto; padding:6px 10px; font-size:12px;" onchange="this.form.submit()">
       <option value="">Wszystkie</option>
@@ -143,7 +143,7 @@
   <div class="section-title">
     Ostatnie wyniki
     <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
-      <a href="{{ url_for('tech_export', produkt=filter_produkt or '', typ=filter_typ or '') }}" class="q-btn">Eksport CSV</a>
+      <a href="{{ url_for('registry.tech_export', produkt=filter_produkt or '', typ=filter_typ or '') }}" class="q-btn">Eksport CSV</a>
     </div>
   </div>
 
@@ -178,7 +178,7 @@
           {% endif %}
         </td>
         <td>
-          <a href="{{ url_for('pdf_ebr', ebr_id=b.ebr_id) }}" class="q-btn" target="_blank">PDF</a>
+          <a href="{{ url_for('certs.pdf_ebr', ebr_id=b.ebr_id) }}" class="q-btn" target="_blank">PDF</a>
         </td>
       </tr>
       {% endfor %}

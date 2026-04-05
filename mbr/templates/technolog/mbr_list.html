@@ -65,15 +65,15 @@
       <td>
         <div class="actions-cell">
           {% if mbr.status == 'draft' %}
-            <a href="{{ url_for('mbr_edit', mbr_id=mbr.mbr_id) }}" class="btn btn-p q-btn-sm">Edytuj</a>
-            <form method="POST" action="{{ url_for('mbr_activate', mbr_id=mbr.mbr_id) }}" class="inline-form">
+            <a href="{{ url_for('technolog.mbr_edit', mbr_id=mbr.mbr_id) }}" class="btn btn-p q-btn-sm">Edytuj</a>
+            <form method="POST" action="{{ url_for('technolog.mbr_activate', mbr_id=mbr.mbr_id) }}" class="inline-form">
               <button type="submit" class="q-btn q-btn-sm" onclick="return confirm('Aktywowac szablon v{{ mbr.wersja }}?')">Aktywuj</button>
             </form>
           {% else %}
-            <a href="{{ url_for('mbr_edit', mbr_id=mbr.mbr_id) }}" class="btn btn-o q-btn-sm">Podglad</a>
+            <a href="{{ url_for('technolog.mbr_edit', mbr_id=mbr.mbr_id) }}" class="btn btn-o q-btn-sm">Podglad</a>
           {% endif %}
-          <a href="{{ url_for('pdf_mbr', mbr_id=mbr.mbr_id) }}" class="q-btn q-btn-sm" target="_blank">PDF</a>
-          <form method="POST" action="{{ url_for('mbr_clone', mbr_id=mbr.mbr_id) }}" class="inline-form">
+          <a href="{{ url_for('certs.pdf_mbr', mbr_id=mbr.mbr_id) }}" class="q-btn q-btn-sm" target="_blank">PDF</a>
+          <form method="POST" action="{{ url_for('technolog.mbr_clone', mbr_id=mbr.mbr_id) }}" class="inline-form">
             <button type="submit" class="q-btn q-btn-sm">Klonuj</button>
           </form>
         </div>

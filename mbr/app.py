@@ -1,48 +1,50 @@
-"""
-app.py — Minimal Flask app for MBR/EBR management.
-"""
+"""LIMS application — Flask app factory."""
 
 import os
 import socket
 
 from flask import Flask
 
-from mbr.db import db_session
-from mbr.models import init_mbr_tables
-from mbr.shared.filters import register_filters
-from mbr.shared.context import register_context
 
-app = Flask(__name__)
-app.secret_key = os.environ.get("MBR_SECRET_KEY", "dev-secret-change-in-prod")
-register_filters(app)
-register_context(app)
-from mbr.auth import auth_bp  # noqa: E402
-app.register_blueprint(auth_bp)
-from mbr.workers import workers_bp  # noqa: E402
-app.register_blueprint(workers_bp)
-from mbr.paliwo import paliwo_bp  # noqa: E402
-app.register_blueprint(paliwo_bp)
-from mbr.certs import certs_bp  # noqa: E402
-app.register_blueprint(certs_bp)
-from mbr.registry import registry_bp  # noqa: E402
-app.register_blueprint(registry_bp)
-from mbr.etapy import etapy_bp  # noqa: E402
-app.register_blueprint(etapy_bp)
-from mbr.parametry import parametry_bp  # noqa: E402
-app.register_blueprint(parametry_bp)
-from mbr.technolog import technolog_bp  # noqa: E402
-app.register_blueprint(technolog_bp)
-from mbr.laborant import laborant_bp  # noqa: E402
-app.register_blueprint(laborant_bp)
+def create_app():
+    app = Flask(__name__)
+    app.secret_key = os.environ.get("MBR_SECRET_KEY", "dev-secret-change-in-prod")
 
+    # Shared: filters, context processor
+    from mbr.shared.filters import register_filters
+    from mbr.shared.context import register_context
+    register_filters(app)
+    register_context(app)
 
-# ---------------------------------------------------------------------------
-# Startup
-# ---------------------------------------------------------------------------
+    # Blueprints
+    from mbr.auth import auth_bp
+    from mbr.workers import workers_bp
+    from mbr.paliwo import paliwo_bp
+    from mbr.certs import certs_bp
+    from mbr.registry import registry_bp
+    from mbr.etapy import etapy_bp
+    from mbr.parametry import parametry_bp
+    from mbr.technolog import technolog_bp
+    from mbr.laborant import laborant_bp
 
-with app.app_context():
-    with db_session() as db:
-        init_mbr_tables(db)
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(workers_bp)
+    app.register_blueprint(paliwo_bp)
+    app.register_blueprint(certs_bp)
+    app.register_blueprint(registry_bp)
+    app.register_blueprint(etapy_bp)
+    app.register_blueprint(parametry_bp)
+    app.register_blueprint(technolog_bp)
+    app.register_blueprint(laborant_bp)
+
+    # Initialize database tables
+    from mbr.db import db_session
+    from mbr.models import init_mbr_tables
+    with app.app_context():
+        with db_session() as db:
+            init_mbr_tables(db)
+
+    return app
 
 
 def _get_local_ip() -> str:
@@ -56,6 +58,9 @@ def _get_local_ip() -> str:
     except Exception:
         return "127.0.0.1"
 
+
+# Module-level instance for backward compat (flask run, gunicorn mbr.app:app)
+app = create_app()
 
 if __name__ == "__main__":
     ip = _get_local_ip()

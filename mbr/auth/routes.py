@@ -35,5 +35,5 @@ def logout():
 @login_required
 def index():
     if session["user"]["rola"] == "technolog":
-        return redirect(url_for("mbr_list"))
-    return redirect(url_for("szarze_list"))
+        return redirect(url_for("technolog.mbr_list"))
+    return redirect(url_for("laborant.szarze_list"))

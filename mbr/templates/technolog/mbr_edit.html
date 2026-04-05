@@ -4,7 +4,7 @@
 {% block nav_mbr %}active{% endblock %}
 
 {% block topbar_title %}
-  <a href="{{ url_for('mbr_list') }}" class="tp-r" style="text-decoration:none;">Szablony MBR</a>
+  <a href="{{ url_for('technolog.mbr_list') }}" class="tp-r" style="text-decoration:none;">Szablony MBR</a>
   <span class="tp-r">/</span>
   {{ mbr.produkt|short_product }} <span class="tp-acc">v{{ mbr.wersja }}</span>
 {% endblock %}
@@ -67,7 +67,7 @@
     </div>
     <div class="actions-cell mt-16" style="justify-content:flex-start;">
       <button type="submit" class="btn btn-p">Zapisz szablon</button>
-      <a href="{{ url_for('mbr_list') }}" class="btn btn-o">Anuluj</a>
+      <a href="{{ url_for('technolog.mbr_list') }}" class="btn btn-o">Anuluj</a>
     </div>
     {% endif %}
   </form>
