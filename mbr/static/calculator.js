@@ -11,15 +11,36 @@
 
 if (typeof CALC_METHODS !== 'undefined') { /* already loaded */ } else {
 
-var CALC_METHODS = {
-    procent_sa:   { name: '%SA',   method: 'Dwufazowa Epton',      formula: '% = (V * C * M) / (m * 10)', factor: 3.261 },
-    procent_nacl: { name: '%NaCl', method: 'Argentometryczna Mohr', formula: '% = (V * 0.00585 * 100) / m', factor: 0.585 },
-    procent_aa:   { name: '%AA',   method: 'Alkacymetria',          formula: '% = (V * C * M) / (m * 10)', factor: 3.015 },
-    procent_so3:  { name: '%SO3',  method: 'Jodometryczna',         formula: '% = (V * 0.004 * 100) / m',  factor: 0.4 },
-    procent_h2o2: { name: '%H2O2', method: 'Manganometryczna',      formula: '% = (V * 0.0017 * 100) / m', factor: 0.17 },
-    lk:                 { name: 'LK',    method: 'Alkacymetria KOH',      formula: 'LK = (V * C * 56.1) / m',    factor: 5.61 },
-    le_liczba_kwasowa:  { name: 'LK',    method: 'Alkacymetria KOH',      formula: 'LK = (V * C * 56.1) / m',    factor: 5.61 },
-};
+// CALC_METHODS loaded from /api/parametry/calc-methods at page load.
+// Legacy tag-based keys (procent_*) are generated as aliases for backward compatibility.
+var CALC_METHODS = {};
+
+(function loadCalcMethods() {
+    fetch('/api/parametry/calc-methods')
+        .then(function(resp) { return resp.json(); })
+        .then(function(data) {
+            // data = {kod: {name, method, formula, factor}}
+            for (var kod in data) {
+                var m = data[kod];
+                CALC_METHODS[kod] = m;
+                // Legacy aliases: tag-based keys used by old parametry_lab format
+                CALC_METHODS['procent_' + kod] = m;
+            }
+        })
+        .catch(function() {
+            // Fallback: hardcoded methods if API fails (e.g. not logged in)
+            CALC_METHODS = {
+                nacl:  { name: '%NaCl', method: 'Argentometryczna Mohr', formula: '% = (V * 0.00585 * 100) / m', factor: 0.585 },
+                aa:    { name: '%AA',   method: 'Alkacymetria',          formula: '% = (V * C * M) / (m * 10)',   factor: 3.015 },
+                so3:   { name: '%SO3',  method: 'Jodometryczna',         formula: '% = (V * 0.004 * 100) / m',   factor: 0.4 },
+                h2o2:  { name: '%H2O2', method: 'Manganometryczna',      formula: '% = (V * 0.0017 * 100) / m',  factor: 0.17 },
+                lk:    { name: 'LK',    method: 'Alkacymetria KOH',      formula: 'LK = (V * C * 56.1) / m',     factor: 5.61 },
+            };
+            for (var k in CALC_METHODS) {
+                CALC_METHODS['procent_' + k] = CALC_METHODS[k];
+            }
+        });
+})();
 
 let _calcState = {
     tag: null,
