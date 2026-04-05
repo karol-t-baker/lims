@@ -59,22 +59,32 @@ var _calcTitrantValues = {};
 function buildStatsHtml(results) {
     if (results.length >= 2) {
         var stats = calcStats(results);
+        var convCls = stats.convergent ? 'ok' : 'err';
+        var convIcon = stats.convergent
+            ? '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 8 6.5 11.5 13 5"/></svg>'
+            : '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 4l8 8M12 4l-8 8"/></svg>';
+        var convText = stats.convergent ? 'Zbie\u017cne' : 'Brak zbie\u017cno\u015bci';
         return '<div class="calc-summary">' +
-            '<div>' +
-                '<div class="calc-avg-label">\u015arednia</div>' +
-                '<div class="calc-stats">' +
-                    '<div class="calc-stat"><span class="calc-stat-label">\u0394</span> <span class="calc-stat-val ' + (stats.convergent ? 'ok' : 'err') + '">' + stats.delta.toFixed(4) + '</span></div>' +
-                    '<div class="calc-stat"><span class="calc-stat-label">Zbie\u017cno\u015b\u0107</span> <span class="calc-stat-val ' + (stats.convergent ? 'ok' : 'err') + '">' + (stats.convergent ? 'TAK' : 'NIE') + '</span></div>' +
-                    '<div class="calc-stat"><span class="calc-stat-label">RSD</span> <span class="calc-stat-val">' + stats.rsd.toFixed(2) + '%</span></div>' +
-                    '<div class="calc-stat"><span class="calc-stat-label">RSM</span> <span class="calc-stat-val">' + stats.rsm.toFixed(2) + '%</span></div>' +
-                '</div>' +
+            '<div class="calc-avg-label">\u015arednia</div>' +
+            '<div class="calc-sum-result">' +
+                '<span class="calc-avg-value">' + stats.mean.toFixed(4).replace('.', ',') + '</span>' +
             '</div>' +
-            '<div class="calc-avg-value">' + stats.mean.toFixed(4) + '</div>' +
+            '<div class="calc-convergence-pill ' + convCls + '">' + convIcon + ' ' + convText + ' \u00b7 \u0394 ' + stats.delta.toFixed(4).replace('.', ',') + '</div>' +
+            '<div class="calc-stats-row">' +
+                '<div><div class="calc-stat-label">RSD</div><div class="calc-stat-val">' + stats.rsd.toFixed(2).replace('.', ',') + '%</div></div>' +
+                '<div><div class="calc-stat-label">RSM</div><div class="calc-stat-val">' + stats.rsm.toFixed(2).replace('.', ',') + '%</div></div>' +
+                '<div><div class="calc-stat-label">N</div><div class="calc-stat-val">' + results.length + '</div></div>' +
+                '<div><div class="calc-stat-label">Delta</div><div class="calc-stat-val ' + convCls + '">' + stats.delta.toFixed(4).replace('.', ',') + '</div></div>' +
+            '</div>' +
         '</div>';
     } else if (results.length === 1) {
-        return '<div class="calc-summary"><div><div class="calc-avg-label">Wynik</div>' +
-            '<div class="calc-convergence">Jedna pr\u00f3bka \u2014 dodaj drug\u0105</div></div>' +
-            '<div class="calc-avg-value">' + results[0].toFixed(4) + '</div></div>';
+        return '<div class="calc-summary">' +
+            '<div class="calc-avg-label">Wynik</div>' +
+            '<div class="calc-sum-result">' +
+                '<span class="calc-avg-value">' + results[0].toFixed(4).replace('.', ',') + '</span>' +
+            '</div>' +
+            '<div class="calc-convergence">Jedna pr\u00f3bka \u2014 dodaj drug\u0105</div>' +
+        '</div>';
     }
     return '';
 }
