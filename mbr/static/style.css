@@ -57,14 +57,23 @@
   --prod-other-bg: var(--surface-alt);
 
   /* Stage colors */
-  --stage-amid: var(--teal-dark);       /* Amidowanie */
-  --stage-smca: #0c6264;               /* Wytworzenie SMCA */
-  --stage-czwart: var(--teal);          /* Czwartorzędowanie */
-  --stage-stand: var(--amber);          /* Standaryzacja */
-  --stage-stand-bg: var(--amber-bg);
-  --stage-koncowa: #6366f1;             /* Analiza końcowa — indigo */
-  --stage-koncowa-bg: #eef2ff;
-  --stage-done: var(--green);           /* Gotowy */
+  /* Stage colors — pastel gradient warm→cool */
+  --stage-amid: #b45309;               /* Amidowanie+SMCA — amber/warm */
+  --stage-amid-bg: #fef3c7;
+  --stage-smca: #b45309;
+  --stage-czwart: #d97706;             /* Czwartorzędowanie — honey */
+  --stage-czwart-bg: #fef9c3;
+  --stage-sulfon: #0d9488;             /* Sulfonowanie — teal */
+  --stage-sulfon-bg: #ccfbf1;
+  --stage-utlen: #0369a1;              /* Utlenienie — sky blue */
+  --stage-utlen-bg: #e0f2fe;
+  --stage-rozj: #6366f1;               /* Rozjaśnianie — indigo */
+  --stage-rozj-bg: #eef2ff;
+  --stage-stand: #7c3aed;              /* Standaryzacja — violet */
+  --stage-stand-bg: #f5f3ff;
+  --stage-koncowa: #db2777;            /* Analiza końcowa — pink */
+  --stage-koncowa-bg: #fce7f3;
+  --stage-done: var(--green);          /* Gotowy */
   --stage-done-bg: var(--green-bg);
 
   --font: 'Inter', -apple-system, 'Segoe UI', sans-serif;
@@ -1204,8 +1213,8 @@ body {
 
 .pf-node.s-amid .pf-bubble    { background: var(--stage-amid); color: white; }
 .pf-node.s-czwart .pf-bubble  { background: var(--stage-czwart); color: white; }
-.pf-node.s-sulfon .pf-bubble  { background: #14948e; color: white; }
-.pf-node.s-utlen .pf-bubble   { background: #2cb5ab; color: white; }
+.pf-node.s-sulfon .pf-bubble  { background: var(--stage-sulfon); color: white; }
+.pf-node.s-utlen .pf-bubble   { background: var(--stage-utlen); color: white; }
 .pf-node.s-stand .pf-bubble   { background: var(--stage-stand); color: white; }
 .pf-node.s-koncowa .pf-bubble { background: var(--stage-koncowa); color: white; }
 .pf-node.empty .pf-bubble { background: var(--surface-alt); color: var(--text-dim); border: 1.5px dashed var(--border); }
@@ -1228,8 +1237,8 @@ body {
 .pipeline-bar { margin-top: 14px; display: flex; height: 4px; border-radius: 2px; overflow: hidden; gap: 1px; background: var(--surface-alt); }
 .pb-seg.s-amid    { background: var(--stage-amid); }
 .pb-seg.s-czwart  { background: var(--stage-czwart); }
-.pb-seg.s-sulfon  { background: #14948e; }
-.pb-seg.s-utlen   { background: #2cb5ab; }
+.pb-seg.s-sulfon  { background: var(--stage-sulfon); }
+.pb-seg.s-utlen   { background: var(--stage-utlen); }
 .pb-seg.s-stand   { background: var(--stage-stand); }
 .pb-seg.s-koncowa { background: var(--stage-koncowa); }
 

@@ -89,8 +89,15 @@
   .se-num.done { background: var(--green-bg); border-color: var(--green); color: var(--green); }
   .se-num.active { background: var(--teal-bg); border-color: var(--teal); color: var(--teal); animation: sePulse 1.8s ease-in-out infinite; }
   .se-num.pending { background: var(--surface); border-color: var(--border); color: var(--text-dim); }
+  .se-num.amid-active { background: var(--stage-amid-bg); border-color: var(--stage-amid); color: var(--stage-amid); animation: sePulse 1.8s ease-in-out infinite; }
+  .se-num.czwart-active { background: var(--stage-czwart-bg); border-color: var(--stage-czwart); color: var(--stage-czwart); animation: sePulse 1.8s ease-in-out infinite; }
+  .se-num.sulfon-active { background: var(--stage-sulfon-bg); border-color: var(--stage-sulfon); color: var(--stage-sulfon); animation: sePulse 1.8s ease-in-out infinite; }
+  .se-num.utlen-active { background: var(--stage-utlen-bg); border-color: var(--stage-utlen); color: var(--stage-utlen); animation: sePulse 1.8s ease-in-out infinite; }
+  .se-num.rozj-active { background: var(--stage-rozj-bg); border-color: var(--stage-rozj); color: var(--stage-rozj); animation: sePulse 1.8s ease-in-out infinite; }
   .se-num.stand { background: var(--stage-stand-bg); border-color: var(--stage-stand); color: var(--stage-stand); }
+  .se-num.stand-active { background: var(--stage-stand-bg); border-color: var(--stage-stand); color: var(--stage-stand); animation: sePulse 1.8s ease-in-out infinite; }
   .se-num.koncowa { background: var(--stage-koncowa-bg); border-color: var(--stage-koncowa); color: var(--stage-koncowa); }
+  .se-num.koncowa-active { background: var(--stage-koncowa-bg); border-color: var(--stage-koncowa); color: var(--stage-koncowa); animation: sePulse 1.8s ease-in-out infinite; }
   @keyframes sePulse { 0%,100%{box-shadow:0 0 0 0 rgba(13,115,119,.3)} 50%{box-shadow:0 0 0 4px rgba(13,115,119,0)} }
 
   .se-info { flex: 1; min-width: 0; }
@@ -826,7 +833,7 @@ function renderSidebarEtapy() {
     html += '<div class="se-par-tag">Etap 1 — równoległy</div>';
     html += '<div class="se-par-group">';
     parallelStages.forEach(function(ps) {
-      var statusCls = ps.sd.status === 'done' ? 'done' : ps.sd.status === 'active' ? 'active' : 'pending';
+      var statusCls = ps.sd.status === 'done' ? 'done' : ps.sd.status === 'active' ? 'amid-active' : 'pending';
       var isCls = 'is-' + ps.sd.status.replace('in_progress', 'active');
       var selCls = '';
       var clickAttr = ps.sd.clickable ? ' onclick="openProcessStage(\'' + ps.sd.key + '\')"' : '';
@@ -842,11 +849,11 @@ function renderSidebarEtapy() {
 
   // Sequential stages
   sequentialStages.forEach(function(ss) {
-    var statusCls = ss.sd.status === 'done' ? 'done' : ss.sd.status === 'active' ? 'active' : 'pending';
+    var etapColorMap = {'czwartorzedowanie':'czwart-active','sulfonowanie':'sulfon-active','utlenienie':'utlen-active','rozjasnianie':'rozj-active'};
+    var statusCls = ss.sd.status === 'done' ? 'done' : ss.sd.status === 'active' ? (etapColorMap[ss.sd.key] || 'active') : 'pending';
     var isCls = 'is-' + ss.sd.status.replace('in_progress', 'active');
-    // Special colors for standaryzacja and analiza koncowa
-    if (ss.etap.sekcja_lab === 'standaryzacja' && ss.sd.status === 'active') statusCls = 'stand';
-    if (ss.etap.sekcja_lab === 'analiza_koncowa' && ss.sd.status === 'active') statusCls = 'koncowa';
+    if (ss.etap.sekcja_lab === 'standaryzacja' && ss.sd.status === 'active') statusCls = 'stand-active';
+    if (ss.etap.sekcja_lab === 'analiza_koncowa' && ss.sd.status === 'active') statusCls = 'koncowa-active';
     var clickAttr = ss.sd.clickable ? ' onclick="openProcessStage(\'' + ss.sd.key + '\')"' : '';
     var statusText = ss.sd.status === 'done' ? 'Zakończone' : ss.sd.status === 'active' ? 'W toku' : 'Oczekuje';
     if (ss.sd.detail) statusText = ss.sd.detail;
