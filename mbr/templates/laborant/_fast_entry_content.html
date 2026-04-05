@@ -1747,61 +1747,90 @@ window.showProcessStage = function(etapKey) {
   else if (isActive) headerExtra = ' <span style="font-size:9px;background:var(--teal-bg);color:var(--teal);padding:2px 6px;border-radius:3px;margin-left:6px;">R' + currentRunda + '</span>';
 
   var html = '<div class="cv-params">' +
-    '<div class="cv-params-head">' + stageConfig.label + headerExtra +
-    (isActive ? ' <button class="cv-edit-btn" style="display:none;"></button>' : '') +
-    '</div>';
+    '<div class="cv-params-head">' + stageConfig.label + headerExtra + '</div>';
 
-  // Parameter rows — reuse EXACT same classes as standaryzacja/AK (.ff, .status-dot, .norm-range, .type-tag)
-  html += '<div class="section-fields">';
-  stageConfig.parametry.forEach(function(param) {
-    var val = '';
-    var rundaData = stageAnalizy[currentRunda];
-    if (rundaData && rundaData[param.kod]) {
-      val = String(rundaData[param.kod].wartosc).replace('.', ',');
+  // Helper: render one runda's fields
+  function renderRundaFields(rundaNum, editable) {
+    var h = '<div class="section-fields">';
+    var rundaData = stageAnalizy[rundaNum] || {};
+    stageConfig.parametry.forEach(function(param) {
+      var val = '';
+      if (rundaData[param.kod]) {
+        val = String(rundaData[param.kod].wartosc).replace('.', ',');
+      }
+
+      var normRange = '';
+      if (param.min != null && param.max != null) normRange = param.min + ' – ' + param.max;
+      else if (param.min != null) normRange = '> ' + param.min;
+      else if (param.max != null) normRange = '< ' + param.max;
+
+      var isTitr = param.typ === 'titracja';
+      var isObl = param.typ === 'obliczeniowy';
+      var typeTag = '';
+      if (isTitr) typeTag = '<span class="type-tag t-titr">M</span>';
+      else if (isObl) typeTag = '<span class="type-tag t-calc">O</span>';
+
+      var inputClass = '';
+      if (val) {
+        var numVal = parseFloat(val.replace(',', '.'));
+        var inLimit = true;
+        if (param.min != null && numVal < param.min) inLimit = false;
+        if (param.max != null && numVal > param.max) inLimit = false;
+        inputClass = inLimit ? 'ok' : 'err';
+      }
+
+      h += '<div class="ff' + (isTitr ? ' titr' : '') + (isObl ? ' computed' : '') + '">' +
+        '<div class="status-dot"></div>' +
+        '<label>' + param.label + '</label>' +
+        '<input type="text" inputmode="decimal"' +
+          ' data-etap="' + etapKey + '" data-runda="' + rundaNum + '" data-kod="' + param.kod + '"' +
+          ' data-min="' + (param.min != null ? param.min : '') + '"' +
+          ' data-max="' + (param.max != null ? param.max : '') + '"' +
+          ' value="' + val + '"' +
+          ' class="' + inputClass + '"' +
+          (!editable ? ' readonly' : '') +
+          ' placeholder="\u2014"' +
+          (editable ? ' oninput="validateField(this); psAutoSave(this)" onblur="psSave(this)"' : '') +
+          '>' +
+        '<div class="ff-right">' +
+          '<span class="norm-range">' + normRange + '</span>' +
+          typeTag +
+        '</div>' +
+      '</div>';
+    });
+    h += '</div>';
+    return h;
+  }
+
+  // Render all rounds: previous (read-only) + corrections between + current (editable)
+  for (var rn = 1; rn <= currentRunda; rn++) {
+    var isLastRunda = rn === currentRunda;
+    var rundaEditable = isActive && isLastRunda;
+
+    // Runda header
+    if (currentRunda > 1) {
+      var rundaLabel = isLastRunda && isActive ? 'Runda ' + rn + ' (aktualna)' : 'Runda ' + rn;
+      html += '<div style="padding:6px 16px 2px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-dim);">' + rundaLabel + '</div>';
     }
 
-    var normRange = '';
-    if (param.min != null && param.max != null) normRange = param.min + ' – ' + param.max;
-    else if (param.min != null) normRange = '> ' + param.min;
-    else if (param.max != null) normRange = '< ' + param.max;
+    html += renderRundaFields(rn, rundaEditable);
 
-    var isTitr = param.typ === 'titracja';
-    var isObl = param.typ === 'obliczeniowy';
-    var typeTag = '';
-    if (isTitr) typeTag = '<span class="type-tag t-titr">M</span>';
-    else if (isObl) typeTag = '<span class="type-tag t-calc">O</span>';
-
-    var inputClass = '';
-    if (val) {
-      var numVal = parseFloat(val.replace(',', '.'));
-      var inLimit = true;
-      if (param.min != null && numVal < param.min) inLimit = false;
-      if (param.max != null && numVal > param.max) inLimit = false;
-      inputClass = inLimit ? 'ok' : 'err';
+    // Show corrections after this runda (if not last)
+    var rundaKorekty = stageKorekty.filter(function(k) { return k.po_rundzie === rn; });
+    if (rundaKorekty.length > 0) {
+      rundaKorekty.forEach(function(k) {
+        var kgText = k.ilosc_kg > 0 ? String(k.ilosc_kg).replace('.',',') + ' kg' : '';
+        html += '<div style="padding:4px 16px;display:flex;align-items:center;gap:6px;font-size:11px;">' +
+          '<span style="color:var(--amber);font-weight:600;">↳</span>' +
+          '<span style="font-weight:600;color:var(--amber);">' + k.substancja + '</span>' +
+          (kgText ? '<span style="font-family:var(--mono);color:var(--text-sec);">' + kgText + '</span>' : '') +
+          '<span style="font-size:9px;color:var(--text-dim);">' + (k.wykonano ? '✓' : 'zalecono') + '</span>' +
+        '</div>';
+      });
     }
+  }
 
-    html += '<div class="ff' + (isTitr ? ' titr' : '') + (isObl ? ' computed' : '') + '">' +
-      '<div class="status-dot"></div>' +
-      '<label>' + param.label + '</label>' +
-      '<input type="text" inputmode="decimal"' +
-        ' data-etap="' + etapKey + '" data-runda="' + currentRunda + '" data-kod="' + param.kod + '"' +
-        ' data-min="' + (param.min != null ? param.min : '') + '"' +
-        ' data-max="' + (param.max != null ? param.max : '') + '"' +
-        ' value="' + val + '"' +
-        ' class="' + inputClass + '"' +
-        (isDone ? ' readonly' : '') +
-        ' placeholder="\u2014"' +
-        (isActive ? ' oninput="validateField(this); psAutoSave(this)" onblur="psSave(this)"' : '') +
-        '>' +
-      '<div class="ff-right">' +
-        '<span class="norm-range">' + normRange + '</span>' +
-        typeTag +
-      '</div>' +
-    '</div>';
-  });
-  html += '</div>';
-
-  // Legend (reuse ff-legend)
+  // Legend
   html += '<div class="ff-legend">' +
     '<span class="ff-leg-item"><span class="status-dot" style="background:var(--green);width:5px;height:5px;display:inline-block;border-radius:50%;"></span> w normie</span>' +
     '<span class="ff-leg-item"><span class="status-dot" style="background:var(--red);width:5px;height:5px;display:inline-block;border-radius:50%;"></span> poza</span>' +
