@@ -69,32 +69,48 @@
   }
   #detail-sidebar .sb-inner { width: 260px; min-width: 260px; display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 
-  /* Etapy timeline in sidebar */
+  /* Etapy f10 numbered flowchart in sidebar */
   #sidebar-etapy { overflow-y: auto; }
-  .sb-etap {
-    display: flex; align-items: center; gap: 8px; padding: 8px 2px;
-    position: relative;
+  .se-list { position: relative; padding: 4px 6px; }
+  .se-list::before { content: ''; position: absolute; left: 19px; top: 14px; bottom: 14px; border-left: 1.5px dotted var(--border); }
+
+  .se-step {
+    display: flex; align-items: center; gap: 8px; padding: 4px 2px;
+    cursor: pointer; border-radius: 4px; transition: background 0.15s; position: relative;
   }
-  .sb-etap + .sb-etap {
-    border-top: 1px solid var(--border-subtle, #f0ece4);
+  .se-step:hover { background: var(--surface-alt); }
+  .se-step.se-selected { background: var(--teal-bg); }
+
+  .se-num {
+    width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; position: relative; z-index: 1; border: 2px solid;
   }
-  .se-icon {
-    width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-    font-size: 10px; flex-shrink: 0; border: 1.5px solid var(--border); background: var(--surface);
-    color: var(--text-dim); margin-top: 1px;
-  }
-  .se-done .se-icon { background: var(--green-bg, #e8f5e9); color: var(--green, #16a34a); border-color: var(--green, #16a34a); }
-  .se-active .se-icon { background: var(--teal-bg, #e0f2f1); color: var(--teal, #0d9488); border-color: var(--teal, #0d9488); font-weight: 700; }
-  .se-active.se-stg-stand .se-icon { background: var(--stage-stand-bg); color: var(--stage-stand); border-color: var(--stage-stand); }
-  .se-active.se-stg-koncowa .se-icon { background: var(--stage-koncowa-bg); color: var(--stage-koncowa); border-color: var(--stage-koncowa); }
-  .se-pending .se-icon { opacity: 0.5; }
-  .se-body { min-width: 0; }
-  .se-name { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.4; }
-  .se-active .se-name { color: var(--teal, #0d9488); font-weight: 700; }
-  .se-active.se-stg-stand .se-name { color: var(--stage-stand); }
-  .se-active.se-stg-koncowa .se-name { color: var(--stage-koncowa); }
-  .se-pending .se-name { color: var(--text-dim); font-weight: 500; }
-  .se-detail { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+  .se-num.done { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+  .se-num.active { background: var(--teal-bg); border-color: var(--teal); color: var(--teal); animation: sePulse 1.8s ease-in-out infinite; }
+  .se-num.pending { background: var(--surface); border-color: var(--border); color: var(--text-dim); }
+  .se-num.stand { background: var(--stage-stand-bg); border-color: var(--stage-stand); color: var(--stage-stand); }
+  .se-num.koncowa { background: var(--stage-koncowa-bg); border-color: var(--stage-koncowa); color: var(--stage-koncowa); }
+  @keyframes sePulse { 0%,100%{box-shadow:0 0 0 0 rgba(13,115,119,.3)} 50%{box-shadow:0 0 0 4px rgba(13,115,119,0)} }
+
+  .se-info { flex: 1; min-width: 0; }
+  .se-name { font-size: 10px; font-weight: 500; color: var(--text); line-height: 1.2; }
+  .se-step.is-pending .se-name { color: var(--text-dim); }
+  .se-step.is-active .se-name { color: var(--teal); font-weight: 600; }
+  .se-status { font-size: 7px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin-top: 1px; }
+  .se-step.is-done .se-status { color: var(--green); }
+  .se-step.is-active .se-status { color: var(--teal); }
+  .se-detail { font-size: 9px; color: var(--text-dim); margin-top: 1px; }
+
+  /* Parallel group */
+  .se-par-tag { font-size: 7px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); padding-left: 34px; margin-bottom: 1px; margin-top: 2px; }
+  .se-par-group { }
+  .se-par-step { display: flex; align-items: center; gap: 8px; padding: 3px 2px; cursor: pointer; border-radius: 4px; transition: background 0.15s; position: relative; }
+  .se-par-step:hover { background: var(--surface-alt); }
+  .se-par-step.se-selected { background: var(--teal-bg); }
+  .se-par-step .se-num { width: 22px; height: 22px; font-size: 8px; margin-left: 2px; }
+  .se-par-step .se-name { font-size: 9px; }
+  .se-divider { height: 1px; background: var(--border-subtle); margin: 4px 30px; }
 
   /* Sidebar registry mode */
   #sb-mode-registry { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
@@ -684,81 +700,109 @@ function renderSidebarEtapy() {
   const isZbiornik = typeof ebrTyp !== 'undefined' && ebrTyp === 'zbiornik';
   const esData = window._etapyStatus || [];
 
-  const filteredEtapy = isZbiornik
-    ? etapy.filter(e => e.sekcja_lab === 'analiza_koncowa')
-    : etapy.filter(e => e.nazwa !== 'Przepompowanie');
-
-  let html = '';
-  filteredEtapy.forEach((etap, i) => {
-    const isLab = etap.sekcja_lab && !etap.read_only;
-    let status = 'pending';
-    let detail = '';
-    let clickable = false;
-    let etapKey = '';
-
-    // Check if this is a process stage with status tracking
-    const esMatch = esData.find(es => {
-      // Match by stage name (lowercase, no spaces)
-      const normalized = etap.nazwa.toLowerCase().replace(/[ąćęłńóśźż]/g, c => {
-        return {'ą':'a','ć':'c','ę':'e','ł':'l','ń':'n','ó':'o','ś':'s','ź':'z','ż':'z'}[c] || c;
-      }).replace(/\s+/g, '').replace('wytworzenie', '');
-      return es.etap === normalized || es.etap === etap.nazwa.toLowerCase().replace(' ', '_')
-          || (etap.nazwa === 'Amidowanie' && es.etap === 'amidowanie')
-          || (etap.nazwa === 'Wytworzenie SMCA' && es.etap === 'smca')
-          || (etap.nazwa === 'Czwartorzędowanie' && es.etap === 'czwartorzedowanie')
-          || (etap.nazwa === 'Sulfonowanie' && es.etap === 'sulfonowanie')
-          || (etap.nazwa === 'Utlenienie' && es.etap === 'utlenienie')
-          || (etap.nazwa === 'Rozjaśnianie' && es.etap === 'rozjasnianie');
+  // For zbiornik — simple list
+  if (isZbiornik) {
+    let html = '<div class="se-list">';
+    etapy.filter(e => e.sekcja_lab === 'analiza_koncowa').forEach(e => {
+      html += '<div class="se-step is-active"><div class="se-num active">1</div><div class="se-info"><div class="se-name">' + e.nazwa + '</div></div></div>';
     });
-
-    if (esMatch) {
-      etapKey = esMatch.etap;
-      status = esMatch.status === 'done' ? 'done' : esMatch.status === 'in_progress' ? 'active' : 'pending';
-      clickable = true;
-    } else if (etap.read_only) {
-      const labStageIndices = etapy.map((e, j) => e.sekcja_lab && !e.read_only ? j : -1).filter(j => j >= 0);
-      const lastLabIdx = labStageIndices.length > 0 ? labStageIndices[labStageIndices.length - 1] : -1;
-      status = i <= lastLabIdx ? 'done' : 'pending';
-    } else if (hasCycle && rs) {
-      if (etap.sekcja_lab === 'standaryzacja') {
-        // Check if all process stages are done
-        const allProcessDone = esData.length > 0 && esData.every(es => es.status === 'done');
-        if (!allProcessDone && esData.length > 0) {
-          status = 'pending';
-        } else if (rs.last_analiza === 0) {
-          status = 'active'; detail = 'Analiza';
-        } else if (rs.last_analiza === 1 && rs.last_dodatki === 0) {
-          status = 'active'; detail = 'Dodatki';
-        } else { status = 'done'; }
-      } else if (etap.sekcja_lab === 'analiza_koncowa') {
-        if (rs.is_decision) { status = 'active'; }
-        else if (ebrStatus === 'completed') { status = 'done'; }
-      }
-    } else if (!etap.read_only) {
-      if (ebrStatus === 'completed') status = 'done';
-      else if (typeof ebrStatus !== 'undefined') status = 'active';
-    }
-
-    const statusIcon = status === 'done' ? '✓' : status === 'active' ? '●' : '○';
-    const statusCls = 'se-' + status;
-    const stageCls = etap.sekcja_lab === 'standaryzacja' ? 'se-stg-stand' : etap.sekcja_lab === 'analiza_koncowa' ? 'se-stg-koncowa' : '';
-    const clickAttr = clickable ? ` onclick="openProcessStage('${etapKey}')" style="cursor:pointer;"` : '';
-
-    html += '<div class="sb-etap ' + statusCls + ' ' + stageCls + '"' + clickAttr + '>' +
-      '<div class="se-icon">' + statusIcon + '</div>' +
-      '<div class="se-body">' +
-        '<div class="se-name">' + etap.nazwa + '</div>' +
-        (detail ? '<div class="se-detail">' + detail + '</div>' : '') +
-      '</div>' +
-    '</div>';
-  });
-
-  if (hasCycle && rs && rs.last_dodatki > 1) {
-    for (let k = 2; k <= rs.last_dodatki; k++) {
-      html += '<div class="sb-etap se-done"><div class="se-icon">✓</div><div class="se-body"><div class="se-name">Korekta ' + (k-1) + '</div></div></div>';
-    }
+    html += '</div>';
+    container.innerHTML = html;
+    return;
   }
 
+  // Stage name → etap key mapping
+  const nameToKey = {
+    'Amidowanie': 'amidowanie', 'Wytworzenie SMCA': 'smca',
+    'Czwartorzędowanie': 'czwartorzedowanie', 'Sulfonowanie': 'sulfonowanie',
+    'Utlenienie': 'utlenienie', 'Rozjaśnianie': 'rozjasnianie'
+  };
+
+  // Build stage data with status
+  function getStageStatus(etap, i) {
+    var status = 'pending', detail = '', etapKey = nameToKey[etap.nazwa] || '';
+    var esMatch = esData.find(function(es) { return es.etap === etapKey; });
+
+    if (esMatch) {
+      status = esMatch.status === 'done' ? 'done' : esMatch.status === 'in_progress' ? 'active' : 'pending';
+    } else if (hasCycle && rs && etap.sekcja_lab === 'standaryzacja') {
+      var allProcessDone = esData.length > 0 && esData.every(function(es) { return es.status === 'done'; });
+      if (!allProcessDone && esData.length > 0) { status = 'pending'; }
+      else if (rs.last_analiza === 0) { status = 'active'; detail = 'Analiza'; }
+      else if (rs.last_analiza === 1 && rs.last_dodatki === 0) { status = 'active'; detail = 'Dodatki'; }
+      else { status = 'done'; }
+    } else if (hasCycle && rs && etap.sekcja_lab === 'analiza_koncowa') {
+      if (rs.is_decision) { status = 'active'; }
+      else if (ebrStatus === 'completed') { status = 'done'; }
+    } else if (!etap.read_only && !etap.sekcja_lab) {
+      if (ebrStatus === 'completed') status = 'done';
+    }
+    return { status: status, detail: detail, key: etapKey, clickable: !!esMatch };
+  }
+
+  var filteredEtapy = etapy.filter(function(e) { return e.nazwa !== 'Przepompowanie'; });
+
+  // Detect parallel stages (Amidowanie + Wytworzenie SMCA)
+  var parallelStages = [];
+  var sequentialStages = [];
+  var seenParallel = false;
+  var stepNum = 2; // sequential starts at 2
+
+  filteredEtapy.forEach(function(e, i) {
+    var sd = getStageStatus(e, i);
+    if (e.nazwa === 'Amidowanie' || e.nazwa === 'Wytworzenie SMCA') {
+      var subNr = e.nazwa === 'Amidowanie' ? '1a' : '1b';
+      parallelStages.push({ etap: e, sd: sd, nr: subNr });
+    } else {
+      var nr = String(stepNum++);
+      // Special numbering for lab stages
+      if (e.sekcja_lab === 'standaryzacja' || e.sekcja_lab === 'analiza_koncowa') {
+        // Keep sequential numbering
+      }
+      sequentialStages.push({ etap: e, sd: sd, nr: nr });
+    }
+  });
+
+  var html = '<div class="se-list">';
+
+  // Parallel group
+  if (parallelStages.length > 0) {
+    html += '<div class="se-par-tag">Etap 1 — równoległy</div>';
+    html += '<div class="se-par-group">';
+    parallelStages.forEach(function(ps) {
+      var statusCls = ps.sd.status === 'done' ? 'done' : ps.sd.status === 'active' ? 'active' : 'pending';
+      var isCls = 'is-' + ps.sd.status.replace('in_progress', 'active');
+      var selCls = '';
+      var clickAttr = ps.sd.clickable ? ' onclick="openProcessStage(\'' + ps.sd.key + '\')"' : '';
+      var statusText = ps.sd.status === 'done' ? 'Zakończone' : ps.sd.status === 'in_progress' || ps.sd.status === 'active' ? 'W toku' : 'Oczekuje';
+      html += '<div class="se-par-step ' + isCls + selCls + '"' + clickAttr + '>' +
+        '<div class="se-num ' + statusCls + '">' + ps.nr + '</div>' +
+        '<div class="se-info"><div class="se-name">' + ps.etap.nazwa + '</div>' +
+        '<div class="se-status">' + statusText + '</div></div></div>';
+    });
+    html += '</div>';
+    html += '<div class="se-divider"></div>';
+  }
+
+  // Sequential stages
+  sequentialStages.forEach(function(ss) {
+    var statusCls = ss.sd.status === 'done' ? 'done' : ss.sd.status === 'active' ? 'active' : 'pending';
+    var isCls = 'is-' + ss.sd.status.replace('in_progress', 'active');
+    // Special colors for standaryzacja and analiza koncowa
+    if (ss.etap.sekcja_lab === 'standaryzacja' && ss.sd.status === 'active') statusCls = 'stand';
+    if (ss.etap.sekcja_lab === 'analiza_koncowa' && ss.sd.status === 'active') statusCls = 'koncowa';
+    var clickAttr = ss.sd.clickable ? ' onclick="openProcessStage(\'' + ss.sd.key + '\')"' : '';
+    var statusText = ss.sd.status === 'done' ? 'Zakończone' : ss.sd.status === 'active' ? 'W toku' : 'Oczekuje';
+    if (ss.sd.detail) statusText = ss.sd.detail;
+    html += '<div class="se-step ' + isCls + '"' + clickAttr + '>' +
+      '<div class="se-num ' + statusCls + '">' + ss.nr + '</div>' +
+      '<div class="se-info"><div class="se-name">' + ss.etap.nazwa + '</div>' +
+      '<div class="se-status">' + statusText + '</div>' +
+      (ss.sd.detail ? '<div class="se-detail">' + ss.sd.detail + '</div>' : '') +
+      '</div></div>';
+  });
+
+  html += '</div>';
   container.innerHTML = html;
 }
 
