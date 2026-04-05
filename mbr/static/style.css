@@ -73,6 +73,8 @@
   --stage-stand-bg: #f5f3ff;
   --stage-koncowa: #db2777;            /* Analiza końcowa — pink */
   --stage-koncowa-bg: #fce7f3;
+  --stage-dodatki: #166534;             /* Dodatki — green */
+  --stage-dodatki-bg: #f0fdf4;
   --stage-done: var(--green);          /* Gotowy */
   --stage-done-bg: var(--green-bg);
 
