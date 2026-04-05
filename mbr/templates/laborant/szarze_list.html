@@ -772,6 +772,11 @@ function renderSidebarEtapy() {
 
     if (esMatch) {
       status = esMatch.status === 'done' ? 'done' : esMatch.status === 'in_progress' ? 'active' : 'pending';
+    } else if (etap.read_only && !etap.sekcja_lab && esData.length === 0) {
+      // No stage tracking — fallback: read_only stages before standaryzacja are done if batch has wyniki
+      var labIndices = filteredEtapy.map(function(e,j){return e.sekcja_lab && !e.read_only ? j : -1;}).filter(function(j){return j>=0;});
+      var firstLabIdx = labIndices.length > 0 ? labIndices[0] : 999;
+      status = i < firstLabIdx ? 'done' : 'pending';
     } else if (hasCycle && rs && etap.sekcja_lab === 'standaryzacja') {
       var allProcessDone = esData.length > 0 && esData.every(function(es) { return es.status === 'done'; });
       if (!allProcessDone && esData.length > 0) { status = 'pending'; }
@@ -783,6 +788,10 @@ function renderSidebarEtapy() {
       else if (ebrStatus === 'completed') { status = 'done'; }
     } else if (!etap.read_only && !etap.sekcja_lab) {
       if (ebrStatus === 'completed') status = 'done';
+    } else if (etap.sekcja_lab === 'standaryzacja' && !hasCycle) {
+      // Simple products without cycle
+      if (ebrStatus === 'completed') status = 'done';
+      else status = 'active';
     }
     return { status: status, detail: detail, key: etapKey, clickable: !!esMatch };
   }
