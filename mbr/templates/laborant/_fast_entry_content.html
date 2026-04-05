@@ -1748,7 +1748,20 @@ window.showProcessStage = function(etapKey) {
     if (rundaData && rundaData[param.kod]) {
       val = String(rundaData[param.kod].wartosc).replace('.', ',');
     }
-    var ok = val ? true : false;
+
+    var normText = '';
+    if (param.min != null && param.max != null) normText = param.min + ' \u2013 ' + param.max;
+    else if (param.min != null) normText = '> ' + param.min;
+    else if (param.max != null) normText = '< ' + param.max;
+
+    var ok = true;
+    if (val) {
+      var numVal = parseFloat(val.replace(',', '.'));
+      if (param.min != null && numVal < param.min) ok = false;
+      if (param.max != null && numVal > param.max) ok = false;
+    } else {
+      ok = false;
+    }
 
     html += '<div class="cv-param">' +
       '<div class="cv-p-dot ' + (ok ? 'cv-dot-ok' : 'cv-dot-err') + '"></div>' +
@@ -1759,10 +1772,10 @@ window.showProcessStage = function(etapKey) {
         ' data-etap="' + etapKey + '" data-runda="' + currentRunda + '" data-kod="' + param.kod + '"' +
         ' value="' + val + '" oninput="psAutoSave(this)" onblur="psSave(this)">';
     } else {
-      html += '<span class="cv-p-val">' + (val || '—') + '</span>';
+      html += '<span class="cv-p-val ' + (ok ? '' : 'cv-val-err') + '">' + (val || '\u2014') + '</span>';
     }
 
-    html += '<span class="cv-p-norm">' + (param.info || '') + '</span>';
+    html += '<span class="cv-p-norm">' + normText + '</span>';
     html += '</div>';
   });
   html += '</div>';
