@@ -751,11 +751,13 @@ def api_parametry_etapy_delete(binding_id):
 @login_required
 def parametry_editor():
     """Parameter editor page."""
+    from mbr.parametry_registry import get_konteksty
     with db_session() as db:
         products = [r["produkt"] for r in db.execute(
             "SELECT DISTINCT produkt FROM mbr_templates WHERE status='active' ORDER BY produkt"
         ).fetchall()]
-    return render_template("parametry_editor.html", products=products)
+        konteksty = get_konteksty(db)
+    return render_template("parametry_editor.html", products=products, konteksty=konteksty)
 
 
 @app.route("/api/ebr/<int:ebr_id>/etapy-analizy")

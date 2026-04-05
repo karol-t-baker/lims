@@ -231,3 +231,11 @@ def build_parametry_lab(db: sqlite3.Connection, produkt: str) -> dict:
                 "pola": [_build_pole(p) for p in params],
             },
         }
+
+
+def get_konteksty(db: sqlite3.Connection) -> list[str]:
+    """Return all distinct kontekst values from parametry_etapy."""
+    rows = db.execute(
+        "SELECT DISTINCT kontekst FROM parametry_etapy ORDER BY kontekst"
+    ).fetchall()
+    return [r["kontekst"] for r in rows]

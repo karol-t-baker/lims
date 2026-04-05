@@ -274,7 +274,7 @@
 {% block scripts %}
 <script>
 var _products = {{ products | tojson }};
-var _konteksty = ['amidowanie','smca','czwartorzedowanie','sulfonowanie','utlenienie','rozjasnianie','analiza_koncowa','dodatki'];
+var _konteksty = {{ konteksty | tojson }};
 var _params = [];
 
 function loadParams() {

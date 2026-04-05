@@ -2,109 +2,19 @@
 
 ETAPY_ANALIZY = {
     "Chegina_K7": {
-        "amidowanie": {
-            "label": "Amidowanie",
-            "parametry": [
-                {"kod": "le", "label": "LE (liczba estrowa)", "typ": "bezposredni", "min": None, "max": None},
-                {"kod": "la", "label": "LA (liczba kwasowa)", "typ": "titracja", "min": None, "max": 5.0},
-                {"kod": "lk", "label": "LK (końcowa)", "typ": "titracja", "min": None, "max": 1.0},
-                {"kod": "nd20", "label": "nD20", "typ": "bezposredni", "min": None, "max": None},
-            ],
-            "korekty": ["DMAPA", "Wydłużenie czasu"],
-        },
-        "smca": {
-            "label": "Wytworzenie SMCA",
-            "parametry": [
-                {"kod": "ph", "label": "pH roztworu", "typ": "bezposredni", "min": 3.0, "max": 4.0},
-            ],
-            "korekty": ["NaOH", "MCA"],
-        },
-        "czwartorzedowanie": {
-            "label": "Czwartorzędowanie",
-            "parametry": [
-                {"kod": "ph_10proc", "label": "pH 10%", "typ": "bezposredni", "min": 11.0, "max": 12.0},
-                {"kod": "nd20", "label": "nD20", "typ": "bezposredni", "min": None, "max": None},
-                {"kod": "aa", "label": "%AA", "typ": "titracja", "min": None, "max": 0.50},
-            ],
-            "korekty": ["NaOH", "MCA"],
-        },
-        "sulfonowanie": {
-            "label": "Sulfonowanie",
-            "parametry": [
-                {"kod": "ph_10proc", "label": "pH 10%", "typ": "bezposredni", "min": None, "max": None},
-                {"kod": "so3", "label": "%SO₃²⁻", "typ": "titracja", "min": None, "max": 0.30},
-                {"kod": "nd20", "label": "nD20", "typ": "bezposredni", "min": None, "max": None},
-            ],
-            "korekty": ["Na2SO3"],
-        },
-        "utlenienie": {
-            "label": "Utlenienie",
-            "parametry": [
-                {"kod": "ph_10proc", "label": "pH 10%", "typ": "bezposredni", "min": None, "max": None},
-                {"kod": "so3", "label": "%SO₃²⁻", "typ": "titracja", "min": None, "max": 0.000},
-                {"kod": "h2o2", "label": "%H₂O₂", "typ": "titracja", "min": None, "max": 0.010},
-                {"kod": "nd20", "label": "nD20", "typ": "bezposredni", "min": None, "max": None},
-            ],
-            "korekty": ["Perhydrol"],
-        },
+        "amidowanie":        {"label": "Amidowanie",        "korekty": ["DMAPA", "Wydłużenie czasu"]},
+        "smca":              {"label": "Wytworzenie SMCA",  "korekty": ["NaOH", "MCA"]},
+        "czwartorzedowanie": {"label": "Czwartorzędowanie", "korekty": ["NaOH", "MCA"]},
+        "sulfonowanie":      {"label": "Sulfonowanie",      "korekty": ["Na2SO3"]},
+        "utlenienie":        {"label": "Utlenienie",        "korekty": ["Perhydrol"]},
     },
     "Chegina_K40GLOL": {
-        "amidowanie": {
-            "label": "Amidowanie",
-            "parametry": [
-                {"kod": "le", "label": "LE", "typ": "bezposredni", "min": None, "max": None},
-                {"kod": "la", "label": "LA", "typ": "titracja", "min": None, "max": 5.0},
-                {"kod": "lk", "label": "LK", "typ": "titracja", "min": None, "max": 1.0},
-                {"kod": "nd20", "label": "nD20", "typ": "bezposredni", "min": None, "max": None},
-            ],
-            "korekty": ["DMAPA", "Wydłużenie czasu"],
-        },
-        "smca": {
-            "label": "Wytworzenie SMCA",
-            "parametry": [
-                {"kod": "ph", "label": "pH roztworu", "typ": "bezposredni", "min": 3.0, "max": 4.0},
-            ],
-            "korekty": ["NaOH", "MCA"],
-        },
-        "czwartorzedowanie": {
-            "label": "Czwartorzędowanie",
-            "parametry": [
-                {"kod": "ph_10proc", "label": "pH 10%", "typ": "bezposredni", "min": 11.0, "max": 12.0},
-                {"kod": "nd20", "label": "nD20", "typ": "bezposredni", "min": None, "max": None},
-                {"kod": "aa", "label": "%AA", "typ": "titracja", "min": None, "max": 0.30},
-            ],
-            "korekty": ["NaOH", "MCA"],
-        },
-        "sulfonowanie": {
-            "label": "Sulfonowanie",
-            "parametry": [
-                {"kod": "ph_10proc", "label": "pH 10%", "typ": "bezposredni", "min": None, "max": None},
-                {"kod": "so3", "label": "%SO₃²⁻", "typ": "titracja", "min": None, "max": 0.30},
-                {"kod": "h2o2", "label": "%H₂O₂", "typ": "titracja", "min": None, "max": None},
-                {"kod": "nd20", "label": "nD20", "typ": "bezposredni", "min": None, "max": None},
-            ],
-            "korekty": ["Na2SO3"],
-        },
-        "utlenienie": {
-            "label": "Utlenienie",
-            "parametry": [
-                {"kod": "ph_10proc", "label": "pH 10%", "typ": "bezposredni", "min": None, "max": None},
-                {"kod": "so3", "label": "%SO₃²⁻", "typ": "titracja", "min": None, "max": 0.030},
-                {"kod": "h2o2", "label": "%H₂O₂", "typ": "titracja", "min": None, "max": 0.010},
-                {"kod": "nd20", "label": "nD20", "typ": "bezposredni", "min": None, "max": None},
-            ],
-            "korekty": ["Kw. cytrynowy", "Perhydrol"],
-        },
-        "rozjasnianie": {
-            "label": "Rozjaśnianie",
-            "parametry": [
-                {"kod": "ph_10proc", "label": "pH 10%", "typ": "bezposredni", "min": None, "max": None},
-                {"kod": "h2o2", "label": "%H₂O₂", "typ": "titracja", "min": 0.005, "max": 0.050},
-                {"kod": "barwa_fau", "label": "Barwa FAU", "typ": "bezposredni", "min": None, "max": 5},
-                {"kod": "barwa_hz", "label": "Barwa Hz", "typ": "bezposredni", "min": None, "max": 150},
-            ],
-            "korekty": ["Perhydrol"],
-        },
+        "amidowanie":        {"label": "Amidowanie",        "korekty": ["DMAPA", "Wydłużenie czasu"]},
+        "smca":              {"label": "Wytworzenie SMCA",  "korekty": ["NaOH", "MCA"]},
+        "czwartorzedowanie": {"label": "Czwartorzędowanie", "korekty": ["NaOH", "MCA"]},
+        "sulfonowanie":      {"label": "Sulfonowanie",      "korekty": ["Na2SO3"]},
+        "utlenienie":        {"label": "Utlenienie",        "korekty": ["Kw. cytrynowy", "Perhydrol"]},
+        "rozjasnianie":      {"label": "Rozjaśnianie",      "korekty": ["Perhydrol"]},
     },
 }
 
