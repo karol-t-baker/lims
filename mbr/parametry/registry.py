@@ -42,6 +42,7 @@ def get_parametry_for_kontekst(
             pe.nawazka_g,
             pa.formula     AS global_formula,
             pe.formula     AS binding_formula,
+            pe.sa_bias,
             pa.metoda_id,
             pa.metoda_nazwa,
             pa.metoda_formula,
@@ -86,6 +87,11 @@ def get_parametry_for_kontekst(
                 "factor": r["metoda_factor"],
             }
 
+        # Resolve formula — replace sa_bias placeholder with actual value
+        formula = r["binding_formula"] or r["global_formula"]
+        if formula and r["sa_bias"] is not None and "sa_bias" in formula:
+            formula = formula.replace("sa_bias", str(r["sa_bias"]))
+
         result.append({
             "kod": r["kod"],
             "label": r["label"],
@@ -95,7 +101,8 @@ def get_parametry_for_kontekst(
             "max": r["max"],
             "precision": r["precision"],
             "nawazka_g": r["nawazka_g"],
-            "formula": r["binding_formula"] or r["global_formula"],
+            "formula": formula,
+            "sa_bias": r["sa_bias"],
             "metoda_id": r["metoda_id"],
             "metoda": metoda,
         })

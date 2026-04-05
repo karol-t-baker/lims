@@ -100,7 +100,7 @@ def api_parametry_etapy_create():
 def api_parametry_etapy_update(binding_id):
     """Update binding fields."""
     data = request.get_json(silent=True) or {}
-    allowed = {"nawazka_g", "min_limit", "max_limit", "kolejnosc", "formula"}
+    allowed = {"nawazka_g", "min_limit", "max_limit", "kolejnosc", "formula", "sa_bias"}
     updates = {k: v for k, v in data.items() if k in allowed}
     if not updates:
         return jsonify({"error": "No valid fields"}), 400

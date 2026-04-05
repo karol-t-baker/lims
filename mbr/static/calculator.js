@@ -206,7 +206,7 @@ async function openCalculator(tag, kod, sekcja, calcMethod) {
     renderCalculator();
 }
 
-async function openCalculatorFull(metoda_id, kod, sekcja) {
+async function openCalculatorFull(metoda_id, kod, sekcja, nawazka) {
     var resp = await fetch('/api/metody-miareczkowe/' + metoda_id);
     if (!resp.ok) return;
     var method = await resp.json();
@@ -221,7 +221,7 @@ async function openCalculatorFull(metoda_id, kod, sekcja) {
             method: method.nazwa,
             formula: method.formula,
             factor: null,
-            suggested_mass: null,
+            suggested_mass: nawazka || null,
             mass_required: method.mass_required,
             volumes: method.volumes || [],
             titrants: method.titrants || [],
@@ -415,6 +415,11 @@ function renderCalculatorFull() {
         <div class="calc-method">${method.name}</div>
         <div class="calc-formula">${method.formula}</div>
     </div>`;
+
+    // Suggested mass hint
+    if (method.suggested_mass && method.mass_required) {
+        html += '<div class="calc-hint">Sugerowana nawa\u017cka: <strong>' + method.suggested_mass + ' g</strong></div>';
+    }
 
     // Titrant inputs
     if (method.titrants && method.titrants.length > 0) {

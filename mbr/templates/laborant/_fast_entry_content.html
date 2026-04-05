@@ -1597,9 +1597,10 @@ window._panelFocusBridge = function(e) {
         }
         sekcja = sekcja || '';
         var metodaId = input.dataset.metodaId;
+        var nawazka = input.dataset.nawazka ? parseFloat(input.dataset.nawazka) : null;
         showRightPanel('calc');
         if (metodaId) {
-            window.openCalculatorFull(parseInt(metodaId), kod, sekcja);
+            window.openCalculatorFull(parseInt(metodaId), kod, sekcja, nawazka);
         } else {
             var tag = input.dataset.tag || kod;
             var calcMethod = null;

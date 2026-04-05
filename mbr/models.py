@@ -253,6 +253,13 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     except Exception:
         pass
 
+    # Migration: add sa_bias to parametry_etapy
+    try:
+        db.execute("ALTER TABLE parametry_etapy ADD COLUMN sa_bias REAL")
+        db.commit()
+    except Exception:
+        pass
+
     # Migration: add metoda_id to parametry_analityczne
     try:
         db.execute("ALTER TABLE parametry_analityczne ADD COLUMN metoda_id INTEGER REFERENCES metody_miareczkowe(id)")
