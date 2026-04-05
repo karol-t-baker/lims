@@ -406,32 +406,6 @@ function renderReferences() {
 }
 
 
-// ═══ VALIDATION ═══
-
-function validateField(input) {
-    const val = parseFloat(input.value);
-    const min = input.dataset.min !== '' ? parseFloat(input.dataset.min) : null;
-    const max = input.dataset.max !== '' ? parseFloat(input.dataset.max) : null;
-    const komentarz = document.querySelector(`textarea[data-komentarz="${input.dataset.kod}"][data-sekcja="${input.dataset.sekcja}"]`);
-
-    input.classList.remove('ok', 'err');
-
-    if (input.value === '' || isNaN(val)) {
-        if (komentarz) komentarz.style.display = 'none';
-        return;
-    }
-
-    let inLimit = true;
-    if (min !== null && val < min) inLimit = false;
-    if (max !== null && val > max) inLimit = false;
-
-    input.classList.add(inLimit ? 'ok' : 'err');
-    if (komentarz) {
-        komentarz.style.display = inLimit ? 'none' : 'block';
-    }
-}
-
-
 // ═══ SAVE ═══
 
 async function saveSection(sekcja) {

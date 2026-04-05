@@ -1,0 +1,78 @@
+/**
+ * lab_common.js — Shared utilities across all lab pages.
+ * Single source of truth for validateField, product color mapping, API URLs.
+ */
+
+// ═══ PRODUCT COLOR MAPPING ═══
+var PRODUCT_COLOR_RULES = [
+    ['K40GLOL', 'cv-prod-glol'],
+    ['K40GLO',  'cv-prod-glo'],
+    ['K40GL',   'cv-prod-gl'],
+    ['KK',      'cv-prod-kk'],
+    ['K7',      'cv-prod-k7'],
+    ['Chelamid','cv-prod-chelamid'],
+    ['Cheminox','cv-prod-cheminox'],
+    ['Monamid', 'cv-prod-monamid'],
+    ['Alkinol', 'cv-prod-alkinol'],
+    ['Alstermid','cv-prod-alkinol'],
+    ['Chemal',  'cv-prod-chemal'],
+    ['HSH',     'cv-prod-chemal'],
+];
+
+function getProductColorClass(prodName) {
+    for (var i = 0; i < PRODUCT_COLOR_RULES.length; i++) {
+        if (prodName.indexOf(PRODUCT_COLOR_RULES[i][0]) >= 0) {
+            return PRODUCT_COLOR_RULES[i][1];
+        }
+    }
+    return 'cv-prod-other';
+}
+
+// ═══ FIELD VALIDATION ═══
+function validateField(input) {
+    // Normalize dot to comma (Polish decimal)
+    if (input.value.indexOf('.') >= 0) {
+        var pos = input.selectionStart;
+        input.value = input.value.replace(/\./g, ',');
+        try { input.setSelectionRange(pos, pos); } catch(e) {}
+    }
+    var val = input.value.replace(',', '.');
+    var num = parseFloat(val);
+    var mn = input.dataset.min !== '' && input.dataset.min !== undefined ? parseFloat(input.dataset.min) : null;
+    var mx = input.dataset.max !== '' && input.dataset.max !== undefined ? parseFloat(input.dataset.max) : null;
+
+    input.classList.remove('ok', 'err');
+    if (val && !isNaN(num)) {
+        var inRange = true;
+        if (mn !== null && num < mn) inRange = false;
+        if (mx !== null && num > mx) inRange = false;
+        input.classList.add(inRange ? 'ok' : 'err');
+    }
+
+    // Update status dot if present
+    var ff = input.closest('.ff');
+    if (ff) {
+        var dot = ff.querySelector('.status-dot');
+        if (dot) {
+            dot.classList.remove('ok', 'err');
+            if (val && !isNaN(num)) {
+                var inR = true;
+                if (mn !== null && num < mn) inR = false;
+                if (mx !== null && num > mx) inR = false;
+                dot.classList.add(inR ? 'ok' : 'err');
+            }
+        }
+    }
+}
+
+// ═══ API URL BUILDER ═══
+var API = {
+    save: function(id) { return '/laborant/ebr/' + id + '/save'; },
+    etapyAnalizy: function(id) { return '/api/ebr/' + id + '/etapy-analizy'; },
+    etapyStatus: function(id) { return '/api/ebr/' + id + '/etapy-status'; },
+    korekty: function(id) { return '/api/ebr/' + id + '/korekty'; },
+    samples: function(id) { return '/api/ebr/' + id + '/samples'; },
+    samplesGet: function(id, s, k) { return '/api/ebr/' + id + '/samples/' + s + '/' + k; },
+    zatwierdz: function(id) { return '/api/ebr/' + id + '/etapy-status/zatwierdz'; },
+    complete: function(id) { return '/laborant/ebr/' + id + '/complete'; },
+};

@@ -685,18 +685,7 @@ function renderCompletedView() {
 
     // Hero
     // Determine product color class
-    var prodCls = 'cv-prod-other';
-    var prodName = '{{ ebr.produkt }}';
-    if (prodName.indexOf('K40GLOL') >= 0) prodCls = 'cv-prod-glol';
-    else if (prodName.indexOf('K40GLO') >= 0) prodCls = 'cv-prod-glo';
-    else if (prodName.indexOf('K40GL') >= 0) prodCls = 'cv-prod-gl';
-    else if (prodName.indexOf('KK') >= 0) prodCls = 'cv-prod-kk';
-    else if (prodName.indexOf('K7') >= 0) prodCls = 'cv-prod-k7';
-    else if (prodName.indexOf('Chelamid') >= 0) prodCls = 'cv-prod-chelamid';
-    else if (prodName.indexOf('Cheminox') >= 0) prodCls = 'cv-prod-cheminox';
-    else if (prodName.indexOf('Monamid') >= 0) prodCls = 'cv-prod-monamid';
-    else if (prodName.indexOf('Alkinol') >= 0 || prodName.indexOf('Alstermid') >= 0) prodCls = 'cv-prod-alkinol';
-    else if (prodName.indexOf('Chemal') >= 0 || prodName.indexOf('HSH') >= 0) prodCls = 'cv-prod-chemal';
+    var prodCls = getProductColorClass('{{ ebr.produkt }}');
 
     var statusChip = errCount > 0
         ? '<div class="cv-h2-status-chip cv-h2-sc-err">' + errCount + ' POZA NORMĄ</div>'
@@ -1368,41 +1357,6 @@ function renderOneSection(container, opts) {
 
     section.innerHTML = headHtml + '<div class="sec-body">' + fieldsHtml + '</div>' + legendHtml;
     container.appendChild(section);
-}
-
-
-function validateField(input) {
-    // Normalize: replace dot with comma for Polish notation
-    if (input.value.indexOf('.') >= 0) {
-        var pos = input.selectionStart;
-        input.value = input.value.replace(/\./g, ',');
-        input.setSelectionRange(pos, pos);
-    }
-    var val = parseFloat(input.value.replace(',', '.'));
-    var min = input.dataset.min !== '' ? parseFloat(input.dataset.min) : null;
-    var max = input.dataset.max !== '' ? parseFloat(input.dataset.max) : null;
-    var komentarz = document.querySelector('textarea[data-komentarz="' + input.dataset.kod + '"][data-sekcja="' + input.dataset.sekcja + '"]');
-
-    input.classList.remove('ok', 'err');
-
-    if (input.value === '' || isNaN(val)) {
-        if (komentarz) komentarz.style.display = 'none';
-        return;
-    }
-
-    var inLimit = true;
-    if (min !== null && val < min) inLimit = false;
-    if (max !== null && val > max) inLimit = false;
-
-    input.classList.add(inLimit ? 'ok' : 'err');
-    // Update status dot
-    var dot = input.closest('.ff') ? input.closest('.ff').querySelector('.status-dot') : null;
-    if (dot) {
-        dot.style.background = inLimit ? 'var(--green)' : 'var(--red)';
-    }
-    if (komentarz) {
-        komentarz.style.display = inLimit ? 'none' : 'block';
-    }
 }
 
 
