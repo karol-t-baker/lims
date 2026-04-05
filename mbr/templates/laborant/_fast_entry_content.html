@@ -712,9 +712,14 @@ function renderCompletedView() {
     // Params list — editable for zbiornik
     var canEdit = isZbiornik;
     var paramsHtml = '<div class="cv-params">' +
-        '<div class="cv-params-head">Parametry końcowe' +
-            (canEdit ? ' <button class="cv-edit-btn" onclick="startEditParams()" id="cv-edit-toggle">edytuj</button>' +
-                   '<button class="cv-save-btn" onclick="finishEditParams()" id="cv-save-toggle" style="display:none;">✓ Zakończ edycję</button>' : '') +
+        '<div class="cv-params-head" style="display:flex;align-items:center;justify-content:space-between;">' +
+            '<span>Parametry końcowe</span>' +
+            '<span class="ff-legend" style="margin:0;padding:0;border:none;font-size:9px;">' +
+                '<span class="ff-leg-item"><span style="background:var(--green);width:5px;height:5px;display:inline-block;border-radius:50%;"></span> w normie</span>' +
+                '<span class="ff-leg-item"><span style="background:var(--red);width:5px;height:5px;display:inline-block;border-radius:50%;"></span> poza</span>' +
+            '</span>' +
+            (canEdit ? '<span><button class="cv-edit-btn" onclick="startEditParams()" id="cv-edit-toggle">edytuj</button>' +
+                   '<button class="cv-save-btn" onclick="finishEditParams()" id="cv-save-toggle" style="display:none;">✓ Zakończ edycję</button></span>' : '') +
         '</div>';
     var lastSekcja = lastAnaliza || fallbackSekcja;
     pola.forEach(function(pole) {
