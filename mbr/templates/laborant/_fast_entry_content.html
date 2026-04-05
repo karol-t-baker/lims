@@ -1826,17 +1826,20 @@ window.showProcessStage = function(etapKey) {
   }
 
   // Add correction form (active only)
+  var NO_KG_CORRECTIONS = ['Wydłużenie czasu'];
   if (isActive && stageConfig.korekty && stageConfig.korekty.length > 0) {
     html += '<div class="cv-params" style="margin-top:8px;border-color:var(--amber);border-style:dashed;">' +
       '<div class="cv-params-head" style="color:var(--amber);">Działanie korygujące</div>' +
       '<div style="padding:8px 16px;display:flex;gap:8px;align-items:center;">' +
-        '<select id="ps-korekta-sub" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-family:var(--font);flex:1;">';
+        '<select id="ps-korekta-sub" onchange="psKorektaChanged()" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-family:var(--font);flex:1;">';
     stageConfig.korekty.forEach(function(s) {
       html += '<option value="' + s + '">' + s + '</option>';
     });
     html += '</select>' +
-        '<input id="ps-korekta-kg" type="number" step="0.1" placeholder="kg" style="width:70px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:var(--mono);text-align:center;">' +
-        '<span style="font-size:11px;color:var(--text-dim);">kg</span>' +
+        '<span id="ps-korekta-kg-wrap">' +
+          '<input id="ps-korekta-kg" type="number" step="0.1" placeholder="kg" style="width:70px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:var(--mono);text-align:center;">' +
+          '<span style="font-size:11px;color:var(--text-dim);">kg</span>' +
+        '</span>' +
         '<button onclick="psAddKorekta(\'' + etapKey + '\',' + currentRunda + ')" style="padding:6px 12px;background:var(--amber);color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);white-space:nowrap;">+ Dodaj</button>' +
       '</div></div>';
   }
@@ -1907,10 +1910,20 @@ function psSave(input) {
   });
 }
 
+var _NO_KG_CORRECTIONS = ['Wydłużenie czasu'];
+
+function psKorektaChanged() {
+  var sub = document.getElementById('ps-korekta-sub').value;
+  var kgWrap = document.getElementById('ps-korekta-kg-wrap');
+  if (kgWrap) kgWrap.style.display = _NO_KG_CORRECTIONS.indexOf(sub) >= 0 ? 'none' : '';
+}
+
 function psAddKorekta(etap, poRundzie) {
   var sub = document.getElementById('ps-korekta-sub').value;
-  var kg = parseFloat(document.getElementById('ps-korekta-kg').value);
-  if (!sub || !kg || kg <= 0) { alert('Podaj substancję i ilość'); return; }
+  var needsKg = _NO_KG_CORRECTIONS.indexOf(sub) < 0;
+  var kg = needsKg ? parseFloat(document.getElementById('ps-korekta-kg').value) : 0;
+  if (!sub) { alert('Wybierz działanie'); return; }
+  if (needsKg && (!kg || kg <= 0)) { alert('Podaj ilość'); return; }
 
   fetch('/api/ebr/' + ebrId + '/korekty', {
     method: 'POST',
