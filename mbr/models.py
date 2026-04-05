@@ -971,6 +971,20 @@ def save_wyniki(
         min_limit = pole.get("min")
         max_limit = pole.get("max")
 
+        # Prefer limits from parametry_etapy (DB) over embedded JSON blob
+        try:
+            from mbr.parametry_registry import get_parametry_for_kontekst
+            produkt = ebr.get("produkt", "")
+            db_params = get_parametry_for_kontekst(db, produkt, base_sekcja)
+            if not db_params and base_sekcja == "analiza":
+                db_params = get_parametry_for_kontekst(db, produkt, "analiza_koncowa")
+            db_pole = next((p for p in db_params if p["kod"] == kod), None)
+            if db_pole:
+                min_limit = db_pole["min"]
+                max_limit = db_pole["max"]
+        except Exception:
+            pass  # Fallback to JSON blob limits
+
         # Compute w_limicie
         w_limicie = 1
         if min_limit is not None and wartosc < min_limit:
