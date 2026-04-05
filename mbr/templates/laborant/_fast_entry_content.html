@@ -743,10 +743,7 @@ function renderCompletedView() {
 
     var html = heroHtml + paramsHtml;
 
-    if (isZbiornik) {
-        // Cert list loaded async
-        html += '<div class="cv-certs" id="cv-certs"></div>';
-    } else {
+    if (!isZbiornik) {
         // Stage selector for szarża
         var stages = [];
         var sortedKeys = Object.keys(wyniki).sort(function(a, b) {
@@ -830,12 +827,11 @@ function renderCompletedView() {
         }
     }
 
-    container.innerHTML = html;
+    // Cert section — all completed batches (zbiornik + szarża)
+    html += '<div class="cv-certs" id="cv-certs"></div>';
 
-    // Load certs for zbiornik
-    if (isZbiornik) {
-        loadCompletedCerts();
-    }
+    container.innerHTML = html;
+    loadCompletedCerts();
 
     // Dynamic topbar — hide when hero visible, show on scroll past hero
     var topbar = document.getElementById('topbar');
