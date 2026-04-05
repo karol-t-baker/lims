@@ -79,7 +79,11 @@ def short_product_filter(value):
 
 @app.context_processor
 def inject_globals():
-    return {'today': datetime.now().strftime('%d.%m.%Y'), 'products': PRODUCTS}
+    return {
+        'today': datetime.now().strftime('%d.%m.%Y'),
+        'products': PRODUCTS,
+        'main_products': ['Chegina_K7', 'Chegina_K40GL', 'Chegina_K40GLO', 'Chegina_K40GLOL'],
+    }
 
 
 # ---------------------------------------------------------------------------
