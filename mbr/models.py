@@ -477,8 +477,37 @@ def list_ebr_open(
     result = []
     for r in rows:
         d = dict(r)
-        d.update(_compute_stage_info(d))
-        d.pop("parametry_lab", None)  # don't send raw JSON to templates
+        # Check process stage status first
+        ps_stage = db.execute(
+            "SELECT etap, status FROM ebr_etapy_status WHERE ebr_id=? AND status='in_progress'",
+            (d["ebr_id"],)
+        ).fetchone()
+        if ps_stage:
+            # Batch is in a process stage — use that as stage_name
+            stage_labels = {
+                "amidowanie": "Amidowanie", "smca": "Wytworzenie SMCA",
+                "czwartorzedowanie": "Czwartorzędowanie", "sulfonowanie": "Sulfonowanie",
+                "utlenienie": "Utlenienie", "rozjasnianie": "Rozjaśnianie",
+            }
+            d["stage_name"] = stage_labels.get(ps_stage["etap"], ps_stage["etap"])
+            d["stage_status"] = "in_progress"
+            d["progress_pct"] = 0
+        else:
+            # Check if all process stages done — then use standaryzacja/AK flow
+            all_done = db.execute(
+                "SELECT COUNT(*) as cnt FROM ebr_etapy_status WHERE ebr_id=? AND status != 'done'",
+                (d["ebr_id"],)
+            ).fetchone()
+            has_stages = db.execute(
+                "SELECT COUNT(*) as cnt FROM ebr_etapy_status WHERE ebr_id=?",
+                (d["ebr_id"],)
+            ).fetchone()
+            if has_stages and has_stages["cnt"] > 0 and all_done and all_done["cnt"] > 0:
+                # Still has pending process stages but none in_progress — shouldn't happen, but handle
+                d.update(_compute_stage_info(d))
+            else:
+                d.update(_compute_stage_info(d))
+        d.pop("parametry_lab", None)
         result.append(d)
     return result
 

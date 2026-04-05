@@ -296,12 +296,12 @@
 
     {# Pipeline #}
     {% set stages = [
-      ('Amidowanie', 's-amid', sc.get('Amidowanie', 0)),
-      ('Czwartorzędowanie', 's-czwart', sc.get('Czwartorzędowanie', 0)),
+      ('Amid.+SMCA', 's-amid', sc.get('Amidowanie', 0) + sc.get('Wytworzenie SMCA', 0)),
+      ('Czwartorzęd.', 's-czwart', sc.get('Czwartorzędowanie', 0)),
       ('Sulfonowanie', 's-sulfon', sc.get('Sulfonowanie', 0)),
-      ('Utlenienie', 's-utlen', sc.get('Utlenienie', 0)),
+      ('Utlenienie', 's-utlen', sc.get('Utlenienie', 0) + sc.get('Rozjaśnianie', 0)),
       ('Standaryzacja', 's-stand', sc.get('Standaryzacja', 0)),
-      ('Analiza końcowa', 's-koncowa', sc.get('Analiza końcowa', 0) + sc.get('Przed standaryzacją', 0)),
+      ('Analiza końc.', 's-koncowa', sc.get('Analiza końcowa', 0) + sc.get('Przed standaryzacją', 0) + sc.get('Gotowy do zatwierdzenia', 0)),
     ] %}
     <div class="pipeline-card">
       <div class="pipeline-header">
