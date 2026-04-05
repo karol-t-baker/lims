@@ -583,6 +583,7 @@
 <script>
 {# Set globals for this batch — use var so re-loading a different batch doesn't throw const-redeclaration error #}
 window.ebrId = {{ ebr.ebr_id }};
+window._batchProdukt = "{{ ebr.produkt }}";
 var ebrId = {{ ebr.ebr_id }};
 var ebrStatus = "{{ ebr.status }}";
 var ebrTyp = "{{ ebr.typ|default('szarza') }}";

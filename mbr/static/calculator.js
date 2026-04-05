@@ -203,8 +203,27 @@ async function openCalculatorFull(metoda_id, kod, sekcja) {
     });
 
     // Init titrant values from defaults
+    // For titrants with options (e.g. CHEGINY %AA T2=PRODUKT), auto-select based on batch product
+    var _batchProdukt = (window._batchProdukt || '').toUpperCase();
     _calcState.method.titrants.forEach(function(t) {
-        if (!_calcTitrantValues[t.id]) {
+        if (t.options && t.options.length > 0 && _batchProdukt) {
+            // Auto-match product to option
+            var matched = null;
+            for (var i = 0; i < t.options.length; i++) {
+                var optLabel = t.options[i].label.toUpperCase();
+                // Check if batch product matches any keyword in option label
+                if (optLabel.split('/').some(function(part) { return _batchProdukt.indexOf(part.trim()) >= 0; })) {
+                    matched = t.options[i];
+                    break;
+                }
+            }
+            if (matched) {
+                _calcTitrantValues[t.id] = matched.value;
+                t._autoSelected = matched.label;
+            } else {
+                _calcTitrantValues[t.id] = t.default || 0.1;
+            }
+        } else if (!_calcTitrantValues[t.id]) {
             _calcTitrantValues[t.id] = t.default || 0.1;
         }
     });
@@ -358,6 +377,10 @@ function renderCalculatorFull() {
             var val = _calcTitrantValues[t.id] !== undefined ? _calcTitrantValues[t.id] : (t.default || 0.1);
             if (t.options && t.options.length > 0) {
                 html += '<div class="cs-field" style="margin-bottom:4px;"><label>' + (t.label || t.id) + '</label>';
+                if (t._autoSelected) {
+                    // Auto-selected from batch product — show info, keep select for override
+                    html += '<div style="font-size:10px;color:var(--teal);font-weight:600;margin-bottom:2px;">▸ ' + t._autoSelected + ' (auto)</div>';
+                }
                 html += '<select onchange="_calcTitrantValues[\'' + t.id + '\'] = parseFloat(this.value); updateResultsFull();">';
                 t.options.forEach(function(opt) {
                     var optVal = typeof opt === 'object' ? opt.value : opt;
