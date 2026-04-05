@@ -13,7 +13,6 @@ from flask import Flask, redirect, url_for, request, session, render_template, f
 
 from mbr.models import (
     get_db, db_session, init_mbr_tables,
-    list_mbr, get_mbr, save_mbr, activate_mbr, clone_mbr,
     list_ebr_open, list_ebr_completed, list_ebr_recent,
     create_ebr, get_ebr, get_ebr_wyniki, get_round_state, save_wyniki, complete_ebr,
     sync_ebr_to_v4, next_nr_partii, PRODUCTS,
@@ -41,83 +40,10 @@ from mbr.etapy import etapy_bp  # noqa: E402
 app.register_blueprint(etapy_bp)
 from mbr.parametry import parametry_bp  # noqa: E402
 app.register_blueprint(parametry_bp)
+from mbr.technolog import technolog_bp  # noqa: E402
+app.register_blueprint(technolog_bp)
 
 from mbr.shared.decorators import login_required, role_required  # noqa: E402
-
-
-# ---------------------------------------------------------------------------
-# Stub routes
-# ---------------------------------------------------------------------------
-
-@app.route("/technolog/mbr")
-@role_required("technolog")
-def mbr_list():
-    with db_session() as db:
-        mbrs = list_mbr(db)
-    return render_template("technolog/mbr_list.html", mbrs=mbrs)
-
-
-@app.route("/technolog/mbr/<int:mbr_id>", methods=["GET", "POST"])
-@role_required("technolog")
-def mbr_edit(mbr_id):
-    with db_session() as db:
-        if request.method == "POST":
-            etapy_json = request.form.get("etapy_json", "[]")
-            parametry_lab = request.form.get("parametry_lab", "{}")
-            notatki = request.form.get("notatki", "")
-            ok = save_mbr(db, mbr_id, etapy_json, parametry_lab, notatki)
-            if not ok:
-                flash("Nie udalo sie zapisac — szablon nie jest w trybie draft.")
-            else:
-                flash("Zapisano.")
-            return redirect(url_for("mbr_edit", mbr_id=mbr_id))
-        mbr = get_mbr(db, mbr_id)
-    if mbr is None:
-        return "Nie znaleziono szablonu", 404
-    return render_template("technolog/mbr_edit.html", mbr=mbr)
-
-
-@app.route("/technolog/mbr/<int:mbr_id>/activate", methods=["POST"])
-@role_required("technolog")
-def mbr_activate(mbr_id):
-    with db_session() as db:
-        ok = activate_mbr(db, mbr_id)
-    if not ok:
-        flash("Nie udalo sie aktywowac szablonu.")
-    else:
-        flash("Szablon aktywowany.")
-    return redirect(url_for("mbr_list"))
-
-
-@app.route("/technolog/mbr/<int:mbr_id>/clone", methods=["POST"])
-@role_required("technolog")
-def mbr_clone(mbr_id):
-    with db_session() as db:
-        user = session["user"]["login"]
-        new_id = clone_mbr(db, mbr_id, user)
-    if new_id is None:
-        flash("Nie udalo sie sklonowac szablonu.")
-        return redirect(url_for("mbr_list"))
-    flash("Sklonowano szablon.")
-    return redirect(url_for("mbr_edit", mbr_id=new_id))
-
-
-@app.route("/technolog/dashboard")
-@role_required("technolog")
-def tech_dashboard():
-    produkt = request.args.get("produkt")
-    typ = request.args.get("typ")
-    with db_session() as db:
-        open_batches = list_ebr_open(db, produkt=produkt, typ=typ)
-        completed = list_ebr_completed(db, produkt=produkt, typ=typ)
-    return render_template(
-        "technolog/dashboard.html",
-        open_batches=open_batches,
-        completed=completed,
-        filter_produkt=produkt,
-        filter_typ=typ,
-    )
-
 
 
 
