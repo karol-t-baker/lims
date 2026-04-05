@@ -442,7 +442,7 @@ def fast_entry(ebr_id):
 def fast_entry_partial(ebr_id):
     """Return just the fast-entry form HTML (no base.html shell) for AJAX loading."""
     from mbr.etapy_models import get_etapy_status, get_etap_analizy, get_korekty
-    from mbr.etapy_config import get_etapy_config
+    from mbr.parametry_registry import get_etapy_config
     with db_session() as db:
         ebr = get_ebr(db, ebr_id)
         if ebr is None:
@@ -452,7 +452,7 @@ def fast_entry_partial(ebr_id):
         etapy_status = get_etapy_status(db, ebr_id)
         etapy_analizy = get_etap_analizy(db, ebr_id)
         etapy_korekty = get_korekty(db, ebr_id)
-    etapy_config = get_etapy_config(ebr.get("produkt", ""))
+        etapy_config = get_etapy_config(db, ebr.get("produkt", ""))
     return render_template("laborant/_fast_entry_content.html",
                            ebr=ebr, wyniki=wyniki, round_state=round_state,
                            etapy_status=etapy_status,
@@ -623,9 +623,34 @@ def api_feedback():
 @app.route("/api/etapy-config/<produkt>")
 @login_required
 def api_etapy_config(produkt):
-    from mbr.etapy_config import get_etapy_config
-    cfg = get_etapy_config(produkt)
+    from mbr.parametry_registry import get_etapy_config
+    with db_session() as db:
+        cfg = get_etapy_config(db, produkt)
     return jsonify({"config": cfg, "produkt": produkt})
+
+
+@app.route("/api/parametry/config")
+@login_required
+def api_parametry_config():
+    """Universal parameter config endpoint."""
+    from mbr.parametry_registry import get_parametry_for_kontekst
+    produkt = request.args.get("produkt", "")
+    kontekst = request.args.get("kontekst", "")
+    if not kontekst:
+        return jsonify({"error": "kontekst is required"}), 400
+    with db_session() as db:
+        params = get_parametry_for_kontekst(db, produkt, kontekst)
+    return jsonify(params)
+
+
+@app.route("/api/parametry/calc-methods")
+@login_required
+def api_calc_methods():
+    """Titration calc methods for calculator.js."""
+    from mbr.parametry_registry import get_calc_methods
+    with db_session() as db:
+        methods = get_calc_methods(db)
+    return jsonify(methods)
 
 
 @app.route("/api/ebr/<int:ebr_id>/etapy-analizy")
