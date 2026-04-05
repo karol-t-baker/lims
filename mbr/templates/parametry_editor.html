@@ -11,66 +11,239 @@
 
 {% block head %}
 <style>
-/* Parameter table */
-.pe-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.pe-table th { text-align: left; padding: 8px 12px; font-size: 10px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid var(--border); }
-.pe-table td { padding: 8px 12px; border-bottom: 1px solid var(--border-subtle); vertical-align: middle; }
-.pe-row { cursor: pointer; transition: background 0.1s; }
-.pe-row:hover { background: var(--surface-alt); }
-.pe-row.pe-open { background: var(--surface-alt); font-weight: 600; }
-.pe-typ { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.3px; }
-.pe-typ-b { background: var(--blue-bg, #e8f0fe); color: var(--blue, #1a73e8); }
+/* ═══ PARAMETER EDITOR ═══ */
+
+/* Container */
+.pe-wrap { padding: 20px 28px; max-width: 1100px; }
+.pe-section-label {
+  font-size: 9px; font-weight: 800; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 1.2px;
+  margin-bottom: 12px; padding-left: 2px;
+}
+
+/* Main table */
+.pe-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px; }
+.pe-table thead { position: sticky; top: 0; z-index: 2; }
+.pe-table th {
+  text-align: left; padding: 10px 14px;
+  font-size: 9px; font-weight: 800; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 0.8px;
+  background: var(--surface); border-bottom: 2px solid var(--border);
+}
+.pe-table td { padding: 0; vertical-align: middle; }
+
+/* Row */
+.pe-row {
+  cursor: pointer; transition: all 0.15s;
+}
+.pe-row td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.15s, border-color 0.15s;
+}
+.pe-row:hover td { background: var(--surface-alt); }
+.pe-row.pe-open td {
+  background: var(--surface-alt);
+  border-bottom-color: transparent;
+}
+.pe-row .pe-chev {
+  width: 14px; height: 14px; color: var(--text-dim);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), color 0.15s;
+  flex-shrink: 0;
+}
+.pe-row.pe-open .pe-chev { transform: rotate(90deg); color: var(--teal); }
+.pe-row:hover .pe-chev { color: var(--text-sec); }
+
+/* Kod column */
+.pe-kod {
+  font-family: var(--mono); font-size: 11px; font-weight: 600;
+  color: var(--text); letter-spacing: -0.3px;
+  background: var(--surface-alt); padding: 2px 7px; border-radius: 4px;
+  display: inline-block;
+}
+
+/* Typ badge */
+.pe-typ {
+  font-size: 8px; font-weight: 800; padding: 3px 8px;
+  border-radius: 10px; text-transform: uppercase; letter-spacing: 0.6px;
+  display: inline-block; line-height: 1;
+}
+.pe-typ-b { background: #e8edf4; color: #4a6fa5; }
 .pe-typ-t { background: var(--amber-bg); color: var(--amber); }
 .pe-typ-o { background: var(--teal-bg); color: var(--teal); }
-.pe-meta { font-family: var(--mono); color: var(--text-dim); font-size: 11px; }
-.pe-badge { font-size: 10px; color: var(--text-dim); }
 
-/* Accordion panel */
-.pe-panel { display: none; background: #fafaf7; border-bottom: 2px solid var(--border); }
+/* Meta column */
+.pe-meta { font-family: var(--mono); color: var(--text-dim); font-size: 11px; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Binding count */
+.pe-badge { font-size: 10px; color: var(--text-dim); white-space: nowrap; }
+.pe-badge-num {
+  display: inline-block; min-width: 18px; height: 18px; line-height: 18px;
+  text-align: center; font-size: 9px; font-weight: 700;
+  background: var(--teal-bg); color: var(--teal);
+  border-radius: 9px; margin-right: 3px;
+}
+
+/* ═══ ACCORDION PANEL ═══ */
+.pe-panel { display: none; }
 .pe-panel.pe-panel-open { display: table-row; }
-.pe-panel td { padding: 16px 24px; }
-.pe-fields { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
-.pe-field { display: flex; flex-direction: column; gap: 3px; }
-.pe-field label { font-size: 9px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.3px; }
-.pe-field input { padding: 6px 10px; border: 1.5px solid var(--border); border-radius: 6px; font-size: 12px; font-family: var(--mono); background: #fff; transition: outline 0.2s; }
-.pe-field input:focus { outline: 2px solid var(--teal); outline-offset: -1px; }
-.pe-field input.pe-wide { width: 320px; }
-.pe-field input.pe-num { width: 80px; text-align: center; }
+.pe-panel > td {
+  padding: 0 14px 16px 14px !important;
+  background: var(--surface-alt);
+  border-bottom: 2px solid var(--border);
+}
+.pe-panel-inner {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
 
-/* Bindings sub-table */
-.pe-bind-title { font-size: 11px; font-weight: 700; color: var(--text-sec); margin: 12px 0 6px; }
-.pe-bind { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 8px; }
-.pe-bind th { text-align: left; padding: 4px 8px; font-size: 9px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; border-bottom: 1px solid var(--border); }
-.pe-bind td { padding: 4px 8px; border-bottom: 1px solid var(--border-subtle); }
-.pe-bind input { padding: 4px 6px; border: 1px solid var(--border); border-radius: 4px; font-size: 11px; font-family: var(--mono); width: 70px; text-align: center; }
-.pe-bind select { padding: 4px 6px; border: 1px solid var(--border); border-radius: 4px; font-size: 11px; }
-.pe-bind-del { background: none; border: none; color: var(--red); cursor: pointer; font-size: 14px; padding: 2px 6px; border-radius: 4px; }
-.pe-bind-del:hover { background: var(--red-bg, #fde8e8); }
+/* Section label inside panel */
+.pe-sec {
+  font-size: 9px; font-weight: 800; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 0.8px;
+  margin: 16px 0 8px; padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.pe-sec:first-child { margin-top: 0; }
 
-/* Add binding row */
-.pe-add-row { display: flex; gap: 6px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
-.pe-add-row select, .pe-add-row input { padding: 5px 8px; border: 1.5px dashed var(--border); border-radius: 6px; font-size: 11px; font-family: var(--font); }
-.pe-add-row input { font-family: var(--mono); width: 70px; text-align: center; }
-.pe-add-btn { padding: 5px 12px; background: var(--teal); color: #fff; border: none; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; font-family: var(--font); }
-.pe-add-btn:hover { opacity: 0.9; }
+/* Field grid */
+.pe-fields { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 4px; }
+.pe-field { display: flex; flex-direction: column; gap: 4px; }
+.pe-field label {
+  font-size: 8px; font-weight: 800; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 0.6px;
+}
+.pe-field input {
+  padding: 7px 10px;
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  font-size: 12px; font-family: var(--mono);
+  background: #fff;
+  transition: border-color 0.2s, box-shadow 0.2s, outline 0.2s;
+}
+.pe-field input:hover { border-color: #c5c0b5; }
+.pe-field input:focus { border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-bg); outline: none; }
+.pe-field input.pe-wide { width: 300px; }
+.pe-field input.pe-num { width: 72px; text-align: center; }
+
+/* ═══ BINDINGS TABLE ═══ */
+.pe-bind {
+  width: 100%; border-collapse: separate; border-spacing: 0;
+  font-size: 11px; margin-bottom: 6px;
+  border: 1px solid var(--border-subtle); border-radius: 6px;
+  overflow: hidden;
+}
+.pe-bind th {
+  text-align: left; padding: 6px 10px;
+  font-size: 8px; font-weight: 800; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 0.6px;
+  background: #f7f5f0; border-bottom: 1px solid var(--border);
+}
+.pe-bind td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: #fff;
+}
+.pe-bind tr:last-child td { border-bottom: none; }
+.pe-bind input {
+  padding: 4px 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  font-size: 11px; font-family: var(--mono);
+  width: 68px; text-align: center;
+  transition: border-color 0.15s, box-shadow 0.15s, outline 0.2s;
+  background: #fff;
+}
+.pe-bind input:focus { border-color: var(--teal); box-shadow: 0 0 0 2px var(--teal-bg); outline: none; }
+
+/* Kontekst badge in bindings */
+.pe-ctx {
+  font-size: 9px; font-weight: 700; padding: 2px 7px;
+  border-radius: 4px; display: inline-block; letter-spacing: 0.2px;
+}
+.pe-ctx-amid { background: var(--stage-amid-bg); color: var(--stage-amid); }
+.pe-ctx-smca { background: var(--stage-amid-bg); color: var(--stage-amid); }
+.pe-ctx-czwart { background: var(--stage-czwart-bg); color: var(--stage-czwart); }
+.pe-ctx-sulfon { background: var(--stage-sulfon-bg); color: var(--stage-sulfon); }
+.pe-ctx-utlen { background: var(--stage-utlen-bg); color: var(--stage-utlen); }
+.pe-ctx-rozj { background: var(--stage-rozj-bg); color: var(--stage-rozj); }
+.pe-ctx-stand { background: var(--stage-stand-bg); color: var(--stage-stand); }
+.pe-ctx-koncowa { background: #fce7f3; color: #9d174d; }
+.pe-ctx-dodatki { background: #f0fdf4; color: #166534; }
+
+/* Product name in bindings */
+.pe-prod { font-size: 10px; color: var(--text-sec); }
+.pe-prod-default { font-size: 10px; color: var(--text-dim); font-style: italic; }
+
+/* Delete button */
+.pe-bind-del {
+  background: none; border: none; cursor: pointer;
+  width: 22px; height: 22px; border-radius: 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--text-dim); transition: all 0.15s;
+  font-size: 13px;
+}
+.pe-bind-del:hover { background: var(--red-bg, #fef2f2); color: var(--red); }
+
+/* ═══ ADD BINDING ═══ */
+.pe-add-row {
+  display: flex; gap: 6px; align-items: center; margin-top: 10px; flex-wrap: wrap;
+  padding: 8px 10px;
+  background: #fafaf7; border: 1.5px dashed var(--border);
+  border-radius: 8px;
+}
+.pe-add-label {
+  font-size: 8px; font-weight: 800; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 0.5px; margin-right: 2px;
+}
+.pe-add-row select {
+  padding: 5px 8px; border: 1px solid var(--border);
+  border-radius: 5px; font-size: 11px; font-family: var(--font);
+  background: #fff; color: var(--text);
+}
+.pe-add-row input {
+  padding: 5px 8px; border: 1px solid var(--border);
+  border-radius: 5px; font-size: 11px; font-family: var(--mono);
+  width: 68px; text-align: center; background: #fff;
+}
+.pe-add-btn {
+  padding: 6px 14px; background: var(--teal); color: #fff;
+  border: none; border-radius: 6px;
+  font-size: 10px; font-weight: 700; cursor: pointer;
+  font-family: var(--font); letter-spacing: 0.3px;
+  transition: background 0.15s, transform 0.1s;
+}
+.pe-add-btn:hover { background: var(--teal-dark); }
+.pe-add-btn:active { transform: scale(0.97); }
+
+/* ═══ LOAD ANIMATION ═══ */
+@keyframes peSlideIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.pe-row { animation: peSlideIn 0.3s ease both; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div style="padding: 16px 24px; max-width: 1100px;">
+<div class="pe-wrap">
+  <div class="pe-section-label">Rejestr parametrów analitycznych</div>
   <table class="pe-table" id="pe-table">
     <thead>
       <tr>
-        <th style="width:30px;"></th>
+        <th style="width:32px;"></th>
         <th>Kod</th>
-        <th>Label</th>
+        <th>Nazwa</th>
         <th>Typ</th>
         <th>Metoda / Formuła</th>
-        <th>Etapy</th>
+        <th style="text-align:right;">Etapy</th>
       </tr>
     </thead>
     <tbody id="pe-body">
-      <tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:24px;">Ładowanie...</td></tr>
+      <tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:32px;font-size:11px;">Ładowanie...</td></tr>
     </tbody>
   </table>
 </div>
@@ -90,10 +263,17 @@ function loadParams() {
   });
 }
 
+var _ctxMap = {
+  amidowanie:'amid', smca:'smca', czwartorzedowanie:'czwart',
+  sulfonowanie:'sulfon', utlenienie:'utlen', rozjasnianie:'rozj',
+  standaryzacja:'stand', analiza_koncowa:'koncowa', dodatki:'dodatki'
+};
+function ctxCls(k) { return 'pe-ctx-' + (_ctxMap[k] || 'stand'); }
+
 function renderTable() {
   var tbody = document.getElementById('pe-body');
   var html = '';
-  _params.forEach(function(p) {
+  _params.forEach(function(p, idx) {
     var typCls = p.typ === 'titracja' ? 'pe-typ-t' : p.typ === 'obliczeniowy' ? 'pe-typ-o' : 'pe-typ-b';
     var typLabel = p.typ === 'titracja' ? 'miarecz.' : p.typ === 'obliczeniowy' ? 'oblicz.' : 'bezpośr.';
     var meta = '';
@@ -101,16 +281,15 @@ function renderTable() {
     else if (p.typ === 'obliczeniowy' && p.formula) meta = p.formula;
     var bindCount = p.bindings ? p.bindings.length : 0;
 
-    html += '<tr class="pe-row" id="pe-r-' + p.id + '" onclick="togglePanel(' + p.id + ')">' +
-      '<td><svg style="width:12px;height:12px;color:var(--text-dim);transition:transform 0.2s;" class="pe-chev-' + p.id + '" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4l4 4-4 4"/></svg></td>' +
-      '<td><code style="font-size:11px;">' + p.kod + '</code></td>' +
+    html += '<tr class="pe-row" id="pe-r-' + p.id + '" onclick="togglePanel(' + p.id + ')" style="animation-delay:' + (idx * 0.03) + 's">' +
+      '<td><svg class="pe-chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4l4 4-4 4"/></svg></td>' +
+      '<td><span class="pe-kod">' + p.kod + '</span></td>' +
       '<td>' + esc(p.label) + '</td>' +
       '<td><span class="pe-typ ' + typCls + '">' + typLabel + '</span></td>' +
       '<td class="pe-meta">' + esc(meta) + '</td>' +
-      '<td class="pe-badge">' + (bindCount > 0 ? bindCount + ' etap' + (bindCount > 1 ? 'ów' : '') : '—') + '</td>' +
+      '<td class="pe-badge" style="text-align:right;">' + (bindCount > 0 ? '<span class="pe-badge-num">' + bindCount + '</span>' : '<span style="color:var(--border);">—</span>') + '</td>' +
     '</tr>';
 
-    // Accordion panel
     html += '<tr class="pe-panel" id="pe-p-' + p.id + '"><td colspan="6">' + renderPanel(p) + '</td></tr>';
   });
   tbody.innerHTML = html;
@@ -121,24 +300,24 @@ function esc(s) { if (!s) return ''; var d = document.createElement('div'); d.te
 function togglePanel(id) {
   var panel = document.getElementById('pe-p-' + id);
   var row = document.getElementById('pe-r-' + id);
-  var chev = document.querySelector('.pe-chev-' + id);
   var isOpen = panel.classList.contains('pe-panel-open');
   // Close all
   document.querySelectorAll('.pe-panel-open').forEach(function(el) { el.classList.remove('pe-panel-open'); });
   document.querySelectorAll('.pe-row.pe-open').forEach(function(el) { el.classList.remove('pe-open'); });
-  document.querySelectorAll('[class*="pe-chev-"]').forEach(function(el) { el.style.transform = ''; });
   if (!isOpen) {
     panel.classList.add('pe-panel-open');
     row.classList.add('pe-open');
-    if (chev) chev.style.transform = 'rotate(90deg)';
   }
 }
 
 function renderPanel(p) {
-  var h = '<div class="pe-fields">';
-  h += renderField('Label', p.id, 'label', p.label, 'pe-wide');
-  h += renderField('Precyzja', p.id, 'precision', p.precision, 'pe-num');
+  var h = '<div class="pe-panel-inner">';
 
+  // Section: global properties
+  h += '<div class="pe-sec">Definicja parametru</div>';
+  h += '<div class="pe-fields">';
+  h += renderField('Nazwa', p.id, 'label', p.label, 'pe-wide');
+  h += renderField('Precyzja', p.id, 'precision', p.precision, 'pe-num');
   if (p.typ === 'obliczeniowy') {
     h += renderField('Formuła', p.id, 'formula', p.formula || '', 'pe-wide');
   }
@@ -149,14 +328,15 @@ function renderPanel(p) {
   }
   h += '</div>';
 
-  // Bindings table (all types)
+  // Section: bindings
+  h += '<div class="pe-sec">Przypisania do etapów' + (p.bindings && p.bindings.length > 0 ? ' <span style="font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0;">(' + p.bindings.length + ')</span>' : '') + '</div>';
+
   if (p.bindings && p.bindings.length > 0) {
-    h += '<div class="pe-bind-title">Przypisania do etapów</div>';
-    h += '<table class="pe-bind"><thead><tr><th>Kontekst</th><th>Produkt</th><th>Naważka [g]</th><th>Min</th><th>Max</th><th></th></tr></thead><tbody>';
+    h += '<table class="pe-bind"><thead><tr><th>Kontekst</th><th>Produkt</th><th>Naważka [g]</th><th>Min</th><th>Max</th><th style="width:30px;"></th></tr></thead><tbody>';
     p.bindings.forEach(function(b) {
       h += '<tr>' +
-        '<td>' + b.kontekst + '</td>' +
-        '<td>' + (b.produkt || '<em style="color:var(--text-dim);">(domyślny)</em>') + '</td>' +
+        '<td><span class="pe-ctx ' + ctxCls(b.kontekst) + '">' + b.kontekst + '</span></td>' +
+        '<td>' + (b.produkt ? '<span class="pe-prod">' + b.produkt.replace(/_/g, ' ') + '</span>' : '<span class="pe-prod-default">wszystkie</span>') + '</td>' +
         '<td><input type="text" inputmode="decimal" value="' + (b.nawazka_g != null ? String(b.nawazka_g).replace('.',',') : '') + '" onclick="event.stopPropagation()" onblur="saveBinding(' + b.id + ',\'nawazka_g\',this)"></td>' +
         '<td><input type="text" inputmode="decimal" value="' + (b.min_limit != null ? String(b.min_limit).replace('.',',') : '') + '" onclick="event.stopPropagation()" onblur="saveBinding(' + b.id + ',\'min_limit\',this)"></td>' +
         '<td><input type="text" inputmode="decimal" value="' + (b.max_limit != null ? String(b.max_limit).replace('.',',') : '') + '" onclick="event.stopPropagation()" onblur="saveBinding(' + b.id + ',\'max_limit\',this)"></td>' +
@@ -168,18 +348,20 @@ function renderPanel(p) {
 
   // Add binding form
   h += '<div class="pe-add-row" onclick="event.stopPropagation()">' +
+    '<span class="pe-add-label">Dodaj</span>' +
     '<select id="pe-add-ctx-' + p.id + '">';
   _konteksty.forEach(function(k) { h += '<option value="' + k + '">' + k + '</option>'; });
   h += '</select>' +
-    '<select id="pe-add-prod-' + p.id + '"><option value="">(domyślny)</option>';
+    '<select id="pe-add-prod-' + p.id + '"><option value="">(wszystkie)</option>';
   _products.forEach(function(pr) { h += '<option value="' + pr + '">' + pr.replace(/_/g,' ') + '</option>'; });
   h += '</select>' +
-    '<input id="pe-add-naw-' + p.id + '" type="text" inputmode="decimal" placeholder="naważka">' +
+    '<input id="pe-add-naw-' + p.id + '" type="text" inputmode="decimal" placeholder="naw.">' +
     '<input id="pe-add-min-' + p.id + '" type="text" inputmode="decimal" placeholder="min">' +
     '<input id="pe-add-max-' + p.id + '" type="text" inputmode="decimal" placeholder="max">' +
     '<button class="pe-add-btn" onclick="addBinding(' + p.id + ')">+ Dodaj</button>' +
   '</div>';
 
+  h += '</div>'; // pe-panel-inner
   return h;
 }
 
