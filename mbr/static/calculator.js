@@ -56,6 +56,29 @@ function calcStats(results) {
 
 var _calcTitrantValues = {};
 
+function buildStatsHtml(results) {
+    if (results.length >= 2) {
+        var stats = calcStats(results);
+        return '<div class="calc-summary">' +
+            '<div>' +
+                '<div class="calc-avg-label">\u015arednia</div>' +
+                '<div class="calc-stats">' +
+                    '<div class="calc-stat"><span class="calc-stat-label">\u0394</span> <span class="calc-stat-val ' + (stats.convergent ? 'ok' : 'err') + '">' + stats.delta.toFixed(4) + '</span></div>' +
+                    '<div class="calc-stat"><span class="calc-stat-label">Zbie\u017cno\u015b\u0107</span> <span class="calc-stat-val ' + (stats.convergent ? 'ok' : 'err') + '">' + (stats.convergent ? 'TAK' : 'NIE') + '</span></div>' +
+                    '<div class="calc-stat"><span class="calc-stat-label">RSD</span> <span class="calc-stat-val">' + stats.rsd.toFixed(2) + '%</span></div>' +
+                    '<div class="calc-stat"><span class="calc-stat-label">RSM</span> <span class="calc-stat-val">' + stats.rsm.toFixed(2) + '%</span></div>' +
+                '</div>' +
+            '</div>' +
+            '<div class="calc-avg-value">' + stats.mean.toFixed(4) + '</div>' +
+        '</div>';
+    } else if (results.length === 1) {
+        return '<div class="calc-summary"><div><div class="calc-avg-label">Wynik</div>' +
+            '<div class="calc-convergence">Jedna pr\u00f3bka \u2014 dodaj drug\u0105</div></div>' +
+            '<div class="calc-avg-value">' + results[0].toFixed(4) + '</div></div>';
+    }
+    return '';
+}
+
 let _calcState = {
     tag: null,
     kod: null,
@@ -310,24 +333,7 @@ function updateResults() {
     // Update summary area
     const summaryEl = document.getElementById('calc-summary-area');
     if (summaryEl) {
-        if (results.length >= 2) {
-            var stats = calcStats(results);
-            summaryEl.innerHTML = '<div class="calc-summary">' +
-                '<div><div class="calc-avg-label">\u015arednia</div>' +
-                '<div class="calc-convergence ' + (stats.convergent ? 'ok' : '') + '">\u0394 = ' + stats.delta.toFixed(3) + ' \u2014 ' + (stats.convergent ? 'zbie\u017cne' : 'BRAK ZBIE\u017bNO\u015aCI') + '</div>' +
-                '<div style="font-size:10px;color:var(--text-dim);font-family:var(--mono);margin-top:2px;">RSD = ' + stats.rsd.toFixed(2) + '%   RSM = ' + stats.rsm.toFixed(2) + '%</div>' +
-                '</div>' +
-                '<div class="calc-avg-value">' + stats.mean.toFixed(3) + '</div>' +
-            '</div>';
-        } else if (results.length === 1) {
-            summaryEl.innerHTML = `<div class="calc-summary">
-                <div><div class="calc-avg-label">Wynik</div>
-                <div class="calc-convergence">Jedna probka \u2014 dodaj druga</div></div>
-                <div class="calc-avg-value">${results[0].toFixed(3)}</div>
-            </div>`;
-        } else {
-            summaryEl.innerHTML = '';
-        }
+        summaryEl.innerHTML = buildStatsHtml(results);
     }
 
     // Update accept button visibility
@@ -372,29 +378,27 @@ function renderCalculatorFull() {
 
     // Titrant inputs
     if (method.titrants && method.titrants.length > 0) {
-        html += '<div style="margin-bottom:8px;">';
         method.titrants.forEach(function(t) {
             var val = _calcTitrantValues[t.id] !== undefined ? _calcTitrantValues[t.id] : (t.default || 0.1);
+            html += '<div class="calc-titrant">';
+            html += '<label>' + (t.label || t.id) + '</label>';
+            if (t._autoSelected) {
+                html += '<div class="calc-titrant-auto"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="2 8 6 12 14 4"/></svg>' + t._autoSelected + '</div>';
+            }
             if (t.options && t.options.length > 0) {
-                html += '<div class="cs-field" style="margin-bottom:4px;"><label>' + (t.label || t.id) + '</label>';
-                if (t._autoSelected) {
-                    // Auto-selected from batch product — show info, keep select for override
-                    html += '<div style="font-size:10px;color:var(--teal);font-weight:600;margin-bottom:2px;">▸ ' + t._autoSelected + ' (auto)</div>';
-                }
                 html += '<select onchange="_calcTitrantValues[\'' + t.id + '\'] = parseFloat(this.value); updateResultsFull();">';
                 t.options.forEach(function(opt) {
                     var optVal = typeof opt === 'object' ? opt.value : opt;
                     var optLabel = typeof opt === 'object' ? opt.label : opt;
                     var sel = optVal == val ? ' selected' : '';
-                    html += '<option value="' + optVal + '"' + sel + '>' + optLabel + '</option>';
+                    html += '<option value="' + optVal + '"' + sel + '>' + optLabel + ' (' + optVal + ')</option>';
                 });
-                html += '</select></div>';
+                html += '</select>';
             } else {
-                html += '<div class="cs-field" style="margin-bottom:4px;"><label>' + (t.label || t.id) + '</label>';
-                html += '<input type="number" step="any" value="' + val + '" oninput="_calcTitrantValues[\'' + t.id + '\'] = parseFloat(this.value); updateResultsFull();" placeholder="---"></div>';
+                html += '<input type="number" step="any" value="' + val + '" oninput="_calcTitrantValues[\'' + t.id + '\'] = parseFloat(this.value); updateResultsFull();" placeholder="---">';
             }
+            html += '</div>';
         });
-        html += '</div>';
     }
 
     // Samples
@@ -430,20 +434,7 @@ function renderCalculatorFull() {
 
     // Summary
     html += '<div id="calc-summary-area">';
-    if (results.length >= 2) {
-        var stats = calcStats(results);
-        html += '<div class="calc-summary">' +
-            '<div><div class="calc-avg-label">\u015arednia</div>' +
-            '<div class="calc-convergence ' + (stats.convergent ? 'ok' : '') + '">\u0394 = ' + stats.delta.toFixed(3) + ' \u2014 ' + (stats.convergent ? 'zbie\u017cne' : 'BRAK ZBIE\u017bNO\u015aCI') + '</div>' +
-            '<div style="font-size:10px;color:var(--text-dim);font-family:var(--mono);margin-top:2px;">RSD = ' + stats.rsd.toFixed(2) + '%   RSM = ' + stats.rsm.toFixed(2) + '%</div>' +
-            '</div>' +
-            '<div class="calc-avg-value">' + stats.mean.toFixed(3) + '</div>' +
-        '</div>';
-    } else if (results.length === 1) {
-        html += '<div class="calc-summary"><div><div class="calc-avg-label">Wynik</div>' +
-            '<div class="calc-convergence">Jedna pr\u00f3bka \u2014 dodaj drug\u0105</div></div>' +
-            '<div class="calc-avg-value">' + results[0].toFixed(3) + '</div></div>';
-    }
+    html += buildStatsHtml(results);
     html += '</div>';
 
     // Accept button
@@ -477,22 +468,7 @@ function updateResultsFull() {
 
     var summaryEl = document.getElementById('calc-summary-area');
     if (summaryEl) {
-        if (results.length >= 2) {
-            var stats = calcStats(results);
-            summaryEl.innerHTML = '<div class="calc-summary">' +
-                '<div><div class="calc-avg-label">\u015arednia</div>' +
-                '<div class="calc-convergence ' + (stats.convergent ? 'ok' : '') + '">\u0394 = ' + stats.delta.toFixed(3) + ' \u2014 ' + (stats.convergent ? 'zbie\u017cne' : 'BRAK ZBIE\u017bNO\u015aCI') + '</div>' +
-                '<div style="font-size:10px;color:var(--text-dim);font-family:var(--mono);margin-top:2px;">RSD = ' + stats.rsd.toFixed(2) + '%   RSM = ' + stats.rsm.toFixed(2) + '%</div>' +
-                '</div>' +
-                '<div class="calc-avg-value">' + stats.mean.toFixed(3) + '</div>' +
-            '</div>';
-        } else if (results.length === 1) {
-            summaryEl.innerHTML = '<div class="calc-summary"><div><div class="calc-avg-label">Wynik</div>' +
-                '<div class="calc-convergence">Jedna pr\u00f3bka \u2014 dodaj drug\u0105</div></div>' +
-                '<div class="calc-avg-value">' + results[0].toFixed(3) + '</div></div>';
-        } else {
-            summaryEl.innerHTML = '';
-        }
+        summaryEl.innerHTML = buildStatsHtml(results);
     }
 
     var acceptBtn = document.getElementById('calc-accept-btn');

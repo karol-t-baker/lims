@@ -865,6 +865,46 @@ body {
 }
 .calc-add:hover { border-color: var(--teal); color: var(--teal); }
 
+/* Titrant selector (product dropdown in full method) */
+.calc-titrant { margin-bottom: 10px; padding: 10px 12px; background: var(--bg); border-radius: 8px; }
+.calc-titrant label { display: block; font-size: 9px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--text-dim); margin-bottom: 4px; }
+.calc-titrant select {
+  width: 100%; padding: 8px 10px; border: 1.5px solid var(--border);
+  border-radius: var(--radius); font-size: 12px; font-family: var(--font);
+  color: var(--text); background: white; cursor: pointer;
+  -webkit-appearance: none; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23888' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center;
+}
+.calc-titrant select:focus { border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-bg); outline: none; }
+.calc-titrant-auto {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 9px; font-weight: 700; color: var(--teal);
+  background: var(--teal-bg); padding: 2px 8px; border-radius: 4px;
+  margin-bottom: 4px; letter-spacing: 0.3px;
+}
+.calc-titrant-auto svg { width: 10px; height: 10px; }
+.calc-titrant input {
+  width: 100%; padding: 8px 10px; border: 1.5px solid var(--border);
+  border-radius: var(--radius); font-size: 13px; font-family: var(--mono);
+  color: var(--text); text-align: center; background: white;
+}
+.calc-titrant input:focus { border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-bg); outline: none; }
+
+/* Stats block */
+.calc-stats {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px;
+  margin-top: 6px; padding: 6px 0; border-top: 1px solid var(--border-subtle);
+}
+.calc-stat {
+  display: flex; align-items: baseline; gap: 4px;
+  font-size: 10px; font-family: var(--mono); color: var(--text-dim);
+}
+.calc-stat-label { font-size: 8px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-dim); }
+.calc-stat-val { font-weight: 600; }
+.calc-stat-val.ok { color: var(--green); }
+.calc-stat-val.err { color: var(--red); }
+
 .calc-summary {
   background: var(--teal-bg);
   border-radius: 8px;
