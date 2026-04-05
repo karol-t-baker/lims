@@ -9,6 +9,8 @@ from flask import Flask
 def create_app():
     app = Flask(__name__)
     app.secret_key = os.environ.get("MBR_SECRET_KEY", "dev-secret-change-in-prod")
+    app.config["TEMPLATES_AUTO_RELOAD"] = True
+    app.jinja_env.auto_reload = True
 
     # Shared: filters, context processor
     from mbr.shared.filters import register_filters
