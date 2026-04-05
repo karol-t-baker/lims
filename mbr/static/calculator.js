@@ -372,7 +372,8 @@ function renderCalculatorFull() {
 
     // Header
     html += `<div class="calc-header">
-        <div class="calc-param">${method.name}</div>
+        <div class="calc-param">${_calcState.kod.toUpperCase()}</div>
+        <div class="calc-method">${method.name}</div>
         <div class="calc-formula">${method.formula}</div>
     </div>`;
 
