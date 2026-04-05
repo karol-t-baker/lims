@@ -102,3 +102,81 @@ def get_korekty(db: sqlite3.Connection, ebr_id: int, etap: str = None) -> list[d
         params.append(etap)
     sql += " ORDER BY etap, po_rundzie, id"
     return [dict(r) for r in db.execute(sql, params).fetchall()]
+
+
+# ---------------------------------------------------------------------------
+# Stage status tracking
+# ---------------------------------------------------------------------------
+
+# Process stages that get tracked (before standaryzacja)
+PROCESS_STAGES_K7 = ["amidowanie", "smca", "czwartorzedowanie", "sulfonowanie", "utlenienie"]
+PROCESS_STAGES_GLOL = ["amidowanie", "smca", "czwartorzedowanie", "sulfonowanie", "utlenienie", "rozjasnianie"]
+
+GLOL_PRODUCTS = {"Chegina_K40GLOL", "Chegina_K40GLOS", "Chegina_K40GLOL_HQ", "Chegina_K40GLN", "Chegina_GLOL40"}
+
+
+def get_process_stages(produkt: str) -> list[str]:
+    """Return ordered list of process stage names for a product."""
+    if produkt in GLOL_PRODUCTS:
+        return list(PROCESS_STAGES_GLOL)
+    return list(PROCESS_STAGES_K7)
+
+
+def init_etapy_status(db: sqlite3.Connection, ebr_id: int, produkt: str) -> None:
+    """Initialize stage status records for a new szarża. First stage = in_progress."""
+    stages = get_process_stages(produkt)
+    if not stages:
+        return
+    now = datetime.now().isoformat(timespec="seconds")
+    for i, etap in enumerate(stages):
+        status = "in_progress" if i == 0 else "pending"
+        dt_start = now if i == 0 else None
+        db.execute(
+            """INSERT OR IGNORE INTO ebr_etapy_status (ebr_id, etap, status, dt_start)
+               VALUES (?, ?, ?, ?)""",
+            (ebr_id, etap, status, dt_start),
+        )
+    db.commit()
+
+
+def get_etapy_status(db: sqlite3.Connection, ebr_id: int) -> list[dict]:
+    """Get status of all process stages for a batch. Returns ordered list."""
+    rows = db.execute(
+        "SELECT * FROM ebr_etapy_status WHERE ebr_id = ? ORDER BY id",
+        (ebr_id,),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_aktualny_etap(db: sqlite3.Connection, ebr_id: int) -> str | None:
+    """Get the name of the current (in_progress) process stage, or None if all done."""
+    row = db.execute(
+        "SELECT etap FROM ebr_etapy_status WHERE ebr_id = ? AND status = 'in_progress'",
+        (ebr_id,),
+    ).fetchone()
+    return row["etap"] if row else None
+
+
+def zatwierdz_etap(db: sqlite3.Connection, ebr_id: int, etap: str, user: str, produkt: str) -> str | None:
+    """Approve current stage, advance to next. Returns next stage name or None if last."""
+    now = datetime.now().isoformat(timespec="seconds")
+    db.execute(
+        "UPDATE ebr_etapy_status SET status='done', dt_end=?, zatwierdzil=? WHERE ebr_id=? AND etap=?",
+        (now, user, ebr_id, etap),
+    )
+    # Find next stage
+    stages = get_process_stages(produkt)
+    try:
+        idx = stages.index(etap)
+        if idx + 1 < len(stages):
+            next_etap = stages[idx + 1]
+            db.execute(
+                "UPDATE ebr_etapy_status SET status='in_progress', dt_start=? WHERE ebr_id=? AND etap=?",
+                (now, ebr_id, next_etap),
+            )
+            db.commit()
+            return next_etap
+    except ValueError:
+        pass
+    db.commit()
+    return None  # All process stages done → standaryzacja next

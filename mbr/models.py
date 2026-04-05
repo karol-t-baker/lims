@@ -140,6 +140,17 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             dt_zalecenia    TEXT,
             dt_wykonania    TEXT
         );
+
+        CREATE TABLE IF NOT EXISTS ebr_etapy_status (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            ebr_id          INTEGER NOT NULL,
+            etap            TEXT NOT NULL,
+            status          TEXT DEFAULT 'pending',
+            dt_start        TEXT,
+            dt_end          TEXT,
+            zatwierdzil     TEXT,
+            UNIQUE(ebr_id, etap)
+        );
     """)
     db.execute("""
         CREATE TABLE IF NOT EXISTS workers (
