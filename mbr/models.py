@@ -4,11 +4,12 @@ models.py — Database helpers and user CRUD for MBR/EBR webapp.
 
 import json
 import sqlite3
-from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 
 import bcrypt
+
+from mbr.db import get_db, db_session  # noqa: F401
 
 DB_PATH = Path(__file__).parent.parent / "data" / "batch_db_v4.sqlite"
 
@@ -34,23 +35,6 @@ PRODUCTS = [
     "Polcet_A", "Chelamid_DK", "Glikoster_P", "Citrowax",
     "Kwas_stearynowy", "Perlico_45", "SLES", "HSH_CS3070",
 ]
-
-
-def get_db() -> sqlite3.Connection:
-    """Return sqlite3 connection with Row factory and foreign_keys=ON."""
-    db = sqlite3.connect(DB_PATH)
-    db.row_factory = sqlite3.Row
-    db.execute("PRAGMA foreign_keys=ON")
-    return db
-
-
-@contextmanager
-def db_session():
-    db = get_db()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 def init_mbr_tables(db: sqlite3.Connection) -> None:

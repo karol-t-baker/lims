@@ -24,66 +24,13 @@ from mbr.models import (
     list_workers, update_worker_profile, update_worker_nickname,
     create_swiadectwo, list_swiadectwa, mark_swiadectwa_outdated,
 )
+from mbr.shared.filters import register_filters
+from mbr.shared.context import register_context
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("MBR_SECRET_KEY", "dev-secret-change-in-prod")
-
-
-# ---------------------------------------------------------------------------
-# Template filters & context processors
-# ---------------------------------------------------------------------------
-
-@app.template_filter('pl_date')
-def pl_date_filter(value):
-    """Format ISO date to Polish: DD.MM.YYYY HH:MM"""
-    if not value:
-        return '\u2014'
-    try:
-        dt = datetime.fromisoformat(str(value))
-        return dt.strftime('%d.%m.%Y %H:%M')
-    except Exception:
-        return str(value)[:16]
-
-
-@app.template_filter('pl_date_short')
-def pl_date_short_filter(value):
-    """Format ISO date to Polish short: DD.MM.YYYY"""
-    if not value:
-        return '\u2014'
-    try:
-        dt = datetime.fromisoformat(str(value))
-        return dt.strftime('%d.%m.%Y')
-    except Exception:
-        return str(value)[:10]
-
-
-@app.template_filter('fmt_kg')
-def fmt_kg_filter(value):
-    """Format kg: 23444.0 -> 23 444"""
-    if not value:
-        return '\u2014'
-    try:
-        v = int(float(value))
-        return f'{v:,}'.replace(',', ' ')
-    except Exception:
-        return str(value)
-
-
-@app.template_filter('short_product')
-def short_product_filter(value):
-    """Chegina_K40GLOL -> K40GLOL, Chegina_K7 -> K7"""
-    if not value:
-        return ''
-    return str(value).replace('Chegina_', '').replace('Chegina ', '')
-
-
-@app.context_processor
-def inject_globals():
-    return {
-        'today': datetime.now().strftime('%d.%m.%Y'),
-        'products': PRODUCTS,
-        'main_products': ['Chegina_K7', 'Chegina_K40GL', 'Chegina_K40GLO', 'Chegina_K40GLOL'],
-    }
+register_filters(app)
+register_context(app)
 
 
 # ---------------------------------------------------------------------------
