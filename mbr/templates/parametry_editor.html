@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+{% block title %}Parametry analityczne{% endblock %}
+{% block nav_parametry %}active{% endblock %}
+
+{% block topbar_title %}
+  <span style="font-weight:700;">Parametry analityczne</span>
+{% endblock %}
+{% block topbar_right %}
+  <span id="param-count" class="en-badge" style="background:var(--surface-alt);color:var(--text-sec);"></span>
+{% endblock %}
+
+{% block head %}
+<style>
+/* Parameter table */
+.pe-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.pe-table th { text-align: left; padding: 8px 12px; font-size: 10px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid var(--border); }
+.pe-table td { padding: 8px 12px; border-bottom: 1px solid var(--border-subtle); vertical-align: middle; }
+.pe-row { cursor: pointer; transition: background 0.1s; }
+.pe-row:hover { background: var(--surface-alt); }
+.pe-row.pe-open { background: var(--surface-alt); font-weight: 600; }
+.pe-typ { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.3px; }
+.pe-typ-b { background: var(--blue-bg, #e8f0fe); color: var(--blue, #1a73e8); }
+.pe-typ-t { background: var(--amber-bg); color: var(--amber); }
+.pe-typ-o { background: var(--teal-bg); color: var(--teal); }
+.pe-meta { font-family: var(--mono); color: var(--text-dim); font-size: 11px; }
+.pe-badge { font-size: 10px; color: var(--text-dim); }
+
+/* Accordion panel */
+.pe-panel { display: none; background: #fafaf7; border-bottom: 2px solid var(--border); }
+.pe-panel.pe-panel-open { display: table-row; }
+.pe-panel td { padding: 16px 24px; }
+.pe-fields { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+.pe-field { display: flex; flex-direction: column; gap: 3px; }
+.pe-field label { font-size: 9px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.3px; }
+.pe-field input { padding: 6px 10px; border: 1.5px solid var(--border); border-radius: 6px; font-size: 12px; font-family: var(--mono); background: #fff; transition: outline 0.2s; }
+.pe-field input:focus { outline: 2px solid var(--teal); outline-offset: -1px; }
+.pe-field input.pe-wide { width: 320px; }
+.pe-field input.pe-num { width: 80px; text-align: center; }
+
+/* Bindings sub-table */
+.pe-bind-title { font-size: 11px; font-weight: 700; color: var(--text-sec); margin: 12px 0 6px; }
+.pe-bind { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 8px; }
+.pe-bind th { text-align: left; padding: 4px 8px; font-size: 9px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; border-bottom: 1px solid var(--border); }
+.pe-bind td { padding: 4px 8px; border-bottom: 1px solid var(--border-subtle); }
+.pe-bind input { padding: 4px 6px; border: 1px solid var(--border); border-radius: 4px; font-size: 11px; font-family: var(--mono); width: 70px; text-align: center; }
+.pe-bind select { padding: 4px 6px; border: 1px solid var(--border); border-radius: 4px; font-size: 11px; }
+.pe-bind-del { background: none; border: none; color: var(--red); cursor: pointer; font-size: 14px; padding: 2px 6px; border-radius: 4px; }
+.pe-bind-del:hover { background: var(--red-bg, #fde8e8); }
+
+/* Add binding row */
+.pe-add-row { display: flex; gap: 6px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+.pe-add-row select, .pe-add-row input { padding: 5px 8px; border: 1.5px dashed var(--border); border-radius: 6px; font-size: 11px; font-family: var(--font); }
+.pe-add-row input { font-family: var(--mono); width: 70px; text-align: center; }
+.pe-add-btn { padding: 5px 12px; background: var(--teal); color: #fff; border: none; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; font-family: var(--font); }
+.pe-add-btn:hover { opacity: 0.9; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="padding: 16px 24px; max-width: 1100px;">
+  <table class="pe-table" id="pe-table">
+    <thead>
+      <tr>
+        <th style="width:30px;"></th>
+        <th>Kod</th>
+        <th>Label</th>
+        <th>Typ</th>
+        <th>Metoda / Formuła</th>
+        <th>Etapy</th>
+      </tr>
+    </thead>
+    <tbody id="pe-body">
+      <tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:24px;">Ładowanie...</td></tr>
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var _products = {{ products | tojson }};
+var _konteksty = ['amidowanie','smca','czwartorzedowanie','sulfonowanie','utlenienie','rozjasnianie','analiza_koncowa','dodatki'];
+var _params = [];
+
+function loadParams() {
+  fetch('/api/parametry/list').then(function(r){return r.json();}).then(function(data) {
+    _params = data;
+    document.getElementById('param-count').textContent = data.length + ' parametrów';
+    renderTable();
+  });
+}
+
+function renderTable() {
+  var tbody = document.getElementById('pe-body');
+  var html = '';
+  _params.forEach(function(p) {
+    var typCls = p.typ === 'titracja' ? 'pe-typ-t' : p.typ === 'obliczeniowy' ? 'pe-typ-o' : 'pe-typ-b';
+    var typLabel = p.typ === 'titracja' ? 'miarecz.' : p.typ === 'obliczeniowy' ? 'oblicz.' : 'bezpośr.';
+    var meta = '';
+    if (p.typ === 'titracja' && p.metoda_nazwa) meta = p.metoda_nazwa + ' (' + p.metoda_factor + ')';
+    else if (p.typ === 'obliczeniowy' && p.formula) meta = p.formula;
+    var bindCount = p.bindings ? p.bindings.length : 0;
+
+    html += '<tr class="pe-row" id="pe-r-' + p.id + '" onclick="togglePanel(' + p.id + ')">' +
+      '<td><svg style="width:12px;height:12px;color:var(--text-dim);transition:transform 0.2s;" class="pe-chev-' + p.id + '" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4l4 4-4 4"/></svg></td>' +
+      '<td><code style="font-size:11px;">' + p.kod + '</code></td>' +
+      '<td>' + esc(p.label) + '</td>' +
+      '<td><span class="pe-typ ' + typCls + '">' + typLabel + '</span></td>' +
+      '<td class="pe-meta">' + esc(meta) + '</td>' +
+      '<td class="pe-badge">' + (bindCount > 0 ? bindCount + ' etap' + (bindCount > 1 ? 'ów' : '') : '—') + '</td>' +
+    '</tr>';
+
+    // Accordion panel
+    html += '<tr class="pe-panel" id="pe-p-' + p.id + '"><td colspan="6">' + renderPanel(p) + '</td></tr>';
+  });
+  tbody.innerHTML = html;
+}
+
+function esc(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function togglePanel(id) {
+  var panel = document.getElementById('pe-p-' + id);
+  var row = document.getElementById('pe-r-' + id);
+  var chev = document.querySelector('.pe-chev-' + id);
+  var isOpen = panel.classList.contains('pe-panel-open');
+  // Close all
+  document.querySelectorAll('.pe-panel-open').forEach(function(el) { el.classList.remove('pe-panel-open'); });
+  document.querySelectorAll('.pe-row.pe-open').forEach(function(el) { el.classList.remove('pe-open'); });
+  document.querySelectorAll('[class*="pe-chev-"]').forEach(function(el) { el.style.transform = ''; });
+  if (!isOpen) {
+    panel.classList.add('pe-panel-open');
+    row.classList.add('pe-open');
+    if (chev) chev.style.transform = 'rotate(90deg)';
+  }
+}
+
+function renderPanel(p) {
+  var h = '<div class="pe-fields">';
+  h += renderField('Label', p.id, 'label', p.label, 'pe-wide');
+  h += renderField('Precyzja', p.id, 'precision', p.precision, 'pe-num');
+
+  if (p.typ === 'obliczeniowy') {
+    h += renderField('Formuła', p.id, 'formula', p.formula || '', 'pe-wide');
+  }
+  if (p.typ === 'titracja') {
+    h += renderField('Metoda', p.id, 'metoda_nazwa', p.metoda_nazwa || '', 'pe-wide');
+    h += renderField('Wzór', p.id, 'metoda_formula', p.metoda_formula || '', 'pe-wide');
+    h += renderField('Factor', p.id, 'metoda_factor', p.metoda_factor || '', 'pe-num');
+  }
+  h += '</div>';
+
+  // Bindings table (all types)
+  if (p.bindings && p.bindings.length > 0) {
+    h += '<div class="pe-bind-title">Przypisania do etapów</div>';
+    h += '<table class="pe-bind"><thead><tr><th>Kontekst</th><th>Produkt</th><th>Naważka [g]</th><th>Min</th><th>Max</th><th></th></tr></thead><tbody>';
+    p.bindings.forEach(function(b) {
+      h += '<tr>' +
+        '<td>' + b.kontekst + '</td>' +
+        '<td>' + (b.produkt || '<em style="color:var(--text-dim);">(domyślny)</em>') + '</td>' +
+        '<td><input type="text" inputmode="decimal" value="' + (b.nawazka_g != null ? String(b.nawazka_g).replace('.',',') : '') + '" onclick="event.stopPropagation()" onblur="saveBinding(' + b.id + ',\'nawazka_g\',this)"></td>' +
+        '<td><input type="text" inputmode="decimal" value="' + (b.min_limit != null ? String(b.min_limit).replace('.',',') : '') + '" onclick="event.stopPropagation()" onblur="saveBinding(' + b.id + ',\'min_limit\',this)"></td>' +
+        '<td><input type="text" inputmode="decimal" value="' + (b.max_limit != null ? String(b.max_limit).replace('.',',') : '') + '" onclick="event.stopPropagation()" onblur="saveBinding(' + b.id + ',\'max_limit\',this)"></td>' +
+        '<td><button class="pe-bind-del" onclick="event.stopPropagation();deleteBinding(' + b.id + ',' + p.id + ')" title="Usuń">&times;</button></td>' +
+      '</tr>';
+    });
+    h += '</tbody></table>';
+  }
+
+  // Add binding form
+  h += '<div class="pe-add-row" onclick="event.stopPropagation()">' +
+    '<select id="pe-add-ctx-' + p.id + '">';
+  _konteksty.forEach(function(k) { h += '<option value="' + k + '">' + k + '</option>'; });
+  h += '</select>' +
+    '<select id="pe-add-prod-' + p.id + '"><option value="">(domyślny)</option>';
+  _products.forEach(function(pr) { h += '<option value="' + pr + '">' + pr.replace(/_/g,' ') + '</option>'; });
+  h += '</select>' +
+    '<input id="pe-add-naw-' + p.id + '" type="text" inputmode="decimal" placeholder="naważka">' +
+    '<input id="pe-add-min-' + p.id + '" type="text" inputmode="decimal" placeholder="min">' +
+    '<input id="pe-add-max-' + p.id + '" type="text" inputmode="decimal" placeholder="max">' +
+    '<button class="pe-add-btn" onclick="addBinding(' + p.id + ')">+ Dodaj</button>' +
+  '</div>';
+
+  return h;
+}
+
+function renderField(label, paramId, field, value, cls) {
+  return '<div class="pe-field">' +
+    '<label>' + label + '</label>' +
+    '<input class="' + (cls || '') + '" type="text" value="' + esc(String(value != null ? value : '')) + '"' +
+    ' onclick="event.stopPropagation()" onblur="saveParam(' + paramId + ',\'' + field + '\',this)">' +
+  '</div>';
+}
+
+// ═══ SAVE FUNCTIONS ═══
+
+function flashField(input, ok) {
+  input.style.outline = '2px solid var(--' + (ok ? 'green' : 'red') + ')';
+  setTimeout(function() { input.style.outline = ''; }, 800);
+}
+
+function parseNum(v) {
+  if (v === '' || v == null) return null;
+  return parseFloat(String(v).replace(',', '.'));
+}
+
+function saveParam(paramId, field, input) {
+  var val = input.value;
+  if (field === 'precision' || field === 'metoda_factor') val = parseNum(val);
+  var body = {};
+  body[field] = val;
+  fetch('/api/parametry/' + paramId, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  }).then(function(r) {
+    flashField(input, r.ok);
+    if (r.ok) {
+      var p = _params.find(function(x) { return x.id === paramId; });
+      if (p) p[field] = val;
+    }
+  });
+}
+
+function saveBinding(bindingId, field, input) {
+  var val = parseNum(input.value);
+  var body = {};
+  body[field] = val;
+  fetch('/api/parametry/etapy/' + bindingId, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  }).then(function(r) { flashField(input, r.ok); });
+}
+
+function deleteBinding(bindingId, paramId) {
+  fetch('/api/parametry/etapy/' + bindingId, {method: 'DELETE'})
+    .then(function(r) {
+      if (r.ok) {
+        var p = _params.find(function(x) { return x.id === paramId; });
+        if (p) p.bindings = p.bindings.filter(function(b) { return b.id !== bindingId; });
+        renderTable();
+        setTimeout(function() { togglePanel(paramId); }, 10);
+      }
+    });
+}
+
+function addBinding(paramId) {
+  var ctx = document.getElementById('pe-add-ctx-' + paramId).value;
+  var prod = document.getElementById('pe-add-prod-' + paramId).value;
+  var naw = parseNum(document.getElementById('pe-add-naw-' + paramId).value);
+  var mn = parseNum(document.getElementById('pe-add-min-' + paramId).value);
+  var mx = parseNum(document.getElementById('pe-add-max-' + paramId).value);
+
+  fetch('/api/parametry/etapy', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({parametr_id: paramId, kontekst: ctx, produkt: prod || null, nawazka_g: naw, min_limit: mn, max_limit: mx})
+  }).then(function(r) {
+    if (r.status === 409) { alert('Ten binding już istnieje'); return; }
+    if (r.ok) {
+      loadParams();
+      setTimeout(function() { togglePanel(paramId); }, 200);
+    }
+  });
+}
+
+// Init
+loadParams();
+</script>
+{% endblock %}
