@@ -2,7 +2,6 @@
 app.py — Minimal Flask app for MBR/EBR management.
 """
 
-import functools
 import json
 import os
 import socket
@@ -15,7 +14,7 @@ from flask import Flask, Response, redirect, url_for, request, session, render_t
 from flask import send_file
 
 from mbr.models import (
-    get_db, db_session, init_mbr_tables, verify_user,
+    get_db, db_session, init_mbr_tables,
     list_mbr, get_mbr, save_mbr, activate_mbr, clone_mbr,
     list_ebr_open, list_ebr_completed, list_ebr_recent, export_wyniki_csv,
     create_ebr, get_ebr, get_ebr_wyniki, get_round_state, save_wyniki, complete_ebr,
@@ -31,73 +30,10 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("MBR_SECRET_KEY", "dev-secret-change-in-prod")
 register_filters(app)
 register_context(app)
+from mbr.auth import auth_bp  # noqa: E402
+app.register_blueprint(auth_bp)
 
-
-# ---------------------------------------------------------------------------
-# Auth decorators
-# ---------------------------------------------------------------------------
-
-def login_required(f):
-    @functools.wraps(f)
-    def wrapper(*args, **kwargs):
-        if "user" not in session:
-            return redirect(url_for("login"))
-        return f(*args, **kwargs)
-    return wrapper
-
-
-def role_required(rola):
-    """Decorator requiring a specific role (e.g. 'technolog')."""
-    def decorator(f):
-        @functools.wraps(f)
-        @login_required
-        def wrapper(*args, **kwargs):
-            if session["user"]["rola"] != rola:
-                return "Brak uprawnień", 403
-            return f(*args, **kwargs)
-        return wrapper
-    return decorator
-
-
-# ---------------------------------------------------------------------------
-# Auth routes
-# ---------------------------------------------------------------------------
-
-@app.route("/login", methods=["GET", "POST"])
-def login():
-    error = None
-    if request.method == "POST":
-        login_val = request.form.get("login", "")
-        password = request.form.get("password", "")
-        with db_session() as db:
-            user = verify_user(db, login_val, password)
-        if user:
-            session["user"] = {
-                "login": user["login"],
-                "rola": user["rola"],
-                "imie_nazwisko": user.get("imie_nazwisko"),
-            }
-            return redirect(url_for("index"))
-        error = "Nieprawidłowy login lub hasło"
-    return render_template("login.html", error=error)
-
-
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect(url_for("login"))
-
-
-# ---------------------------------------------------------------------------
-# Index — redirect based on role
-# ---------------------------------------------------------------------------
-
-@app.route("/")
-@login_required
-def index():
-    if session["user"]["rola"] == "technolog":
-        return redirect(url_for("mbr_list"))
-    return redirect(url_for("szarze_list"))
+from mbr.shared.decorators import login_required, role_required  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
