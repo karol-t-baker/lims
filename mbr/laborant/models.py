@@ -557,7 +557,12 @@ def sync_ebr_to_v4(db: sqlite3.Connection, ebr_id: int, ebr: dict | None = None)
     """Sync EBR data to v4 events and batch tables.
     Handles round-suffixed sekcjas (analiza__1, standaryzacja__2)
     and legacy sekcjas (przed_standaryzacja, analiza_koncowa).
+    Silently skips if v4 tables don't exist.
     """
+    # Check if v4 tables exist
+    v4_tables = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+    if "batch" not in v4_tables or "event" not in v4_tables:
+        return  # v4 schema not present — skip sync
     if ebr is None:
         ebr = get_ebr(db, ebr_id)
     if ebr is None:
