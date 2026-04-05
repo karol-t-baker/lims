@@ -604,10 +604,10 @@ function renderSections() {
         return;
     }
 
-    // If active process stage — render ONLY hero + process stage form (skip standaryzacja/AK)
+    // If active process stage — render ONLY process stage form (no hero, no standaryzacja)
     if (activeProcessStage) {
-        renderCompletedView();  // renders hero card
-        // showProcessStage will insert form after hero and hide cv-params
+        var container = document.getElementById('sections-container');
+        container.innerHTML = '';
         if (typeof window.showProcessStage === 'function') {
             window.showProcessStage(activeProcessStage.etap);
         }
