@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ v }}">
   {% block head %}{% endblock %}
 </head>
 <body>
@@ -69,7 +69,7 @@
   {% block footer %}{% endblock %}
 </div>
 
-<script src="{{ url_for('static', filename='lab_common.js') }}"></script>
+<script src="{{ url_for('static', filename='lab_common.js') }}?v={{ v }}"></script>
 {% block scripts %}{% endblock %}
 
 <!-- Nowa szarza modal (global — available on all pages) -->

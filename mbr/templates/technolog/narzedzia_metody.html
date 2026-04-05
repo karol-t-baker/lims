@@ -7,7 +7,7 @@
 {% block topbar %}{% endblock %}
 
 {% block head %}
-<script src="{{ url_for('static', filename='calculator.js') }}"></script>
+<script src="{{ url_for('static', filename='calculator.js') }}?v={{ v }}"></script>
 {% endblock %}
 
 {% block content %}

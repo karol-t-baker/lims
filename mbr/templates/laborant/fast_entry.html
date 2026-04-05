@@ -21,7 +21,7 @@
 {% endblock %}
 
 {% block head %}
-<script src="{{ url_for('static', filename='calculator.js') }}" defer></script>
+<script src="{{ url_for('static', filename='calculator.js') }}?v={{ v }}" defer></script>
 <style>
   .tp-breadcrumb { color: var(--text-dim); text-decoration: none; font-size: 13px; }
   .tp-breadcrumb:hover { color: var(--text-sec); }
