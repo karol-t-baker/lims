@@ -235,11 +235,15 @@ async function openCalculatorFull(metoda_id, kod, sekcja) {
         s.vols = new Array(nVols).fill('');
     });
 
+    // Reset titrant values for fresh calculator session
+    _calcTitrantValues = {};
+
     // Init titrant values from defaults
     // For titrants with options (e.g. CHEGINY %AA T2=PRODUKT), auto-select based on batch product
     var _batchProdukt = (window._batchProdukt || '').toUpperCase();
     // Extract product code: "Chegina_K40GLOL" → "K40GLOL"
     var _prodCode = _batchProdukt.replace('CHEGINA_', '').replace('CHEGINA', '');
+    console.log('[calc] auto-select: _batchProdukt=' + _batchProdukt + ' _prodCode=' + _prodCode);
     _calcState.method.titrants.forEach(function(t) {
         if (t.options && t.options.length > 0 && _batchProdukt) {
             // Match product code against option keywords
@@ -274,6 +278,7 @@ async function openCalculatorFull(metoda_id, kod, sekcja) {
                     if (matched) break;
                 }
             }
+            console.log('[calc] auto-select result: matched=' + (matched ? matched.label + '(' + matched.value + ')' : 'NONE') + ' bestScore=' + bestScore);
             if (matched) {
                 _calcTitrantValues[t.id] = matched.value;
                 t._autoSelected = matched.label;
