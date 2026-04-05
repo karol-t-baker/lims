@@ -1724,89 +1724,84 @@ window.showProcessStage = function(etapKey) {
   var isDone = status === 'done';
   var isPending = status === 'pending';
 
-  var html = '<div class="ps-form">';
-
-  // Header
-  html += '<div class="ps-header">';
-  html += '<span class="ps-title">' + stageConfig.label + '</span>';
-  html += '<span class="ps-runda">Runda ' + currentRunda + '</span>';
-  if (isDone) html += '<span class="ps-status-badge ps-status-done">Zatwierdzony ✓</span>';
-  else if (isActive) html += '<span class="ps-status-badge ps-status-active">Aktywny</span>';
-  else html += '<span class="ps-status-badge ps-status-pending">Oczekuje</span>';
-  html += '</div>';
-
   if (isPending) {
-    html += '<div class="ps-locked-msg">Etap będzie dostępny po zatwierdzeniu poprzedniego etapu.</div>';
-    html += '</div>';
-    container.innerHTML = html;
+    container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-dim);font-size:12px;">Etap będzie dostępny po zatwierdzeniu poprzedniego etapu.</div>';
     return;
   }
 
-  // Fields for current round
-  html += '<div class="ps-fields">';
+  // Use cv-params style (same as analiza końcowa)
+  var headerExtra = '';
+  if (isDone) headerExtra = ' <span style="font-size:9px;background:var(--green-bg);color:var(--green);padding:2px 6px;border-radius:3px;margin-left:6px;">Zatwierdzony ✓</span>';
+  else if (isActive) headerExtra = ' <span style="font-size:9px;background:var(--teal-bg);color:var(--teal);padding:2px 6px;border-radius:3px;margin-left:6px;">R' + currentRunda + '</span>';
+
+  var html = '<div class="cv-params">' +
+    '<div class="cv-params-head">' + stageConfig.label + headerExtra +
+    (isActive ? ' <button class="cv-edit-btn" style="display:none;"></button>' : '') +
+    '</div>';
+
+  // Parameter rows — same layout as analiza końcowa
   stageConfig.parametry.forEach(function(param) {
     var val = '';
     var rundaData = stageAnalizy[currentRunda];
     if (rundaData && rundaData[param.kod]) {
       val = String(rundaData[param.kod].wartosc).replace('.', ',');
     }
-    var dotCls = val ? 'ps-field-dot ok' : 'ps-field-dot';
+    var ok = val ? true : false;
 
-    html += '<div class="ps-field">';
-    html += '<div class="' + dotCls + '"></div>';
-    html += '<span class="ps-field-label">' + param.label + '</span>';
+    html += '<div class="cv-param">' +
+      '<div class="cv-p-dot ' + (ok ? 'cv-dot-ok' : 'cv-dot-err') + '"></div>' +
+      '<span class="cv-p-label">' + param.label + '</span>';
+
     if (isActive) {
-      html += '<input class="ps-field-input" type="text" inputmode="decimal"' +
+      html += '<input class="cv-p-input" type="text" inputmode="decimal"' +
         ' data-etap="' + etapKey + '" data-runda="' + currentRunda + '" data-kod="' + param.kod + '"' +
         ' value="' + val + '" oninput="psAutoSave(this)" onblur="psSave(this)">';
     } else {
-      html += '<input class="ps-field-input" type="text" value="' + val + '" readonly>';
+      html += '<span class="cv-p-val">' + (val || '—') + '</span>';
     }
-    html += '<span class="ps-field-info">' + (param.info || param.typ) + '</span>';
+
+    html += '<span class="cv-p-norm">' + (param.info || '') + '</span>';
     html += '</div>';
   });
   html += '</div>';
 
-  // Corrections history
+  // Corrections history — using cv-params style
   if (stageKorekty.length > 0) {
-    html += '<div class="ps-korekty-section">';
-    html += '<div class="ps-korekty-title">Historia korekt</div>';
+    html += '<div class="cv-params" style="margin-top:8px;">' +
+      '<div class="cv-params-head">Korekty</div>';
     stageKorekty.forEach(function(k) {
-      html += '<div class="ps-korekta-item">';
-      html += '<span>R' + (k.po_rundzie || '?') + ' →</span>';
-      html += '<span class="ps-korekta-sub">' + k.substancja + '</span>';
-      html += '<span class="ps-korekta-kg">' + k.ilosc_kg + ' kg</span>';
-      if (k.wykonano) html += '<span class="ps-korekta-badge">Wykonano</span>';
-      else html += '<span style="font-size:9px;color:var(--amber);">Zalecono</span>';
-      html += '</div>';
+      html += '<div class="cv-param">' +
+        '<div class="cv-p-dot" style="background:var(--amber);"></div>' +
+        '<span class="cv-p-label">R' + (k.po_rundzie || '?') + ' → ' + k.substancja + '</span>' +
+        '<span class="cv-p-val" style="color:var(--amber);">' + String(k.ilosc_kg).replace('.',',') + ' kg</span>' +
+        '<span class="cv-p-norm">' + (k.wykonano ? '✓' : 'zalecono') + '</span>' +
+      '</div>';
     });
     html += '</div>';
   }
 
   // Add correction form (active only)
   if (isActive && stageConfig.korekty && stageConfig.korekty.length > 0) {
-    html += '<div class="ps-korekty-section">';
-    html += '<div class="ps-korekty-title">Zalecenie korekty</div>';
-    html += '<div class="ps-add-korekta">';
-    html += '<select id="ps-korekta-sub">';
+    html += '<div class="cv-params" style="margin-top:8px;border-color:var(--amber);border-style:dashed;">' +
+      '<div class="cv-params-head" style="color:var(--amber);">Zalecenie korekty</div>' +
+      '<div style="padding:8px 16px;display:flex;gap:8px;align-items:center;">' +
+        '<select id="ps-korekta-sub" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-family:var(--font);flex:1;">';
     stageConfig.korekty.forEach(function(s) {
       html += '<option value="' + s + '">' + s + '</option>';
     });
-    html += '</select>';
-    html += '<input id="ps-korekta-kg" type="number" step="0.1" placeholder="kg">';
-    html += '<span>kg</span>';
-    html += '<button onclick="psAddKorekta(\'' + etapKey + '\',' + currentRunda + ')">+ Zaleć korektę</button>';
-    html += '</div>';
-    html += '</div>';
+    html += '</select>' +
+        '<input id="ps-korekta-kg" type="number" step="0.1" placeholder="kg" style="width:70px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:var(--mono);text-align:center;">' +
+        '<span style="font-size:11px;color:var(--text-dim);">kg</span>' +
+        '<button onclick="psAddKorekta(\'' + etapKey + '\',' + currentRunda + ')" style="padding:6px 12px;background:var(--amber);color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);white-space:nowrap;">+ Zaleć</button>' +
+      '</div></div>';
   }
 
   // Approve button (active only)
   if (isActive) {
-    html += '<button class="ps-approve-btn" onclick="psApproveStage(\'' + etapKey + '\')">';
-    html += 'Zatwierdź etap →</button>';
+    html += '<button class="ps-approve-btn" onclick="psApproveStage(\'' + etapKey + '\')">' +
+      'Zatwierdź etap →</button>';
   }
 
-  html += '</div>';
   container.innerHTML = html;
 
   // Hide the existing standaryzacja/AK sections
