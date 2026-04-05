@@ -206,10 +206,24 @@ async function openCalculator(tag, kod, sekcja, calcMethod) {
     renderCalculator();
 }
 
+var _metodaCache = {};
+
 async function openCalculatorFull(metoda_id, kod, sekcja, nawazka) {
-    var resp = await fetch('/api/metody-miareczkowe/' + metoda_id);
-    if (!resp.ok) return;
-    var method = await resp.json();
+    // Skip re-render if same method+kod+sekcja already active
+    if (_calcState.fullMethod && _calcState.kod === kod && _calcState.sekcja === sekcja && _calcState.method) {
+        return;
+    }
+
+    // Cache method data to avoid repeated fetches
+    var method;
+    if (_metodaCache[metoda_id]) {
+        method = _metodaCache[metoda_id];
+    } else {
+        var resp = await fetch('/api/metody-miareczkowe/' + metoda_id);
+        if (!resp.ok) return;
+        method = await resp.json();
+        _metodaCache[metoda_id] = method;
+    }
 
     _calcState = {
         tag: kod,
