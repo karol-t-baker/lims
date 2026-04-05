@@ -1097,6 +1097,15 @@ function renderLinearSections() {
             saveBtnLabel: null
         });
     });
+
+    // Cert section for zbiornik (open state)
+    if (ebrTyp === 'zbiornik' && ebrStatus === 'open') {
+        var certDiv = document.createElement('div');
+        certDiv.className = 'cv-certs-section';
+        certDiv.innerHTML = '<div class="cv-certs" id="cv-certs"></div>';
+        container.appendChild(certDiv);
+        loadCompletedCerts();
+    }
 }
 
 function getCyclicSectionTitle(base, n) {
