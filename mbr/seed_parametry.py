@@ -1,0 +1,352 @@
+"""
+seed_parametry.py — Seed parametry_analityczne + parametry_etapy tables.
+
+Populates centralized analytical parameter definitions extracted from:
+  - etapy_config.py  (process stage limits per product)
+  - seed_mbr.py      (analiza_koncowa limits per product, titration factors)
+
+Run once:  python -m mbr.seed_parametry
+Idempotent: INSERT OR IGNORE, safe to re-run.
+"""
+
+from mbr.models import get_db, init_mbr_tables
+
+# ---------------------------------------------------------------------------
+# 1. PARAMETRY — all unique analytical parameters
+# ---------------------------------------------------------------------------
+
+# Format: dict with keys matching parametry_analityczne columns.
+# Required: kod, label, typ
+# titracja also needs: metoda_nazwa, metoda_formula, metoda_factor
+# obliczeniowy also needs: formula
+
+PARAMETRY = [
+    # --- bezposredni ---
+    {"kod": "ph",         "label": "pH roztworu",      "typ": "bezposredni", "precision": 2},
+    {"kod": "ph_10proc",  "label": "pH 10%",           "typ": "bezposredni", "precision": 2},
+    {"kod": "nd20",       "label": "nD20",              "typ": "bezposredni", "precision": 4},
+    {"kod": "sm",         "label": "Sucha masa [%]",   "typ": "bezposredni", "precision": 1},
+    {"kod": "le",         "label": "LE (liczba estrowa)", "typ": "bezposredni", "precision": 2},
+    {"kod": "barwa_fau",  "label": "Barwa FAU",         "typ": "bezposredni", "precision": 0},
+    {"kod": "barwa_hz",   "label": "Barwa Hz",          "typ": "bezposredni", "precision": 0},
+    {"kod": "gestosc",    "label": "Gęstość [g/cm³]",  "typ": "bezposredni", "precision": 3},
+    {"kod": "h2o",        "label": "H₂O [%]",          "typ": "bezposredni", "precision": 1},
+    {"kod": "woda",       "label": "Zawartość wody [%]", "typ": "bezposredni", "precision": 1},
+
+    # --- titracja ---
+    {"kod": "la",
+     "label": "LA (liczba kwasowa)",
+     "typ": "titracja",
+     "metoda_nazwa": "Alkacymetria KOH",
+     "metoda_formula": "LA = (V * C * 56.1) / m",
+     "metoda_factor": 5.61,
+     "precision": 2},
+    {"kod": "lk",
+     "label": "LK (końcowa)",
+     "typ": "titracja",
+     "metoda_nazwa": "Alkacymetria KOH",
+     "metoda_formula": "LK = (V * C * 56.1) / m",
+     "metoda_factor": 5.61,
+     "precision": 2},
+    {"kod": "nacl",
+     "label": "NaCl [%]",
+     "typ": "titracja",
+     "metoda_nazwa": "Argentometryczna Mohr",
+     "metoda_formula": "% = (V * 0.00585 * 100) / m",
+     "metoda_factor": 0.585,
+     "precision": 2},
+    {"kod": "aa",
+     "label": "%AA",
+     "typ": "titracja",
+     "metoda_nazwa": "Alkacymetria",
+     "metoda_formula": "% = (V * C * M) / (m * 10)",
+     "metoda_factor": 3.015,
+     "precision": 2},
+    {"kod": "so3",
+     "label": "%SO₃²⁻",
+     "typ": "titracja",
+     "metoda_nazwa": "Jodometryczna",
+     "metoda_formula": "% = (V * 0.004 * 100) / m",
+     "metoda_factor": 0.4,
+     "precision": 3},
+    {"kod": "h2o2",
+     "label": "%H₂O₂",
+     "typ": "titracja",
+     "metoda_nazwa": "Manganometryczna",
+     "metoda_formula": "% = (V * 0.0017 * 100) / m",
+     "metoda_factor": 0.17,
+     "precision": 3},
+    {"kod": "wolna_amina",
+     "label": "%wolna amina",
+     "typ": "titracja",
+     "metoda_nazwa": "Alkacymetria",
+     "metoda_formula": "% = (V * C * M) / (m * 10)",
+     "metoda_factor": 3.015,
+     "precision": 2},
+    {"kod": "sa_epton",
+     "label": "%SA (Epton)",
+     "typ": "titracja",
+     "metoda_nazwa": "Dwufazowa Epton",
+     "metoda_formula": "% = (V * f * M) / m",
+     "metoda_factor": 3.261,
+     "precision": 2},
+
+    # --- obliczeniowy ---
+    {"kod": "sa",
+     "label": "%SA",
+     "typ": "obliczeniowy",
+     "formula": "sm - nacl - 0.6",
+     "precision": 2},
+
+    # --- dodatki (bezposredni) ---
+    {"kod": "kwas_kg",  "label": "Kwas [kg]",  "typ": "bezposredni", "precision": 1},
+    {"kod": "woda_kg",  "label": "Woda [kg]",  "typ": "bezposredni", "precision": 1},
+    {"kod": "nacl_kg",  "label": "NaCl [kg]",  "typ": "bezposredni", "precision": 1},
+    {"kod": "nastaw",   "label": "Nastaw",      "typ": "bezposredni", "precision": 0},
+]
+
+# ---------------------------------------------------------------------------
+# 2. ETAPY_BINDINGS — (produkt, kontekst, kod, kolejnosc, min, max, nawazka_g)
+#
+# Rules:
+#   produkt=None  → shared default (applies to all products unless overridden)
+#   produkt=str   → product-specific override
+#
+# Process stages: amidowanie, smca, czwartorzedowanie, sulfonowanie,
+#                 utlenienie, rozjasnianie
+# Finish stages:  analiza_koncowa, dodatki
+#
+# nawazka_g defaults for titracja:
+#   nacl: 2.0, aa: 5.0, so3: 10.0, h2o2: 10.0, lk: 2.0, la: 2.0,
+#   wolna_amina: 5.0
+# ---------------------------------------------------------------------------
+
+_NAWAZKA = {
+    "nacl": 2.0,
+    "aa":   5.0,
+    "so3":  10.0,
+    "h2o2": 10.0,
+    "lk":   2.0,
+    "la":   2.0,
+    "wolna_amina": 5.0,
+}
+
+
+def _b(produkt, kontekst, kod, kolejnosc, mn, mx, nawazka=None):
+    """Helper: build a binding tuple dict."""
+    return {
+        "produkt": produkt,
+        "kontekst": kontekst,
+        "kod": kod,
+        "kolejnosc": kolejnosc,
+        "min_limit": mn,
+        "max_limit": mx,
+        "nawazka_g": nawazka if nawazka is not None else _NAWAZKA.get(kod),
+    }
+
+
+ETAPY_BINDINGS = [
+    # =========================================================
+    # PROCESS STAGES — shared defaults (produkt=None) from K7
+    # =========================================================
+
+    # amidowanie (shared — same limits for K7 and K40GLOL)
+    _b(None, "amidowanie", "le",   1, None, None),
+    _b(None, "amidowanie", "la",   2, None, 5.0),
+    _b(None, "amidowanie", "lk",   3, None, 1.0),
+    _b(None, "amidowanie", "nd20", 4, None, None),
+
+    # smca (shared — same limits)
+    _b(None, "smca", "ph", 1, 3.0, 4.0),
+
+    # czwartorzedowanie — K7 default (aa max=0.50)
+    _b(None, "czwartorzedowanie", "ph_10proc", 1, 11.0, 12.0),
+    _b(None, "czwartorzedowanie", "nd20",      2, None, None),
+    _b(None, "czwartorzedowanie", "aa",        3, None, 0.50),
+
+    # K40GLOL override: aa max=0.30
+    _b("Chegina_K40GLOL", "czwartorzedowanie", "ph_10proc", 1, 11.0, 12.0),
+    _b("Chegina_K40GLOL", "czwartorzedowanie", "nd20",      2, None, None),
+    _b("Chegina_K40GLOL", "czwartorzedowanie", "aa",        3, None, 0.30),
+
+    # sulfonowanie — K7 default (no h2o2)
+    _b(None, "sulfonowanie", "ph_10proc", 1, None, None),
+    _b(None, "sulfonowanie", "so3",       2, None, 0.30),
+    _b(None, "sulfonowanie", "nd20",      3, None, None),
+
+    # K40GLOL override: adds h2o2 (no limit)
+    _b("Chegina_K40GLOL", "sulfonowanie", "ph_10proc", 1, None, None),
+    _b("Chegina_K40GLOL", "sulfonowanie", "so3",       2, None, 0.30),
+    _b("Chegina_K40GLOL", "sulfonowanie", "h2o2",      3, None, None),
+    _b("Chegina_K40GLOL", "sulfonowanie", "nd20",      4, None, None),
+
+    # utlenienie — K7 default (so3 max=0.000)
+    _b(None, "utlenienie", "ph_10proc", 1, None, None),
+    _b(None, "utlenienie", "so3",       2, None, 0.000),
+    _b(None, "utlenienie", "h2o2",      3, None, 0.010),
+    _b(None, "utlenienie", "nd20",      4, None, None),
+
+    # K40GLOL override: so3 max=0.030
+    _b("Chegina_K40GLOL", "utlenienie", "ph_10proc", 1, None, None),
+    _b("Chegina_K40GLOL", "utlenienie", "so3",       2, None, 0.030),
+    _b("Chegina_K40GLOL", "utlenienie", "h2o2",      3, None, 0.010),
+    _b("Chegina_K40GLOL", "utlenienie", "nd20",      4, None, None),
+
+    # rozjasnianie — K40GLOL only
+    _b("Chegina_K40GLOL", "rozjasnianie", "ph_10proc",  1, None,  None),
+    _b("Chegina_K40GLOL", "rozjasnianie", "h2o2",       2, 0.005, 0.050),
+    _b("Chegina_K40GLOL", "rozjasnianie", "barwa_fau",  3, None,  5),
+    _b("Chegina_K40GLOL", "rozjasnianie", "barwa_hz",   4, None,  150),
+
+    # =========================================================
+    # analiza_koncowa — per product (from seed_mbr.py)
+    # =========================================================
+
+    # Chegina_K40GL
+    _b("Chegina_K40GL", "analiza_koncowa", "sm",        1,  44,    48),
+    _b("Chegina_K40GL", "analiza_koncowa", "nacl",      2,  5.8,   7.3),
+    _b("Chegina_K40GL", "analiza_koncowa", "ph_10proc", 3,  4.5,   5.5),
+    _b("Chegina_K40GL", "analiza_koncowa", "nd20",      4,  1.39,  1.42),
+    _b("Chegina_K40GL", "analiza_koncowa", "sa",        5,  37,    42),
+    _b("Chegina_K40GL", "analiza_koncowa", "aa",        6,  0,     0.5),
+    _b("Chegina_K40GL", "analiza_koncowa", "barwa_fau", 7,  0,     200),
+    _b("Chegina_K40GL", "analiza_koncowa", "barwa_hz",  8,  0,     100),
+    _b("Chegina_K40GL", "analiza_koncowa", "so3",       9,  0,     0.030),
+
+    # Chegina_K40GLO
+    _b("Chegina_K40GLO", "analiza_koncowa", "sm",        1,  44,    48),
+    _b("Chegina_K40GLO", "analiza_koncowa", "nacl",      2,  5.8,   7.3),
+    _b("Chegina_K40GLO", "analiza_koncowa", "ph_10proc", 3,  5.0,   7.0),
+    _b("Chegina_K40GLO", "analiza_koncowa", "nd20",      4,  1.39,  1.42),
+    _b("Chegina_K40GLO", "analiza_koncowa", "sa",        5,  37,    9999),
+    _b("Chegina_K40GLO", "analiza_koncowa", "aa",        6,  0,     0.5),
+    _b("Chegina_K40GLO", "analiza_koncowa", "gestosc",   7,  1.05,  1.09),
+    _b("Chegina_K40GLO", "analiza_koncowa", "barwa_fau", 8,  0,     200),
+    _b("Chegina_K40GLO", "analiza_koncowa", "so3",       9,  0,     0.030),
+    _b("Chegina_K40GLO", "analiza_koncowa", "barwa_hz",  10, 0,     500),
+
+    # Chegina_K40GLOL
+    _b("Chegina_K40GLOL", "analiza_koncowa", "sm",          1,  44,    9999),
+    _b("Chegina_K40GLOL", "analiza_koncowa", "nacl",        2,  5.8,   7.3),
+    _b("Chegina_K40GLOL", "analiza_koncowa", "ph_10proc",   3,  4.5,   6.5),
+    _b("Chegina_K40GLOL", "analiza_koncowa", "nd20",        4,  1.39,  1.42),
+    _b("Chegina_K40GLOL", "analiza_koncowa", "sa",          5,  36,    42),
+    _b("Chegina_K40GLOL", "analiza_koncowa", "aa",          6,  0,     0.3),
+    _b("Chegina_K40GLOL", "analiza_koncowa", "h2o2",        7,  0,     0.010),
+    _b("Chegina_K40GLOL", "analiza_koncowa", "so3",         8,  0,     0.030),
+    _b("Chegina_K40GLOL", "analiza_koncowa", "barwa_fau",   9,  0,     200),
+    _b("Chegina_K40GLOL", "analiza_koncowa", "barwa_hz",    10, 0,     500),
+    _b("Chegina_K40GLOL", "analiza_koncowa", "wolna_amina", 11, 0,     0.5),
+    _b("Chegina_K40GLOL", "analiza_koncowa", "h2o",         12, 50,    58),
+
+    # Chegina_K7
+    _b("Chegina_K7", "analiza_koncowa", "sm",        1,  40,    48),
+    _b("Chegina_K7", "analiza_koncowa", "nacl",      2,  4.0,   8.0),
+    _b("Chegina_K7", "analiza_koncowa", "ph_10proc", 3,  4.0,   6.0),
+    _b("Chegina_K7", "analiza_koncowa", "nd20",      4,  1.39,  1.42),
+    _b("Chegina_K7", "analiza_koncowa", "sa",        5,  30,    42),
+    _b("Chegina_K7", "analiza_koncowa", "barwa_fau", 6,  0,     200),
+    _b("Chegina_K7", "analiza_koncowa", "barwa_hz",  7,  0,     100),
+
+    # =========================================================
+    # dodatki — all 4 core products
+    # =========================================================
+    *[
+        _b(prod, "dodatki", "kwas_kg", 1, 0, 9999)
+        for prod in ("Chegina_K40GL", "Chegina_K40GLO", "Chegina_K40GLOL", "Chegina_K7")
+    ],
+    *[
+        _b(prod, "dodatki", "woda_kg", 2, 0, 9999)
+        for prod in ("Chegina_K40GL", "Chegina_K40GLO", "Chegina_K40GLOL", "Chegina_K7")
+    ],
+    *[
+        _b(prod, "dodatki", "nacl_kg", 3, 0, 9999)
+        for prod in ("Chegina_K40GL", "Chegina_K40GLO", "Chegina_K40GLOL", "Chegina_K7")
+    ],
+]
+
+# ---------------------------------------------------------------------------
+# 3. seed() — INSERT OR IGNORE into both tables
+# ---------------------------------------------------------------------------
+
+
+def seed(db):
+    # --- parametry_analityczne ---
+    pa_rows = 0
+    for p in PARAMETRY:
+        db.execute(
+            """
+            INSERT OR IGNORE INTO parametry_analityczne
+                (kod, label, typ, metoda_nazwa, metoda_formula, metoda_factor,
+                 formula, precision)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                p["kod"],
+                p["label"],
+                p["typ"],
+                p.get("metoda_nazwa"),
+                p.get("metoda_formula"),
+                p.get("metoda_factor"),
+                p.get("formula"),
+                p.get("precision", 2),
+            ),
+        )
+        if db.execute("SELECT changes()").fetchone()[0]:
+            pa_rows += 1
+
+    db.commit()
+
+    # Build kod→id lookup
+    kod_to_id = {
+        row[0]: row[1]
+        for row in db.execute("SELECT kod, id FROM parametry_analityczne").fetchall()
+    }
+
+    # --- parametry_etapy ---
+    pe_rows = 0
+    skipped = 0
+    for b in ETAPY_BINDINGS:
+        param_id = kod_to_id.get(b["kod"])
+        if param_id is None:
+            print(f"  WARNING: kod '{b['kod']}' not found in parametry_analityczne — skipping")
+            skipped += 1
+            continue
+        db.execute(
+            """
+            INSERT OR IGNORE INTO parametry_etapy
+                (produkt, kontekst, parametr_id, kolejnosc,
+                 min_limit, max_limit, nawazka_g)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                b["produkt"],
+                b["kontekst"],
+                param_id,
+                b["kolejnosc"],
+                b["min_limit"],
+                b["max_limit"],
+                b["nawazka_g"],
+            ),
+        )
+        if db.execute("SELECT changes()").fetchone()[0]:
+            pe_rows += 1
+
+    db.commit()
+
+    total_pa = db.execute("SELECT COUNT(*) FROM parametry_analityczne").fetchone()[0]
+    total_pe = db.execute("SELECT COUNT(*) FROM parametry_etapy").fetchone()[0]
+    print(f"Seeded: {pa_rows} parameters inserted ({total_pa} total), "
+          f"{pe_rows} bindings inserted ({total_pe} total)"
+          + (f", {skipped} skipped" if skipped else ""))
+
+
+# ---------------------------------------------------------------------------
+# 4. __main__
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    db = get_db()
+    init_mbr_tables(db)
+    seed(db)
+    db.close()
