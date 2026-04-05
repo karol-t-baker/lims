@@ -533,6 +533,17 @@
   margin-top: 14px;
 }
 .ps-approve-btn:hover { opacity: 0.9; }
+.ps-type-tag {
+  font-size: 8px; font-weight: 700; padding: 1px 5px; border-radius: 3px;
+  letter-spacing: 0.5px; flex-shrink: 0; margin-right: 4px;
+}
+.ps-tt-titr { background: var(--teal-bg); color: var(--teal); }
+.ps-tt-calc { background: var(--amber-bg); color: var(--amber); }
+.ps-legend {
+  display: flex; gap: 12px; padding: 8px 16px; flex-wrap: wrap;
+  font-size: 9px; color: var(--text-dim); border-top: 1px solid var(--border-subtle);
+}
+.ps-leg-item { display: flex; align-items: center; gap: 4px; }
 .ps-locked-msg { padding: 20px; text-align: center; color: var(--text-dim); font-size: 12px; }
 
 </style>
@@ -1763,6 +1774,11 @@ window.showProcessStage = function(etapKey) {
       ok = false;
     }
 
+    // Type tag (M=miareczkowanie, O=obliczeniowy)
+    var typeTag = '';
+    if (param.typ === 'titracja') typeTag = '<span class="ps-type-tag ps-tt-titr">M</span>';
+    else if (param.typ === 'obliczeniowy') typeTag = '<span class="ps-type-tag ps-tt-calc">O</span>';
+
     html += '<div class="cv-param">' +
       '<div class="cv-p-dot ' + (ok ? 'cv-dot-ok' : 'cv-dot-err') + '"></div>' +
       '<span class="cv-p-label">' + param.label + '</span>';
@@ -1775,9 +1791,17 @@ window.showProcessStage = function(etapKey) {
       html += '<span class="cv-p-val ' + (ok ? '' : 'cv-val-err') + '">' + (val || '\u2014') + '</span>';
     }
 
+    html += typeTag;
     html += '<span class="cv-p-norm">' + normText + '</span>';
     html += '</div>';
   });
+  // Legend
+  html += '<div class="ps-legend">' +
+    '<span class="ps-leg-item"><span class="ps-type-tag ps-tt-titr">M</span> miareczkowanie</span>' +
+    '<span class="ps-leg-item"><span class="ps-type-tag ps-tt-calc">O</span> obliczeniowy</span>' +
+    '<span class="ps-leg-item"><span class="cv-p-dot cv-dot-ok" style="display:inline-block;width:6px;height:6px;"></span> w normie</span>' +
+    '<span class="ps-leg-item"><span class="cv-p-dot cv-dot-err" style="display:inline-block;width:6px;height:6px;"></span> poza normą</span>' +
+  '</div>';
   html += '</div>';
 
   // Corrections history — using cv-params style
