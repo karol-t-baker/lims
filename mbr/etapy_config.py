@@ -112,8 +112,6 @@ ETAPY_ANALIZY = {
 PRODUCT_ETAPY_MAP = {
     "Chegina_K40GL": "Chegina_K7",
     "Chegina_K40GLO": "Chegina_K7",
-    "Chegina_K7B": "Chegina_K7",
-    "Chegina_K7GLO": "Chegina_K7",
     "Chegina_K40GLOS": "Chegina_K40GLOL",
     "Chegina_K40GLOL_HQ": "Chegina_K40GLOL",
     "Chegina_K40GLN": "Chegina_K40GLOL",

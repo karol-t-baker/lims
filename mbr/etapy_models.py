@@ -116,7 +116,7 @@ GLOL_PRODUCTS = {"Chegina_K40GLOL", "Chegina_K40GLOS", "Chegina_K40GLOL_HQ", "Ch
 
 # Products that have full process pipeline (ETAPY_FULL or ETAPY_FULL_GLOL)
 FULL_PIPELINE_PRODUCTS = {
-    "Chegina_K7", "Chegina_K40GL", "Chegina_K40GLO", "Chegina_K7B", "Chegina_K7GLO",
+    "Chegina_K7", "Chegina_K40GL", "Chegina_K40GLO",
     "Chegina_K40GLOL", "Chegina_K40GLOS", "Chegina_K40GLOL_HQ", "Chegina_K40GLN", "Chegina_GLOL40",
 }
 
