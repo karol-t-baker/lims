@@ -1802,13 +1802,24 @@ window.showProcessStage = function(etapKey) {
       'Zatwierdź etap →</button>';
   }
 
-  container.innerHTML = html;
+  // Hide existing sections (hero stays, params/certs hidden)
+  container.querySelectorAll('.cv-params, .cv-certs-section').forEach(function(el) { el.style.display = 'none'; });
 
-  // Hide the existing standaryzacja/AK sections
-  var dtWork = document.getElementById('detail-workspace');
-  if (dtWork) {
-    var existingSections = dtWork.querySelectorAll('.cv-params, .cv-certs-section');
-    existingSections.forEach(function(el) { el.style.display = 'none'; });
+  // Remove previous process stage content if any
+  var prev = container.querySelector('#ps-stage-content');
+  if (prev) prev.remove();
+
+  // Insert process stage content
+  var wrapper = document.createElement('div');
+  wrapper.id = 'ps-stage-content';
+  wrapper.innerHTML = html;
+
+  // Insert after hero card (if exists) or at end
+  var hero = container.querySelector('.cv-h2-card');
+  if (hero) {
+    hero.parentNode.insertBefore(wrapper, hero.nextSibling);
+  } else {
+    container.appendChild(wrapper);
   }
 }
 
