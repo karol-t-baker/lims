@@ -674,7 +674,6 @@ function filterSidebarCards(q) {
 
 function renderSidebarEtapy() {
   const container = document.getElementById('sidebar-etapy');
-  // Read globals set by _fast_entry_content.html
   if (typeof window.ebrId === 'undefined' || typeof etapy === 'undefined') {
     container.innerHTML = '<div style="color:var(--text-dim);font-size:11px;padding:16px 4px;">Wybierz szarżę aby zobaczyć etapy.</div>';
     return;
@@ -682,9 +681,9 @@ function renderSidebarEtapy() {
 
   const rs = typeof roundState !== 'undefined' ? roundState : null;
   const hasCycle = typeof parametry !== 'undefined' && parametry.analiza && parametry.dodatki;
-
-  // For zbiornik: only show Analiza końcowa + Przepompowanie
   const isZbiornik = typeof ebrTyp !== 'undefined' && ebrTyp === 'zbiornik';
+  const esData = window._etapyStatus || [];
+
   const filteredEtapy = isZbiornik
     ? etapy.filter(e => e.sekcja_lab === 'analiza_koncowa')
     : etapy.filter(e => e.nazwa !== 'Przepompowanie');
@@ -692,61 +691,60 @@ function renderSidebarEtapy() {
   let html = '';
   filteredEtapy.forEach((etap, i) => {
     const isLab = etap.sekcja_lab && !etap.read_only;
-    let status = 'pending'; // pending | active | done
+    let status = 'pending';
     let detail = '';
+    let clickable = false;
+    let etapKey = '';
 
-    if (etap.read_only) {
-      // Locked stages before the first lab stage are done (upstream process)
-      // Locked stages after the last lab stage are pending (downstream)
+    // Check if this is a process stage with status tracking
+    const esMatch = esData.find(es => {
+      // Match by stage name (lowercase, no spaces)
+      const normalized = etap.nazwa.toLowerCase().replace(/[ąćęłńóśźż]/g, c => {
+        return {'ą':'a','ć':'c','ę':'e','ł':'l','ń':'n','ó':'o','ś':'s','ź':'z','ż':'z'}[c] || c;
+      }).replace(/\s+/g, '').replace('wytworzenie', '');
+      return es.etap === normalized || es.etap === etap.nazwa.toLowerCase().replace(' ', '_')
+          || (etap.nazwa === 'Amidowanie' && es.etap === 'amidowanie')
+          || (etap.nazwa === 'Wytworzenie SMCA' && es.etap === 'smca')
+          || (etap.nazwa === 'Czwartorzędowanie' && es.etap === 'czwartorzedowanie')
+          || (etap.nazwa === 'Sulfonowanie' && es.etap === 'sulfonowanie')
+          || (etap.nazwa === 'Utlenienie' && es.etap === 'utlenienie')
+          || (etap.nazwa === 'Rozjaśnianie' && es.etap === 'rozjasnianie');
+    });
+
+    if (esMatch) {
+      etapKey = esMatch.etap;
+      status = esMatch.status === 'done' ? 'done' : esMatch.status === 'in_progress' ? 'active' : 'pending';
+      clickable = true;
+    } else if (etap.read_only) {
       const labStageIndices = etapy.map((e, j) => e.sekcja_lab && !e.read_only ? j : -1).filter(j => j >= 0);
       const lastLabIdx = labStageIndices.length > 0 ? labStageIndices[labStageIndices.length - 1] : -1;
       status = i <= lastLabIdx ? 'done' : 'pending';
     } else if (hasCycle && rs) {
-      // Cyclic: determine status from round state
       if (etap.sekcja_lab === 'standaryzacja') {
-        // Standaryzacja etap: active if filling analiza or dodatki
-        if (rs.last_analiza === 0) {
-          status = 'active';
-          detail = 'Analiza';
-        } else if (rs.last_analiza === 1 && rs.last_dodatki === 0) {
-          status = 'active';
-          detail = 'Dodatki';
-        } else if (rs.last_dodatki > 0 && rs.last_analiza <= rs.last_dodatki) {
-          status = 'done';
-        } else if (rs.is_decision && rs.last_analiza > 1) {
-          // After correction decision, could be back in standaryzacja
-          status = 'done';
-        } else {
-          status = 'done';
-        }
-      } else if (etap.sekcja_lab === 'analiza_koncowa') {
-        if (rs.last_dodatki > 0 && rs.next_step === 'analiza' && rs.last_analiza <= rs.last_dodatki) {
-          status = 'active';
-        } else if (rs.is_decision) {
-          status = 'active';
-          detail = 'Decyzja';
-        } else if (rs.last_analiza <= 1) {
+        // Check if all process stages are done
+        const allProcessDone = esData.length > 0 && esData.every(es => es.status === 'done');
+        if (!allProcessDone && esData.length > 0) {
           status = 'pending';
-        } else {
-          status = 'done';
-        }
+        } else if (rs.last_analiza === 0) {
+          status = 'active'; detail = 'Analiza';
+        } else if (rs.last_analiza === 1 && rs.last_dodatki === 0) {
+          status = 'active'; detail = 'Dodatki';
+        } else { status = 'done'; }
+      } else if (etap.sekcja_lab === 'analiza_koncowa') {
+        if (rs.is_decision) { status = 'active'; }
+        else if (ebrStatus === 'completed') { status = 'done'; }
       }
-    } else {
-      // Non-cyclic (zbiornik, simple)
-      const sekWyn = typeof wyniki !== 'undefined' ? wyniki[etap.sekcja_lab] : null;
-      if (sekWyn && Object.keys(sekWyn).length > 0) {
-        status = 'done';
-      } else if (isLab) {
-        // First unfilled lab section is active
-        status = 'active';
-      }
+    } else if (!etap.read_only) {
+      if (ebrStatus === 'completed') status = 'done';
+      else if (typeof ebrStatus !== 'undefined') status = 'active';
     }
 
     const statusIcon = status === 'done' ? '✓' : status === 'active' ? '●' : '○';
     const statusCls = 'se-' + status;
     const stageCls = etap.sekcja_lab === 'standaryzacja' ? 'se-stg-stand' : etap.sekcja_lab === 'analiza_koncowa' ? 'se-stg-koncowa' : '';
+    const clickAttr = clickable ? ` onclick="openProcessStage('${etapKey}')" style="cursor:pointer;"` : '';
 
-    html += '<div class="sb-etap ' + statusCls + ' ' + stageCls + '">' +
+    html += '<div class="sb-etap ' + statusCls + ' ' + stageCls + '"' + clickAttr + '>' +
       '<div class="se-icon">' + statusIcon + '</div>' +
       '<div class="se-body">' +
         '<div class="se-name">' + etap.nazwa + '</div>' +
@@ -755,7 +753,6 @@ function renderSidebarEtapy() {
     '</div>';
   });
 
-  // Add correction rounds if any
   if (hasCycle && rs && rs.last_dodatki > 1) {
     for (let k = 2; k <= rs.last_dodatki; k++) {
       html += '<div class="sb-etap se-done"><div class="se-icon">✓</div><div class="se-body"><div class="se-name">Korekta ' + (k-1) + '</div></div></div>';
@@ -763,6 +760,13 @@ function renderSidebarEtapy() {
   }
 
   container.innerHTML = html;
+}
+
+function openProcessStage(etapKey) {
+  // Dispatch event to _fast_entry_content.html handler
+  if (typeof window.showProcessStage === 'function') {
+    window.showProcessStage(etapKey);
+  }
 }
 
 // ═══ TABLE FILTERS ═══
