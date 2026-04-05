@@ -1102,32 +1102,7 @@ def sync_ebr_to_v4(db: sqlite3.Connection, ebr_id: int, ebr: dict | None = None)
 # Certificates (Świadectwa)
 # ---------------------------------------------------------------------------
 
-def create_swiadectwo(db, ebr_id, template_name, nr_partii, pdf_path, wystawil):
-    now = datetime.now().isoformat(timespec="seconds")
-    cur = db.execute(
-        "INSERT INTO swiadectwa (ebr_id, template_name, nr_partii, pdf_path, dt_wystawienia, wystawil) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
-        (ebr_id, template_name, nr_partii, pdf_path, now, wystawil),
-    )
-    db.commit()
-    return cur.lastrowid
-
-
-def mark_swiadectwa_outdated(db, ebr_id):
-    """Mark all certificates for this EBR as outdated (parameters changed)."""
-    db.execute(
-        "UPDATE swiadectwa SET nieaktualne = 1 WHERE ebr_id = ? AND (nieaktualne IS NULL OR nieaktualne = 0)",
-        (ebr_id,),
-    )
-    db.commit()
-
-
-def list_swiadectwa(db, ebr_id):
-    rows = db.execute(
-        "SELECT * FROM swiadectwa WHERE ebr_id = ? ORDER BY dt_wystawienia DESC",
-        (ebr_id,),
-    ).fetchall()
-    return [dict(r) for r in rows]
+from mbr.certs.models import create_swiadectwo, list_swiadectwa, mark_swiadectwa_outdated  # noqa: F401
 
 
 # ---------------------------------------------------------------------------
