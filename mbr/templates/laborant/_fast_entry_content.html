@@ -1726,8 +1726,18 @@ window.showProcessStage = function(etapKey) {
   var isDone = status === 'done';
   var isPending = status === 'pending';
 
+  // Hide existing sections
+  container.querySelectorAll('.cv-params, .cv-certs-section, .section-fields, .ff-legend').forEach(function(el) { el.style.display = 'none'; });
+
+  // Remove previous process stage content
+  var prev = container.querySelector('#ps-stage-content');
+  if (prev) prev.remove();
+
   if (isPending) {
-    container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-dim);font-size:12px;">Etap będzie dostępny po zatwierdzeniu poprzedniego etapu.</div>';
+    var pw = document.createElement('div');
+    pw.id = 'ps-stage-content';
+    pw.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-dim);font-size:12px;">Etap będzie dostępny po zatwierdzeniu poprzedniego etapu.</div>';
+    container.appendChild(pw);
     return;
   }
 
@@ -1836,13 +1846,6 @@ window.showProcessStage = function(etapKey) {
     html += '<button class="ps-approve-btn" onclick="psApproveStage(\'' + etapKey + '\')">' +
       'Zatwierdź etap →</button>';
   }
-
-  // Hide existing sections (hero stays, params/certs hidden)
-  container.querySelectorAll('.cv-params, .cv-certs-section').forEach(function(el) { el.style.display = 'none'; });
-
-  // Remove previous process stage content if any
-  var prev = container.querySelector('#ps-stage-content');
-  if (prev) prev.remove();
 
   // Insert process stage content
   var wrapper = document.createElement('div');
