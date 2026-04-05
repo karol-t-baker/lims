@@ -35,9 +35,9 @@ PARAMETRY = [
 
     # --- titracja ---
     {"kod": "la",
-     "label": "Liczba kwasowa",  "skrot": "LA",
+     "label": "Liczba aminowa",  "skrot": "LA",
      "typ": "titracja",
-     "metoda_nazwa": "Alkacymetria KOH",
+     "metoda_nazwa": "Alkacymetria HCl",
      "metoda_formula": "LA = (V * C * 56.1) / m",
      "metoda_factor": 5.61,
      "precision": 2},
