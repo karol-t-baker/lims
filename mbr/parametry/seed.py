@@ -559,6 +559,10 @@ _PARAM_METHOD_MAP = {
     "lk": "Liczba Kwasowa (LK)",
     "la": "Liczba Kwasowa (LK)",
     "wolna_amina": "DMAPA [%]",
+    "mea": "MEA [%]",
+    "dietanolamina": "DEA [%]",
+    "siarczynow": "Siarczyny [%]",
+    "alkalicznosc": "MEA [%]",
 }
 
 
