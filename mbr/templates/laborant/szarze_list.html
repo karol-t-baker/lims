@@ -876,11 +876,17 @@ function toggleDziennikView() {
     renderDziennikView(detailPanel);
     if (btn) btn.classList.add('active');
   } else {
-    // Restore original content
-    if (window._savedDetailHTML) detailPanel.innerHTML = window._savedDetailHTML;
+    // Restore saved content without reloading
+    if (window._savedDetailHTML) {
+      detailPanel.innerHTML = window._savedDetailHTML;
+      // Re-execute inline scripts from restored content
+      detailPanel.querySelectorAll('script').forEach(function(s) {
+        var ns = document.createElement('script');
+        if (s.src) ns.src = s.src; else ns.textContent = s.textContent;
+        s.replaceWith(ns);
+      });
+    }
     if (btn) btn.classList.remove('active');
-    // Re-execute scripts to restore functionality
-    if (typeof currentEbrId !== 'undefined' && currentEbrId) loadBatch(currentEbrId);
   }
 }
 
