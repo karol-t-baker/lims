@@ -369,12 +369,19 @@ function renderPanel() {
     tbody += '</tr>';
   });
 
-  var statsHtml = renderStats();
+  var allResults = _metRows.map(function(row) { return calcMetRow(row); }).filter(function(r) { return r !== null; });
+  var statsHtml = (typeof buildStatsHtml === 'function') ? buildStatsHtml(allResults) : renderStats(allResults);
+
+  // Suggested mass from method (if available from any metody_miareczkowe data)
+  var massHint = '';
+  if (m.mass_required && m.suggested_mass) {
+    massHint = '<div class="calc-hint">Sugerowana nawa\u017cka: <strong>' + m.suggested_mass + ' g</strong></div>';
+  }
 
   main.innerHTML =
     '<div class="met-panel-title">' + m.nazwa + '</div>' +
-    '<div class="met-panel-method">' + (m.metoda || '') + (m.jednostka ? ' &middot; ' + m.jednostka : '') + '</div>' +
-    (m.wzor ? '<div class="met-panel-formula">' + m.wzor + '</div>' : '') +
+    '<div class="met-panel-formula">' + m.formula + '</div>' +
+    massHint +
     (titrantHtml ? '<div class="met-titrants">' + titrantHtml + '</div>' : '') +
     '<div class="met-table-wrap"><table class="met-table"><thead>' + thead + '</thead><tbody id="met-tbody">' + tbody + '</tbody></table></div>' +
     '<button class="met-add-row-btn" onclick="metAddRow()">+ Dodaj próbkę</button>' +
@@ -449,7 +456,7 @@ function refreshResults() {
     if (res !== null) results.push(res);
   });
   var summaryEl = document.getElementById('met-summary');
-  if (summaryEl) summaryEl.innerHTML = renderStats(results);
+  if (summaryEl) summaryEl.innerHTML = (typeof buildStatsHtml === 'function') ? buildStatsHtml(results) : renderStats(results);
 }
 
 function renderStats(results) {

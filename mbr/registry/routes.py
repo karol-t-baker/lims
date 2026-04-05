@@ -116,6 +116,16 @@ def api_metoda_detail(method_id):
     d = dict(row)
     d["volumes"] = _json.loads(d.pop("volumes_json"))
     d["titrants"] = _json.loads(d.pop("titrants_json"))
+    # Add suggested mass from most common nawazka for this method
+    with db_session() as db2:
+        naw_row = db2.execute(
+            """SELECT nawazka_g FROM parametry_etapy pe
+               JOIN parametry_analityczne pa ON pe.parametr_id = pa.id
+               WHERE pa.metoda_id = ? AND pe.nawazka_g IS NOT NULL
+               LIMIT 1""",
+            (method_id,),
+        ).fetchone()
+    d["suggested_mass"] = naw_row["nawazka_g"] if naw_row else None
     return jsonify(d)
 
 

@@ -1329,6 +1329,7 @@ function renderOneSection(container, opts) {
                     ' data-max="' + (pole.max != null ? pole.max : '') + '"' +
                     ' data-measurement-type="' + esc(pole.measurement_type || '') + '"' +
                     (pole.metoda_id ? ' data-metoda-id="' + pole.metoda_id + '"' : '') +
+                    (pole.calc_method && pole.calc_method.suggested_mass ? ' data-nawazka="' + pole.calc_method.suggested_mass + '"' : '') +
                     (isObl && pole.formula ? ' data-formula="' + esc(pole.formula) + '"' : '') +
                     ' value="' + (val !== '' && val !== null ? String(val).replace('.', ',') : '') + '"' +
                     ' class="' + inputClass.trim() + '"' +
