@@ -10,7 +10,7 @@ ETAPY_ANALIZY = {
                 {"kod": "lk", "label": "LK (końcowa)", "typ": "titracja", "min": None, "max": 1.0},
                 {"kod": "nd20", "label": "nD20", "typ": "bezposredni", "min": None, "max": None},
             ],
-            "korekty": [],
+            "korekty": ["DMAPA", "Wydłużenie czasu"],
         },
         "smca": {
             "label": "Wytworzenie SMCA",
@@ -57,7 +57,7 @@ ETAPY_ANALIZY = {
                 {"kod": "lk", "label": "LK", "typ": "titracja", "min": None, "max": 1.0},
                 {"kod": "nd20", "label": "nD20", "typ": "bezposredni", "min": None, "max": None},
             ],
-            "korekty": [],
+            "korekty": ["DMAPA", "Wydłużenie czasu"],
         },
         "smca": {
             "label": "Wytworzenie SMCA",

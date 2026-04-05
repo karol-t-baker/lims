@@ -1828,7 +1828,7 @@ window.showProcessStage = function(etapKey) {
   // Add correction form (active only)
   if (isActive && stageConfig.korekty && stageConfig.korekty.length > 0) {
     html += '<div class="cv-params" style="margin-top:8px;border-color:var(--amber);border-style:dashed;">' +
-      '<div class="cv-params-head" style="color:var(--amber);">Zalecenie korekty</div>' +
+      '<div class="cv-params-head" style="color:var(--amber);">Działanie korygujące</div>' +
       '<div style="padding:8px 16px;display:flex;gap:8px;align-items:center;">' +
         '<select id="ps-korekta-sub" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-family:var(--font);flex:1;">';
     stageConfig.korekty.forEach(function(s) {
@@ -1837,7 +1837,7 @@ window.showProcessStage = function(etapKey) {
     html += '</select>' +
         '<input id="ps-korekta-kg" type="number" step="0.1" placeholder="kg" style="width:70px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:var(--mono);text-align:center;">' +
         '<span style="font-size:11px;color:var(--text-dim);">kg</span>' +
-        '<button onclick="psAddKorekta(\'' + etapKey + '\',' + currentRunda + ')" style="padding:6px 12px;background:var(--amber);color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);white-space:nowrap;">+ Zaleć</button>' +
+        '<button onclick="psAddKorekta(\'' + etapKey + '\',' + currentRunda + ')" style="padding:6px 12px;background:var(--amber);color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);white-space:nowrap;">+ Dodaj</button>' +
       '</div></div>';
   }
 
