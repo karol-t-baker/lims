@@ -201,6 +201,8 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
         db.execute("ALTER TABLE ebr_batches ADD COLUMN nastaw INTEGER")
     if "przepompowanie_json" not in cols:
         db.execute("ALTER TABLE ebr_batches ADD COLUMN przepompowanie_json TEXT")
+    if "nr_zbiornika" not in cols:
+        db.execute("ALTER TABLE ebr_batches ADD COLUMN nr_zbiornika TEXT")
     db.commit()
 
     # Migration: add avatar columns to workers if not exists
