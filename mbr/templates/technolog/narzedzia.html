@@ -29,26 +29,6 @@
     </div>
   </div>
 
-  <div class="narz-section">
-    <div class="narz-section-label">Formularze</div>
-
-    {% if session.get('user', {}).get('rola') == 'technolog' %}
-    <div class="narz-grid">
-      <a href="{{ url_for('registry.wniosek_dojazd') }}" class="narz-card">
-        <div class="narz-card-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-        </div>
-        <div class="narz-card-body">
-          <div class="narz-card-name">Wniosek o zwrot kosztów</div>
-          <div class="narz-card-desc">Dojazd samochodem prywatnym &rarr; PDF</div>
-        </div>
-      </a>
-    </div>
-    {% else %}
-    <div class="narz-empty">Brak dostępnych formularzy dla Twojej roli.</div>
-    {% endif %}
-  </div>
-
   {# ═══ KALKULATORY — metody + corrections ═══ #}
   <div class="narz-section">
     <div class="narz-section-label">Kalkulatory</div>
