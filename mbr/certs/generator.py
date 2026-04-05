@@ -17,7 +17,8 @@ from docxtpl import DocxTemplate
 
 _CONFIG_PATH = Path(__file__).resolve().parent.parent / "cert_config.json"
 _TEMPLATE_PATH = Path(__file__).resolve().parent.parent / "templates" / "cert_master_template.docx"
-OUTPUT_DIR = Path(__file__).resolve().parent.parent / "data" / "swiadectwa"
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent  # Desktop/aa/
+OUTPUT_DIR = _PROJECT_ROOT / "data" / "swiadectwa"
 
 GOTENBERG_URL = "http://localhost:3000"
 
@@ -349,5 +350,4 @@ def save_certificate_pdf(
     full_path = out_dir / pdf_name
     full_path.write_bytes(pdf_bytes)
 
-    project_root = Path(__file__).resolve().parent.parent
-    return str(full_path.relative_to(project_root))
+    return str(full_path.relative_to(_PROJECT_ROOT))
