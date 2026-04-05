@@ -882,9 +882,10 @@ function toggleDziennikView() {
 }
 
 function renderDziennikView(container) {
-  // Fetch events from API
   if (typeof currentEbrId === 'undefined' || !currentEbrId) return;
   var ebrId = currentEbrId;
+  // Show loader immediately so there's no blank flash
+  container.innerHTML = '<div style="display:flex;flex-direction:column;height:100%;"><div class="dz-topbar"><span class="dz-topbar-title">Dziennik zdarzeń</span><button class="dz-topbar-close" onclick="toggleDziennikView()">✕ Zamknij</button></div><div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:11px;">Ładowanie...</div></div>';
 
   Promise.all([
     fetch('/api/ebr/' + ebrId + '/etapy-analizy').then(function(r){return r.json();}),
