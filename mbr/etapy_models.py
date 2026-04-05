@@ -131,15 +131,20 @@ def get_process_stages(produkt: str) -> list[str]:
     return list(PROCESS_STAGES_K7)
 
 
+PARALLEL_STAGES = {"amidowanie", "smca"}
+
+
 def init_etapy_status(db: sqlite3.Connection, ebr_id: int, produkt: str) -> None:
-    """Initialize stage status records for a new szarża. First stage = in_progress."""
+    """Initialize stage status records for a new szarża.
+    Parallel stages (amidowanie + smca) both start as in_progress."""
     stages = get_process_stages(produkt)
     if not stages:
         return
     now = datetime.now().isoformat(timespec="seconds")
-    for i, etap in enumerate(stages):
-        status = "in_progress" if i == 0 else "pending"
-        dt_start = now if i == 0 else None
+    for etap in stages:
+        is_parallel = etap in PARALLEL_STAGES
+        status = "in_progress" if is_parallel else "pending"
+        dt_start = now if is_parallel else None
         db.execute(
             """INSERT OR IGNORE INTO ebr_etapy_status (ebr_id, etap, status, dt_start)
                VALUES (?, ?, ?, ?)""",
@@ -167,20 +172,59 @@ def get_aktualny_etap(db: sqlite3.Connection, ebr_id: int) -> str | None:
 
 
 def zatwierdz_etap(db: sqlite3.Connection, ebr_id: int, etap: str, user: str, produkt: str) -> str | None:
-    """Approve current stage, advance to next. Returns next stage name or None if last."""
+    """Approve current stage, advance to next. Returns next stage name or None if last.
+    For parallel stages (amid/smca): czwartorzedowanie activates only when BOTH are done."""
     now = datetime.now().isoformat(timespec="seconds")
     db.execute(
         "UPDATE ebr_etapy_status SET status='done', dt_end=?, zatwierdzil=? WHERE ebr_id=? AND etap=?",
         (now, user, ebr_id, etap),
     )
-    # Find next stage
+
+    # If approving a parallel stage, check if the other parallel stage is also done
+    if etap in PARALLEL_STAGES:
+        other_parallel = PARALLEL_STAGES - {etap}
+        all_parallel_done = True
+        for other in other_parallel:
+            row = db.execute(
+                "SELECT status FROM ebr_etapy_status WHERE ebr_id=? AND etap=?",
+                (ebr_id, other),
+            ).fetchone()
+            if row and row["status"] != "done":
+                all_parallel_done = False
+                break
+        if not all_parallel_done:
+            # Other parallel stage still active — don't advance yet
+            db.commit()
+            # Return the other parallel stage that's still in progress
+            for other in other_parallel:
+                row = db.execute(
+                    "SELECT etap FROM ebr_etapy_status WHERE ebr_id=? AND etap=? AND status='in_progress'",
+                    (ebr_id, other),
+                ).fetchone()
+                if row:
+                    return row["etap"]
+            return None
+        # Both parallel done — activate czwartorzedowanie (first non-parallel stage)
+        stages = get_process_stages(produkt)
+        for s in stages:
+            if s not in PARALLEL_STAGES:
+                db.execute(
+                    "UPDATE ebr_etapy_status SET status='in_progress', dt_start=? WHERE ebr_id=? AND etap=? AND status='pending'",
+                    (now, ebr_id, s),
+                )
+                db.commit()
+                return s
+        db.commit()
+        return None
+
+    # Sequential stage — find next pending
     stages = get_process_stages(produkt)
     try:
         idx = stages.index(etap)
         if idx + 1 < len(stages):
             next_etap = stages[idx + 1]
             db.execute(
-                "UPDATE ebr_etapy_status SET status='in_progress', dt_start=? WHERE ebr_id=? AND etap=?",
+                "UPDATE ebr_etapy_status SET status='in_progress', dt_start=? WHERE ebr_id=? AND etap=? AND status='pending'",
                 (now, ebr_id, next_etap),
             )
             db.commit()
