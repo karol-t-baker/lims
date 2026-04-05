@@ -49,14 +49,26 @@ ETAPY_SIMPLE = [
 # Helper to build pola entries with measurement_type
 # ---------------------------------------------------------------------------
 
-# Known titration calc methods
-_CALC_METHODS = {
-    "nacl":  {"name": "Argentometryczna Mohr", "formula": "% = (V * 0.00585 * 100) / m", "factor": 0.585, "suggested_mass": 2.0},
-    "aa":    {"name": "Alkacymetria",          "formula": "% = (V * C * M) / (m * 10)",   "factor": 3.015, "suggested_mass": 5.0},
-    "so3":   {"name": "Jodometryczna",         "formula": "% = (V * 0.004 * 100) / m",    "factor": 0.4,   "suggested_mass": 10.0},
-    "h2o2":  {"name": "Manganometryczna",      "formula": "% = (V * 0.0017 * 100) / m",   "factor": 0.17,  "suggested_mass": 10.0},
-    "lk":    {"name": "Alkacymetria KOH",      "formula": "LK = (V * C * 56.1) / m",      "factor": 5.61,  "suggested_mass": 2.0},
-}
+_CALC_METHODS_CACHE = None
+
+def _get_calc_methods():
+    """Load titration methods from parametry_analityczne DB table. Cached."""
+    global _CALC_METHODS_CACHE
+    if _CALC_METHODS_CACHE is not None:
+        return _CALC_METHODS_CACHE
+    try:
+        from mbr.models import get_db
+        db = get_db()
+        rows = db.execute(
+            "SELECT kod, metoda_nazwa, metoda_formula, metoda_factor FROM parametry_analityczne WHERE typ='titracja' AND metoda_factor IS NOT NULL"
+        ).fetchall()
+        _CALC_METHODS_CACHE = {
+            r["kod"]: {"name": r["metoda_nazwa"], "formula": r["metoda_formula"], "factor": r["metoda_factor"]}
+            for r in rows
+        }
+    except Exception:
+        _CALC_METHODS_CACHE = {}
+    return _CALC_METHODS_CACHE
 
 _TITR_TBD = {"name": "Do uzupełnienia", "formula": "TBD", "factor": 1.0}
 
@@ -70,7 +82,7 @@ def _bezp(kod, label, tag, mn, mx, precision=2):
 
 def _titr(kod, label, tag, mn, mx, precision=2, suggested_mass=None):
     """Titration parameter (titracja). Uses known calc_method or TBD placeholder."""
-    cm = dict(_CALC_METHODS.get(kod, _TITR_TBD))
+    cm = dict(_get_calc_methods().get(kod, _TITR_TBD))
     if suggested_mass is not None:
         cm["suggested_mass"] = suggested_mass
     entry = {"kod": kod, "label": label, "tag": tag, "typ": "float",
