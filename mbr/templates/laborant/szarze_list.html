@@ -870,22 +870,22 @@ function toggleDziennikView() {
   var btn = document.querySelector('.sb-dz-btn');
   if (!detailPanel) return;
 
+  // Ensure dziennik overlay div exists
+  var dzOverlay = document.getElementById('dz-overlay');
+  if (!dzOverlay) {
+    dzOverlay = document.createElement('div');
+    dzOverlay.id = 'dz-overlay';
+    dzOverlay.style.cssText = 'position:absolute;inset:0;z-index:10;background:var(--bg);display:none;flex-direction:column;overflow:hidden;';
+    detailPanel.style.position = 'relative';
+    detailPanel.appendChild(dzOverlay);
+  }
+
   if (window._dzOpen) {
-    // Save current content and replace with dziennik
-    window._savedDetailHTML = detailPanel.innerHTML;
-    renderDziennikView(detailPanel);
+    dzOverlay.style.display = 'flex';
+    renderDziennikView(dzOverlay);
     if (btn) btn.classList.add('active');
   } else {
-    // Restore saved content without reloading
-    if (window._savedDetailHTML) {
-      detailPanel.innerHTML = window._savedDetailHTML;
-      // Re-execute inline scripts from restored content
-      detailPanel.querySelectorAll('script').forEach(function(s) {
-        var ns = document.createElement('script');
-        if (s.src) ns.src = s.src; else ns.textContent = s.textContent;
-        s.replaceWith(ns);
-      });
-    }
+    dzOverlay.style.display = 'none';
     if (btn) btn.classList.remove('active');
   }
 }
