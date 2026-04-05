@@ -225,14 +225,11 @@
       <div class="sb-list" id="sidebar-etapy" style="display:flex; flex-direction:column; gap:0; padding:6px 8px;">
         <div style="color:var(--text-dim);font-size:11px;padding:16px 4px;">Wybierz szarżę aby zobaczyć etapy.</div>
       </div>
-      <div id="sb-dziennik-btn" style="display:none;">
-        <div style="height:1px;background:var(--border-subtle);margin:8px 12px;"></div>
-        <div style="padding:8px 12px 32px;">
+      <div id="sb-dziennik-btn" style="display:none;padding:12px 12px;">
         <button class="sb-dz-btn" onclick="toggleDziennikView()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:14px;height:14px;"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg>
           Dziennik zdarzeń
         </button>
-        </div>
       </div>
       <div class="sb-list" id="sidebar-batch-list" style="display:none;">
         {% for b in batches %}
