@@ -41,6 +41,7 @@ def get_parametry_for_kontekst(
             pa.precision,
             pe.nawazka_g,
             pa.formula,
+            pa.metoda_id,
             pa.metoda_nazwa,
             pa.metoda_formula,
             pa.metoda_factor,
@@ -94,6 +95,7 @@ def get_parametry_for_kontekst(
             "precision": r["precision"],
             "nawazka_g": r["nawazka_g"],
             "formula": r["formula"],
+            "metoda_id": r["metoda_id"],
             "metoda": metoda,
         })
 
