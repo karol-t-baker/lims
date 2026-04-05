@@ -1098,6 +1098,10 @@ body {
 .q-batch { font-weight: 600; }
 .q-product { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 5px; white-space: nowrap; display: inline-block; }
 .q-stage-sticker { font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 5px; background: var(--teal-bg, #e6f5f5); color: var(--teal); white-space: nowrap; display: inline-block; }
+.q-stage-sticker.etap-amid { background: var(--stage-amid-bg); color: var(--stage-amid); }
+.q-stage-sticker.etap-czwart { background: var(--stage-czwart-bg); color: var(--stage-czwart); }
+.q-stage-sticker.etap-sulfon { background: var(--stage-sulfon-bg); color: var(--stage-sulfon); }
+.q-stage-sticker.etap-utlen { background: var(--stage-utlen-bg); color: var(--stage-utlen); }
 .q-stage-sticker.etap-st { background: var(--stage-stand-bg); color: var(--stage-stand); }
 .q-stage-sticker.etap-ak { background: var(--stage-koncowa-bg); color: var(--stage-koncowa); }
 .q-stage-sticker.etap-an { background: var(--teal-bg); color: var(--teal); }
@@ -1617,6 +1621,10 @@ body {
   background: var(--surface-alt); color: var(--text-dim);
   margin-left: auto;
 }
+.bc-etap-badge.etap-amid { background: var(--stage-amid-bg); color: var(--stage-amid); }
+.bc-etap-badge.etap-czwart { background: var(--stage-czwart-bg); color: var(--stage-czwart); }
+.bc-etap-badge.etap-sulfon { background: var(--stage-sulfon-bg); color: var(--stage-sulfon); }
+.bc-etap-badge.etap-utlen { background: var(--stage-utlen-bg); color: var(--stage-utlen); }
 .bc-etap-badge.etap-st { background: var(--stage-stand-bg); color: var(--stage-stand); }
 .bc-etap-badge.etap-ak { background: var(--stage-koncowa-bg); color: var(--stage-koncowa); }
 .bc-etap-badge.etap-an { background: var(--teal-bg); color: var(--teal); }

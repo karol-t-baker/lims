@@ -25,8 +25,14 @@
   {% if b.typ == 'zbiornik' %}<span class="bc-typ-badge">ZB</span>{% endif %}
   <span class="bc-product-sticker {{ product_color(b.produkt) }}">{{ b.produkt|short_product }}</span>
   {% if b.stage_name and b.typ != 'zbiornik' %}
-  <span class="bc-etap-badge {% if 'Standaryzacja' in b.stage_name|default('') and 'Analiza' not in b.stage_name|default('') %}etap-st{% elif 'końcowa' in b.stage_name|default('') %}etap-ak{% elif 'Analiza' in b.stage_name|default('') %}etap-an{% elif 'Gotowy' in b.stage_name|default('') %}etap-go{% endif %}">
-    {%- if 'Standaryzacja' in b.stage_name|default('') and 'Analiza' not in b.stage_name|default('') -%}ST
+  <span class="bc-etap-badge {% if 'Amidowanie' in b.stage_name|default('') or 'SMCA' in b.stage_name|default('') %}etap-amid{% elif 'Czwartorzęd' in b.stage_name|default('') %}etap-czwart{% elif 'Sulfonowanie' in b.stage_name|default('') %}etap-sulfon{% elif 'Utlenienie' in b.stage_name|default('') or 'Rozjaśnianie' in b.stage_name|default('') %}etap-utlen{% elif 'Standaryzacja' in b.stage_name|default('') and 'Analiza' not in b.stage_name|default('') %}etap-st{% elif 'końcowa' in b.stage_name|default('') %}etap-ak{% elif 'Analiza' in b.stage_name|default('') %}etap-an{% elif 'Gotowy' in b.stage_name|default('') %}etap-go{% endif %}">
+    {%- if 'Amidowanie' in b.stage_name|default('') -%}AM
+    {%- elif 'SMCA' in b.stage_name|default('') -%}SM
+    {%- elif 'Czwartorzęd' in b.stage_name|default('') -%}CZ
+    {%- elif 'Sulfonowanie' in b.stage_name|default('') -%}SF
+    {%- elif 'Utlenienie' in b.stage_name|default('') -%}UT
+    {%- elif 'Rozjaśnianie' in b.stage_name|default('') -%}RZ
+    {%- elif 'Standaryzacja' in b.stage_name|default('') and 'Analiza' not in b.stage_name|default('') -%}ST
     {%- elif 'końcowa' in b.stage_name|default('') -%}AK
     {%- elif 'Analiza' in b.stage_name|default('') -%}AN
     {%- elif 'Gotowy' in b.stage_name|default('') -%}GO
