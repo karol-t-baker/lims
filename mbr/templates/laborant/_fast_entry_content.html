@@ -1695,10 +1695,6 @@ window._keydownHandler = function(e) {
 document.addEventListener('keydown', window._keydownHandler);
 
 
-// Init
-renderSections();
-setupComputedFields();
-
 // openCertPicker kept as alias for any remaining references
 function openCertPicker() { loadCompletedCerts(); }
 
@@ -1921,6 +1917,10 @@ function psApproveStage(etap) {
     }
   });
 }
+
+// ═══ INIT (must be after all function definitions) ═══
+renderSections();
+setupComputedFields();
 </script>
 
 <script src="/static/calculator.js"></script>
