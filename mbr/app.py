@@ -37,6 +37,8 @@ from mbr.certs import certs_bp  # noqa: E402
 app.register_blueprint(certs_bp)
 from mbr.registry import registry_bp  # noqa: E402
 app.register_blueprint(registry_bp)
+from mbr.etapy import etapy_bp  # noqa: E402
+app.register_blueprint(etapy_bp)
 
 from mbr.shared.decorators import login_required, role_required  # noqa: E402
 
@@ -313,19 +315,6 @@ def get_samples(ebr_id, sekcja, kod):
 # Shift / workers API
 # ---------------------------------------------------------------------------
 
-# ---------------------------------------------------------------------------
-# Process stage analyses + corrections
-# ---------------------------------------------------------------------------
-
-@app.route("/api/etapy-config/<produkt>")
-@login_required
-def api_etapy_config(produkt):
-    from mbr.parametry_registry import get_etapy_config
-    with db_session() as db:
-        cfg = get_etapy_config(db, produkt)
-    return jsonify({"config": cfg, "produkt": produkt})
-
-
 @app.route("/api/parametry/config")
 @login_required
 def api_parametry_config():
@@ -455,93 +444,6 @@ def parametry_editor():
         ).fetchall()]
         konteksty = get_konteksty(db)
     return render_template("parametry_editor.html", products=products, konteksty=konteksty)
-
-
-@app.route("/api/ebr/<int:ebr_id>/etapy-analizy")
-@login_required
-def api_etapy_analizy_get(ebr_id):
-    from mbr.etapy_models import get_all_etapy_analizy
-    with db_session() as db:
-        data = get_all_etapy_analizy(db, ebr_id)
-    return jsonify({"analizy": data})
-
-
-@app.route("/api/ebr/<int:ebr_id>/etapy-analizy", methods=["POST"])
-@login_required
-def api_etapy_analizy_save(ebr_id):
-    from mbr.etapy_models import save_etap_analizy
-    data = request.get_json(silent=True) or {}
-    etap = data.get("etap")
-    runda = int(data.get("runda", 1))
-    wyniki = data.get("wyniki", {})
-    if not etap or not wyniki:
-        return jsonify({"ok": False, "error": "Missing etap or wyniki"}), 400
-    user = session.get("user", {}).get("login", "unknown")
-    with db_session() as db:
-        save_etap_analizy(db, ebr_id, etap, runda, wyniki, user)
-    return jsonify({"ok": True})
-
-
-@app.route("/api/ebr/<int:ebr_id>/korekty")
-@login_required
-def api_korekty_get(ebr_id):
-    from mbr.etapy_models import get_korekty
-    etap = request.args.get("etap")
-    with db_session() as db:
-        data = get_korekty(db, ebr_id, etap=etap)
-    return jsonify({"korekty": data})
-
-
-@app.route("/api/ebr/<int:ebr_id>/korekty", methods=["POST"])
-@login_required
-def api_korekty_add(ebr_id):
-    from mbr.etapy_models import add_korekta
-    data = request.get_json(silent=True) or {}
-    etap = data.get("etap")
-    substancja = data.get("substancja")
-    ilosc_kg = float(data.get("ilosc_kg", 0))
-    po_rundzie = int(data.get("po_rundzie", 0))
-    if not etap or not substancja:
-        return jsonify({"ok": False, "error": "Missing etap or substancja"}), 400
-    user = session.get("user", {}).get("login", "unknown")
-    with db_session() as db:
-        kid = add_korekta(db, ebr_id, etap, po_rundzie, substancja, ilosc_kg, user)
-    return jsonify({"ok": True, "id": kid})
-
-
-@app.route("/api/ebr/<int:ebr_id>/korekty/<int:kid>", methods=["PUT"])
-@login_required
-def api_korekty_confirm(ebr_id, kid):
-    from mbr.etapy_models import confirm_korekta
-    with db_session() as db:
-        confirm_korekta(db, kid)
-    return jsonify({"ok": True})
-
-
-@app.route("/api/ebr/<int:ebr_id>/etapy-status")
-@login_required
-def api_etapy_status_get(ebr_id):
-    from mbr.etapy_models import get_etapy_status
-    with db_session() as db:
-        data = get_etapy_status(db, ebr_id)
-    return jsonify({"etapy_status": data})
-
-
-@app.route("/api/ebr/<int:ebr_id>/etapy-status/zatwierdz", methods=["POST"])
-@login_required
-def api_etapy_zatwierdz(ebr_id):
-    from mbr.etapy_models import zatwierdz_etap
-    data = request.get_json(silent=True) or {}
-    etap = data.get("etap")
-    if not etap:
-        return jsonify({"ok": False, "error": "Missing etap"}), 400
-    user = session.get("user", {}).get("login", "unknown")
-    with db_session() as db:
-        ebr = get_ebr(db, ebr_id)
-        if not ebr:
-            return jsonify({"ok": False, "error": "EBR not found"}), 404
-        next_etap = zatwierdz_etap(db, ebr_id, etap, user, ebr["produkt"])
-    return jsonify({"ok": True, "next_etap": next_etap})
 
 
 # ---------------------------------------------------------------------------

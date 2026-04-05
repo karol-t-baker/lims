@@ -9,8 +9,8 @@ Replaces hardcoded parameter configs by querying:
 import sqlite3
 from typing import Optional
 
-from mbr.etapy_config import ETAPY_ANALIZY, PRODUCT_ETAPY_MAP
-from mbr.etapy_models import get_process_stages, FULL_PIPELINE_PRODUCTS
+from mbr.etapy.config import ETAPY_ANALIZY, PRODUCT_ETAPY_MAP
+from mbr.etapy.models import get_process_stages, FULL_PIPELINE_PRODUCTS
 
 
 # ---------------------------------------------------------------------------
