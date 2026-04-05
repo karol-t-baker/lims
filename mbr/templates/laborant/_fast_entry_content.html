@@ -561,6 +561,10 @@
 }
 .ps-corr-label { font-size: 9px; font-weight: 700; color: var(--amber); text-transform: uppercase; letter-spacing: 0.3px; flex-shrink: 0; }
 .ps-corr-item { color: var(--text); font-weight: 500; }
+/* Timestamp elements */
+.ps-head-ts { font-size: 9px; color: var(--text-dim); font-family: var(--mono); font-weight: 400; margin-left: auto; }
+.ps-acc-ts { font-size: 9px; color: var(--text-dim); font-family: var(--mono); white-space: nowrap; }
+.ps-corr-ts { font-size: 9px; color: var(--text-dim); font-family: var(--mono); }
 .ps-locked-msg { padding: 20px; text-align: center; color: var(--text-dim); font-size: 12px; }
 
 </style>
@@ -1769,13 +1773,36 @@ window.showProcessStage = function(etapKey) {
     return;
   }
 
+  // Format ISO timestamp to short Polish format: "5 kwi 14:23"
+  function fmtTs(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    if (isNaN(d)) return '';
+    var months = ['sty','lut','mar','kwi','maj','cze','lip','sie','wrz','paź','lis','gru'];
+    return d.getDate() + ' ' + months[d.getMonth()] + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  }
+
   // Use cv-params style (same as analiza końcowa)
   var headerExtra = '';
-  if (isDone) headerExtra = ' <span style="font-size:9px;background:var(--green-bg);color:var(--green);padding:2px 6px;border-radius:3px;margin-left:6px;">Zatwierdzony ✓</span>';
-  else if (isActive) headerExtra = ' <span style="font-size:9px;background:var(--teal-bg);color:var(--teal);padding:2px 6px;border-radius:3px;margin-left:6px;">R' + currentRunda + '</span>';
+  var headerTs = '';
+  if (isDone) {
+    headerExtra = ' <span style="font-size:9px;background:var(--green-bg);color:var(--green);padding:2px 6px;border-radius:3px;margin-left:6px;">Zatwierdzony ✓</span>';
+    if (stageStatus) {
+      var tsParts = [];
+      if (stageStatus.dt_start) tsParts.push(fmtTs(stageStatus.dt_start));
+      if (stageStatus.dt_end) tsParts.push(fmtTs(stageStatus.dt_end));
+      headerTs = '<div class="ps-head-ts">' + tsParts.join(' → ') +
+        (stageStatus.zatwierdzil ? ' · ' + stageStatus.zatwierdzil : '') + '</div>';
+    }
+  } else if (isActive) {
+    headerExtra = ' <span style="font-size:9px;background:var(--teal-bg);color:var(--teal);padding:2px 6px;border-radius:3px;margin-left:6px;">R' + currentRunda + '</span>';
+    if (stageStatus && stageStatus.dt_start) {
+      headerTs = '<div class="ps-head-ts">od ' + fmtTs(stageStatus.dt_start) + '</div>';
+    }
+  }
 
   var html = '<div class="cv-params">' +
-    '<div class="cv-params-head">' + stageConfig.label + headerExtra + '</div>';
+    '<div class="cv-params-head">' + stageConfig.label + headerExtra + headerTs + '</div>';
 
   // Helper: render one runda's fields
   function renderRundaFields(rundaNum, editable) {
@@ -1807,6 +1834,26 @@ window.showProcessStage = function(etapKey) {
         inputClass = inLimit ? 'ok' : 'err';
       }
 
+      // Build extra data attrs for titracja (calculator needs these)
+      var extraAttrs = '';
+      if (isTitr && param.metoda) {
+        extraAttrs += ' data-metoda-factor="' + param.metoda.factor + '"';
+        extraAttrs += ' data-metoda-nazwa="' + (param.metoda.nazwa || '') + '"';
+        extraAttrs += ' data-metoda-formula="' + (param.metoda.formula || '') + '"';
+      }
+      if (param.nawazka_g != null) {
+        extraAttrs += ' data-nawazka="' + param.nawazka_g + '"';
+      }
+      if (isObl && param.formula) {
+        extraAttrs += ' data-formula="' + param.formula + '"';
+      }
+
+      var clickHandler = '';
+      if (isTitr && param.metoda && editable) {
+        clickHandler = ' onclick="openCalculator(\'' + param.kod + '\', \'' + param.kod + '\', \'etap__' + etapKey + '__' + rundaNum + '\', ' +
+          JSON.stringify(param.metoda) + ')"';
+      }
+
       h += '<div class="ff' + (isTitr ? ' titr' : '') + (isObl ? ' computed' : '') + '">' +
         '<div class="status-dot"></div>' +
         '<label>' + param.label + '</label>' +
@@ -1814,11 +1861,13 @@ window.showProcessStage = function(etapKey) {
           ' data-etap="' + etapKey + '" data-runda="' + rundaNum + '" data-kod="' + param.kod + '"' +
           ' data-min="' + (param.min != null ? param.min : '') + '"' +
           ' data-max="' + (param.max != null ? param.max : '') + '"' +
+          extraAttrs +
           ' value="' + val + '"' +
           ' class="' + inputClass + '"' +
           (!editable ? ' readonly' : '') +
           ' placeholder="\u2014"' +
           (editable ? ' oninput="validateField(this); psAutoSave(this)" onblur="psSave(this)"' : '') +
+          clickHandler +
           '>' +
         '<div class="ff-right">' +
           '<span class="norm-range">' + normRange + '</span>' +
@@ -1839,6 +1888,8 @@ window.showProcessStage = function(etapKey) {
     // Build summary for collapsed view
     var rundaData = stageAnalizy[rn] || {};
     var summaryParts = [];
+    var rundaTs = '';  // latest dt_wpisu in this runda
+    var rundaUser = '';
     stageConfig.parametry.forEach(function(p) {
       if (rundaData[p.kod]) {
         var v = String(rundaData[p.kod].wartosc).replace('.', ',');
@@ -1847,6 +1898,11 @@ window.showProcessStage = function(etapKey) {
         if (p.min != null && numV < p.min) outOfRange = true;
         if (p.max != null && numV > p.max) outOfRange = true;
         summaryParts.push(outOfRange ? '<span style="color:var(--red)">' + p.label + ' ' + v + '</span>' : p.label + ' ' + v);
+        // Track latest timestamp in runda
+        if (rundaData[p.kod].dt_wpisu && rundaData[p.kod].dt_wpisu > rundaTs) {
+          rundaTs = rundaData[p.kod].dt_wpisu;
+          rundaUser = rundaData[p.kod].wpisal || '';
+        }
       }
     });
     var summaryText = summaryParts.join(' · ') || '—';
@@ -1858,6 +1914,12 @@ window.showProcessStage = function(etapKey) {
     if (isCurrent) statusBadge = '<span style="font-size:8px;font-weight:600;padding:1px 6px;border-radius:8px;background:var(--teal-bg);color:var(--teal);">Bieżąca</span>';
     else statusBadge = '<span style="font-size:8px;font-weight:600;padding:1px 6px;border-radius:8px;background:var(--green-bg);color:var(--green);">OK</span>';
 
+    // Timestamp badge for the round
+    var rundaTsBadge = '';
+    if (rundaTs) {
+      rundaTsBadge = '<span class="ps-acc-ts">' + fmtTs(rundaTs) + (rundaUser ? ' · ' + rundaUser : '') + '</span>';
+    }
+
     html += '<div class="ps-accordion' + accOpen + '" id="' + accId + '">';
 
     // Toggle bar
@@ -1865,6 +1927,7 @@ window.showProcessStage = function(etapKey) {
       '<svg class="ps-acc-chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4l4 4-4 4"/></svg>' +
       '<span class="ps-acc-title">Runda ' + rn + '</span>' +
       statusBadge +
+      rundaTsBadge +
       '<span class="ps-acc-summary">' + summaryText + '</span>' +
     '</div>';
 
@@ -1880,8 +1943,13 @@ window.showProcessStage = function(etapKey) {
       html += '<span class="ps-corr-label">Działanie korygujące</span>';
       rundaKorekty.forEach(function(k) {
         var kgText = k.ilosc_kg > 0 ? ' ' + String(k.ilosc_kg).replace('.',',') + ' kg' : '';
+        var corrTs = '';
+        if (k.dt_zalecenia) corrTs += fmtTs(k.dt_zalecenia);
+        if (k.zalecil) corrTs += (corrTs ? ' ' : '') + k.zalecil;
         html += '<span class="ps-corr-item">' + k.substancja + kgText +
-          ' <span style="color:' + (k.wykonano ? 'var(--green)' : 'var(--amber)') + '">' + (k.wykonano ? '✓' : '') + '</span></span>';
+          (corrTs ? ' <span class="ps-corr-ts">' + corrTs + '</span>' : '') +
+          ' <span style="color:' + (k.wykonano ? 'var(--green)' : 'var(--amber)') + '">' +
+          (k.wykonano ? '✓' + (k.dt_wykonania ? ' ' + fmtTs(k.dt_wykonania) : '') : '') + '</span></span>';
       });
       html += '</div>';
     }
@@ -1895,10 +1963,6 @@ window.showProcessStage = function(etapKey) {
     '<span class="ff-leg-item"><span class="type-tag t-calc">O</span> obliczeniowy</span>' +
   '</div>';
   html += '</div>';
-      '</div>';
-    });
-    html += '</div>';
-  }
 
   // Add correction form (active only)
   var NO_KG_CORRECTIONS = ['Wydłużenie czasu'];
@@ -1977,7 +2041,8 @@ function psSave(input) {
       if (!_etapyAnalizy[etap]) _etapyAnalizy[etap] = {};
       if (!_etapyAnalizy[etap][runda]) _etapyAnalizy[etap][runda] = {};
       _etapyAnalizy[etap][runda][kod] = {wartosc: parseFloat(val), dt_wpisu: new Date().toISOString(), wpisal: 'me'};
-      input.querySelector && (input.previousElementSibling.className = 'ps-field-dot ok');
+      var dot = input.parentElement && input.parentElement.querySelector('.status-dot');
+      if (dot) dot.classList.add('ok');
     } else {
       input.style.outline = '2px solid var(--red)';
     }
