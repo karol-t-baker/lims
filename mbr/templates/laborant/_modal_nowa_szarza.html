@@ -13,7 +13,7 @@
     </div>
 
     <div class="modal-body">
-      <form method="POST" action="{{ url_for('szarze_new') }}" id="new-batch-form">
+      <form method="POST" action="{{ url_for('laborant.szarze_new') }}" id="new-batch-form">
         <input type="hidden" name="typ" id="typ-input" value="szarza">
         <input type="hidden" name="produkt" id="produkt-input" required>
         <input type="hidden" name="_back" value="{{ request.url }}">

@@ -23,7 +23,7 @@
   {% endif %}
 
   {% if session.get('user', {}).get('rola') == 'laborant' %}
-  <a class="rail-btn {% block nav_szarze %}{% endblock %}" href="{{ url_for('szarze_list') }}" title="Szarze"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v4l4 8H5l4-8V3z"/><path d="M3 21h18"/><path d="M9 3h6"/></svg><span class="rail-label">Szarze</span></a>
+  <a class="rail-btn {% block nav_szarze %}{% endblock %}" href="{{ url_for('laborant.szarze_list') }}" title="Szarze"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v4l4 8H5l4-8V3z"/><path d="M3 21h18"/><path d="M9 3h6"/></svg><span class="rail-label">Szarze</span></a>
   <button class="rail-btn" onclick="if(typeof openNewBatchModal==='function')openNewBatchModal()" title="Nowa szarza"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg><span class="rail-label">+ Nowa</span></button>
   <div class="rail-sep"></div>
   <button class="rail-btn" onclick="" title="Notatki"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg><span class="rail-label">Notatki</span></button>

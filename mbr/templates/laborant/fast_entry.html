@@ -5,7 +5,7 @@
 {% block nav_szarze %}active{% endblock %}
 
 {% block topbar_title %}
-  <a href="{{ url_for('szarze_list') }}" class="tp-breadcrumb">Szarze</a>
+  <a href="{{ url_for('laborant.szarze_list') }}" class="tp-breadcrumb">Szarze</a>
   <span class="tp-sep">/</span>
   {{ ebr.produkt | short_product }} &mdash; {{ ebr.nr_partii }}
 {% endblock %}
@@ -72,7 +72,7 @@
     </div>
     <div class="sb-list">
       {% for b in all_open if (b.typ or 'szarza') == 'szarza' %}
-      {{ batch_card(b, active=(b.ebr_id == ebr.ebr_id), onclick_url=url_for('fast_entry', ebr_id=b.ebr_id)) }}
+      {{ batch_card(b, active=(b.ebr_id == ebr.ebr_id), onclick_url=url_for('laborant.fast_entry', ebr_id=b.ebr_id)) }}
       {% else %}
       <div style="padding:12px;font-size:11px;color:var(--text-dim);">Brak otwartych szarz</div>
       {% endfor %}
@@ -86,7 +86,7 @@
     </div>
     <div class="sb-list">
       {% for b in all_open if b.typ == 'zbiornik' %}
-      {{ batch_card(b, active=(b.ebr_id == ebr.ebr_id), onclick_url=url_for('fast_entry', ebr_id=b.ebr_id)) }}
+      {{ batch_card(b, active=(b.ebr_id == ebr.ebr_id), onclick_url=url_for('laborant.fast_entry', ebr_id=b.ebr_id)) }}
       {% else %}
       <div style="padding:12px;font-size:11px;color:var(--text-dim);">Brak otwartych zbiornikow</div>
       {% endfor %}
@@ -135,7 +135,7 @@
 <div class="footer">
   <span class="f-hint">Zapisz sekcje pojedynczo lub zatwierdz cala karte.</span>
   <div class="f-sp"></div>
-  <form method="POST" action="{{ url_for('complete_entry', ebr_id=ebr.ebr_id) }}" onsubmit="return confirm('Zatwierdzic karte? Nie bedzie mozna edytowac.')">
+  <form method="POST" action="{{ url_for('laborant.complete_entry', ebr_id=ebr.ebr_id) }}" onsubmit="return confirm('Zatwierdzic karte? Nie bedzie mozna edytowac.')">
     <button type="submit" class="btn btn-p">Zatwierdz karte</button>
   </form>
 </div>
