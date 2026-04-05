@@ -342,11 +342,84 @@ def seed(db):
 
 
 # ---------------------------------------------------------------------------
-# 4. __main__
+# 4. seed_from_seed_mbr() — auto-seed remaining products from seed_mbr.PRODUCTS
+# ---------------------------------------------------------------------------
+
+
+def seed_from_seed_mbr(db):
+    """Read seed_mbr.PRODUCTS and seed analiza_koncowa/dodatki bindings
+    for all products not yet covered by ETAPY_BINDINGS."""
+    from mbr.seed_mbr import PRODUCTS as MBR_PRODUCTS
+
+    # Build kod → id map
+    kod_to_id = {}
+    for row in db.execute("SELECT id, kod FROM parametry_analityczne").fetchall():
+        kid = row[0] if isinstance(row, tuple) else row["id"]
+        kkod = row[1] if isinstance(row, tuple) else row["kod"]
+        kod_to_id[kkod] = kid
+
+    # Track which product+kontekst combos already seeded
+    existing = set()
+    for row in db.execute("SELECT produkt, kontekst FROM parametry_etapy WHERE produkt IS NOT NULL").fetchall():
+        p = row[0] if isinstance(row, tuple) else row["produkt"]
+        k = row[1] if isinstance(row, tuple) else row["kontekst"]
+        existing.add((p, k))
+
+    added = 0
+    for prod_def in MBR_PRODUCTS:
+        produkt = prod_def["produkt"]
+        plab = prod_def.get("parametry_lab", {})
+        for sekcja_key, sekcja_def in plab.items():
+            kontekst = sekcja_key
+            if kontekst == "analiza":
+                kontekst = "analiza_koncowa"
+
+            if (produkt, kontekst) in existing:
+                continue
+
+            pola = sekcja_def.get("pola", [])
+            for i, pole in enumerate(pola):
+                kod = pole["kod"]
+                if kod not in kod_to_id:
+                    mt = pole.get("measurement_type", "bezposredni")
+                    db.execute(
+                        """INSERT OR IGNORE INTO parametry_analityczne
+                           (kod, label, typ, precision)
+                           VALUES (?, ?, ?, ?)""",
+                        (kod, pole.get("label", kod), mt, pole.get("precision", 2)),
+                    )
+                    db.commit()
+                    row = db.execute("SELECT id FROM parametry_analityczne WHERE kod=?", (kod,)).fetchone()
+                    new_id = row[0] if isinstance(row, tuple) else row["id"]
+                    kod_to_id[kod] = new_id
+
+                pid = kod_to_id[kod]
+                mn = pole.get("min")
+                mx = pole.get("max")
+                nawazka = None
+                cm = pole.get("calc_method")
+                if cm:
+                    nawazka = cm.get("suggested_mass")
+
+                db.execute(
+                    """INSERT OR IGNORE INTO parametry_etapy
+                       (produkt, kontekst, parametr_id, kolejnosc, min_limit, max_limit, nawazka_g)
+                       VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                    (produkt, kontekst, pid, i + 1, mn, mx, nawazka),
+                )
+                added += 1
+
+    db.commit()
+    print(f"Auto-seeded {added} additional bindings from seed_mbr.py")
+
+
+# ---------------------------------------------------------------------------
+# 5. __main__
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
     db = get_db()
     init_mbr_tables(db)
     seed(db)
+    seed_from_seed_mbr(db)
     db.close()
