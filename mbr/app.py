@@ -678,7 +678,7 @@ def api_parametry_list():
 def api_parametry_update(param_id):
     """Update global parameter fields."""
     data = request.get_json(silent=True) or {}
-    allowed = {"label", "formula", "metoda_nazwa", "metoda_formula", "metoda_factor", "precision"}
+    allowed = {"label", "skrot", "formula", "metoda_nazwa", "metoda_formula", "metoda_factor", "precision"}
     updates = {k: v for k, v in data.items() if k in allowed}
     if not updates:
         return jsonify({"error": "No valid fields"}), 400

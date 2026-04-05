@@ -13,13 +13,30 @@
 <style>
 /* ═══ PARAMETER EDITOR ═══ */
 
-/* Container */
-.pe-wrap { padding: 20px 28px; max-width: 1100px; }
+/* Container — scrollable */
+.pe-wrap { padding: 20px 28px; max-width: 1100px; overflow-y: auto; max-height: calc(100vh - 52px); }
 .pe-section-label {
   font-size: 9px; font-weight: 800; color: var(--text-dim);
   text-transform: uppercase; letter-spacing: 1.2px;
   margin-bottom: 12px; padding-left: 2px;
 }
+
+/* Search */
+.pe-search-wrap {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 14px;
+}
+.pe-search {
+  padding: 7px 12px 7px 32px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px; font-family: var(--font);
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='M21 21l-4.35-4.35'/%3E%3C/svg%3E") 10px center no-repeat;
+  width: 260px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.pe-search:focus { border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-bg); outline: none; }
+.pe-search-count { font-size: 10px; color: var(--text-dim); }
 
 /* Main table */
 .pe-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px; }
@@ -231,19 +248,24 @@
 {% block content %}
 <div class="pe-wrap">
   <div class="pe-section-label">Rejestr parametrów analitycznych</div>
+  <div class="pe-search-wrap">
+    <input class="pe-search" id="pe-search" type="text" placeholder="Szukaj parametru..." oninput="filterTable()">
+    <span class="pe-search-count" id="pe-search-count"></span>
+  </div>
   <table class="pe-table" id="pe-table">
     <thead>
       <tr>
         <th style="width:32px;"></th>
         <th>Kod</th>
-        <th>Nazwa</th>
+        <th>Skrót</th>
+        <th>Nazwa pełna</th>
         <th>Typ</th>
         <th>Metoda / Formuła</th>
         <th style="text-align:right;">Etapy</th>
       </tr>
     </thead>
     <tbody id="pe-body">
-      <tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:32px;font-size:11px;">Ładowanie...</td></tr>
+      <tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:32px;font-size:11px;">Ładowanie...</td></tr>
     </tbody>
   </table>
 </div>
@@ -281,16 +303,17 @@ function renderTable() {
     else if (p.typ === 'obliczeniowy' && p.formula) meta = p.formula;
     var bindCount = p.bindings ? p.bindings.length : 0;
 
-    html += '<tr class="pe-row" id="pe-r-' + p.id + '" onclick="togglePanel(' + p.id + ')" style="animation-delay:' + (idx * 0.03) + 's">' +
+    html += '<tr class="pe-row" id="pe-r-' + p.id + '" data-search="' + esc((p.kod + ' ' + (p.skrot||'') + ' ' + p.label + ' ' + (p.metoda_nazwa||'')).toLowerCase()) + '" onclick="togglePanel(' + p.id + ')" style="animation-delay:' + (idx * 0.03) + 's">' +
       '<td><svg class="pe-chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4l4 4-4 4"/></svg></td>' +
       '<td><span class="pe-kod">' + p.kod + '</span></td>' +
-      '<td>' + esc(p.label) + '</td>' +
+      '<td style="font-weight:600;font-size:12px;">' + esc(p.skrot || p.kod) + '</td>' +
+      '<td style="color:var(--text-sec);font-size:11px;">' + esc(p.label) + '</td>' +
       '<td><span class="pe-typ ' + typCls + '">' + typLabel + '</span></td>' +
       '<td class="pe-meta">' + esc(meta) + '</td>' +
       '<td class="pe-badge" style="text-align:right;">' + (bindCount > 0 ? '<span class="pe-badge-num">' + bindCount + '</span>' : '<span style="color:var(--border);">—</span>') + '</td>' +
     '</tr>';
 
-    html += '<tr class="pe-panel" id="pe-p-' + p.id + '"><td colspan="6">' + renderPanel(p) + '</td></tr>';
+    html += '<tr class="pe-panel" id="pe-p-' + p.id + '"><td colspan="7">' + renderPanel(p) + '</td></tr>';
   });
   tbody.innerHTML = html;
 }
@@ -316,7 +339,8 @@ function renderPanel(p) {
   // Section: global properties
   h += '<div class="pe-sec">Definicja parametru</div>';
   h += '<div class="pe-fields">';
-  h += renderField('Nazwa', p.id, 'label', p.label, 'pe-wide');
+  h += renderField('Skrót', p.id, 'skrot', p.skrot || '', '');
+  h += renderField('Nazwa pełna', p.id, 'label', p.label, 'pe-wide');
   h += renderField('Precyzja', p.id, 'precision', p.precision, 'pe-num');
   if (p.typ === 'obliczeniowy') {
     h += renderField('Formuła', p.id, 'formula', p.formula || '', 'pe-wide');
@@ -444,6 +468,24 @@ function addBinding(paramId) {
       setTimeout(function() { togglePanel(paramId); }, 200);
     }
   });
+}
+
+function filterTable() {
+  var q = document.getElementById('pe-search').value.toLowerCase().trim();
+  var rows = document.querySelectorAll('.pe-row');
+  var visible = 0;
+  rows.forEach(function(row) {
+    var match = !q || (row.dataset.search || '').indexOf(q) >= 0;
+    row.style.display = match ? '' : 'none';
+    // Also hide corresponding panel
+    var panelId = row.id.replace('pe-r-', 'pe-p-');
+    var panel = document.getElementById(panelId);
+    if (panel && !match) { panel.classList.remove('pe-panel-open'); row.classList.remove('pe-open'); }
+    if (match) visible++;
+  });
+  var countEl = document.getElementById('pe-search-count');
+  if (q) countEl.textContent = visible + ' / ' + rows.length;
+  else countEl.textContent = '';
 }
 
 // Init

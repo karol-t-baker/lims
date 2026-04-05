@@ -229,6 +229,13 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     except Exception:
         pass  # column already exists
 
+    # Migration: add skrot column to parametry_analityczne
+    try:
+        db.execute("ALTER TABLE parametry_analityczne ADD COLUMN skrot TEXT")
+        db.commit()
+    except Exception:
+        pass
+
     # Migration: add nastaw + przepompowanie columns if not exists
     cols = [r[1] for r in db.execute("PRAGMA table_info(ebr_batches)").fetchall()]
     if "nastaw" not in cols:

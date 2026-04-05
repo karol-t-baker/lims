@@ -22,69 +22,69 @@ from mbr.models import get_db, init_mbr_tables
 
 PARAMETRY = [
     # --- bezposredni ---
-    {"kod": "ph",         "label": "pH roztworu",      "typ": "bezposredni", "precision": 2},
-    {"kod": "ph_10proc",  "label": "pH 10%",           "typ": "bezposredni", "precision": 2},
-    {"kod": "nd20",       "label": "nD20",              "typ": "bezposredni", "precision": 4},
-    {"kod": "sm",         "label": "Sucha masa [%]",   "typ": "bezposredni", "precision": 1},
-    {"kod": "le",         "label": "LE (liczba estrowa)", "typ": "bezposredni", "precision": 2},
-    {"kod": "barwa_fau",  "label": "Barwa FAU",         "typ": "bezposredni", "precision": 0},
-    {"kod": "barwa_hz",   "label": "Barwa Hz",          "typ": "bezposredni", "precision": 0},
-    {"kod": "gestosc",    "label": "Gęstość [g/cm³]",  "typ": "bezposredni", "precision": 3},
-    {"kod": "h2o",        "label": "H₂O [%]",          "typ": "bezposredni", "precision": 1},
-    {"kod": "woda",       "label": "Zawartość wody [%]", "typ": "bezposredni", "precision": 1},
+    {"kod": "ph",         "label": "pH roztworu",          "skrot": "pH",       "typ": "bezposredni", "precision": 2},
+    {"kod": "ph_10proc",  "label": "pH roztworu 10%",      "skrot": "pH 10%",   "typ": "bezposredni", "precision": 2},
+    {"kod": "nd20",       "label": "Współczynnik załamania nD20", "skrot": "nD20", "typ": "bezposredni", "precision": 4},
+    {"kod": "sm",         "label": "Sucha masa",           "skrot": "SM",       "typ": "bezposredni", "precision": 1},
+    {"kod": "le",         "label": "Liczba estrowa",       "skrot": "LE",       "typ": "bezposredni", "precision": 2},
+    {"kod": "barwa_fau",  "label": "Barwa jodowa FAU",     "skrot": "Barwa FAU","typ": "bezposredni", "precision": 0},
+    {"kod": "barwa_hz",   "label": "Barwa wg Hazen",       "skrot": "Barwa Hz", "typ": "bezposredni", "precision": 0},
+    {"kod": "gestosc",    "label": "Gęstość",              "skrot": "d",        "typ": "bezposredni", "precision": 3},
+    {"kod": "h2o",        "label": "Zawartość wody",       "skrot": "H₂O",     "typ": "bezposredni", "precision": 1},
+    {"kod": "woda",       "label": "Zawartość wody",       "skrot": "Woda",     "typ": "bezposredni", "precision": 1},
 
     # --- titracja ---
     {"kod": "la",
-     "label": "LA (liczba kwasowa)",
+     "label": "Liczba kwasowa",  "skrot": "LA",
      "typ": "titracja",
      "metoda_nazwa": "Alkacymetria KOH",
      "metoda_formula": "LA = (V * C * 56.1) / m",
      "metoda_factor": 5.61,
      "precision": 2},
     {"kod": "lk",
-     "label": "LK (końcowa)",
+     "label": "Liczba kwasowa końcowa",  "skrot": "LK",
      "typ": "titracja",
      "metoda_nazwa": "Alkacymetria KOH",
      "metoda_formula": "LK = (V * C * 56.1) / m",
      "metoda_factor": 5.61,
      "precision": 2},
     {"kod": "nacl",
-     "label": "NaCl [%]",
+     "label": "Chlorek sodu",  "skrot": "NaCl",
      "typ": "titracja",
      "metoda_nazwa": "Argentometryczna Mohr",
      "metoda_formula": "% = (V * 0.00585 * 100) / m",
      "metoda_factor": 0.585,
      "precision": 2},
     {"kod": "aa",
-     "label": "%AA",
+     "label": "Amina aminowa",  "skrot": "%AA",
      "typ": "titracja",
      "metoda_nazwa": "Alkacymetria",
      "metoda_formula": "% = (V * C * M) / (m * 10)",
      "metoda_factor": 3.015,
      "precision": 2},
     {"kod": "so3",
-     "label": "%SO₃²⁻",
+     "label": "Siarczyny",  "skrot": "%SO₃²⁻",
      "typ": "titracja",
      "metoda_nazwa": "Jodometryczna",
      "metoda_formula": "% = (V * 0.004 * 100) / m",
      "metoda_factor": 0.4,
      "precision": 3},
     {"kod": "h2o2",
-     "label": "%H₂O₂",
+     "label": "Nadtlenek wodoru",  "skrot": "%H₂O₂",
      "typ": "titracja",
      "metoda_nazwa": "Manganometryczna",
      "metoda_formula": "% = (V * 0.0017 * 100) / m",
      "metoda_factor": 0.17,
      "precision": 3},
     {"kod": "wolna_amina",
-     "label": "%wolna amina",
+     "label": "Wolna amina",  "skrot": "%WA",
      "typ": "titracja",
      "metoda_nazwa": "Alkacymetria",
      "metoda_formula": "% = (V * C * M) / (m * 10)",
      "metoda_factor": 3.015,
      "precision": 2},
     {"kod": "sa_epton",
-     "label": "%SA (Epton)",
+     "label": "Substancja aktywna (Epton)",  "skrot": "%SA",
      "typ": "titracja",
      "metoda_nazwa": "Dwufazowa Epton",
      "metoda_formula": "% = (V * f * M) / m",
@@ -93,16 +93,16 @@ PARAMETRY = [
 
     # --- obliczeniowy ---
     {"kod": "sa",
-     "label": "%SA",
+     "label": "Substancja aktywna",  "skrot": "%SA",
      "typ": "obliczeniowy",
      "formula": "sm - nacl - 0.6",
      "precision": 2},
 
     # --- dodatki (bezposredni) ---
-    {"kod": "kwas_kg",  "label": "Kwas [kg]",  "typ": "bezposredni", "precision": 1},
-    {"kod": "woda_kg",  "label": "Woda [kg]",  "typ": "bezposredni", "precision": 1},
-    {"kod": "nacl_kg",  "label": "NaCl [kg]",  "typ": "bezposredni", "precision": 1},
-    {"kod": "nastaw",   "label": "Nastaw",      "typ": "bezposredni", "precision": 0},
+    {"kod": "kwas_kg",  "label": "Dodatek kwasu",       "skrot": "Kwas",  "typ": "bezposredni", "precision": 1},
+    {"kod": "woda_kg",  "label": "Dodatek wody",        "skrot": "Woda",  "typ": "bezposredni", "precision": 1},
+    {"kod": "nacl_kg",  "label": "Dodatek NaCl",        "skrot": "NaCl",  "typ": "bezposredni", "precision": 1},
+    {"kod": "nastaw",   "label": "Nastaw",               "skrot": "Nastaw","typ": "bezposredni", "precision": 0},
 ]
 
 # ---------------------------------------------------------------------------
@@ -278,8 +278,8 @@ def seed(db):
             """
             INSERT OR IGNORE INTO parametry_analityczne
                 (kod, label, typ, metoda_nazwa, metoda_formula, metoda_factor,
-                 formula, precision)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                 formula, precision, skrot)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 p["kod"],
@@ -290,8 +290,15 @@ def seed(db):
                 p.get("metoda_factor"),
                 p.get("formula"),
                 p.get("precision", 2),
+                p.get("skrot"),
             ),
         )
+        # Update skrot + label on existing rows (INSERT OR IGNORE skips them)
+        if p.get("skrot"):
+            db.execute(
+                "UPDATE parametry_analityczne SET skrot=?, label=? WHERE kod=? AND (skrot IS NULL OR skrot != ?)",
+                (p["skrot"], p["label"], p["kod"], p["skrot"]),
+            )
         if db.execute("SELECT changes()").fetchone()[0]:
             pa_rows += 1
 

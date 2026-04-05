@@ -34,6 +34,7 @@ def get_parametry_for_kontekst(
         SELECT
             pa.kod,
             pa.label,
+            pa.skrot,
             pa.typ,
             pe.min_limit   AS min,
             pe.max_limit   AS max,
@@ -86,6 +87,7 @@ def get_parametry_for_kontekst(
         result.append({
             "kod": r["kod"],
             "label": r["label"],
+            "skrot": r["skrot"],
             "typ": r["typ"],
             "min": r["min"],
             "max": r["max"],

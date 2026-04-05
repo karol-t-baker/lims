@@ -1856,7 +1856,7 @@ window.showProcessStage = function(etapKey) {
 
       h += '<div class="ff' + (isTitr ? ' titr' : '') + (isObl ? ' computed' : '') + '">' +
         '<div class="status-dot"></div>' +
-        '<label>' + param.label + '</label>' +
+        '<label>' + (param.skrot || param.label) + '</label>' +
         '<input type="text" inputmode="decimal"' +
           ' data-etap="' + etapKey + '" data-runda="' + rundaNum + '" data-kod="' + param.kod + '"' +
           ' data-min="' + (param.min != null ? param.min : '') + '"' +
