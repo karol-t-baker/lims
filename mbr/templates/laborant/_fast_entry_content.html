@@ -1801,9 +1801,13 @@ window.showProcessStage = function(etapKey) {
       }
 
       var clickHandler = '';
-      if (isTitr && param.metoda && editable) {
-        clickHandler = ' onclick="openCalculator(\'' + param.kod + '\', \'' + param.kod + '\', \'etap__' + etapKey + '__' + rundaNum + '\', ' +
-          JSON.stringify(param.metoda) + ')"';
+      if (isTitr && editable) {
+        if (param.metoda_id) {
+          clickHandler = ' onclick="openCalculatorFull(' + param.metoda_id + ', \'' + param.kod + '\', \'etap__' + etapKey + '__' + rundaNum + '\')"';
+        } else if (param.metoda) {
+          clickHandler = ' onclick="openCalculator(\'' + param.kod + '\', \'' + param.kod + '\', \'etap__' + etapKey + '__' + rundaNum + '\', ' +
+            JSON.stringify(param.metoda) + ')"';
+        }
       }
 
       h += '<div class="ff' + (isTitr ? ' titr' : '') + (isObl ? ' computed' : '') + '">' +
