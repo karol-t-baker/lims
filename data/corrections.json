@@ -1,0 +1,32 @@
+{
+  "woda": {
+    "title": "Standaryzacja substancji aktywnej — korekta refraktometryczna",
+    "badge": "SA [nD]",
+    "unit": "kg wody",
+    "fields": [
+      {"id": "produkt", "label": "PRODUKT", "type": "chips",
+       "options": [
+         {"label": "Chegina KK", "value": 1.3911},
+         {"label": "Chegina K7", "value": 1.3922},
+         {"label": "Chegina K40 / GLOL / GLO / GL", "value": 1.4070},
+         {"label": "Cheminox K", "value": 1.3840}
+       ]},
+      {"id": "R0", "label": "REFRAKCJA PRZED (R₀)", "placeholder": "np. 1.3950", "unit": "nD"},
+      {"id": "nastaw", "label": "MASA SZARŻY", "placeholder": "np. 5000", "unit": "kg"}
+    ],
+    "formula": "((R0 - produkt) * (nastaw - (nastaw > 7000 ? 1000 : 500))) / (produkt - 1.333)"
+  },
+  "nacl_stezenie": {
+    "title": "Standaryzacja chlorków — naważka NaCl",
+    "badge": "NaCl [Cl⁻]",
+    "unit": "kg NaCl",
+    "fields": [
+      {"id": "nastaw", "label": "MASA NASTAWU", "placeholder": "np. 6000", "unit": "kg"},
+      {"id": "Ccl", "label": "STĘŻENIE Cl⁻ AKTUALNE", "placeholder": "np. 0.35", "unit": "%"},
+      {"id": "Ck", "label": "STĘŻENIE Cl⁻ DOCELOWE", "placeholder": "np. 0.50", "unit": "%"},
+      {"id": "woda", "label": "KOREKTA WODY (0 jeśli brak)", "placeholder": "0", "unit": "kg", "optional": true},
+      {"id": "kwas", "label": "KOREKTA KWASU (0 jeśli brak)", "placeholder": "0", "unit": "kg", "optional": true}
+    ],
+    "formula": "(function(){var Mn=nastaw>(7000)?nastaw-1000:nastaw-500;var Mc=Mn+woda+kwas;return(Ck/100*Mc-Mn*Ccl/100)/(1-Ck/100);})()"
+  }
+}

@@ -84,6 +84,48 @@ def tech_export():
 
 
 # ---------------------------------------------------------------------------
+# Titration methods + correction calculators
+# ---------------------------------------------------------------------------
+
+@registry_bp.route("/api/metody-miareczkowe")
+@login_required
+def api_metody_list():
+    """List all active titration methods."""
+    with db_session() as db:
+        rows = db.execute(
+            "SELECT * FROM metody_miareczkowe WHERE aktywna=1 ORDER BY nazwa"
+        ).fetchall()
+    return jsonify([dict(r) for r in rows])
+
+
+@registry_bp.route("/api/metody-miareczkowe/<int:method_id>")
+@login_required
+def api_metoda_detail(method_id):
+    """Get single method with parsed JSON fields."""
+    import json as _json
+    with db_session() as db:
+        row = db.execute("SELECT * FROM metody_miareczkowe WHERE id=?", (method_id,)).fetchone()
+    if not row:
+        return jsonify({"error": "Not found"}), 404
+    d = dict(row)
+    d["volumes"] = _json.loads(d.pop("volumes_json"))
+    d["titrants"] = _json.loads(d.pop("titrants_json"))
+    return jsonify(d)
+
+
+@registry_bp.route("/api/corrections")
+@login_required
+def api_corrections():
+    """Return correction calculator configs."""
+    import json as _json
+    from pathlib import Path
+    p = Path(__file__).parent.parent.parent / "data" / "corrections.json"
+    if not p.exists():
+        return jsonify({})
+    return jsonify(_json.loads(p.read_text(encoding="utf-8")))
+
+
+# ---------------------------------------------------------------------------
 # User settings
 # ---------------------------------------------------------------------------
 
