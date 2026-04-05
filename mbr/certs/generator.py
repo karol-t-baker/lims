@@ -15,8 +15,8 @@ from pathlib import Path
 import requests
 from docxtpl import DocxTemplate
 
-_CONFIG_PATH = Path(__file__).resolve().parent / "cert_config.json"
-_TEMPLATE_PATH = Path(__file__).resolve().parent / "templates" / "cert_master_template.docx"
+_CONFIG_PATH = Path(__file__).resolve().parent.parent / "cert_config.json"
+_TEMPLATE_PATH = Path(__file__).resolve().parent.parent / "templates" / "cert_master_template.docx"
 OUTPUT_DIR = Path(__file__).resolve().parent.parent / "data" / "swiadectwa"
 
 GOTENBERG_URL = "http://localhost:3000"
