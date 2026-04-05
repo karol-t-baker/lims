@@ -184,6 +184,34 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             nieaktualne     INTEGER DEFAULT 0
         )
     """)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS parametry_analityczne (
+            id              INTEGER PRIMARY KEY,
+            kod             TEXT NOT NULL UNIQUE,
+            label           TEXT NOT NULL,
+            typ             TEXT NOT NULL CHECK(typ IN ('bezposredni', 'titracja', 'obliczeniowy')),
+            metoda_nazwa    TEXT,
+            metoda_formula  TEXT,
+            metoda_factor   REAL,
+            formula         TEXT,
+            precision       INTEGER DEFAULT 2,
+            aktywny         INTEGER DEFAULT 1
+        )
+    """)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS parametry_etapy (
+            id              INTEGER PRIMARY KEY,
+            produkt         TEXT,
+            kontekst        TEXT NOT NULL,
+            parametr_id     INTEGER NOT NULL REFERENCES parametry_analityczne(id),
+            kolejnosc       INTEGER DEFAULT 0,
+            min_limit       REAL,
+            max_limit       REAL,
+            nawazka_g       REAL,
+            wymagany        INTEGER DEFAULT 0,
+            UNIQUE(produkt, kontekst, parametr_id)
+        )
+    """)
     db.execute("CREATE INDEX IF NOT EXISTS idx_wyniki_ebr_limicie ON ebr_wyniki(ebr_id, w_limicie, dt_wpisu)")
     db.commit()
 
