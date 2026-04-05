@@ -982,7 +982,8 @@ function updateDziennikButton() {
   var btn = document.getElementById('sb-dziennik-btn');
   if (!btn) return;
   var esData = window._etapyStatus || [];
-  btn.style.display = esData.length > 0 ? '' : 'none';
+  var isEtapyTab = typeof currentSidebarTab === 'undefined' || currentSidebarTab === 'etapy';
+  btn.style.display = esData.length > 0 && isEtapyTab ? '' : 'none';
 }
 
 // ═══ TABLE FILTERS ═══
