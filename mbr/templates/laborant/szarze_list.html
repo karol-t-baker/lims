@@ -112,6 +112,42 @@
   .se-par-step .se-name { font-size: 10px; }
   .se-divider { height: 1px; background: var(--border-subtle); margin: 4px 30px; }
 
+  /* Dziennik button + view */
+  .sb-dz-btn {
+    display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%;
+    padding: 7px 12px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--surface); cursor: pointer; font-family: var(--font);
+    font-size: 10px; font-weight: 600; color: var(--text-sec); transition: all 0.15s;
+  }
+  .sb-dz-btn:hover { border-color: var(--teal); color: var(--teal); }
+  .sb-dz-btn.active { background: var(--teal); color: #fff; border-color: var(--teal); }
+  .dz-topbar {
+    display: flex; align-items: center; gap: 10px; padding: 10px 16px;
+    background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .dz-topbar-title { font-size: 13px; font-weight: 700; }
+  .dz-topbar-count { font-size: 10px; color: var(--text-dim); background: var(--surface-alt); padding: 2px 8px; border-radius: 10px; }
+  .dz-topbar-close { margin-left: auto; padding: 4px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); cursor: pointer; font-family: var(--font); font-size: 10px; color: var(--text-sec); }
+  .dz-topbar-close:hover { background: var(--surface-alt); }
+  .dz-table-wrap { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-top: 12px; }
+  .dz-thead { display: grid; grid-template-columns: 85px 130px 30px 1fr; padding: 8px 14px; background: var(--surface-alt); border-bottom: 1px solid var(--border); font-size: 9px; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600; color: var(--text-dim); }
+  .dz-row { display: grid; grid-template-columns: 85px 130px 30px 1fr; padding: 8px 14px; align-items: center; cursor: pointer; transition: background 0.1s; border-bottom: 1px solid var(--border-subtle); }
+  .dz-row:last-child { border-bottom: none; }
+  .dz-row:nth-child(odd) { background: var(--surface); }
+  .dz-row:nth-child(even) { background: rgba(240,236,228,0.4); }
+  .dz-row:hover { background: var(--teal-bg); }
+  .dz-row.korekta { background: rgba(180,83,9,0.03); }
+  .dz-row.korekta:hover { background: var(--amber-bg); }
+  .dz-time { font-family: var(--mono); font-size: 11px; color: var(--text-dim); }
+  .dz-stage { font-size: 11px; font-weight: 600; }
+  .dz-icon { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 9px; font-weight: 700; }
+  .dz-icon.analiza { background: var(--teal-bg); color: var(--teal); }
+  .dz-icon.korekta { background: var(--amber-bg); color: var(--amber); border-radius: 4px; font-size: 12px; font-weight: 800; }
+  .dz-vals { font-family: var(--mono); font-size: 11px; color: var(--text-sec); display: flex; gap: 10px; flex-wrap: wrap; }
+  .dz-vals .pk { color: var(--text-dim); font-size: 10px; }
+  .dz-vals .pv { font-weight: 500; color: var(--text); }
+  .dz-vals .kor-text { color: var(--amber); font-weight: 600; }
+
   /* Sidebar registry mode */
   #sb-mode-registry { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
   .sr-filters {
@@ -188,6 +224,12 @@
       </div>
       <div class="sb-list" id="sidebar-etapy" style="display:flex; flex-direction:column; gap:0; padding:6px 8px;">
         <div style="color:var(--text-dim);font-size:11px;padding:16px 4px;">Wybierz szarżę aby zobaczyć etapy.</div>
+      </div>
+      <div id="sb-dziennik-btn" style="display:none;padding:12px 12px 0;">
+        <button class="sb-dz-btn" onclick="toggleDziennikView()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:14px;height:14px;"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg>
+          Dziennik zdarzeń
+        </button>
       </div>
       <div class="sb-list" id="sidebar-batch-list" style="display:none;">
         {% for b in batches %}
@@ -505,6 +547,7 @@ async function loadBatch(ebrId) {
   // Update sidebar etapy view (after scripts set globals)
   setTimeout(function() {
     renderSidebarEtapy();
+    updateDziennikButton();
     // Switch sidebar mode based on batch status
     if (typeof ebrStatus !== 'undefined' && ebrStatus === 'completed') {
       setSidebarMode('registry');
@@ -807,10 +850,128 @@ function renderSidebarEtapy() {
 }
 
 function openProcessStage(etapKey) {
-  // Dispatch event to _fast_entry_content.html handler
+  // Close dziennik if open, go back to form view
+  if (window._dzOpen) toggleDziennikView();
   if (typeof window.showProcessStage === 'function') {
     window.showProcessStage(etapKey);
   }
+}
+
+// ═══ DZIENNIK ZDARZEŃ ═══
+window._dzOpen = false;
+var PARAM_LABELS = {le:'LE',la:'LA',lk:'LK',nd20:'nD20',ph:'pH',ph_10proc:'pH 10%',aa:'%AA',so3:'%SO₃²⁻',h2o2:'%H₂O₂'};
+
+function toggleDziennikView() {
+  window._dzOpen = !window._dzOpen;
+  var detailPanel = document.getElementById('panel-detail');
+  var btn = document.querySelector('.sb-dz-btn');
+  if (!detailPanel) return;
+
+  if (window._dzOpen) {
+    // Save current content and replace with dziennik
+    window._savedDetailHTML = detailPanel.innerHTML;
+    renderDziennikView(detailPanel);
+    if (btn) btn.classList.add('active');
+  } else {
+    // Restore original content
+    if (window._savedDetailHTML) detailPanel.innerHTML = window._savedDetailHTML;
+    if (btn) btn.classList.remove('active');
+    // Re-execute scripts to restore functionality
+    if (typeof currentEbrId !== 'undefined' && currentEbrId) loadBatch(currentEbrId);
+  }
+}
+
+function renderDziennikView(container) {
+  // Fetch events from API
+  if (typeof currentEbrId === 'undefined' || !currentEbrId) return;
+  var ebrId = currentEbrId;
+
+  Promise.all([
+    fetch('/api/ebr/' + ebrId + '/etapy-analizy').then(function(r){return r.json();}),
+    fetch('/api/ebr/' + ebrId + '/korekty').then(function(r){return r.json();})
+  ]).then(function(results) {
+    var analizy = results[0].analizy || [];
+    var korekty = results[1].korekty || [];
+
+    // Build chronological event list
+    var events = [];
+    analizy.forEach(function(a) {
+      events.push({
+        time: a.dt_wpisu ? a.dt_wpisu.substring(5,16).replace('T',' ') : '—',
+        stage: a.etap, type: 'analiza', runda: a.runda,
+        kod: a.kod_parametru, wartosc: a.wartosc
+      });
+    });
+    korekty.forEach(function(k) {
+      events.push({
+        time: k.dt_zalecenia ? k.dt_zalecenia.substring(5,16).replace('T',' ') : '—',
+        stage: k.etap, type: 'korekta',
+        sub: k.substancja, kg: k.ilosc_kg
+      });
+    });
+    events.sort(function(a,b) { return a.time.localeCompare(b.time); });
+
+    // Group analyses by stage+runda for display
+    var grouped = [];
+    var seen = {};
+    events.forEach(function(e) {
+      if (e.type === 'korekta') {
+        grouped.push({type:'korekta', time:e.time, stage:e.stage, sub:e.sub, kg:e.kg});
+      } else {
+        var key = e.stage + '__' + e.runda;
+        if (!seen[key]) {
+          seen[key] = {type:'analiza', time:e.time, stage:e.stage, runda:e.runda, params:{}};
+          grouped.push(seen[key]);
+        }
+        seen[key].params[e.kod] = e.wartosc;
+      }
+    });
+
+    var html = '<div style="display:flex;flex-direction:column;height:100%;">';
+    html += '<div class="dz-topbar"><span class="dz-topbar-title">Dziennik zdarzeń</span>';
+    html += '<span class="dz-topbar-count">' + grouped.length + ' zdarzeń</span>';
+    html += '<button class="dz-topbar-close" onclick="toggleDziennikView()">✕ Zamknij</button></div>';
+    html += '<div style="flex:1;overflow-y:auto;padding:0 16px 16px;">';
+    html += '<div class="dz-table-wrap"><div class="dz-thead"><span>Czas</span><span>Etap</span><span></span><span>Wyniki / Szczegóły</span></div>';
+
+    grouped.forEach(function(e) {
+      var kor = e.type === 'korekta' ? ' korekta' : '';
+      var valsHtml = '';
+      if (e.type === 'analiza') {
+        var pairs = Object.entries(e.params);
+        valsHtml = pairs.map(function(kv) {
+          var label = PARAM_LABELS[kv[0]] || kv[0];
+          var val = String(kv[1]).replace('.', ',');
+          return '<span><span class="pk">' + label + '</span> <span class="pv">' + val + '</span></span>';
+        }).join('');
+      } else {
+        valsHtml = '<span class="kor-text">+ ' + e.sub + ' ' + String(e.kg).replace('.',',') + ' kg</span>';
+      }
+      var iconContent = e.type === 'analiza' ? 'R' + (e.runda || '') : '+';
+      html += '<div class="dz-row' + kor + '" onclick="openProcessStage(\'' + e.stage + '\')">';
+      html += '<span class="dz-time">' + e.time + '</span>';
+      html += '<span class="dz-stage">' + e.stage + '</span>';
+      html += '<span class="dz-icon ' + e.type + '">' + iconContent + '</span>';
+      html += '<span class="dz-vals">' + valsHtml + '</span>';
+      html += '</div>';
+    });
+
+    html += '</div></div></div>';
+
+    if (grouped.length === 0) {
+      html = '<div style="display:flex;flex-direction:column;height:100%;"><div class="dz-topbar"><span class="dz-topbar-title">Dziennik zdarzeń</span><button class="dz-topbar-close" onclick="toggleDziennikView()">✕ Zamknij</button></div><div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:12px;">Brak zdarzeń</div></div>';
+    }
+
+    container.innerHTML = html;
+  });
+}
+
+// Show dziennik button when batch has process stages
+function updateDziennikButton() {
+  var btn = document.getElementById('sb-dziennik-btn');
+  if (!btn) return;
+  var esData = window._etapyStatus || [];
+  btn.style.display = esData.length > 0 ? '' : 'none';
 }
 
 // ═══ TABLE FILTERS ═══
