@@ -421,12 +421,201 @@ def seed_from_seed_mbr(db):
 
 
 # ---------------------------------------------------------------------------
-# 5. __main__
+# 5. seed_metody — INSERT OR IGNORE titration methods from old server
+# ---------------------------------------------------------------------------
+
+import json as _json
+
+METODY = [
+    {
+        "nazwa": "DMAPA [%]",
+        "formula": "(V1 * 5.109 * T1) / M",
+        "mass_required": 1,
+        "volumes_json": [{"label": "VHCl [ml]", "titrant": "T1"}],
+        "titrants_json": [{"id": "T1", "label": "C(HCl)", "default": 0.1}],
+    },
+    {
+        "nazwa": "KATALIZATOR KOH/GP",
+        "formula": "(V1 * T1 * 56.1) / (M * 10)",
+        "mass_required": 1,
+        "volumes_json": [{"label": "VHCl [ml]", "titrant": "T1"}],
+        "titrants_json": [{"id": "T1", "label": "C(HCl)", "default": 0.1}],
+    },
+    {
+        "nazwa": "Perhydrol [%]",
+        "formula": "(V1 * T1 * 1.704 * 250) / (M * 15)",
+        "mass_required": 1,
+        "volumes_json": [{"label": "VCe [ml]", "titrant": "T1"}],
+        "titrants_json": [{"id": "T1", "label": "C(Ce)", "default": 0.1}],
+    },
+    {
+        "nazwa": "Nadtlenki [%]",
+        "formula": "(V1 * T1 * 1.704) / M",
+        "mass_required": 1,
+        "volumes_json": [{"label": "VCe [ml]", "titrant": "T1"}],
+        "titrants_json": [{"id": "T1", "label": "C(Ce)", "default": 0.1}],
+    },
+    {
+        "nazwa": "DEA [%]",
+        "formula": "((V1 - V2) * T1 * 10.5) / M",
+        "mass_required": 1,
+        "volumes_json": [
+            {"label": "Vz [ml]", "titrant": "T1"},
+            {"label": "Vf [ml]", "titrant": "T1"},
+        ],
+        "titrants_json": [{"id": "T1", "label": "C(HCl)", "default": 0.1}],
+    },
+    {
+        "nazwa": "MEA [%]",
+        "formula": "(V1 * T1 * 6.1) / M",
+        "mass_required": 1,
+        "volumes_json": [{"label": "VHCl [ml]", "titrant": "T1"}],
+        "titrants_json": [{"id": "T1", "label": "C(HCl)", "default": 0.1}],
+    },
+    {
+        "nazwa": "GP [%]",
+        "formula": "((V1 - V2) * T1 * 76.09) / (20 * M)",
+        "mass_required": 1,
+        "volumes_json": [
+            {"label": "Vs [ml]", "titrant": "T1"},
+            {"label": "V [ml]", "titrant": "T1"},
+        ],
+        "titrants_json": [{"id": "T1", "label": "C(Na\u2082S\u2082O\u2083)", "default": 0.1}],
+    },
+    {
+        "nazwa": "Siarczyny [%]",
+        "formula": "(V1 * T1 * 8) / M",
+        "mass_required": 1,
+        "volumes_json": [{"label": "VJ [ml]", "titrant": "T1"}],
+        "titrants_json": [{"id": "T1", "label": "C(J\u2082)", "default": 0.1}],
+    },
+    {
+        "nazwa": "Chlorki [%]",
+        "formula": "((V1 - V2) * T1 * 58.5) / (M * 10)",
+        "mass_required": 1,
+        "volumes_json": [
+            {"label": "V(AgNO\u2083) [ml]", "titrant": "T1"},
+            {"label": "V(SCN) [ml]", "titrant": "T1"},
+        ],
+        "titrants_json": [{"id": "T1", "label": "C(AgNO\u2083)", "default": 0.1}],
+    },
+    {
+        "nazwa": "Liczba Kwasowa (LK)",
+        "formula": "(V1 * T1 * 56.1) / M",
+        "mass_required": 1,
+        "volumes_json": [{"label": "V(KOH) [ml]", "titrant": "T1"}],
+        "titrants_json": [{"id": "T1", "label": "C(KOH)", "default": 0.1}],
+    },
+    {
+        "nazwa": "Wolne kwasy t\u0142uszczowe [%]",
+        "formula": "(V1 * T1) / 56.1",
+        "mass_required": 0,
+        "volumes_json": [{"label": "LK [mg KOH/g]", "titrant": None}],
+        "titrants_json": [{"id": "T1", "label": "A \u2014 masa mol. kwasu [g/mol]", "default": 282.5}],
+    },
+    {
+        "nazwa": "Amidoestry (%AE)",
+        "formula": "(V1 - V2) * T1 / (56.1 * 10)",
+        "mass_required": 0,
+        "volumes_json": [
+            {"label": "Lz", "titrant": "T1"},
+            {"label": "Lk", "titrant": "T1"},
+        ],
+        "titrants_json": [{"id": "T1", "label": "M amidoestru [g/mol]", "default": 459.08}],
+    },
+    {
+        "nazwa": "Na\u2082SO\u2083 20% [%]",
+        "formula": "(V1 * 12.6 * T1) / M",
+        "mass_required": 1,
+        "volumes_json": [{"label": "V(Na\u2082SO\u2083) [ml]", "titrant": "T1"}],
+        "titrants_json": [{"id": "T1", "label": "C(jodu)", "default": 0.1}],
+    },
+    {
+        "nazwa": "CHEGINY %AA",
+        "formula": "(V1 * T1 * T2) / (M * 10)",
+        "mass_required": 1,
+        "volumes_json": [{"label": "V(HCl) [ml]", "titrant": "T1"}],
+        "titrants_json": [
+            {"id": "T1", "label": "C(HCl)", "default": 0.5},
+            {
+                "id": "T2",
+                "label": "PRODUKT",
+                "default": 307.0,
+                "options": [
+                    {"label": "K7 / KK / GL", "value": 307.0},
+                    {"label": "GLO / GLOL / GLOS", "value": 300.0},
+                    {"label": "Chegina", "value": 284.0},
+                ],
+            },
+        ],
+    },
+]
+
+_PARAM_METHOD_MAP = {
+    "nacl": "Chlorki [%]",
+    "aa": "CHEGINY %AA",
+    "so3": "Siarczyny [%]",
+    "h2o2": "Perhydrol [%]",
+    "lk": "Liczba Kwasowa (LK)",
+    "la": "Liczba Kwasowa (LK)",
+    "wolna_amina": "DMAPA [%]",
+}
+
+
+def seed_metody(db):
+    """INSERT OR IGNORE all titration methods, then link parametry_analityczne."""
+    inserted = 0
+    for m in METODY:
+        db.execute(
+            """
+            INSERT OR IGNORE INTO metody_miareczkowe
+                (nazwa, formula, mass_required, volumes_json, titrants_json)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                m["nazwa"],
+                m["formula"],
+                m["mass_required"],
+                _json.dumps(m["volumes_json"], ensure_ascii=False),
+                _json.dumps(m["titrants_json"], ensure_ascii=False),
+            ),
+        )
+        if db.execute("SELECT changes()").fetchone()[0]:
+            inserted += 1
+    db.commit()
+
+    # Build nazwa->id lookup
+    nazwa_to_id = {
+        row[0]: row[1]
+        for row in db.execute("SELECT nazwa, id FROM metody_miareczkowe").fetchall()
+    }
+
+    linked = 0
+    for kod, nazwa in _PARAM_METHOD_MAP.items():
+        metoda_id = nazwa_to_id.get(nazwa)
+        if metoda_id is None:
+            print(f"  WARNING: method '{nazwa}' not found — skipping link for kod='{kod}'")
+            continue
+        db.execute(
+            "UPDATE parametry_analityczne SET metoda_id=? WHERE kod=? AND metoda_id IS NULL",
+            (metoda_id, kod),
+        )
+        if db.execute("SELECT changes()").fetchone()[0]:
+            linked += 1
+    db.commit()
+
+    total = db.execute("SELECT COUNT(*) FROM metody_miareczkowe").fetchone()[0]
+    print(f"seed_metody: {inserted} methods inserted ({total} total), {linked} parameter links updated")
+
+
+# ---------------------------------------------------------------------------
+# 6. __main__
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
     db = get_db()
     init_mbr_tables(db)
     seed(db)
+    seed_metody(db)
     seed_from_seed_mbr(db)
     db.close()

@@ -153,6 +153,17 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
         )
     """)
     db.execute("""
+        CREATE TABLE IF NOT EXISTS metody_miareczkowe (
+            id              INTEGER PRIMARY KEY,
+            nazwa           TEXT NOT NULL UNIQUE,
+            formula         TEXT NOT NULL,
+            mass_required   INTEGER DEFAULT 1,
+            volumes_json    TEXT NOT NULL DEFAULT '[]',
+            titrants_json   TEXT NOT NULL DEFAULT '[]',
+            aktywna         INTEGER DEFAULT 1
+        )
+    """)
+    db.execute("""
         CREATE TABLE IF NOT EXISTS parametry_analityczne (
             id              INTEGER PRIMARY KEY,
             kod             TEXT NOT NULL UNIQUE,
@@ -231,6 +242,13 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     # Migration: add data_json column to swiadectwa (generation inputs for regeneration)
     try:
         db.execute("ALTER TABLE swiadectwa ADD COLUMN data_json TEXT")
+        db.commit()
+    except Exception:
+        pass
+
+    # Migration: add metoda_id to parametry_analityczne
+    try:
+        db.execute("ALTER TABLE parametry_analityczne ADD COLUMN metoda_id INTEGER REFERENCES metody_miareczkowe(id)")
         db.commit()
     except Exception:
         pass
