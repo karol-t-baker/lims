@@ -827,11 +827,13 @@ function renderCompletedView() {
         }
     }
 
-    // Cert section — all completed batches (zbiornik + szarża)
-    html += '<div class="cv-certs" id="cv-certs"></div>';
+    // Cert section — zbiorniki only
+    if (isZbiornik) {
+        html += '<div class="cv-certs" id="cv-certs"></div>';
+    }
 
     container.innerHTML = html;
-    loadCompletedCerts();
+    if (isZbiornik) loadCompletedCerts();
 
     // Dynamic topbar — hide when hero visible, show on scroll past hero
     var topbar = document.getElementById('topbar');
