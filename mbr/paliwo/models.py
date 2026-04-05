@@ -18,8 +18,8 @@ STAWKA_DZIENNA = 15.68  # 345/22
 LIMIT_KM = 300
 
 GOTENBERG_URL = "http://localhost:3000"
-_TEMPLATE_PATH_1 = Path(__file__).resolve().parent / "templates" / "paliwo_master.docx"
-_TEMPLATE_PATH_2 = Path(__file__).resolve().parent / "templates" / "paliwo_master_2.docx"
+_TEMPLATE_PATH_1 = Path(__file__).resolve().parent.parent / "templates" / "paliwo_master.docx"
+_TEMPLATE_PATH_2 = Path(__file__).resolve().parent.parent / "templates" / "paliwo_master_2.docx"
 
 MIESIACE = {
     1: 'styczeń', 2: 'luty', 3: 'marzec', 4: 'kwiecień',

@@ -33,6 +33,8 @@ from mbr.auth import auth_bp  # noqa: E402
 app.register_blueprint(auth_bp)
 from mbr.workers import workers_bp  # noqa: E402
 app.register_blueprint(workers_bp)
+from mbr.paliwo import paliwo_bp  # noqa: E402
+app.register_blueprint(paliwo_bp)
 
 from mbr.shared.decorators import login_required, role_required  # noqa: E402
 
@@ -115,86 +117,6 @@ def tech_dashboard():
 @login_required
 def narzedzia():
     return render_template("technolog/narzedzia.html", today=date.today().isoformat())
-
-
-@app.route("/api/paliwo/osoby")
-@login_required
-def api_paliwo_osoby():
-    from mbr.paliwo import list_osoby, init_paliwo_tables
-    with db_session() as db:
-        init_paliwo_tables(db)
-        return jsonify({"osoby": list_osoby(db)})
-
-
-@app.route("/api/paliwo/osoby", methods=["POST"])
-@login_required
-def api_paliwo_add_osoba():
-    from mbr.paliwo import add_osoba, init_paliwo_tables
-    data = request.get_json(silent=True) or {}
-    with db_session() as db:
-        init_paliwo_tables(db)
-        osoba_id = add_osoba(db, data.get("imie_nazwisko", ""), data.get("stanowisko", ""), data.get("nr_rejestracyjny", ""))
-    return jsonify({"ok": True, "id": osoba_id})
-
-
-@app.route("/api/paliwo/osoby/<int:osoba_id>", methods=["PUT"])
-@login_required
-def api_paliwo_update_osoba(osoba_id):
-    from mbr.paliwo import update_osoba
-    data = request.get_json(silent=True) or {}
-    with db_session() as db:
-        update_osoba(db, osoba_id, data.get("imie_nazwisko", ""), data.get("stanowisko", ""), data.get("nr_rejestracyjny", ""))
-    return jsonify({"ok": True})
-
-
-@app.route("/api/paliwo/osoby/<int:osoba_id>", methods=["DELETE"])
-@login_required
-def api_paliwo_delete_osoba(osoba_id):
-    from mbr.paliwo import delete_osoba
-    with db_session() as db:
-        delete_osoba(db, osoba_id)
-    return jsonify({"ok": True})
-
-
-@app.route("/api/paliwo/oblicz")
-@login_required
-def api_paliwo_oblicz():
-    from mbr.paliwo import calculate, last_workday, MIESIACE
-    dni = int(request.args.get("dni", 0))
-    today = date.today()
-    calc = calculate(dni)
-    lwd = last_workday(today.year, today.month)
-    calc["miesiac"] = MIESIACE[today.month]
-    calc["data_wystawienia"] = lwd.strftime("%d.%m.%Y")
-    return jsonify(calc)
-
-
-@app.route("/api/paliwo/generuj", methods=["POST"])
-@login_required
-def api_paliwo_generuj():
-    from mbr.paliwo import generate_pdf, get_osoba, init_paliwo_tables
-    data = request.get_json(silent=True) or {}
-    osoby_data = data.get("osoby", [])
-    if not osoby_data:
-        # Backwards compat: single person
-        osoby_data = [{"osoba_id": data.get("osoba_id"), "dni_urlopu": int(data.get("dni_urlopu", 0))}]
-    with db_session() as db:
-        init_paliwo_tables(db)
-        osoby = []
-        dni_list = []
-        for od in osoby_data:
-            osoba = get_osoba(db, od["osoba_id"])
-            if not osoba:
-                return jsonify({"ok": False, "error": f"Osoba {od['osoba_id']} nie znaleziona"}), 404
-            osoby.append(osoba)
-            dni_list.append(int(od.get("dni_urlopu", 0)))
-    try:
-        pdf_bytes = generate_pdf(osoby, dni_list)
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
-    from flask import Response
-    return Response(pdf_bytes, mimetype="application/pdf",
-                    headers={"Content-Disposition": "inline; filename=wniosek_paliwo.pdf"})
 
 
 @app.route("/narzedzia/wniosek-dojazd")
