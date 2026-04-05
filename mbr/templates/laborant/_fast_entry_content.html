@@ -593,7 +593,7 @@ function isCyclicProduct() {
 }
 
 function renderSections() {
-    // Check if batch has an active process stage — render that instead of standaryzacja/AK
+    // Check if batch has an active process stage
     var activeProcessStage = null;
     if (_etapyStatus && _etapyStatus.length > 0 && ebrStatus === 'open') {
         activeProcessStage = _etapyStatus.find(function(s) { return s.status === 'in_progress'; });
@@ -603,15 +603,22 @@ function renderSections() {
         renderCompletedView();
         return;
     }
+
+    // If active process stage — render ONLY hero + process stage form (skip standaryzacja/AK)
+    if (activeProcessStage) {
+        renderCompletedView();  // renders hero card
+        // showProcessStage will insert form after hero and hide cv-params
+        if (typeof window.showProcessStage === 'function') {
+            window.showProcessStage(activeProcessStage.etap);
+        }
+        return;
+    }
+
+    // No active process stage — normal standaryzacja/AK flow
     if (isCyclicProduct()) {
         renderCyclicSections();
     } else {
         renderLinearSections();
-    }
-
-    // After sections rendered, immediately show active process stage
-    if (activeProcessStage && typeof window.showProcessStage === 'function') {
-        window.showProcessStage(activeProcessStage.etap);
     }
 }
 
