@@ -319,16 +319,37 @@ def generate_certificate_pdf(
 # ---------------------------------------------------------------------------
 # 7. save_certificate_pdf
 # ---------------------------------------------------------------------------
-def _make_pdf_name(variant_label: str, nr_partii: str) -> str:
-    label_safe = (
-        variant_label
-        .replace(" ", "_")
-        .replace("/", "_")
-        .replace("\\", "_")
-        .replace("\u2014", "-")
-    )
-    nr_safe = nr_partii.replace("/", "_").replace("\\", "_").replace(" ", "_")
-    return f"{label_safe}_{nr_safe}.pdf"
+def _cert_names(produkt: str, variant_label: str, nr_partii: str) -> tuple[str, str, str]:
+    """Derive product folder name, PDF filename, and batch number from inputs.
+
+    variant_label examples: "Chegina K40GL", "Chegina K40GL — MB", "Chegina K7 — ADAM&PARTNER"
+    nr_partii examples: "4/2026", "124/2026"
+
+    Returns:
+        (product_folder, pdf_name, nr_only)
+        e.g. ("Chegina K40GL", "Chegina K40GL MB 4.pdf", "4")
+    """
+    # Product folder = produkt with spaces (e.g. "Chegina K40GL")
+    product_folder = produkt.replace("_", " ")
+
+    # Extract variant suffix (part after " — " dash)
+    variant_suffix = ""
+    if "\u2014" in variant_label:  # em dash
+        variant_suffix = variant_label.split("\u2014", 1)[1].strip()
+    elif " - " in variant_label:
+        variant_suffix = variant_label.split(" - ", 1)[1].strip()
+
+    # Nr only = number before slash (e.g. "4" from "4/2026")
+    nr_only = nr_partii.split("/")[0].strip()
+
+    # Build PDF name: "Chegina K40GL MB 4.pdf" or "Chegina K7 4.pdf" (no suffix for base)
+    parts = [product_folder]
+    if variant_suffix:
+        parts.append(variant_suffix)
+    parts.append(nr_only)
+    pdf_name = " ".join(parts) + ".pdf"
+
+    return product_folder, pdf_name, nr_only
 
 
 def save_certificate_data(
@@ -339,18 +360,16 @@ def save_certificate_data(
 ) -> str:
     """Save generation inputs as JSON to data/swiadectwa/ archive (for regeneration).
 
-    Returns:
-        JSON archive path relative to project root.
+    Structure: data/swiadectwa/{year}/{product_folder}/{name}.json
+    Returns: path relative to project root.
     """
     year = date.today().year
-    product_slug = produkt.replace(" ", "_")
-    nr_safe = nr_partii.replace("/", "_").replace("\\", "_").replace(" ", "_")
-    label_safe = variant_label.replace(" ", "_").replace("/", "_").replace("\\", "_").replace("\u2014", "-")
+    product_folder, pdf_name, _ = _cert_names(produkt, variant_label, nr_partii)
+    json_name = pdf_name.replace(".pdf", ".json")
 
-    out_dir = OUTPUT_DIR / str(year) / product_slug
+    out_dir = OUTPUT_DIR / str(year) / product_folder
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    json_name = f"{label_safe}_{nr_safe}.json"
     json_path = out_dir / json_name
 
     import json
@@ -365,17 +384,18 @@ def save_certificate_pdf(
     nr_partii: str,
     output_dir: str | None = None,
 ) -> str:
-    """Save PDF to user-configured path (or ~/Desktop/ as fallback).
+    """Save PDF to user-configured path.
 
-    Args:
-        output_dir: User-configured directory path. Falls back to ~/Desktop/.
+    Structure: {output_dir}/{year}/{product_folder}/{pdf_name}
+    Fallback: ~/Desktop/{year}/{product_folder}/{pdf_name}
 
-    Returns:
-        Absolute path to the saved PDF.
+    Returns: absolute path to saved PDF.
     """
-    pdf_name = _make_pdf_name(variant_label, nr_partii)
+    year = date.today().year
+    product_folder, pdf_name, _ = _cert_names(produkt, variant_label, nr_partii)
 
-    target_dir = Path(output_dir) if output_dir else Path.home() / "Desktop"
+    base_dir = Path(output_dir) if output_dir else Path.home() / "Desktop"
+    target_dir = base_dir / str(year) / product_folder
     target_dir.mkdir(parents=True, exist_ok=True)
 
     full_path = target_dir / pdf_name
