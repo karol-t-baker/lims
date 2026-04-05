@@ -404,6 +404,13 @@ def szarze_new():
             nr_zbiornika=request.form.get("nr_zbiornika", ""),
         )
 
+        # Initialize process stage tracking for full-pipeline products
+        if ebr_id and typ == 'szarza':
+            from mbr.etapy_models import init_etapy_status, get_process_stages
+            stages = get_process_stages(request.form["produkt"])
+            if stages:
+                init_etapy_status(db, ebr_id, request.form["produkt"])
+
     if ebr_id is None:
         flash("Brak aktywnego szablonu MBR dla tego produktu.")
     # Return to referring page (fast_entry or szarze_list)
@@ -434,14 +441,24 @@ def fast_entry(ebr_id):
 @login_required
 def fast_entry_partial(ebr_id):
     """Return just the fast-entry form HTML (no base.html shell) for AJAX loading."""
+    from mbr.etapy_models import get_etapy_status, get_etap_analizy, get_korekty
+    from mbr.etapy_config import get_etapy_config
     with db_session() as db:
         ebr = get_ebr(db, ebr_id)
         if ebr is None:
             return "Nie znaleziono", 404
         wyniki = get_ebr_wyniki(db, ebr_id)
         round_state = get_round_state(wyniki)
+        etapy_status = get_etapy_status(db, ebr_id)
+        etapy_analizy = get_etap_analizy(db, ebr_id)
+        etapy_korekty = get_korekty(db, ebr_id)
+    etapy_config = get_etapy_config(ebr.get("produkt", ""))
     return render_template("laborant/_fast_entry_content.html",
-                           ebr=ebr, wyniki=wyniki, round_state=round_state)
+                           ebr=ebr, wyniki=wyniki, round_state=round_state,
+                           etapy_status=etapy_status,
+                           etapy_analizy=etapy_analizy,
+                           etapy_korekty=etapy_korekty,
+                           etapy_config=etapy_config)
 
 
 @app.route("/laborant/ebr/<int:ebr_id>/save", methods=["POST"])
@@ -670,6 +687,32 @@ def api_korekty_confirm(ebr_id, kid):
     with db_session() as db:
         confirm_korekta(db, kid)
     return jsonify({"ok": True})
+
+
+@app.route("/api/ebr/<int:ebr_id>/etapy-status")
+@login_required
+def api_etapy_status_get(ebr_id):
+    from mbr.etapy_models import get_etapy_status
+    with db_session() as db:
+        data = get_etapy_status(db, ebr_id)
+    return jsonify({"etapy_status": data})
+
+
+@app.route("/api/ebr/<int:ebr_id>/etapy-status/zatwierdz", methods=["POST"])
+@login_required
+def api_etapy_zatwierdz(ebr_id):
+    from mbr.etapy_models import zatwierdz_etap
+    data = request.get_json(silent=True) or {}
+    etap = data.get("etap")
+    if not etap:
+        return jsonify({"ok": False, "error": "Missing etap"}), 400
+    user = session.get("user", {}).get("login", "unknown")
+    with db_session() as db:
+        ebr = get_ebr(db, ebr_id)
+        if not ebr:
+            return jsonify({"ok": False, "error": "EBR not found"}), 404
+        next_etap = zatwierdz_etap(db, ebr_id, etap, user, ebr["produkt"])
+    return jsonify({"ok": True, "next_etap": next_etap})
 
 
 # ---------------------------------------------------------------------------
