@@ -482,6 +482,59 @@
 .cv-certs { margin-top: 12px; }
 .cv-list-empty { padding: 14px; font-size: 12px; color: var(--text-dim); text-align: center; }
 
+/* Process stage form */
+.ps-form { padding: 16px; }
+.ps-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.ps-title { font-size: 14px; font-weight: 700; }
+.ps-runda { font-size: 11px; color: var(--text-dim); background: var(--surface-alt); padding: 3px 10px; border-radius: 12px; }
+.ps-status-badge { font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 12px; }
+.ps-status-done { background: var(--green-bg); color: var(--green); }
+.ps-status-active { background: var(--teal-bg); color: var(--teal); }
+.ps-status-pending { background: var(--surface-alt); color: var(--text-dim); }
+
+.ps-fields { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.ps-field { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--surface); border: 1px solid var(--border-subtle); border-radius: 8px; }
+.ps-field-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; background: var(--text-dim); }
+.ps-field-dot.ok { background: var(--green); }
+.ps-field-label { font-size: 12px; font-weight: 500; width: 120px; flex-shrink: 0; }
+.ps-field-input {
+  padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px;
+  font-size: 13px; font-family: var(--mono); font-weight: 600; width: 90px;
+  text-align: center; background: var(--surface);
+}
+.ps-field-input:focus { outline: none; border-color: var(--teal); }
+.ps-field-input[readonly] { background: var(--surface-alt); color: var(--text-sec); }
+.ps-field-info { font-size: 10px; color: var(--text-dim); }
+
+.ps-korekty-section { margin: 14px 0; }
+.ps-korekty-title { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); margin-bottom: 6px; }
+.ps-korekta-item { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: var(--surface-alt); border-radius: 6px; margin-bottom: 4px; font-size: 11px; }
+.ps-korekta-sub { font-weight: 600; }
+.ps-korekta-kg { font-family: var(--mono); }
+.ps-korekta-badge { font-size: 9px; padding: 2px 6px; border-radius: 3px; background: var(--green-bg); color: var(--green); }
+
+.ps-add-korekta { display: flex; align-items: center; gap: 6px; margin: 10px 0; }
+.ps-add-korekta select {
+  padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px;
+  font-size: 11px; font-family: var(--font);
+}
+.ps-add-korekta input {
+  width: 70px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px;
+  font-size: 12px; font-family: var(--mono); text-align: center;
+}
+.ps-add-korekta button {
+  padding: 6px 12px; background: var(--amber); color: #fff; border: none;
+  border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; font-family: var(--font);
+}
+.ps-approve-btn {
+  width: 100%; padding: 10px; background: var(--teal); color: #fff; border: none;
+  border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;
+  font-family: var(--font); display: flex; align-items: center; justify-content: center; gap: 6px;
+  margin-top: 14px;
+}
+.ps-approve-btn:hover { opacity: 0.9; }
+.ps-locked-msg { padding: 20px; text-align: center; color: var(--text-dim); font-size: 12px; }
+
 </style>
 
 <div class="cv-popup-overlay" id="cv-popup-overlay">
@@ -506,6 +559,13 @@ var etapy = {{ (ebr.etapy_json if ebr.etapy_json is string else ebr.etapy_json |
 var parametry = {{ (ebr.parametry_lab if ebr.parametry_lab is string else ebr.parametry_lab | tojson) | safe }};
 var wyniki = {{ wyniki | tojson | safe }};
 var roundState = {{ round_state | tojson | safe }};
+
+// Process stage data (from backend)
+var _etapyStatus = {{ etapy_status | default([], true) | tojson }};
+var _etapyAnalizy = {{ etapy_analizy | default({}, true) | tojson }};
+var _etapyKorekty = {{ etapy_korekty | default([], true) | tojson }};
+var _etapyConfig = {{ etapy_config | default({}, true) | tojson }};
+window._etapyStatus = _etapyStatus;
 
 var TITR_TAGS_LEGACY = ['procent_sa', 'procent_nacl', 'procent_aa', 'procent_so3', 'procent_h2o2', 'lk', 'le_liczba_kwasowa'];
 
@@ -760,6 +820,14 @@ function renderCompletedView() {
             }, { threshold: 0.1 });
             _heroObserver.observe(heroEl);
         }
+    }
+
+    // If batch is open and has process stages, auto-open active stage
+    if (ebrStatus === 'open' && _etapyStatus.length > 0) {
+      var activeStage = _etapyStatus.find(function(s) { return s.status === 'in_progress'; });
+      if (activeStage) {
+        setTimeout(function() { showProcessStage(activeStage.etap); }, 100);
+      }
     }
 }
 
@@ -1125,6 +1193,14 @@ function renderCyclicSections() {
                 renderPostStandButtons(container);
             }
         }
+    }
+
+    // Auto-open active process stage for open batches with stage tracking
+    if (_etapyStatus.length > 0) {
+      var activeStage = _etapyStatus.find(function(s) { return s.status === 'in_progress'; });
+      if (activeStage) {
+        setTimeout(function() { showProcessStage(activeStage.etap); }, 200);
+      }
     }
 }
 
@@ -1619,6 +1695,220 @@ setupComputedFields();
 
 // openCertPicker kept as alias for any remaining references
 function openCertPicker() { loadCompletedCerts(); }
+
+// ═══ PROCESS STAGE FORM ═══
+
+window.showProcessStage = function(etapKey) {
+  var container = document.getElementById('sections-container');
+  if (!container) return;
+
+  var stageConfig = _etapyConfig[etapKey];
+  if (!stageConfig) {
+    container.innerHTML = '<div class="ps-locked-msg">Brak konfiguracji dla etapu: ' + etapKey + '</div>';
+    return;
+  }
+
+  // Find stage status
+  var stageStatus = _etapyStatus.find(function(s) { return s.etap === etapKey; });
+  var status = stageStatus ? stageStatus.status : 'pending';
+
+  // Get analyses for this stage
+  var stageAnalizy = _etapyAnalizy[etapKey] || {};
+  var rundas = Object.keys(stageAnalizy).map(Number).sort();
+  var currentRunda = rundas.length > 0 ? Math.max.apply(null, rundas) : 1;
+
+  // Get corrections for this stage
+  var stageKorekty = _etapyKorekty.filter(function(k) { return k.etap === etapKey; });
+
+  var isActive = status === 'in_progress' && ebrStatus === 'open';
+  var isDone = status === 'done';
+  var isPending = status === 'pending';
+
+  var html = '<div class="ps-form">';
+
+  // Header
+  html += '<div class="ps-header">';
+  html += '<span class="ps-title">' + stageConfig.label + '</span>';
+  html += '<span class="ps-runda">Runda ' + currentRunda + '</span>';
+  if (isDone) html += '<span class="ps-status-badge ps-status-done">Zatwierdzony ✓</span>';
+  else if (isActive) html += '<span class="ps-status-badge ps-status-active">Aktywny</span>';
+  else html += '<span class="ps-status-badge ps-status-pending">Oczekuje</span>';
+  html += '</div>';
+
+  if (isPending) {
+    html += '<div class="ps-locked-msg">Etap będzie dostępny po zatwierdzeniu poprzedniego etapu.</div>';
+    html += '</div>';
+    container.innerHTML = html;
+    return;
+  }
+
+  // Fields for current round
+  html += '<div class="ps-fields">';
+  stageConfig.parametry.forEach(function(param) {
+    var val = '';
+    var rundaData = stageAnalizy[currentRunda];
+    if (rundaData && rundaData[param.kod]) {
+      val = String(rundaData[param.kod].wartosc).replace('.', ',');
+    }
+    var dotCls = val ? 'ps-field-dot ok' : 'ps-field-dot';
+
+    html += '<div class="ps-field">';
+    html += '<div class="' + dotCls + '"></div>';
+    html += '<span class="ps-field-label">' + param.label + '</span>';
+    if (isActive) {
+      html += '<input class="ps-field-input" type="text" inputmode="decimal"' +
+        ' data-etap="' + etapKey + '" data-runda="' + currentRunda + '" data-kod="' + param.kod + '"' +
+        ' value="' + val + '" oninput="psAutoSave(this)" onblur="psSave(this)">';
+    } else {
+      html += '<input class="ps-field-input" type="text" value="' + val + '" readonly>';
+    }
+    html += '<span class="ps-field-info">' + (param.info || param.typ) + '</span>';
+    html += '</div>';
+  });
+  html += '</div>';
+
+  // Corrections history
+  if (stageKorekty.length > 0) {
+    html += '<div class="ps-korekty-section">';
+    html += '<div class="ps-korekty-title">Historia korekt</div>';
+    stageKorekty.forEach(function(k) {
+      html += '<div class="ps-korekta-item">';
+      html += '<span>R' + (k.po_rundzie || '?') + ' →</span>';
+      html += '<span class="ps-korekta-sub">' + k.substancja + '</span>';
+      html += '<span class="ps-korekta-kg">' + k.ilosc_kg + ' kg</span>';
+      if (k.wykonano) html += '<span class="ps-korekta-badge">Wykonano</span>';
+      else html += '<span style="font-size:9px;color:var(--amber);">Zalecono</span>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+
+  // Add correction form (active only)
+  if (isActive && stageConfig.korekty && stageConfig.korekty.length > 0) {
+    html += '<div class="ps-korekty-section">';
+    html += '<div class="ps-korekty-title">Zalecenie korekty</div>';
+    html += '<div class="ps-add-korekta">';
+    html += '<select id="ps-korekta-sub">';
+    stageConfig.korekty.forEach(function(s) {
+      html += '<option value="' + s + '">' + s + '</option>';
+    });
+    html += '</select>';
+    html += '<input id="ps-korekta-kg" type="number" step="0.1" placeholder="kg">';
+    html += '<span>kg</span>';
+    html += '<button onclick="psAddKorekta(\'' + etapKey + '\',' + currentRunda + ')">+ Zaleć korektę</button>';
+    html += '</div>';
+    html += '</div>';
+  }
+
+  // Approve button (active only)
+  if (isActive) {
+    html += '<button class="ps-approve-btn" onclick="psApproveStage(\'' + etapKey + '\')">';
+    html += 'Zatwierdź etap →</button>';
+  }
+
+  html += '</div>';
+  container.innerHTML = html;
+
+  // Hide the existing standaryzacja/AK sections
+  var dtWork = document.getElementById('detail-workspace');
+  if (dtWork) {
+    var existingSections = dtWork.querySelectorAll('.cv-params, .cv-certs-section');
+    existingSections.forEach(function(el) { el.style.display = 'none'; });
+  }
+}
+
+// Auto-save debounce for process stage fields
+var _psSaveTimers = {};
+function psAutoSave(input) {
+  var key = input.dataset.etap + '__' + input.dataset.runda + '__' + input.dataset.kod;
+  if (_psSaveTimers[key]) clearTimeout(_psSaveTimers[key]);
+  // Normalize comma
+  if (input.value.indexOf('.') >= 0) {
+    var pos = input.selectionStart;
+    input.value = input.value.replace(/\./g, ',');
+    input.setSelectionRange(pos, pos);
+  }
+  _psSaveTimers[key] = setTimeout(function() { psSave(input); }, 1500);
+}
+
+function psSave(input) {
+  var etap = input.dataset.etap;
+  var runda = parseInt(input.dataset.runda);
+  var kod = input.dataset.kod;
+  var key = etap + '__' + runda + '__' + kod;
+  if (_psSaveTimers[key]) { clearTimeout(_psSaveTimers[key]); delete _psSaveTimers[key]; }
+  if (!input.value.trim()) return;
+
+  var val = input.value.replace(',', '.');
+  var wyniki = {};
+  wyniki[kod] = parseFloat(val);
+
+  input.style.outline = '2px solid var(--teal)';
+  fetch('/api/ebr/' + ebrId + '/etapy-analizy', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({etap: etap, runda: runda, wyniki: wyniki})
+  }).then(function(resp) {
+    if (resp.ok) {
+      input.style.outline = '2px solid var(--green)';
+      // Update local cache
+      if (!_etapyAnalizy[etap]) _etapyAnalizy[etap] = {};
+      if (!_etapyAnalizy[etap][runda]) _etapyAnalizy[etap][runda] = {};
+      _etapyAnalizy[etap][runda][kod] = {wartosc: parseFloat(val), dt_wpisu: new Date().toISOString(), wpisal: 'me'};
+      input.querySelector && (input.previousElementSibling.className = 'ps-field-dot ok');
+    } else {
+      input.style.outline = '2px solid var(--red)';
+    }
+    setTimeout(function() { input.style.outline = ''; }, 800);
+  });
+}
+
+function psAddKorekta(etap, poRundzie) {
+  var sub = document.getElementById('ps-korekta-sub').value;
+  var kg = parseFloat(document.getElementById('ps-korekta-kg').value);
+  if (!sub || !kg || kg <= 0) { alert('Podaj substancję i ilość'); return; }
+
+  fetch('/api/ebr/' + ebrId + '/korekty', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({etap: etap, po_rundzie: poRundzie, substancja: sub, ilosc_kg: kg})
+  }).then(function(resp) {
+    if (resp.ok) {
+      // Refresh: increment runda and re-render
+      _etapyKorekty.push({etap: etap, po_rundzie: poRundzie, substancja: sub, ilosc_kg: kg, wykonano: 0});
+      // New runda for re-analysis
+      var newRunda = poRundzie + 1;
+      if (!_etapyAnalizy[etap]) _etapyAnalizy[etap] = {};
+      _etapyAnalizy[etap][newRunda] = {};
+      showProcessStage(etap);
+      renderSidebarEtapy();
+    }
+  });
+}
+
+function psApproveStage(etap) {
+  fetch('/api/ebr/' + ebrId + '/etapy-status/zatwierdz', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({etap: etap})
+  }).then(function(resp) { return resp.json(); }).then(function(data) {
+    if (data.ok) {
+      // Update local status
+      _etapyStatus.forEach(function(s) {
+        if (s.etap === etap) s.status = 'done';
+        if (data.next_etap && s.etap === data.next_etap) s.status = 'in_progress';
+      });
+      window._etapyStatus = _etapyStatus;
+      renderSidebarEtapy();
+      if (data.next_etap) {
+        showProcessStage(data.next_etap);
+      } else {
+        // All process stages done — show standaryzacja
+        loadBatch(ebrId);
+      }
+    }
+  });
+}
 </script>
 
 <script src="/static/calculator.js"></script>
