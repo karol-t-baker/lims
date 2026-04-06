@@ -362,8 +362,9 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     db.execute("""
         UPDATE ebr_batches SET sync_seq = (
             SELECT COUNT(*) FROM ebr_batches b2
-            WHERE b2.status = 'completed' AND b2.dt_end <= ebr_batches.dt_end
-              AND b2.ebr_id <= ebr_batches.ebr_id
+            WHERE b2.status = 'completed'
+              AND (b2.dt_end < ebr_batches.dt_end
+                   OR (b2.dt_end = ebr_batches.dt_end AND b2.ebr_id <= ebr_batches.ebr_id))
         )
         WHERE status = 'completed' AND sync_seq IS NULL
     """)
