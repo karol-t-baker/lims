@@ -29,7 +29,7 @@ DATA_DIR = APP_DIR / "data"
 DB_PATH = DATA_DIR / "batch_db.sqlite"
 MBR_DIR = APP_DIR.parent / "mbr"
 
-DEFAULT_SERVER = "https://192.168.100.171"
+DEFAULT_SERVER = "http://192.168.100.171:5001"
 DEFAULT_OUTPUT_DIR = str(Path.home() / "Desktop" / "Swiadectwa")
 
 
