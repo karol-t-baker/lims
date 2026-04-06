@@ -105,7 +105,8 @@ def api_coa_sync():
         with open(DB_PATH, "wb") as f:
             f.write(r.content)
         # Save backup copy with timestamp
-        backup_dir = DATA_DIR / "backups"
+        backup_dir_str = _get_setting("backup_dir", "")
+        backup_dir = Path(backup_dir_str) if backup_dir_str else DATA_DIR / "backups"
         backup_dir.mkdir(parents=True, exist_ok=True)
         ts = datetime.now().strftime("%Y-%m-%d_%H-%M")
         backup_path = backup_dir / f"batch_db_{ts}.sqlite"
@@ -131,6 +132,7 @@ def api_coa_settings():
     return jsonify({
         "server_url": _get_setting("server_url", DEFAULT_SERVER),
         "output_dir": _get_setting("output_dir", DEFAULT_OUTPUT_DIR),
+        "backup_dir": _get_setting("backup_dir", str(DATA_DIR / "backups")),
     })
 
 

@@ -62,6 +62,27 @@
     </div>
   </div>
 
+  {% if session.get('user', {}).get('rola') == 'laborant_coa' %}
+  <div class="ust-section">
+    <div class="ust-section-title">Aplikacja COA</div>
+    <div class="ust-field">
+      <label for="coa_server_url">Adres serwera</label>
+      <input type="text" id="coa_server_url" placeholder="https://192.168.100.171">
+      <div class="ust-hint">Adres serwera LIMS do synchronizacji bazy danych.</div>
+    </div>
+    <div class="ust-field">
+      <label for="coa_output_dir">Folder zapisu świadectw</label>
+      <input type="text" id="coa_output_dir" placeholder="np. D:\Swiadectwa">
+      <div class="ust-hint">Folder na tym komputerze, do którego zapisywane będą PDF świadectw.</div>
+    </div>
+    <div class="ust-field">
+      <label for="coa_backup_dir">Folder backupów bazy</label>
+      <input type="text" id="coa_backup_dir" placeholder="np. D:\Backupy_LIMS">
+      <div class="ust-hint">Przy każdej synchronizacji kopia bazy zapisywana jest do tego folderu z datą.</div>
+    </div>
+  </div>
+  {% endif %}
+
   <button class="ust-save" onclick="saveSettings()">Zapisz</button>
   <span class="ust-status" id="ust-status">Zapisano ✓</span>
 
@@ -253,6 +274,32 @@ function saveSettings() {
       setTimeout(function() { st.classList.remove('show'); }, 2000);
     }
   });
+
+  // Save COA settings if present
+  var coaServer = document.getElementById('coa_server_url');
+  if (coaServer) {
+    fetch('/api/coa/settings', {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        server_url: coaServer.value.trim(),
+        output_dir: document.getElementById('coa_output_dir').value.trim(),
+        backup_dir: document.getElementById('coa_backup_dir').value.trim()
+      })
+    });
+  }
 }
+
+// Load COA settings on page load
+(function() {
+  var coaServer = document.getElementById('coa_server_url');
+  if (coaServer) {
+    fetch('/api/coa/settings').then(function(r) { return r.json(); }).then(function(d) {
+      coaServer.value = d.server_url || '';
+      document.getElementById('coa_output_dir').value = d.output_dir || '';
+      document.getElementById('coa_backup_dir').value = d.backup_dir || '';
+    }).catch(function() {});
+  }
+})();
 </script>
 {% endblock %}
