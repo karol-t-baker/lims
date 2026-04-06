@@ -158,6 +158,8 @@ def get_etapy_config(db: sqlite3.Connection, produkt: str) -> dict:
         kroki = stage_legacy.get("kroki")
         if kroki:
             entry["kroki"] = kroki
+        if stage_legacy.get("korekta_po_fakcie"):
+            entry["korekta_po_fakcie"] = True
         result[etap] = entry
 
     return result
