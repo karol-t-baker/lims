@@ -28,6 +28,17 @@ if %errorlevel% neq 0 (
 )
 echo  [OK] Git znaleziony
 
+:: Check Microsoft Word
+reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\Winword.exe" >nul 2>&1
+if %errorlevel% neq 0 (
+    echo  [!] Microsoft Word nie znaleziony!
+    echo      Word jest wymagany do generowania PDF swiadectw.
+    echo      Instalacja bedzie kontynuowana, ale swiadectwa nie beda dzialac.
+    echo.
+) else (
+    echo  [OK] Microsoft Word znaleziony
+)
+
 :: Set install dir
 set INSTALL_DIR=%USERPROFILE%\LabCore
 echo.
