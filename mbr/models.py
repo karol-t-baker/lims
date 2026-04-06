@@ -370,6 +370,50 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     """)
     db.commit()
 
+    # Migration: deduplicate parameter codes
+    # woda → h2o, barwa_I2 → barwa_fau, dea → dietanolamina, siarczynow → so3
+    _PARAM_RENAMES = [
+        ("woda", "h2o"),
+        ("barwa_I2", "barwa_fau"),
+        ("dea", "dietanolamina"),
+        ("siarczynow", "so3"),
+    ]
+    for old_kod, new_kod in _PARAM_RENAMES:
+        # Update existing wyniki referencing old code
+        db.execute(
+            "UPDATE ebr_wyniki SET kod_parametru = ? WHERE kod_parametru = ?",
+            (new_kod, old_kod),
+        )
+        # Update etapy_analizy if applicable
+        db.execute(
+            "UPDATE OR IGNORE ebr_etapy_analizy SET kod_parametru = ? WHERE kod_parametru = ?",
+            (new_kod, old_kod),
+        )
+        # Remove duplicate parametry_analityczne entry (keep the target)
+        target_exists = db.execute(
+            "SELECT id FROM parametry_analityczne WHERE kod = ?", (new_kod,)
+        ).fetchone()
+        if target_exists:
+            # Move parametry_etapy references from old to new before deleting
+            old_param = db.execute(
+                "SELECT id FROM parametry_analityczne WHERE kod = ?", (old_kod,)
+            ).fetchone()
+            if old_param:
+                db.execute(
+                    "UPDATE OR IGNORE parametry_etapy SET parametr_id = ? WHERE parametr_id = ?",
+                    (target_exists[0], old_param[0]),
+                )
+                # Delete orphaned parametry_etapy (conflicts handled by OR IGNORE)
+                db.execute(
+                    "DELETE FROM parametry_etapy WHERE parametr_id = ?",
+                    (old_param[0],),
+                )
+                db.execute(
+                    "DELETE FROM parametry_analityczne WHERE id = ?",
+                    (old_param[0],),
+                )
+    db.commit()
+
 
 # ---------------------------------------------------------------------------
 # Auto-numbering — moved to mbr.laborant.models, re-exported for backward compat

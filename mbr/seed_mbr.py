@@ -268,7 +268,7 @@ PRODUCTS = [
                 "label": "Analiza końcowa",
                 "pola": [
                     _bezp("sm",          "SM",              "sm",         44,    9999,  1),  # min 44.0%
-                    _bezp("woda",        "zawartość wody",  "woda",       52,    56,    1),
+                    _bezp("h2o",         "zawartość wody",  "h2o",        52,    56,    1),
                     _titr("nacl",        "NaCl",            "nacl",       5.8,   7.3,   2),
                     _bezp("ph_10proc",   "pH 10%",          "ph_10proc",  4.5,   6.5,   2),
                     _obl("sa",           "%SA",              "sa",         36,    42,    2, "sm - nacl - 0.6"),
@@ -304,7 +304,7 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _bezp("woda",        "%H2O",       "woda",       52,    64,    1),
+                    _bezp("h2o",         "%H2O",       "h2o",        52,    64,    1),
                     _obl("sa",           "%SA",         "sa",         29.0,  31.0,  2, "sm - nacl - 0.6"),
                     _titr("nacl",        "NaCl",       "nacl",       0,     5.5,   2),  # max 5.5
                     _bezp("sm",          "SM",         "sm",         36,    38,    1),
@@ -347,7 +347,7 @@ PRODUCTS = [
             "analiza_koncowa": {
                 "label": "Analiza końcowa",
                 "pola": [
-                    _bezp("woda",          "zaw.wody",        "woda",          60.0,  64.0,  1),
+                    _bezp("h2o",           "zaw.wody",        "h2o",           60.0,  64.0,  1),
                     _titr("nacl",          "NaCl",            "nacl",          4.0,   8.0,   2),
                     _obl("sa",             "%SA",              "sa",            29,    33,    2, "sm - nacl - 0.6"),
                     _titr("alkalicznosc",  "alkaliczność",     "alkalicznosc",  1.15,  1.30,  2),
@@ -486,7 +486,7 @@ PRODUCTS = [
                 "pola": [
                     _bezp("sm",          "SM",              "sm",          40,   9999, 1),  # min 40%
                     _titr("lk",          "LK",              "lk",          0,    6,    2),
-                    _titr("siarczynow",  "zaw.siarczynów",  "siarczynow",  0,    0.1,  3),
+                    _titr("so3",         "zaw.siarczynów",  "so3",         0,    0.1,  3),
                     _titr("h2o2",        "H2O2",            "h2o2",        0,    0.15, 3),
                     _obl("sa",           "%SA",              "sa",          26,   9999, 2, "sm - nacl - 0.6"),  # min 26%
                     _bezp("barwa_fau",   "Barwa jodowa",           "barwa_fau",   0,    10,   0),
@@ -503,7 +503,7 @@ PRODUCTS = [
                 "label": "Analiza końcowa",
                 "pola": [
                     _bezp("sm",          "SM",              "sm",          38,   42,   1),
-                    _titr("siarczynow",  "zaw.siarczynów",  "siarczynow",  0,    0.1,  3),
+                    _titr("so3",         "zaw.siarczynów",  "so3",         0,    0.1,  3),
                     _bezp("ph_10proc",   "pH 10%",          "ph_10proc",   5.5,  7,    2),
                     _obl("sa",           "%SA",              "sa",          31,   9999, 2, "sm - nacl - 0.6"),  # min 31%
                     _bezp("barwa_fau",   "Barwa jodowa",           "barwa_fau",   0,    5,    0),
@@ -813,7 +813,7 @@ PRODUCTS = [
                 "pola": [
                     _titr("dietanolamina", "%dietanolaminy", "dietanolamina", 80,  9999, 1),  # min 80%
                     _bezp("gliceryny",     "%gliceryny",     "gliceryny",     0,   9.5,  2),
-                    _bezp("dea",           "DEA %",          "dea",           0,   3,    2),
+                    _bezp("dietanolamina", "DEA %",          "dietanolamina",  0,   3,    2),
                     _bezp("barwa_fau",     "Barwa jodowa",          "barwa_fau",     0,   10,   0),
                     _bezp("ph_10proc",     "pH 1%",          "ph_10proc",     0,   11,   2),
                 ],

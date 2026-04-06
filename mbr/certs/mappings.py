@@ -8,7 +8,7 @@ kod (analysis code or None if skipped/qualitative).
 Analysis codes: sm, nacl, ph_10proc, nd20, sa, aa, so3, h2o2,
 barwa_fau, barwa_hz, gestosc, lk, lz, li, lh, la, wkt, mea,
 estry, monoestry, monoglicerydy, wolna_amina, alkalicznosc,
-tlenek_aminowy, dietanolamina, wolny_glikol, siarczynow.
+tlenek_aminowy, dietanolamina, wolny_glikol, so3.
 
 Auto-generated from docs/swiadectwa/ templates.
 """
