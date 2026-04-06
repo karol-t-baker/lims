@@ -88,6 +88,7 @@ def list_ebr_open(
             eb.dt_start,
             eb.status,
             eb.typ,
+            eb.nr_zbiornika,
             mt.parametry_lab,
             (SELECT MAX(ew.dt_wpisu) FROM ebr_wyniki ew WHERE ew.ebr_id = eb.ebr_id)
                 AS last_entry,
@@ -243,6 +244,7 @@ def list_ebr_completed(
             mt.produkt,
             eb.dt_end,
             eb.typ,
+            eb.nr_zbiornika,
             (SELECT COUNT(*) FROM ebr_wyniki ew WHERE ew.ebr_id = eb.ebr_id AND ew.w_limicie = 0)
                 AS out_of_limit
         FROM ebr_batches eb
@@ -276,6 +278,7 @@ def list_ebr_recent(db: sqlite3.Connection, days: int = 7) -> list[dict]:
             eb.dt_start,
             eb.dt_end,
             eb.typ,
+            eb.nr_zbiornika,
             (SELECT COUNT(*) FROM ebr_wyniki ew WHERE ew.ebr_id = eb.ebr_id AND ew.w_limicie = 0)
                 AS out_of_limit,
             (SELECT COUNT(*) FROM ebr_wyniki ew WHERE ew.ebr_id = eb.ebr_id)
