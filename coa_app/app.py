@@ -257,9 +257,7 @@ from mbr.certs import certs_bp
 from mbr.certs.generator import load_config, _CONFIG_PATH, get_variants, get_required_fields
 from mbr.certs.generator import _format_value, _days_in_month
 
-# Remove the server cert generate route and replace with local one
-# We need to override at the Flask level
-@app.route("/api/cert/generate", methods=["POST"], endpoint="coa_cert_generate")
+# Override server cert generate with local LibreOffice version
 def coa_cert_generate():
     """Generate certificate PDF locally using Word (docx2pdf)."""
     from docxtpl import DocxTemplate
@@ -425,6 +423,9 @@ def coa_cert_generate():
         pass
 
     return jsonify({"ok": True, "pdf_path": str(pdf_path)})
+
+# Replace server's cert generate with our local version
+app.view_functions["certs.api_cert_generate"] = coa_cert_generate
 
 
 # ---------------------------------------------------------------------------
