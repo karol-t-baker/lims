@@ -26,6 +26,25 @@ def update_worker_profile(db, worker_id, nickname=None, avatar_icon=None, avatar
     db.commit()
 
 
+def add_worker(db, imie, nazwisko, inicjaly, nickname=''):
+    cur = db.execute(
+        "INSERT INTO workers (imie, nazwisko, inicjaly, nickname, aktywny) VALUES (?, ?, ?, ?, 1)",
+        (imie, nazwisko, inicjaly, nickname),
+    )
+    db.commit()
+    return cur.lastrowid
+
+
+def toggle_worker_active(db, worker_id):
+    row = db.execute("SELECT aktywny FROM workers WHERE id=?", (worker_id,)).fetchone()
+    if not row:
+        return None
+    new_val = 0 if row["aktywny"] else 1
+    db.execute("UPDATE workers SET aktywny=? WHERE id=?", (new_val, worker_id))
+    db.commit()
+    return new_val
+
+
 # Backwards compat alias
 def update_worker_nickname(db, worker_id, nickname):
     update_worker_profile(db, worker_id, nickname=nickname)

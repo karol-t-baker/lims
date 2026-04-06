@@ -64,11 +64,88 @@
 
   <button class="ust-save" onclick="saveSettings()">Zapisz</button>
   <span class="ust-status" id="ust-status">Zapisano ✓</span>
+
+  <div class="ust-section" style="margin-top:32px;">
+    <div class="ust-section-title">Laboranci (zmiana)</div>
+    <div id="ust-workers"></div>
+    <div style="margin-top:12px;padding:12px;background:var(--surface-alt);border:1.5px dashed var(--border);border-radius:8px;">
+      <div style="font-size:9px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);margin-bottom:8px;">Dodaj laboranta</div>
+      <div style="display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap;">
+        <div>
+          <div style="font-size:9px;color:var(--text-dim);margin-bottom:2px;">Imię</div>
+          <input type="text" id="ust-w-imie" placeholder="Jan" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;width:120px;">
+        </div>
+        <div>
+          <div style="font-size:9px;color:var(--text-dim);margin-bottom:2px;">Nazwisko</div>
+          <input type="text" id="ust-w-nazwisko" placeholder="Kowalski" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;width:140px;">
+        </div>
+        <div>
+          <div style="font-size:9px;color:var(--text-dim);margin-bottom:2px;">Pseudonim</div>
+          <input type="text" id="ust-w-nickname" placeholder="opcjonalnie" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:12px;width:120px;">
+        </div>
+        <button onclick="addWorker()" style="padding:6px 14px;background:var(--teal);color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;">+ Dodaj</button>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+// Workers management
+function loadWorkers() {
+  fetch('/api/workers/all').then(function(r){return r.json()}).then(function(data){
+    var el = document.getElementById('ust-workers');
+    if (!data.workers.length) { el.innerHTML = '<div style="font-size:11px;color:var(--text-dim);padding:8px 0;">Brak laborantów.</div>'; return; }
+    var html = '<table style="width:100%;border-collapse:collapse;font-size:12px;">';
+    html += '<thead><tr style="border-bottom:1.5px solid var(--border);">' +
+      '<th style="text-align:left;padding:5px 8px;font-size:8px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);">Imię i nazwisko</th>' +
+      '<th style="text-align:left;padding:5px 8px;font-size:8px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);">Pseudonim</th>' +
+      '<th style="text-align:center;padding:5px 8px;font-size:8px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);">Status</th>' +
+      '<th style="width:60px;"></th></tr></thead><tbody>';
+    data.workers.forEach(function(w){
+      var isActive = w.aktywny === 1;
+      html += '<tr style="border-bottom:1px solid var(--border-subtle);' + (isActive ? '' : 'opacity:0.5;') + '">' +
+        '<td style="padding:6px 8px;">' + w.imie + ' ' + w.nazwisko + ' <span style="font-size:9px;color:var(--text-dim);">(' + w.inicjaly + ')</span></td>' +
+        '<td style="padding:6px 8px;color:var(--text-sec);">' + (w.nickname || '—') + '</td>' +
+        '<td style="padding:6px 8px;text-align:center;">' +
+          (isActive ? '<span style="font-size:9px;color:var(--green);font-weight:600;">Aktywny</span>' : '<span style="font-size:9px;color:var(--text-dim);">Nieaktywny</span>') +
+        '</td>' +
+        '<td style="padding:6px 8px;text-align:center;">' +
+          '<button onclick="toggleWorker(' + w.id + ')" style="background:none;border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-size:9px;cursor:pointer;color:var(--text-sec);">' +
+          (isActive ? 'Deaktywuj' : 'Aktywuj') + '</button>' +
+        '</td></tr>';
+    });
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  });
+}
+
+function toggleWorker(id) {
+  fetch('/api/workers/' + id + '/toggle', {method:'POST',headers:{'Content-Type':'application/json'}})
+    .then(function(r){if(r.ok)loadWorkers();});
+}
+
+function addWorker() {
+  var imie = document.getElementById('ust-w-imie').value.trim();
+  var nazwisko = document.getElementById('ust-w-nazwisko').value.trim();
+  var nickname = document.getElementById('ust-w-nickname').value.trim();
+  if (!imie || !nazwisko) { alert('Podaj imię i nazwisko'); return; }
+  fetch('/api/workers', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({imie:imie, nazwisko:nazwisko, nickname:nickname})
+  }).then(function(r){
+    if(r.ok){
+      document.getElementById('ust-w-imie').value = '';
+      document.getElementById('ust-w-nazwisko').value = '';
+      document.getElementById('ust-w-nickname').value = '';
+      loadWorkers();
+    }
+  });
+}
+
+loadWorkers();
+
 function saveSettings() {
   var data = {
     cert_output_dir: document.getElementById('cert_output_dir').value.trim()

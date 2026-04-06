@@ -39,6 +39,42 @@ def api_worker_profile(worker_id):
     return jsonify({"ok": True})
 
 
+@workers_bp.route("/api/workers", methods=["POST"])
+@login_required
+def api_add_worker():
+    from mbr.workers.models import add_worker
+    data = request.get_json(silent=True) or {}
+    imie = (data.get("imie") or "").strip()
+    nazwisko = (data.get("nazwisko") or "").strip()
+    if not imie or not nazwisko:
+        return jsonify({"error": "imie and nazwisko required"}), 400
+    inicjaly = (imie[0] + nazwisko[0]).upper()
+    nickname = (data.get("nickname") or "").strip()
+    with db_session() as db:
+        wid = add_worker(db, imie, nazwisko, inicjaly, nickname)
+    return jsonify({"ok": True, "id": wid})
+
+
+@workers_bp.route("/api/workers/<int:worker_id>/toggle", methods=["POST"])
+@login_required
+def api_toggle_worker(worker_id):
+    from mbr.workers.models import toggle_worker_active
+    with db_session() as db:
+        new_val = toggle_worker_active(db, worker_id)
+    if new_val is None:
+        return jsonify({"error": "not found"}), 404
+    return jsonify({"ok": True, "aktywny": new_val})
+
+
+@workers_bp.route("/api/workers/all")
+@login_required
+def api_workers_all():
+    """All workers including inactive — for settings page."""
+    with db_session() as db:
+        workers = list_workers(db, aktywny=False)
+    return jsonify({"workers": workers})
+
+
 @workers_bp.route("/api/feedback", methods=["POST"])
 @login_required
 def api_feedback():
