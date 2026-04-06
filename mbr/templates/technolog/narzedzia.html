@@ -29,6 +29,7 @@
       <div class="nsc-group">
         <div class="nsc-group-label">Kalkulatory</div>
         <div class="nsc-item"><kbd>K</kbd><span>Kalkulator miareczkowy</span></div>
+        <div class="nsc-item"><kbd>S</kbd><span>Kalkulator standaryzacji</span></div>
       </div>
     </div>
   </div>
@@ -49,41 +50,14 @@
         </div>
       </div>
 
-      {# Card 2: Korekta wody — inline expandable #}
-      <div class="narz-card narz-card-expand" id="kw-card" onclick="narzExpandCard('kw')">
-        <div class="narz-card-icon" style="background:#ecfdf5;color:#059669;">
+      {# Card 2: Kalkulator standaryzacji — opens modal #}
+      <div class="narz-card" onclick="openStanModal()" style="cursor:pointer;">
+        <div class="narz-card-icon" style="background:var(--stage-stand-bg);color:var(--stage-stand);">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z"/></svg>
         </div>
         <div class="narz-card-body">
-          <div class="narz-card-name" id="kw-title">Korekta wody</div>
-          <div class="narz-card-desc" id="kw-badge">Standaryzacja SA — korekta refraktometryczna</div>
-        </div>
-        <svg class="narz-card-chevron" id="kw-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
-      </div>
-      <div class="narz-calc-panel" id="kw-panel" style="display:none;">
-        <div id="kw-fields"></div>
-        <div class="narz-calc-row">
-          <button class="narz-calc-btn" onclick="event.stopPropagation();narzCalc('kw')">Oblicz</button>
-          <div class="narz-calc-result" id="kw-result"></div>
-        </div>
-      </div>
-
-      {# Card 3: Korekta NaCl — inline expandable #}
-      <div class="narz-card narz-card-expand" id="kn-card" onclick="narzExpandCard('kn')">
-        <div class="narz-card-icon" style="background:#faf5ff;color:#7c3aed;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/></svg>
-        </div>
-        <div class="narz-card-body">
-          <div class="narz-card-name" id="kn-title">Korekta NaCl</div>
-          <div class="narz-card-desc" id="kn-badge">Standaryzacja chlorków — naważka NaCl</div>
-        </div>
-        <svg class="narz-card-chevron" id="kn-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
-      </div>
-      <div class="narz-calc-panel" id="kn-panel" style="display:none;">
-        <div id="kn-fields"></div>
-        <div class="narz-calc-row">
-          <button class="narz-calc-btn" onclick="event.stopPropagation();narzCalc('kn')">Oblicz</button>
-          <div class="narz-calc-result" id="kn-result"></div>
+          <div class="narz-card-name">Kalkulator standaryzacji</div>
+          <div class="narz-card-desc">Woda · pH · NaCl — korekta standaryzacyjna</div>
         </div>
       </div>
 
