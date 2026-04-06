@@ -91,17 +91,15 @@ cscript /nologo "%TEMP%\create_shortcut.vbs"
 del "%TEMP%\create_shortcut.vbs"
 echo  [OK] Skrot "LabCore COA" na pulpicie
 
-:: Create START.bat in coa_app
+:: Create START.bat in coa_app — launches server + browser in app mode
 (
 echo @echo off
 echo title LabCore COA
 echo cd /d "%INSTALL_DIR%\coa_app"
-echo echo.
-echo echo  LabCore COA — http://localhost:5050
-echo echo  Nie zamykaj tego okna.
-echo echo.
-echo python app.py
-echo pause
+echo set LABCORE_NO_BROWSER=1
+echo start /min "" python app.py
+echo timeout /t 3 /noexec ^>nul
+echo start "" msedge --app=http://localhost:5050 --window-size=1280,900 2^>nul ^|^| start "" chrome --app=http://localhost:5050 --window-size=1280,900 2^>nul ^|^| start http://localhost:5050
 ) > "%INSTALL_DIR%\coa_app\START.bat"
 
 :: Create UPDATE.bat for easy updates

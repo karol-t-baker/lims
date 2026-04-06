@@ -433,5 +433,8 @@ if __name__ == "__main__":
     print("  Kliknij 'Synchronizuj' aby pobrać dane z serwera")
     print("=" * 50)
 
-    webbrowser.open("http://localhost:5050")
+    # Open browser only if not launched from START.bat (which handles app mode)
+    import os
+    if os.environ.get("LABCORE_NO_BROWSER") != "1":
+        webbrowser.open("http://localhost:5050")
     app.run(host="127.0.0.1", port=5050, debug=False)
