@@ -241,6 +241,35 @@
     </div>
   </div>
 
+  {# ═══ WIFI ═══ #}
+  <div class="adm-section">
+    <div class="adm-sec-head">
+      <div class="adm-sec-icon" style="background:#0ea5e9;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12.55a11 11 0 0114 0"/><path d="M1.42 9a16 16 0 0121.16 0"/><path d="M8.53 16.11a6 6 0 016.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+      </div>
+      <div class="adm-sec-title">WiFi</div>
+      <span id="wifi-status" style="margin-left:auto;font-size:10px;color:var(--text-dim);"></span>
+    </div>
+    <div class="adm-sec-body">
+      <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+        <div style="flex:1;min-width:150px;">
+          <div style="font-size:8px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">SSID</div>
+          <div style="display:flex;gap:4px;">
+            <input type="text" class="adm-path-input" id="wifi-ssid" placeholder="Nazwa sieci" style="flex:1;">
+            <button class="btn btn-o" style="font-size:10px;padding:8px 10px;white-space:nowrap;" onclick="wifiScan()">Skanuj</button>
+          </div>
+        </div>
+        <div style="min-width:150px;">
+          <div style="font-size:8px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Hasło</div>
+          <input type="password" class="adm-path-input" id="wifi-pass" placeholder="Hasło sieci" style="width:100%;">
+        </div>
+        <button class="adm-backup-btn" style="padding:9px 20px;" onclick="wifiConnect()">Połącz</button>
+      </div>
+      <div id="wifi-networks" style="margin-top:10px;"></div>
+      <div class="adm-flash" id="wifi-flash"></div>
+    </div>
+  </div>
+
   {# ═══ RESTORE INFO ═══ #}
   <div class="adm-section">
     <div class="adm-sec-head">
@@ -350,5 +379,53 @@ function deleteFb(id) {
       }
     });
 }
+
+// --- WiFi ---
+
+function wifiStatus() {
+  fetch('/api/admin/wifi/status').then(function(r){return r.json();}).then(function(d) {
+    var el = document.getElementById('wifi-status');
+    if (d.ok && d.connection) {
+      el.innerHTML = '<span style="color:var(--green);font-weight:600;">' + d.connection + '</span> (' + d.state + ')';
+    } else if (d.ok) {
+      el.textContent = d.state || 'rozłączony';
+    }
+  });
+}
+
+function wifiScan() {
+  var el = document.getElementById('wifi-networks');
+  el.innerHTML = '<div style="font-size:10px;color:var(--text-dim);">Skanowanie...</div>';
+  fetch('/api/admin/wifi/scan').then(function(r){return r.json();}).then(function(d) {
+    if (!d.ok) { el.innerHTML = '<div style="color:var(--red);font-size:10px;">' + d.error + '</div>'; return; }
+    if (!d.networks.length) { el.innerHTML = '<div style="font-size:10px;color:var(--text-dim);">Brak sieci</div>'; return; }
+    var html = '';
+    d.networks.forEach(function(n) {
+      var bars = n.signal > 70 ? '▰▰▰▰' : n.signal > 50 ? '▰▰▰▱' : n.signal > 30 ? '▰▰▱▱' : '▰▱▱▱';
+      html += '<div class="adm-bk-row" style="cursor:pointer;padding:6px 10px;" onclick="document.getElementById(\'wifi-ssid\').value=\'' + n.ssid.replace(/'/g, "\\'") + '\';">' +
+        '<span style="font-size:11px;font-weight:600;flex:1;">' + n.ssid + '</span>' +
+        '<span style="font-size:10px;color:var(--text-dim);letter-spacing:1px;">' + bars + '</span>' +
+        '<span style="font-size:9px;color:var(--text-dim);width:60px;text-align:right;">' + (n.security || 'open') + '</span>' +
+      '</div>';
+    });
+    el.innerHTML = html;
+  });
+}
+
+function wifiConnect() {
+  var ssid = document.getElementById('wifi-ssid').value.trim();
+  var pass = document.getElementById('wifi-pass').value;
+  if (!ssid) { flash('wifi-flash', 'Podaj SSID', false); return; }
+  fetch('/api/admin/wifi/connect', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ssid: ssid, password: pass})
+  }).then(function(r){return r.json();}).then(function(d) {
+    flash('wifi-flash', d.ok ? 'Połączono: ' + (d.message || ssid) : d.error, d.ok);
+    if (d.ok) wifiStatus();
+  });
+}
+
+wifiStatus();
 </script>
 {% endblock %}

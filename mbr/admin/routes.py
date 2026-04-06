@@ -184,3 +184,71 @@ def api_feedback_delete(fb_id):
         db.execute("DELETE FROM feedback WHERE id=?", (fb_id,))
         db.commit()
     return jsonify({"ok": True})
+
+
+# ---------------------------------------------------------------------------
+# WiFi
+# ---------------------------------------------------------------------------
+
+@admin_bp.route("/api/admin/wifi/scan")
+@role_required("admin")
+def api_wifi_scan():
+    """Scan available WiFi networks."""
+    import subprocess
+    try:
+        out = subprocess.run(
+            ["nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY", "device", "wifi", "list", "--rescan", "yes"],
+            capture_output=True, text=True, timeout=15,
+        )
+        networks = []
+        seen = set()
+        for line in out.stdout.strip().split("\n"):
+            parts = line.split(":")
+            if len(parts) >= 3 and parts[0] and parts[0] not in seen:
+                seen.add(parts[0])
+                networks.append({"ssid": parts[0], "signal": parts[1], "security": parts[2]})
+        networks.sort(key=lambda n: int(n["signal"] or 0), reverse=True)
+        return jsonify({"ok": True, "networks": networks})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@admin_bp.route("/api/admin/wifi/connect", methods=["POST"])
+@role_required("admin")
+def api_wifi_connect():
+    """Connect to a WiFi network."""
+    import subprocess
+    data = request.get_json(silent=True) or {}
+    ssid = (data.get("ssid") or "").strip()
+    password = (data.get("password") or "").strip()
+    if not ssid:
+        return jsonify({"ok": False, "error": "SSID wymagane"}), 400
+    try:
+        cmd = ["nmcli", "device", "wifi", "connect", ssid]
+        if password:
+            cmd += ["password", password]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        if result.returncode == 0:
+            return jsonify({"ok": True, "message": result.stdout.strip()})
+        return jsonify({"ok": False, "error": result.stderr.strip() or result.stdout.strip()}), 400
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@admin_bp.route("/api/admin/wifi/status")
+@role_required("admin")
+def api_wifi_status():
+    """Get current WiFi connection status."""
+    import subprocess
+    try:
+        out = subprocess.run(
+            ["nmcli", "-t", "-f", "DEVICE,STATE,CONNECTION", "device", "status"],
+            capture_output=True, text=True, timeout=5,
+        )
+        for line in out.stdout.strip().split("\n"):
+            parts = line.split(":")
+            if len(parts) >= 3 and parts[0].startswith("wl"):
+                return jsonify({"ok": True, "device": parts[0], "state": parts[1], "connection": parts[2] or None})
+        return jsonify({"ok": True, "device": None, "state": "unavailable", "connection": None})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
