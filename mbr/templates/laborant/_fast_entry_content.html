@@ -2194,6 +2194,30 @@ window.showProcessStage = function(etapKey) {
 
     // Body (fields)
     html += '<div class="ps-acc-body">';
+
+    // Po-fakcie correction selector (show at top of new runda if stage uses Flow A)
+    var rundaObj = stageAnalizy[rn] || {};
+    if (isPoFakcie && rn > 1 && rundaEditable) {
+      var hasKorekta = stageKorekty.some(function(k) { return k.po_rundzie === rn - 1; });
+      if (!hasKorekta) {
+        html += '<div style="padding:8px 12px;margin-bottom:8px;background:var(--amber-bg);border:1px solid #fde68a;border-radius:6px;">' +
+          '<div style="font-size:9px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Co zrobiono na produkcji?</div>' +
+          '<div style="display:flex;gap:6px;align-items:center;">' +
+            '<select id="ps-korekta-pf-' + rn + '" style="padding:5px 8px;border:1px solid var(--border);border-radius:5px;font-size:11px;font-family:var(--font);flex:1;">' +
+              '<option value="">— wybierz —</option>';
+        stageConfig.korekty.forEach(function(s) {
+          html += '<option value="' + s + '">' + s + '</option>';
+        });
+        html += '</select>' +
+            '<span id="ps-korekta-pf-kg-wrap-' + rn + '">' +
+              '<input id="ps-korekta-pf-kg-' + rn + '" type="text" inputmode="decimal" placeholder="kg" style="width:60px;padding:5px 8px;border:1px solid var(--border);border-radius:5px;font-size:11px;font-family:var(--mono);text-align:center;">' +
+            '</span>' +
+            '<button onclick="psRegisterKorektaPoFakcie(\'' + etapKey + '\',' + rn + ')" ' +
+              'style="padding:5px 10px;background:var(--amber);color:#fff;border:none;border-radius:5px;font-size:10px;font-weight:600;cursor:pointer;">Zapisz</button>' +
+          '</div></div>';
+      }
+    }
+
     html += renderRundaFields(rn, rundaEditable);
     html += '</div></div>';
 
@@ -2227,20 +2251,33 @@ window.showProcessStage = function(etapKey) {
 
   // Add correction form (active only)
   var NO_KG_CORRECTIONS = ['Wydłużenie czasu'];
+  var isPoFakcie = stageConfig.korekta_po_fakcie;
+
   if (isActive && stageConfig.korekty && stageConfig.korekty.length > 0) {
-    html += '<div class="cv-params" style="margin-top:8px;border-color:var(--amber);border-style:dashed;">' +
-      '<div class="cv-params-head" style="color:var(--amber);">Działanie korygujące</div>' +
-      '<div style="padding:8px 16px;display:flex;gap:8px;align-items:center;">' +
-        '<select id="ps-korekta-sub" onchange="psKorektaChanged()" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-family:var(--font);flex:1;">';
-    stageConfig.korekty.forEach(function(s) {
-      html += '<option value="' + s + '">' + s + '</option>';
-    });
-    html += '</select>' +
-        '<span id="ps-korekta-kg-wrap">' +
-          '<input id="ps-korekta-kg" type="number" step="0.1" placeholder="kg" style="width:70px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:var(--mono);text-align:center;">' +
-        '</span>' +
-        '<button onclick="psAddKorekta(\'' + etapKey + '\',' + currentRunda + ')" style="padding:6px 12px;background:var(--amber);color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);white-space:nowrap;">+ Dodaj</button>' +
-      '</div></div>';
+    if (isPoFakcie) {
+      // Flow A: correction registered AFTER the fact (amidowanie, SMCA)
+      // Show "Wymaga korekty" button → opens new runda with correction type selector
+      html += '<div style="margin-top:8px;display:flex;gap:8px;">' +
+        '<button onclick="psNewRundaPoFakcie(\'' + etapKey + '\',' + currentRunda + ')" ' +
+          'style="flex:1;padding:8px 16px;background:var(--amber-bg);color:var(--amber);border:1.5px dashed var(--amber);border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);">' +
+          'Wymaga korekty — czekam na próbkę</button>' +
+      '</div>';
+    } else {
+      // Flow B: laborant initiates correction (czwart, sulfon, utlen, etc.)
+      html += '<div class="cv-params" style="margin-top:8px;border-color:var(--amber);border-style:dashed;">' +
+        '<div class="cv-params-head" style="color:var(--amber);">Działanie korygujące</div>' +
+        '<div style="padding:8px 16px;display:flex;gap:8px;align-items:center;">' +
+          '<select id="ps-korekta-sub" onchange="psKorektaChanged()" style="padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;font-family:var(--font);flex:1;">';
+      stageConfig.korekty.forEach(function(s) {
+        html += '<option value="' + s + '">' + s + '</option>';
+      });
+      html += '</select>' +
+          '<span id="ps-korekta-kg-wrap">' +
+            '<input id="ps-korekta-kg" type="number" step="0.1" placeholder="kg" style="width:70px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-family:var(--mono);text-align:center;">' +
+          '</span>' +
+          '<button onclick="psAddKorekta(\'' + etapKey + '\',' + currentRunda + ')" style="padding:6px 12px;background:var(--amber);color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);white-space:nowrap;">+ Dodaj</button>' +
+        '</div></div>';
+    }
   }
 
   // Approve button (active only)
@@ -2338,6 +2375,44 @@ function psKorektaChanged() {
   var sub = document.getElementById('ps-korekta-sub').value;
   var kgWrap = document.getElementById('ps-korekta-kg-wrap');
   if (kgWrap) kgWrap.style.display = _NO_KG_CORRECTIONS.indexOf(sub) >= 0 ? 'none' : '';
+}
+
+function psNewRundaPoFakcie(etap, poRundzie) {
+  // Flow A: create new runda immediately (correction will be registered with results)
+  var newRunda = poRundzie + 1;
+  if (!_etapyAnalizy[etap]) _etapyAnalizy[etap] = {};
+  _etapyAnalizy[etap][newRunda] = {};
+  // Mark that this runda needs a correction type to be selected
+  _etapyAnalizy[etap][newRunda]._needsKorektaType = true;
+  showProcessStage(etap);
+}
+
+function psRegisterKorektaPoFakcie(etap, runda) {
+  // Called when laborant selects what correction was done, after entering results
+  var sel = document.getElementById('ps-korekta-pf-' + runda);
+  if (!sel || !sel.value) { alert('Wybierz rodzaj korekty'); return; }
+  var sub = sel.value;
+  var needsKg = NO_KG_CORRECTIONS.indexOf(sub) < 0;
+  var kg = 0;
+  if (needsKg) {
+    var kgInp = document.getElementById('ps-korekta-pf-kg-' + runda);
+    kg = kgInp ? parseFloat(kgInp.value) || 0 : 0;
+  }
+
+  fetch('/api/ebr/' + ebrId + '/korekty', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({etap: etap, po_rundzie: runda - 1, substancja: sub, ilosc_kg: kg})
+  }).then(function(resp) {
+    if (resp.ok) {
+      _etapyKorekty.push({etap: etap, po_rundzie: runda - 1, substancja: sub, ilosc_kg: kg, wykonano: 1});
+      if (_etapyAnalizy[etap] && _etapyAnalizy[etap][runda]) {
+        delete _etapyAnalizy[etap][runda]._needsKorektaType;
+      }
+      showProcessStage(etap);
+      renderSidebarEtapy();
+    }
+  });
 }
 
 function psAddKorekta(etap, poRundzie) {

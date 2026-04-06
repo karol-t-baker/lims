@@ -2,15 +2,15 @@
 
 ETAPY_ANALIZY = {
     "Chegina_K7": {
-        "amidowanie":        {"label": "Amidowanie",        "korekty": ["DMAPA", "Wydłużenie czasu"]},
-        "smca":              {"label": "Wytworzenie SMCA",  "korekty": ["NaOH", "MCA"]},
+        "amidowanie":        {"label": "Amidowanie",        "korekty": ["DMAPA", "Wydłużenie czasu"], "korekta_po_fakcie": True},
+        "smca":              {"label": "Wytworzenie SMCA",  "korekty": ["NaOH", "MCA"], "korekta_po_fakcie": True},
         "czwartorzedowanie": {"label": "Czwartorzędowanie", "korekty": ["NaOH", "MCA"]},
         "sulfonowanie":      {"label": "Sulfonowanie",      "korekty": ["Na2SO3"]},
         "utlenienie":        {"label": "Utlenienie",        "korekty": ["Perhydrol"]},
     },
     "Chegina_K40GLOL": {
-        "amidowanie":        {"label": "Amidowanie",        "korekty": ["DMAPA", "Wydłużenie czasu"]},
-        "smca":              {"label": "Wytworzenie SMCA",  "korekty": ["NaOH", "MCA"]},
+        "amidowanie":        {"label": "Amidowanie",        "korekty": ["DMAPA", "Wydłużenie czasu"], "korekta_po_fakcie": True},
+        "smca":              {"label": "Wytworzenie SMCA",  "korekty": ["NaOH", "MCA"], "korekta_po_fakcie": True},
         "czwartorzedowanie": {"label": "Czwartorzędowanie", "korekty": ["NaOH", "MCA"]},
         "sulfonowanie":      {"label": "Sulfonowanie",      "korekty": ["Na2SO3"]},
         "utlenienie":        {"label": "Utlenienie",        "korekty": ["Kw. cytrynowy", "Perhydrol"]},
@@ -20,12 +20,13 @@ ETAPY_ANALIZY = {
         "amidowanie": {
             "label": "Amidowanie",
             "korekty": ["DMAPA", "Wydłużenie czasu"],
+            "korekta_po_fakcie": True,
             "kroki": [
                 {"nr": 1, "label": "Synteza (po 7h)", "parametry": ["le", "barwa_I2"]},
                 {"nr": 2, "label": "Zakończenie destylacji", "parametry": ["la", "barwa_I2"]},
             ],
         },
-        "smca": {"label": "Wytworzenie SMCA", "korekty": ["NaOH", "MCA"]},
+        "smca": {"label": "Wytworzenie SMCA", "korekty": ["NaOH", "MCA"], "korekta_po_fakcie": True},
         "czwartorzedowanie": {
             "label": "Czwartorzędowanie",
             "korekty": ["NaOH", "MCA"],
