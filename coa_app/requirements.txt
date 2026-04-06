@@ -1,0 +1,4 @@
+flask
+docxtpl
+docx2pdf
+requests

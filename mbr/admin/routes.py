@@ -199,6 +199,15 @@ def api_download_cert():
                      as_attachment=True, download_name="labcore.crt")
 
 
+@admin_bp.route("/api/admin/db-snapshot")
+def api_db_snapshot():
+    """Download current DB as file (for COA app sync). No login required — LAN only."""
+    from flask import send_file
+    from mbr.db import DB_PATH
+    return send_file(str(DB_PATH), mimetype="application/octet-stream",
+                     as_attachment=True, download_name="batch_db.sqlite")
+
+
 @admin_bp.route("/api/admin/wifi/scan")
 @role_required("admin")
 def api_wifi_scan():
