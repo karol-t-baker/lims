@@ -10,13 +10,14 @@ def create_app():
     app = Flask(__name__)
     app.secret_key = os.environ.get("MBR_SECRET_KEY", "dev-secret-change-in-prod")
     app.config["TEMPLATES_AUTO_RELOAD"] = True
-    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
 
     @app.after_request
-    def add_no_cache(response):
-        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-        response.headers["Pragma"] = "no-cache"
-        response.headers["Expires"] = "0"
+    def cache_control(response):
+        if response.content_type and ('text/html' in response.content_type or 'application/json' in response.content_type):
+            # HTML + API: never cache (templates change during dev)
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+        # Static files (CSS/JS): cached by browser, cache-busted via ?v= query string
         return response
 
     # Shared: filters, context processor
