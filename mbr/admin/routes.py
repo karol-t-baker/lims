@@ -190,6 +190,15 @@ def api_feedback_delete(fb_id):
 # WiFi
 # ---------------------------------------------------------------------------
 
+@admin_bp.route("/api/admin/cert.crt")
+def api_download_cert():
+    """Download SSL certificate for browser trust (no login required)."""
+    from flask import send_file
+    cert_path = "/etc/ssl/lims/lims.crt"
+    return send_file(cert_path, mimetype="application/x-x509-ca-cert",
+                     as_attachment=True, download_name="labcore.crt")
+
+
 @admin_bp.route("/api/admin/wifi/scan")
 @role_required("admin")
 def api_wifi_scan():
