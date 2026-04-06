@@ -82,6 +82,7 @@ def api_cert_generate():
             pdf_bytes = generate_certificate_pdf(
                 ebr["produkt"], variant_id, ebr["nr_partii"],
                 ebr.get("dt_start"), wyniki_flat, extra_fields,
+                wystawil=wystawil,
             )
         except Exception as e:
             return jsonify({"ok": False, "error": str(e)}), 500

@@ -110,6 +110,7 @@ def build_context(
     dt_start,
     wyniki_flat: dict,
     extra_fields: dict | None = None,
+    wystawil: str = "",
 ) -> dict:
     """Build Jinja2 context dict for certificate rendering.
 
@@ -252,6 +253,7 @@ def build_context(
         "rspo_text": rspo_text,
         "avon_code": avon_code,
         "avon_name": avon_name,
+        "wystawil": wystawil,
     }
 
 
@@ -305,13 +307,14 @@ def generate_certificate_pdf(
     dt_start,
     wyniki_flat: dict,
     extra_fields: dict | None = None,
+    wystawil: str = "",
 ) -> bytes:
     """Build context, render .docx via docxtpl, convert to PDF via Gotenberg.
 
     Returns:
         PDF file content as bytes.
     """
-    ctx = build_context(produkt, variant_id, nr_partii, dt_start, wyniki_flat, extra_fields)
+    ctx = build_context(produkt, variant_id, nr_partii, dt_start, wyniki_flat, extra_fields, wystawil=wystawil)
     docx_bytes = _docxtpl_render(ctx)
     return _gotenberg_convert(docx_bytes)
 
