@@ -28,7 +28,7 @@
       </div>
       <div class="nsc-group">
         <div class="nsc-group-label">Kalkulatory</div>
-        <div class="nsc-item"><kbd>M</kbd><span>Kalkulator miareczkowy</span></div>
+        <div class="nsc-item"><kbd>K</kbd><span>Kalkulator miareczkowy</span></div>
       </div>
     </div>
   </div>
@@ -321,7 +321,7 @@ function toggleMetodyModal(){
 // Keyboard shortcut: M toggles metody modal (only when not typing in input/select)
 document.addEventListener('keydown', function(e){
   if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||e.target.tagName==='TEXTAREA') return;
-  if(e.key==='m'||e.key==='M'){
+  if(e.key==='k'||e.key==='K'){
     e.preventDefault();
     toggleMetodyModal();
   }
