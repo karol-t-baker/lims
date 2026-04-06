@@ -28,15 +28,16 @@ if %errorlevel% neq 0 (
 )
 echo  [OK] Git znaleziony
 
-:: Check Microsoft Word
-reg query "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\Winword.exe" >nul 2>&1
+:: Check LibreOffice
+soffice --version >nul 2>&1
 if %errorlevel% neq 0 (
-    echo  [!] Microsoft Word nie znaleziony!
-    echo      Word jest wymagany do generowania PDF swiadectw.
-    echo      Instalacja bedzie kontynuowana, ale swiadectwa nie beda dzialac.
+    echo  [!] LibreOffice nie znaleziony!
+    echo      Pobierz z: https://www.libreoffice.org/download/
+    echo      Wymagany do generowania PDF swiadectw.
+    echo      Instalacja bedzie kontynuowana.
     echo.
 ) else (
-    echo  [OK] Microsoft Word znaleziony
+    echo  [OK] LibreOffice znaleziony
 )
 
 :: Set install dir
@@ -64,7 +65,7 @@ echo  [OK] Repozytorium pobrane
 :: Install Python dependencies
 echo  [..] Instalacja zaleznosci Python...
 cd /d "%INSTALL_DIR%"
-pip install flask docxtpl docx2pdf comtypes requests bcrypt --quiet
+pip install flask docxtpl requests bcrypt --quiet
 if %errorlevel% neq 0 (
     echo  [X] Blad instalacji zaleznosci!
     pause

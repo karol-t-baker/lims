@@ -1,5 +1,3 @@
 flask
 docxtpl
-docx2pdf
-comtypes
 requests

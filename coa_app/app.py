@@ -33,32 +33,20 @@ DEFAULT_SERVER = "http://labcore.local:5001"
 DEFAULT_OUTPUT_DIR = str(Path.home() / "Desktop" / "Swiadectwa")
 DEFAULT_BACKUP_DIR = str(Path.home() / "Desktop" / "Backupy_LIMS")
 
-# Persistent Word instance for fast PDF conversion (Windows only)
-_word_app = None
-
 def _word_convert(docx_path: str, pdf_path: str):
-    """Convert docx to pdf. On Windows: reuse hidden Word instance. Else: docx2pdf."""
-    global _word_app
-    import platform
-    if platform.system() == "Windows":
-        import comtypes.client
-        try:
-            if _word_app is None:
-                _word_app = comtypes.client.CreateObject("Word.Application")
-                _word_app.Visible = False
-            doc = _word_app.Documents.Open(docx_path)
-            doc.SaveAs(pdf_path, FileFormat=17)
-            doc.Close()
-        except Exception:
-            # Word crashed or was closed — restart
-            _word_app = comtypes.client.CreateObject("Word.Application")
-            _word_app.Visible = False
-            doc = _word_app.Documents.Open(docx_path)
-            doc.SaveAs(pdf_path, FileFormat=17)
-            doc.Close()
-    else:
-        from docx2pdf import convert
-        convert(docx_path, pdf_path)
+    """Convert docx to pdf using LibreOffice headless."""
+    import subprocess
+    result = subprocess.run([
+        "soffice", "--headless", "--convert-to", "pdf",
+        "--outdir", str(Path(pdf_path).parent),
+        docx_path,
+    ], capture_output=True, text=True, timeout=30)
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr or "LibreOffice conversion failed")
+    # soffice names output by input filename — rename if needed
+    generated = Path(pdf_path).parent / (Path(docx_path).stem + ".pdf")
+    if generated != Path(pdf_path) and generated.exists():
+        generated.rename(pdf_path)
 
 
 def _get_setting(key, default=""):
