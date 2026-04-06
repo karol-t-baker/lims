@@ -45,7 +45,8 @@ def list_completed_registry(
 
 
 def get_registry_columns(db: sqlite3.Connection, produkt: str) -> list:
-    """Get column definitions (parameter names + limits) for a product's registry table."""
+    """Get column definitions (parameter names + limits) for a product's registry table.
+    Uses skrot from parametry_analityczne as label where available."""
     mbr = db.execute(
         "SELECT parametry_lab FROM mbr_templates WHERE produkt = ? AND status = 'active'",
         (produkt,)
@@ -58,6 +59,16 @@ def get_registry_columns(db: sqlite3.Connection, produkt: str) -> list:
     pola = sekcja.get("pola", sekcja) if isinstance(sekcja, dict) else sekcja
     if not isinstance(pola, list):
         return []
+    # Replace labels with skroty
+    skroty = {}
+    try:
+        rows = db.execute("SELECT kod, skrot FROM parametry_analityczne WHERE aktywny=1 AND skrot IS NOT NULL AND skrot != ''").fetchall()
+        skroty = {r["kod"]: r["skrot"] for r in rows}
+    except Exception:
+        pass
+    for pole in pola:
+        if isinstance(pole, dict) and pole.get("kod") in skroty:
+            pole["label"] = skroty[pole["kod"]]
     return pola
 
 
