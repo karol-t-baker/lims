@@ -2011,6 +2011,13 @@ window.showProcessStage = function(etapKey) {
               '<div class="ff-right"><span class="norm-range">' + normRange + '</span>' + typeTag + '</div></div>';
           }
         });
+        // Per-krok action buttons (po-fakcie flow)
+        if (isActive && isPoFakcie && stageConfig.korekty && stageConfig.korekty.length > 0) {
+          krokHtml += '<div style="padding:4px 14px 8px;display:flex;gap:6px;">' +
+            '<button onclick="psApproveStage(\'' + etapKey + '\')" style="flex:1;padding:6px 12px;background:var(--teal);color:#fff;border:none;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;">OK — dalej →</button>' +
+            '<button onclick="psNewRundaPoFakcie(\'' + etapKey + '\',' + currentRunda + ')" style="flex:1;padding:6px 12px;background:var(--amber-bg);color:var(--amber);border:1px dashed var(--amber);border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;">Wymaga korekty</button>' +
+          '</div>';
+        }
         krokHtml += '</div>';
       }
       krokHtml += '</div>';
