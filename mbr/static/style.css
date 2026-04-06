@@ -1649,7 +1649,7 @@ body {
 .batch-card.active { background: var(--teal-bg); }
 
 .bc-nr { font-weight: 700; font-family: var(--mono); font-size: 12px; white-space: nowrap; }
-.bc-typ-badge { font-size: 8px; font-weight: 700; color: var(--text-dim); background: var(--surface-alt); padding: 1px 4px; border-radius: 3px; flex-shrink: 0; }
+.bc-typ-badge { font-size: 8px; font-weight: 700; color: var(--blue); background: var(--blue-bg); padding: 1px 4px; border-radius: 3px; flex-shrink: 0; }
 
 /* Product sticker — highlighter colors matching lab convention */
 .bc-product-sticker {
