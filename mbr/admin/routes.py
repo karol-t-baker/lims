@@ -215,7 +215,7 @@ def api_wifi_scan():
     import subprocess
     try:
         out = subprocess.run(
-            ["nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY", "device", "wifi", "list", "--rescan", "yes"],
+            ["sudo", "nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY", "device", "wifi", "list", "--rescan", "yes"],
             capture_output=True, text=True, timeout=15,
         )
         networks = []
@@ -242,7 +242,7 @@ def api_wifi_connect():
     if not ssid:
         return jsonify({"ok": False, "error": "SSID wymagane"}), 400
     try:
-        cmd = ["nmcli", "device", "wifi", "connect", ssid]
+        cmd = ["sudo", "nmcli", "device", "wifi", "connect", ssid]
         if password:
             cmd += ["password", password]
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
@@ -260,7 +260,7 @@ def api_wifi_status():
     import subprocess
     try:
         out = subprocess.run(
-            ["nmcli", "-t", "-f", "DEVICE,STATE,CONNECTION", "device", "status"],
+            ["sudo", "nmcli", "-t", "-f", "DEVICE,STATE,CONNECTION", "device", "status"],
             capture_output=True, text=True, timeout=5,
         )
         for line in out.stdout.strip().split("\n"):
