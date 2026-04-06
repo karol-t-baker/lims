@@ -588,6 +588,7 @@
 .ps-acc-ts { font-size: 9px; color: var(--text-dim); font-family: var(--mono); white-space: nowrap; }
 .ps-corr-ts { font-size: 9px; color: var(--text-dim); font-family: var(--mono); }
 .ps-locked-msg { padding: 20px; text-align: center; color: var(--text-dim); font-size: 12px; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
 </style>
 
@@ -2138,6 +2139,9 @@ window.showProcessStage = function(etapKey) {
     return h;
   }
 
+  // Determine correction flow type
+  var isPoFakcie = stageConfig.korekta_po_fakcie || false;
+
   // Render all rounds accordion style: previous collapsed with summary, current expanded
   // Skip if kroki already rendered fields above
   if (!kroki)
@@ -2251,17 +2255,33 @@ window.showProcessStage = function(etapKey) {
 
   // Add correction form (active only)
   var NO_KG_CORRECTIONS = ['Wydłużenie czasu'];
-  var isPoFakcie = stageConfig.korekta_po_fakcie;
+  // isPoFakcie already defined above
 
   if (isActive && stageConfig.korekty && stageConfig.korekty.length > 0) {
     if (isPoFakcie) {
       // Flow A: correction registered AFTER the fact (amidowanie, SMCA)
-      // Show "Wymaga korekty" button → opens new runda with correction type selector
-      html += '<div style="margin-top:8px;display:flex;gap:8px;">' +
-        '<button onclick="psNewRundaPoFakcie(\'' + etapKey + '\',' + currentRunda + ')" ' +
-          'style="flex:1;padding:8px 16px;background:var(--amber-bg);color:var(--amber);border:1.5px dashed var(--amber);border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);">' +
-          'Wymaga korekty — czekam na próbkę</button>' +
-      '</div>';
+      // Check if we're already waiting (current runda is empty = waiting for sample)
+      var currentRundaData = stageAnalizy[currentRunda] || {};
+      var currentRundaHasResults = Object.keys(currentRundaData).filter(function(k){ return k[0] !== '_'; }).length > 0;
+      var isWaiting = currentRunda > 1 && !currentRundaHasResults;
+
+      if (isWaiting) {
+        // Already waiting for sample — show collapsed status banner
+        html += '<div style="margin-top:8px;padding:10px 16px;background:var(--amber-bg);border:1.5px solid #fde68a;border-radius:8px;display:flex;align-items:center;gap:8px;">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;color:var(--amber);flex-shrink:0;animation:pulse 2s infinite;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' +
+          '<div>' +
+            '<div style="font-size:11px;font-weight:600;color:var(--amber);">Oczekiwanie na próbkę po korekcie</div>' +
+            '<div style="font-size:9px;color:var(--text-dim);margin-top:1px;">Runda ' + currentRunda + ' — wprowadź wyniki gdy próbka będzie gotowa</div>' +
+          '</div>' +
+        '</div>';
+      } else {
+        // Has results or first runda — show action button
+        html += '<div style="margin-top:8px;display:flex;gap:8px;">' +
+          '<button onclick="psNewRundaPoFakcie(\'' + etapKey + '\',' + currentRunda + ')" ' +
+            'style="flex:1;padding:8px 16px;background:var(--amber-bg);color:var(--amber);border:1.5px dashed var(--amber);border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);">' +
+            'Wymaga korekty — czekam na próbkę</button>' +
+        '</div>';
+      }
     } else {
       // Flow B: laborant initiates correction (czwart, sulfon, utlen, etc.)
       html += '<div class="cv-params" style="margin-top:8px;border-color:var(--amber);border-style:dashed;">' +
