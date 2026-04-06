@@ -96,24 +96,100 @@ def coa_home():
 @app.route("/api/coa/sync", methods=["POST"])
 def api_coa_sync():
     server = _get_setting("server_url", DEFAULT_SERVER)
+    since = _get_setting("last_sync", "2000-01-01T00:00:00")
     try:
         import urllib3
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-        r = http_requests.get(f"{server}/api/admin/db-snapshot", timeout=15, verify=False)
+        r = http_requests.get(
+            f"{server}/api/admin/sync-delta",
+            params={"since": since},
+            timeout=15, verify=False,
+        )
         r.raise_for_status()
-        # Save as current DB
-        with open(DB_PATH, "wb") as f:
-            f.write(r.content)
-        # Save backup copy with timestamp
+        data = r.json()
+        if not data.get("ok"):
+            return jsonify({"ok": False, "error": data.get("error", "Unknown")}), 500
+
+        db = get_db()
+        counts = {"new": 0, "updated": 0}
+
+        # Upsert reference tables (full replace)
+        for table, rows in data["reference"].items():
+            if not rows:
+                continue
+            cols = list(rows[0].keys())
+            placeholders = ",".join("?" * len(cols))
+            col_names = ",".join(cols)
+            for row in rows:
+                vals = [row[c] for c in cols]
+                db.execute(
+                    f"INSERT OR REPLACE INTO {table} ({col_names}) VALUES ({placeholders})",
+                    vals,
+                )
+
+        # Upsert delta tables
+        for table, rows in data["delta"].items():
+            if not rows:
+                continue
+            cols = list(rows[0].keys())
+            placeholders = ",".join("?" * len(cols))
+            col_names = ",".join(cols)
+            for row in rows:
+                vals = [row[c] for c in cols]
+                # Check if exists
+                pk = "ebr_id" if table == "ebr_batches" else "wynik_id" if table == "ebr_wyniki" else "id"
+                existing = db.execute(f"SELECT {pk} FROM {table} WHERE {pk}=?", (row[pk],)).fetchone()
+                db.execute(
+                    f"INSERT OR REPLACE INTO {table} ({col_names}) VALUES ({placeholders})",
+                    vals,
+                )
+                if existing:
+                    counts["updated"] += 1
+                else:
+                    counts["new"] += 1
+
+        db.commit()
+        db.close()
+
+        # Save sync timestamp
+        now = datetime.now().isoformat(timespec="seconds")
+        _set_setting("last_sync", now)
+
+        # Backup
         backup_dir_str = _get_setting("backup_dir", "")
         backup_dir = Path(backup_dir_str) if backup_dir_str else DATA_DIR / "backups"
         backup_dir.mkdir(parents=True, exist_ok=True)
         ts = datetime.now().strftime("%Y-%m-%d_%H-%M")
-        backup_path = backup_dir / f"batch_db_{ts}.sqlite"
-        with open(backup_path, "wb") as f:
+        import shutil
+        shutil.copy2(DB_PATH, backup_dir / f"batch_db_{ts}.sqlite")
+
+        n_batches = len(data["delta"]["ebr_batches"])
+        total = data.get("total_completed", "?")
+        return jsonify({
+            "ok": True,
+            "new": counts["new"],
+            "updated": counts["updated"],
+            "batches_synced": n_batches,
+            "total_on_server": total,
+        })
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@app.route("/api/coa/sync-full", methods=["POST"])
+def api_coa_sync_full():
+    """Full DB download — fallback if delta fails or first setup."""
+    server = _get_setting("server_url", DEFAULT_SERVER)
+    try:
+        import urllib3
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        r = http_requests.get(f"{server}/api/admin/db-snapshot", timeout=30, verify=False)
+        r.raise_for_status()
+        with open(DB_PATH, "wb") as f:
             f.write(r.content)
+        _set_setting("last_sync", datetime.now().isoformat(timespec="seconds"))
         size_kb = len(r.content) // 1024
-        return jsonify({"ok": True, "size_kb": size_kb})
+        return jsonify({"ok": True, "size_kb": size_kb, "mode": "full"})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 

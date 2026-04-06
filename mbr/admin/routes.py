@@ -208,6 +208,58 @@ def api_db_snapshot():
                      as_attachment=True, download_name="batch_db.sqlite")
 
 
+@admin_bp.route("/api/admin/sync-delta")
+def api_sync_delta():
+    """Return records changed since given timestamp. COA sends ?since=ISO_TIMESTAMP."""
+    import json as _json
+    since = request.args.get("since", "2000-01-01T00:00:00")
+    with db_session() as db:
+        # Static/reference tables — always send full (small)
+        params = [dict(r) for r in db.execute("SELECT * FROM parametry_analityczne").fetchall()]
+        metody = [dict(r) for r in db.execute("SELECT * FROM metody_miareczkowe").fetchall()]
+        workers = [dict(r) for r in db.execute("SELECT * FROM workers").fetchall()]
+        templates = [dict(r) for r in db.execute("SELECT * FROM mbr_templates").fetchall()]
+
+        # Delta tables — only completed batches, changed since timestamp
+        batches = [dict(r) for r in db.execute(
+            "SELECT * FROM ebr_batches WHERE status='completed' AND (dt_end >= ? OR dt_start >= ?)",
+            (since, since),
+        ).fetchall()]
+        batch_ids = [b["ebr_id"] for b in batches]
+
+        wyniki = []
+        swiadectwa = []
+        if batch_ids:
+            placeholders = ",".join("?" * len(batch_ids))
+            wyniki = [dict(r) for r in db.execute(
+                f"SELECT * FROM ebr_wyniki WHERE ebr_id IN ({placeholders})", batch_ids
+            ).fetchall()]
+            swiadectwa = [dict(r) for r in db.execute(
+                f"SELECT * FROM swiadectwa WHERE ebr_id IN ({placeholders})", batch_ids
+            ).fetchall()]
+
+        # Also send any batches completed before 'since' that COA might not have
+        # (first sync or gap) — count total completed
+        total_completed = db.execute("SELECT COUNT(*) FROM ebr_batches WHERE status='completed'").fetchone()[0]
+
+    return jsonify({
+        "ok": True,
+        "since": since,
+        "reference": {
+            "parametry_analityczne": params,
+            "metody_miareczkowe": metody,
+            "workers": workers,
+            "mbr_templates": templates,
+        },
+        "delta": {
+            "ebr_batches": batches,
+            "ebr_wyniki": wyniki,
+            "swiadectwa": swiadectwa,
+        },
+        "total_completed": total_completed,
+    })
+
+
 @admin_bp.route("/api/admin/wifi/scan")
 @role_required("admin")
 def api_wifi_scan():
