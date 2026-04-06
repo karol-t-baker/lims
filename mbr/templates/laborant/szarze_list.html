@@ -596,6 +596,9 @@ if (_dm) {
   }
 }
 
+// Preload sidebar registry data (so switching tabs is instant)
+loadSidebarRegistry();
+
 // Batch card click delegation (sidebar + dashboard table)
 document.addEventListener('click', (e) => {
   const card = e.target.closest('.batch-card[data-ebr-id]');
