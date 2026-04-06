@@ -148,3 +148,47 @@ def test_api_completed_skips_old(client, tmp_path):
         assert len(data["batches"]) == 1
         assert data["batches"][0]["batch_id"] == "T__2"
         assert data["max_seq"] == 2
+
+
+def test_e2e_sync_seq_flow(db):
+    """Full cycle: create batches, complete them, verify sync_seq ordering."""
+    ids = []
+    for i in range(5):
+        eid = _create_batch(db, f"E2E__{i}", f"{i}/2026")
+        ids.append(eid)
+
+    # Complete first 3
+    for eid in ids[:3]:
+        complete_ebr(db, eid)
+
+    # Check sequences are 1, 2, 3
+    seqs = []
+    for eid in ids[:3]:
+        seq = db.execute("SELECT sync_seq FROM ebr_batches WHERE ebr_id=?", (eid,)).fetchone()[0]
+        seqs.append(seq)
+    assert seqs == [1, 2, 3]
+
+    # Uncompleted batches have no sync_seq
+    for eid in ids[3:]:
+        seq = db.execute("SELECT sync_seq FROM ebr_batches WHERE ebr_id=?", (eid,)).fetchone()[0]
+        assert seq is None
+
+    # Complete 4th — should get seq 4
+    complete_ebr(db, ids[3])
+    seq4 = db.execute("SELECT sync_seq FROM ebr_batches WHERE ebr_id=?", (ids[3],)).fetchone()[0]
+    assert seq4 == 4
+
+    # Bump first batch (simulate wyniki update) — should get seq 5
+    next_seq = db.execute("SELECT COALESCE(MAX(sync_seq), 0) + 1 FROM ebr_batches").fetchone()[0]
+    db.execute("UPDATE ebr_batches SET sync_seq = ? WHERE ebr_id = ?", (next_seq, ids[0]))
+    db.commit()
+    seq1_new = db.execute("SELECT sync_seq FROM ebr_batches WHERE ebr_id=?", (ids[0],)).fetchone()[0]
+    assert seq1_new == 5
+
+    # Query "since=3" should return batches 4 (seq=4) and 1 (seq=5, bumped)
+    rows = db.execute(
+        "SELECT ebr_id, sync_seq FROM ebr_batches WHERE status='completed' AND sync_seq > 3 ORDER BY sync_seq"
+    ).fetchall()
+    assert len(rows) == 2
+    assert rows[0]["ebr_id"] == ids[3]  # seq 4
+    assert rows[1]["ebr_id"] == ids[0]  # seq 5 (bumped)
