@@ -101,7 +101,8 @@ PARAMETRY = [
      "precision": 2},
 
     # --- dodatki (bezposredni) ---
-    {"kod": "kwas_kg",  "label": "Dodatek kwasu",       "skrot": "Kwas",  "typ": "bezposredni", "precision": 1},
+    {"kod": "kwas_ca",  "label": "Kwas cytrynowy [kg]", "skrot": "Kw. cytr.","typ": "bezposredni", "precision": 1},
+    {"kod": "kwas_hcl", "label": "Kwas solny HCl [kg]", "skrot": "HCl",     "typ": "bezposredni", "precision": 1},
     {"kod": "woda_kg",  "label": "Dodatek wody",        "skrot": "Woda",  "typ": "bezposredni", "precision": 1},
     {"kod": "nacl_kg",  "label": "Dodatek NaCl",        "skrot": "NaCl",  "typ": "bezposredni", "precision": 1},
     {"kod": "nastaw",   "label": "Nastaw",               "skrot": "Nastaw","typ": "bezposredni", "precision": 0},
@@ -273,7 +274,8 @@ ETAPY_BINDINGS = [
     # dodatki — all 4 core products
     # =========================================================
     *[
-        _b(prod, "dodatki", "kwas_kg", 1, 0, 9999)
+        _b(prod, "dodatki", "kwas_ca", 1, 0, 9999),
+        _b(prod, "dodatki", "kwas_hcl", 2, 0, 9999)
         for prod in ("Chegina_K40GL", "Chegina_K40GLO", "Chegina_K40GLOL", "Chegina_K7")
     ],
     *[
