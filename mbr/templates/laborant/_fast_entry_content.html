@@ -18,7 +18,7 @@
   </span>
   <span class="tp-r">
     {% if ebr.typ == 'zbiornik' %}
-      <span class="en-badge" style="background:var(--blue-bg, #e8f0fe);color:var(--blue, #1a73e8);margin-right:4px;">Zbiornik</span>
+      <span class="en-badge" style="background:var(--blue-bg, #e8f0fe);color:var(--blue, #1a73e8);margin-right:4px;">{{ ebr.nr_zbiornika or 'ZB' }}</span>
     {% endif %}
     {% if ebr.status == 'open' %}
       <span class="en-badge b-wait">otwarta</span>
