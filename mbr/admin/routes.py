@@ -280,11 +280,10 @@ def api_completed():
 
 @admin_bp.route("/api/admin/sync-delta")
 def api_sync_delta():
-    """Return records changed since given timestamp.
+    """DEPRECATED: Use GET /api/completed?since=N instead.
 
-    Params:
-        since: ISO timestamp of last sync
-        ref_hash: hash of reference data COA already has (skip if matches)
+    Kept for backwards compatibility during transition.
+    Return records changed since given timestamp.
     """
     import hashlib
     since = request.args.get("since", "2000-01-01T00:00:00")
