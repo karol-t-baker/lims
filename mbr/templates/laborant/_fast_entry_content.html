@@ -2066,8 +2066,17 @@ window.showProcessStage = function(etapKey) {
 
   // Approve button (active only)
   if (isActive) {
-    html += '<button class="ps-approve-btn" onclick="psApproveStage(\'' + etapKey + '\')">' +
-      'Zatwierdź etap →</button>';
+    var isSkippable = etapKey === 'rozjasnianie';
+    if (isSkippable) {
+      html += '<div style="display:flex;gap:8px;margin-top:8px;">' +
+        '<button class="ps-approve-btn" onclick="psApproveStage(\'' + etapKey + '\')" style="flex:1;">' +
+        'Zatwierdź etap →</button>' +
+        '<button class="ps-approve-btn" onclick="psSkipStage(\'' + etapKey + '\')" style="flex:0;background:var(--text-dim);white-space:nowrap;">' +
+        'Pomiń →</button></div>';
+    } else {
+      html += '<button class="ps-approve-btn" onclick="psApproveStage(\'' + etapKey + '\')">' +
+        'Zatwierdź etap →</button>';
+    }
   }
 
   // Insert process stage content
@@ -2192,6 +2201,32 @@ function psApproveStage(etap) {
         // All process stages done — show standaryzacja
         loadBatch(ebrId);
       }
+    }
+  });
+}
+
+function psSkipStage(etap) {
+  if (!confirm('Pominąć etap ' + etap + '?')) return;
+  fetch('/api/ebr/' + ebrId + '/etapy-status/skip', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({etap: etap})
+  }).then(function(resp) { return resp.json(); })
+  .then(function(data) {
+    if (data.ok) {
+      // Update local status
+      _etapyStatus.forEach(function(s) {
+        if (s.etap === etap) s.status = 'skipped';
+      });
+      if (data.next_etap) {
+        _etapyStatus.forEach(function(s) {
+          if (s.etap === data.next_etap) s.status = 'in_progress';
+        });
+        showProcessStage(data.next_etap);
+      } else {
+        renderSections();
+      }
+      renderSidebarEtapy();
     }
   });
 }

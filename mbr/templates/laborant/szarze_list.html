@@ -89,8 +89,11 @@
   .se-num.done { background: var(--green-bg); border-color: var(--green); color: var(--green); }
   .se-num.active { background: var(--teal-bg); border-color: var(--teal); color: var(--teal); animation: sePulse 1.8s ease-in-out infinite; }
   .se-num.pending { background: var(--surface); border-color: var(--border); color: var(--text-dim); }
+  .se-num.skipped { background: var(--surface); border-color: var(--text-dim); color: var(--text-dim); opacity: 0.5; }
   .se-num.stand { background: var(--stage-stand-bg); border-color: var(--stage-stand); color: var(--stage-stand); }
   .se-num.koncowa { background: var(--stage-koncowa-bg); border-color: var(--stage-koncowa); color: var(--stage-koncowa); }
+  .is-skipped .se-name { text-decoration: line-through; opacity: 0.6; }
+  .is-skipped .se-status { color: var(--text-dim); font-style: italic; }
   @keyframes sePulse { 0%,100%{box-shadow:0 0 0 0 rgba(13,115,119,.3)} 50%{box-shadow:0 0 0 4px rgba(13,115,119,0)} }
 
   .se-info { flex: 1; min-width: 0; }
@@ -774,7 +777,7 @@ function renderSidebarEtapy() {
     var esMatch = esData.find(function(es) { return es.etap === etapKey; });
 
     if (esMatch) {
-      status = esMatch.status === 'done' ? 'done' : esMatch.status === 'in_progress' ? 'active' : 'pending';
+      status = esMatch.status === 'done' ? 'done' : esMatch.status === 'in_progress' ? 'active' : esMatch.status === 'skipped' ? 'skipped' : 'pending';
     } else if (etap.read_only && !etap.sekcja_lab && esData.length === 0) {
       // No stage tracking — fallback: read_only stages before standaryzacja are done if batch has wyniki
       var labIndices = filteredEtapy.map(function(e,j){return e.sekcja_lab && !e.read_only ? j : -1;}).filter(function(j){return j>=0;});
@@ -845,12 +848,12 @@ function renderSidebarEtapy() {
 
   // Sequential stages
   sequentialStages.forEach(function(ss) {
-    var statusCls = ss.sd.status === 'done' ? 'done' : ss.sd.status === 'active' ? 'active' : 'pending';
+    var statusCls = ss.sd.status === 'done' ? 'done' : ss.sd.status === 'active' ? 'active' : ss.sd.status === 'skipped' ? 'skipped' : 'pending';
     var isCls = 'is-' + ss.sd.status.replace('in_progress', 'active');
     if (ss.etap.sekcja_lab === 'standaryzacja' && ss.sd.status === 'active') statusCls = 'stand';
     if (ss.etap.sekcja_lab === 'analiza_koncowa' && ss.sd.status === 'active') statusCls = 'koncowa';
     var clickAttr = ss.sd.clickable ? ' onclick="openProcessStage(\'' + ss.sd.key + '\')"' : '';
-    var statusText = ss.sd.status === 'done' ? 'Zakończone' : ss.sd.status === 'active' ? 'W toku' : 'Oczekuje';
+    var statusText = ss.sd.status === 'done' ? 'Zakończone' : ss.sd.status === 'active' ? 'W toku' : ss.sd.status === 'skipped' ? 'Pominięty' : 'Oczekuje';
     if (ss.sd.detail) statusText = ss.sd.detail;
     html += '<div class="se-step ' + isCls + '"' + clickAttr + '>' +
       '<div class="se-num ' + statusCls + '">' + ss.nr + '</div>' +

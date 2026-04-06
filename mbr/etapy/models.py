@@ -254,3 +254,28 @@ def zatwierdz_etap(db: sqlite3.Connection, ebr_id: int, etap: str, user: str, pr
         pass
     db.commit()
     return None  # All process stages done → standaryzacja next
+
+
+def skip_etap(db: sqlite3.Connection, ebr_id: int, etap: str, user: str, produkt: str) -> str | None:
+    """Skip an optional stage. Marks as 'skipped', advances to next. Returns next stage name or None."""
+    now = datetime.now().isoformat(timespec="seconds")
+    db.execute(
+        "UPDATE ebr_etapy_status SET status='skipped', dt_end=?, zatwierdzil=? WHERE ebr_id=? AND etap=?",
+        (now, user, ebr_id, etap),
+    )
+    # Activate next pending stage
+    stages = get_process_stages(produkt)
+    try:
+        idx = stages.index(etap)
+        if idx + 1 < len(stages):
+            next_etap = stages[idx + 1]
+            db.execute(
+                "UPDATE ebr_etapy_status SET status='in_progress', dt_start=? WHERE ebr_id=? AND etap=? AND status='pending'",
+                (now, ebr_id, next_etap),
+            )
+            db.commit()
+            return next_etap
+    except ValueError:
+        pass
+    db.commit()
+    return None

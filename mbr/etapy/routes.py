@@ -14,6 +14,7 @@ from mbr.etapy.models import (
     confirm_korekta,
     get_etapy_status,
     zatwierdz_etap,
+    skip_etap,
 )
 
 
@@ -104,4 +105,20 @@ def api_etapy_zatwierdz(ebr_id):
         if not ebr:
             return jsonify({"ok": False, "error": "EBR not found"}), 404
         next_etap = zatwierdz_etap(db, ebr_id, etap, user, ebr["produkt"])
+    return jsonify({"ok": True, "next_etap": next_etap})
+
+
+@etapy_bp.route("/api/ebr/<int:ebr_id>/etapy-status/skip", methods=["POST"])
+@login_required
+def api_etapy_skip(ebr_id):
+    data = request.get_json(silent=True) or {}
+    etap = data.get("etap")
+    if not etap:
+        return jsonify({"ok": False, "error": "Missing etap"}), 400
+    user = session.get("user", {}).get("login", "unknown")
+    with db_session() as db:
+        ebr = get_ebr(db, ebr_id)
+        if not ebr:
+            return jsonify({"ok": False}), 404
+        next_etap = skip_etap(db, ebr_id, etap, user, ebr["produkt"])
     return jsonify({"ok": True, "next_etap": next_etap})
