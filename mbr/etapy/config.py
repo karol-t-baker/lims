@@ -16,12 +16,19 @@ ETAPY_ANALIZY = {
         "utlenienie":        {"label": "Utlenienie",        "korekty": ["Kw. cytrynowy", "Perhydrol"]},
         "rozjasnianie":      {"label": "Rozjaśnianie",      "korekty": ["Perhydrol"]},
     },
+    "Chegina_K40GLO": {
+        "amidowanie":        {"label": "Amidowanie",        "korekty": ["DMAPA", "Wydłużenie czasu"]},
+        "smca":              {"label": "Wytworzenie SMCA",  "korekty": ["NaOH", "MCA"]},
+        "czwartorzedowanie": {"label": "Czwartorzędowanie", "korekty": ["NaOH", "MCA"]},
+        "sulfonowanie":      {"label": "Sulfonowanie",      "korekty": ["Na2SO3"]},
+        "utlenienie":        {"label": "Utlenienie",        "korekty": ["Kw. cytrynowy", "Perhydrol"]},
+        "rozjasnianie":      {"label": "Rozjaśnianie",      "korekty": ["Perhydrol"]},
+    },
 }
 
 # Map product variants to their parent config
 PRODUCT_ETAPY_MAP = {
     "Chegina_K40GL": "Chegina_K7",
-    "Chegina_K40GLO": "Chegina_K7",
     "Chegina_K40GLOS": "Chegina_K40GLOL",
     "Chegina_K40GLOL_HQ": "Chegina_K40GLOL",
     "Chegina_K40GLN": "Chegina_K40GLOL",

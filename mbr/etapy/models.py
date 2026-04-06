@@ -132,7 +132,7 @@ def get_korekty(db: sqlite3.Connection, ebr_id: int, etap: str = None) -> list[d
 PROCESS_STAGES_K7 = ["amidowanie", "smca", "czwartorzedowanie", "sulfonowanie", "utlenienie"]
 PROCESS_STAGES_GLOL = ["amidowanie", "smca", "czwartorzedowanie", "sulfonowanie", "utlenienie", "rozjasnianie"]
 
-GLOL_PRODUCTS = {"Chegina_K40GLOL", "Chegina_K40GLOS", "Chegina_K40GLOL_HQ", "Chegina_K40GLN", "Chegina_GLOL40"}
+ROZJASNIANIE_PRODUCTS = {"Chegina_K40GLOL", "Chegina_K40GLOS", "Chegina_K40GLOL_HQ", "Chegina_K40GLN", "Chegina_GLOL40", "Chegina_K40GLO"}
 
 # Products that have full process pipeline (ETAPY_FULL or ETAPY_FULL_GLOL)
 FULL_PIPELINE_PRODUCTS = {
@@ -146,7 +146,7 @@ def get_process_stages(produkt: str) -> list[str]:
     Returns empty list for products without full pipeline (ETAPY_SIMPLE)."""
     if produkt not in FULL_PIPELINE_PRODUCTS:
         return []
-    if produkt in GLOL_PRODUCTS:
+    if produkt in ROZJASNIANIE_PRODUCTS:
         return list(PROCESS_STAGES_GLOL)
     return list(PROCESS_STAGES_K7)
 
