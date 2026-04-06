@@ -85,6 +85,7 @@ echo Set oLink = oWS.CreateShortcut^(sLinkFile^)
 echo oLink.TargetPath = "%INSTALL_DIR%\coa_app\START.bat"
 echo oLink.WorkingDirectory = "%INSTALL_DIR%\coa_app"
 echo oLink.Description = "LabCore COA — Swiadectwa jakosci"
+echo oLink.IconLocation = "%INSTALL_DIR%\coa_app\labcore.ico"
 echo oLink.WindowStyle = 7
 echo oLink.Save
 ) > "%TEMP%\create_shortcut.vbs"
