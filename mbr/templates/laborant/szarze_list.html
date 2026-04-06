@@ -405,6 +405,9 @@
       </button>
       <span class="ch-title">Rejestr ukonczonych</span>
       <span class="ch-count" id="reg-count">&mdash;</span>
+      {% if session.get('user', {}).get('rola') == 'laborant_coa' %}
+      <button id="coa-sync-btn" onclick="coaSync()" style="margin-left:auto;padding:5px 14px;background:var(--teal);color:#fff;border:none;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font);">Synchronizuj</button>
+      {% endif %}
     </div>
     <div class="ch-tabs" id="ch-tabs">
       <button class="ch-tab ch-prod-k7 active" data-product="Chegina_K7" onclick="loadRegistry('Chegina_K7')">K7</button>
@@ -608,6 +611,24 @@ if (_dm) {
   } else {
     expandRail();
   }
+}
+
+// COA sync button
+async function coaSync() {
+  var btn = document.getElementById('coa-sync-btn');
+  if (!btn) return;
+  btn.disabled = true; btn.textContent = 'Synchronizacja...';
+  try {
+    var r = await fetch('/api/coa/sync', {method: 'POST'});
+    var d = await r.json();
+    if (d.ok) {
+      btn.textContent = 'OK (' + d.size_kb + ' KB)';
+      setTimeout(function() { btn.textContent = 'Synchronizuj'; btn.disabled = false; location.reload(); }, 1500);
+    } else {
+      btn.textContent = 'Błąd!'; btn.disabled = false;
+      alert(d.error);
+    }
+  } catch(e) { btn.textContent = 'Błąd!'; btn.disabled = false; alert(e.message); }
 }
 
 // Preload sidebar registry data (so switching tabs is instant)
