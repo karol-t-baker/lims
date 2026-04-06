@@ -40,12 +40,13 @@ def api_etapy_analizy_save(ebr_id):
     data = request.get_json(silent=True) or {}
     etap = data.get("etap")
     runda = int(data.get("runda", 1))
+    krok = int(data.get("krok", 1))
     wyniki = data.get("wyniki", {})
     if not etap or not wyniki:
         return jsonify({"ok": False, "error": "Missing etap or wyniki"}), 400
     user = session.get("user", {}).get("login", "unknown")
     with db_session() as db:
-        save_etap_analizy(db, ebr_id, etap, runda, wyniki, user)
+        save_etap_analizy(db, ebr_id, etap, runda, wyniki, user, krok=krok)
     return jsonify({"ok": True})
 
 

@@ -6,7 +6,7 @@ from datetime import datetime
 
 def save_etap_analizy(
     db: sqlite3.Connection, ebr_id: int, etap: str, runda: int,
-    wyniki: dict, user: str
+    wyniki: dict, user: str, krok: int = 1
 ) -> None:
     """Save analytical results for a process stage round.
 
@@ -16,6 +16,7 @@ def save_etap_analizy(
         runda: round number (1, 2, 3...)
         wyniki: {kod: value} e.g. {"ph_10proc": 11.76, "nd20": 1.3952}
         user: who entered the data
+        krok: sub-step number within the stage (default 1)
     """
     now = datetime.now().isoformat(timespec="seconds")
     for kod, value in wyniki.items():
@@ -33,8 +34,8 @@ def save_etap_analizy(
 
         # Audit: log old value before overwrite
         old = db.execute(
-            "SELECT id, wartosc, wartosc_text FROM ebr_etapy_analizy WHERE ebr_id=? AND etap=? AND runda=? AND kod_parametru=?",
-            (ebr_id, etap, runda, kod),
+            "SELECT id, wartosc, wartosc_text FROM ebr_etapy_analizy WHERE ebr_id=? AND etap=? AND krok=? AND runda=? AND kod_parametru=?",
+            (ebr_id, etap, krok, runda, kod),
         ).fetchone()
         if old:
             old_val = str(old["wartosc"]) if old["wartosc"] is not None else old["wartosc_text"] or ""
@@ -46,11 +47,11 @@ def save_etap_analizy(
                 )
 
         db.execute(
-            """INSERT INTO ebr_etapy_analizy (ebr_id, etap, runda, kod_parametru, wartosc, wartosc_text, dt_wpisu, wpisal)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """INSERT INTO ebr_etapy_analizy (ebr_id, etap, krok, runda, kod_parametru, wartosc, wartosc_text, dt_wpisu, wpisal)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(ebr_id, etap, runda, kod_parametru)
                DO UPDATE SET wartosc=excluded.wartosc, wartosc_text=excluded.wartosc_text, dt_wpisu=excluded.dt_wpisu, wpisal=excluded.wpisal""",
-            (ebr_id, etap, runda, kod, val, val_text, now, user),
+            (ebr_id, etap, krok, runda, kod, val, val_text, now, user),
         )
     db.commit()
 
@@ -59,9 +60,9 @@ def get_etap_analizy(db: sqlite3.Connection, ebr_id: int, etap: str = None) -> d
     """Get all analyses for a batch, optionally filtered by stage.
 
     Returns:
-        {etap: {runda: {kod: wartosc}}}
+        {etap: {runda: {kod: {wartosc, dt_wpisu, wpisal, krok}}}}
     """
-    sql = "SELECT etap, runda, kod_parametru, wartosc, dt_wpisu, wpisal FROM ebr_etapy_analizy WHERE ebr_id = ?"
+    sql = "SELECT etap, runda, kod_parametru, wartosc, dt_wpisu, wpisal, krok FROM ebr_etapy_analizy WHERE ebr_id = ?"
     params = [ebr_id]
     if etap:
         sql += " AND etap = ?"
@@ -70,12 +71,12 @@ def get_etap_analizy(db: sqlite3.Connection, ebr_id: int, etap: str = None) -> d
 
     result = {}
     for row in db.execute(sql, params).fetchall():
-        e, r, kod, val, dt, who = row
+        e, r, kod, val, dt, who, row_krok = row
         if e not in result:
             result[e] = {}
         if r not in result[e]:
             result[e][r] = {}
-        result[e][r][kod] = {"wartosc": val, "dt_wpisu": dt, "wpisal": who}
+        result[e][r][kod] = {"wartosc": val, "dt_wpisu": dt, "wpisal": who, "krok": row_krok}
     return result
 
 

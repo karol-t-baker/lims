@@ -305,6 +305,20 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     except Exception:
         pass
 
+    # Migration: add krok to ebr_etapy_analizy (sub-steps within stages)
+    try:
+        db.execute("ALTER TABLE ebr_etapy_analizy ADD COLUMN krok INTEGER DEFAULT 1")
+        db.commit()
+    except Exception:
+        pass
+
+    # Migration: add krok to parametry_etapy (which params appear at which sub-step)
+    try:
+        db.execute("ALTER TABLE parametry_etapy ADD COLUMN krok INTEGER")
+        db.commit()
+    except Exception:
+        pass
+
 
 # ---------------------------------------------------------------------------
 # Auto-numbering — moved to mbr.laborant.models, re-exported for backward compat

@@ -133,8 +133,8 @@ _NAWAZKA = {
 }
 
 
-def _b(produkt, kontekst, kod, kolejnosc, mn, mx, nawazka=None):
-    """Helper: build a binding tuple dict."""
+def _b(produkt, kontekst, kod, kolejnosc, mn, mx, nawazka=None, krok=None):
+    """Helper: build a binding dict. krok=None means applies to all sub-steps."""
     return {
         "produkt": produkt,
         "kontekst": kontekst,
@@ -143,6 +143,7 @@ def _b(produkt, kontekst, kod, kolejnosc, mn, mx, nawazka=None):
         "min_limit": mn,
         "max_limit": mx,
         "nawazka_g": nawazka if nawazka is not None else _NAWAZKA.get(kod),
+        "krok": krok,
     }
 
 
@@ -342,8 +343,8 @@ def seed(db):
             """
             INSERT OR IGNORE INTO parametry_etapy
                 (produkt, kontekst, parametr_id, kolejnosc,
-                 min_limit, max_limit, nawazka_g)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+                 min_limit, max_limit, nawazka_g, krok)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 b["produkt"],
@@ -353,6 +354,7 @@ def seed(db):
                 b["min_limit"],
                 b["max_limit"],
                 b["nawazka_g"],
+                b.get("krok"),
             ),
         )
         if db.execute("SELECT changes()").fetchone()[0]:

@@ -18,19 +18,23 @@ from mbr.etapy.models import get_process_stages, FULL_PIPELINE_PRODUCTS
 # ---------------------------------------------------------------------------
 
 def get_parametry_for_kontekst(
-    db: sqlite3.Connection, produkt: str, kontekst: str
+    db: sqlite3.Connection, produkt: str, kontekst: str,
+    krok: Optional[int] = None
 ) -> list[dict]:
     """Query parametry_etapy + parametry_analityczne for a given product/context.
 
     Product-specific rows win over NULL (shared) rows when the same kod appears
     in both. Sorted by kolejnosc.
 
+    Args:
+        krok: optional sub-step filter. When provided, returns only rows where
+              pe.krok IS NULL (applies to all sub-steps) OR pe.krok = krok.
+
     Returns list of dicts:
         {kod, label, typ, min, max, precision, nawazka_g, formula,
          metoda: {nazwa, formula, factor} | None}
     """
-    rows = db.execute(
-        """
+    sql = """
         SELECT
             pa.kod,
             pa.label,
@@ -53,10 +57,13 @@ def get_parametry_for_kontekst(
         JOIN parametry_analityczne pa ON pa.id = pe.parametr_id
         WHERE pe.kontekst = ?
           AND (pe.produkt = ? OR pe.produkt IS NULL)
-        ORDER BY pe.kolejnosc
-        """,
-        (kontekst, produkt),
-    ).fetchall()
+    """
+    params: list = [kontekst, produkt]
+    if krok is not None:
+        sql += "  AND (pe.krok IS NULL OR pe.krok = ?)\n"
+        params.append(krok)
+    sql += "ORDER BY pe.kolejnosc"
+    rows = db.execute(sql, params).fetchall()
 
     # Deduplicate: product-specific wins over NULL
     # Build ordered list preserving first occurrence of each kod at
