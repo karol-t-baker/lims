@@ -1805,7 +1805,7 @@ body {
 .ch-drop-item:hover { background: var(--teal-bg); color: var(--teal); }
 
 .registry-wrap {
-  flex: 1; overflow: auto; padding: 20px 28px;
+  flex: 1; overflow: auto; padding: 6px 28px 20px;
 }
 
 .registry {
