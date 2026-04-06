@@ -458,6 +458,7 @@
 {% block scripts %}
 <script>
 let currentView = 'dashboard';
+let registryTyp = 'zbiornik';
 let currentEbrId = null;
 let _heroObserver = null;
 let _loadGen = 0;
@@ -1020,7 +1021,7 @@ function applyTableFilters() {
 
 // ═══ REGISTRY (Ukonczone) ═══
 
-let registryTyp = 'zbiornik';
+// registryTyp moved to top of script (was here, caused TDZ when showRegistry called from deep link)
 
 function filterRegistryType(typ, btn) {
   registryTyp = typ;
