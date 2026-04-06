@@ -83,6 +83,151 @@
 {% endif %}
 
 <style>
+/* Edit params button */
+.sec-edit-btn {
+  background: none; border: 1px solid var(--border-subtle); border-radius: 5px;
+  width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--text-dim); margin-left: 4px;
+  transition: all 0.15s;
+}
+.sec-edit-btn:hover { border-color: var(--teal); color: var(--teal); background: var(--teal-bg); }
+
+/* Param editor modal */
+.pe-modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 9000;
+  display: none; align-items: center; justify-content: center;
+  backdrop-filter: blur(2px);
+}
+.pe-modal-overlay.show { display: flex; }
+.pe-modal {
+  background: var(--surface); border-radius: 12px; width: 560px; max-height: 80vh;
+  display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  overflow: hidden;
+}
+.pe-modal-head {
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.pe-modal-title { font-size: 14px; font-weight: 700; flex: 1; }
+.pe-modal-close { background: none; border: none; cursor: pointer; font-size: 20px; color: var(--text-dim); padding: 4px; }
+.pe-modal-close:hover { color: var(--text); }
+.pe-modal-body { padding: 16px 20px; overflow-y: auto; flex: 1; }
+.pe-modal-footer {
+  padding: 12px 20px; border-top: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px; justify-content: flex-end;
+}
+
+/* Param row in editor */
+.ped-row {
+  display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+  border: 1px solid var(--border-subtle); border-radius: 8px; margin-bottom: 6px;
+  background: #fff; transition: background 0.15s;
+}
+.ped-row:hover { background: var(--surface-alt); }
+.ped-kod { font-family: var(--mono); font-size: 11px; font-weight: 600; width: 80px; flex-shrink: 0; }
+.ped-label { font-size: 11px; color: var(--text-sec); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ped-lim {
+  width: 60px; padding: 5px 6px; border: 1px solid var(--border-subtle); border-radius: 5px;
+  font-size: 11px; font-family: var(--mono); text-align: center; background: #fff;
+  transition: border-color 0.15s;
+}
+.ped-lim:focus { border-color: var(--teal); outline: none; box-shadow: 0 0 0 2px var(--teal-bg); }
+.ped-del {
+  background: none; border: none; cursor: pointer; color: var(--text-dim); font-size: 14px;
+  width: 24px; height: 24px; border-radius: 5px; display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.ped-del:hover { background: var(--red-bg, #fef2f2); color: var(--red); }
+
+/* Add param row */
+.ped-add {
+  display: flex; gap: 6px; align-items: center; margin-top: 10px;
+  padding: 8px 10px; background: #fafaf7; border: 1.5px dashed var(--border); border-radius: 8px;
+}
+.ped-add select {
+  flex: 1; padding: 6px 8px; border: 1px solid var(--border); border-radius: 5px;
+  font-size: 11px; font-family: var(--font); background: #fff;
+}
+.ped-add-btn {
+  padding: 6px 14px; background: var(--teal); color: #fff; border: none; border-radius: 6px;
+  font-size: 10px; font-weight: 700; cursor: pointer; font-family: var(--font);
+  transition: background 0.15s;
+}
+.ped-add-btn:hover { background: var(--teal-dark); }
+
+.ped-typ {
+  font-size: 8px; font-weight: 700; padding: 2px 6px; border-radius: 8px;
+  text-transform: uppercase; letter-spacing: 0.4px; flex-shrink: 0;
+}
+.ped-typ-b { background: var(--blue-bg); color: var(--blue); }
+.ped-typ-t { background: var(--amber-bg); color: var(--amber); }
+.ped-typ-o { background: var(--teal-bg); color: var(--teal); }
+
+/* Cert mapping — card layout */
+.cm-card {
+  border: 1px solid var(--border-subtle); border-radius: 8px;
+  margin-bottom: 8px; background: #fff; overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.cm-card:hover { border-color: var(--border); box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+.cm-card-top {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-alt);
+}
+.cm-card-nr {
+  width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 800; color: var(--text-dim);
+  background: var(--surface); border: 1.5px solid var(--border);
+}
+.cm-card-id {
+  font-family: var(--mono); font-size: 10px; font-weight: 700;
+  color: var(--teal); background: var(--teal-bg); padding: 2px 8px;
+  border-radius: 4px; flex-shrink: 0;
+}
+.cm-card-names { flex: 1; min-width: 0; display: flex; gap: 6px; }
+.cm-card-names input {
+  flex: 1; padding: 4px 8px; border: 1px solid transparent; border-radius: 4px;
+  font-size: 10px; font-family: var(--font); background: transparent;
+  transition: all 0.15s; min-width: 0;
+}
+.cm-card-names input:hover { background: #fff; border-color: var(--border-subtle); }
+.cm-card-names input:focus { background: #fff; border-color: var(--teal); outline: none; box-shadow: 0 0 0 2px var(--teal-bg); }
+.cm-card-del {
+  background: none; border: none; cursor: pointer; color: var(--text-dim);
+  width: 24px; height: 24px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; transition: all 0.15s; flex-shrink: 0;
+}
+.cm-card-del:hover { background: var(--red-bg, #fef2f2); color: var(--red); }
+.cm-card-body {
+  display: grid; grid-template-columns: 1fr 1fr 80px; gap: 10px;
+  padding: 10px 12px;
+}
+.cm-field { display: flex; flex-direction: column; gap: 3px; }
+.cm-field-label {
+  font-size: 8px; font-weight: 800; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.cm-field select, .cm-field input {
+  padding: 6px 8px; border: 1.5px solid var(--border); border-radius: 6px;
+  font-size: 11px; font-family: var(--font); background: #fff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.cm-field select:focus, .cm-field input:focus {
+  border-color: var(--teal); outline: none; box-shadow: 0 0 0 3px var(--teal-bg);
+}
+.cm-field select { font-family: var(--mono); font-size: 10px; }
+.cm-arrow {
+  display: flex; align-items: center; justify-content: center;
+  color: var(--teal); font-size: 16px; padding-top: 16px;
+}
+.cm-empty {
+  text-align: center; color: var(--text-dim); font-size: 11px;
+  padding: 20px; font-style: italic;
+}
+
 /* Inline pump form in footer */
 .ft-pump-form {
     display: flex; align-items: center; gap: 6px;
@@ -610,6 +755,7 @@ window._batchProdukt = "{{ ebr.produkt }}";
 var ebrId = {{ ebr.ebr_id }};
 var ebrStatus = "{{ ebr.status }}";
 var ebrTyp = "{{ ebr.typ|default('szarza') }}";
+var userRola = "{{ session.get('user', {}).get('rola', '') }}";
 var ebrNastaw = {{ ebr.wielkosc_szarzy_kg or ebr.nastaw or 0 }};
 var etapy = {{ (ebr.etapy_json if ebr.etapy_json is string else ebr.etapy_json | tojson) | safe }};
 var parametry = {{ (ebr.parametry_lab if ebr.parametry_lab is string else ebr.parametry_lab | tojson) | safe }};
@@ -644,8 +790,9 @@ function getPola(sekcja) {
 }
 
 function isCyclicProduct() {
-    if (ebrTyp === 'zbiornik') return false;
-    return parametry.hasOwnProperty('analiza') && parametry.hasOwnProperty('dodatki');
+    // MVP: cyclic standaryzacja disabled — only analiza końcowa
+    // TODO: re-enable when full standaryzacja cycle is implemented
+    return false;
 }
 
 function renderSections() {
@@ -732,8 +879,8 @@ function renderCompletedView() {
         '<div class="cv-h2-stamp">KJ-LAB · 2026</div>' +
     '</div>';
 
-    // Params list — editable for zbiornik
-    var canEdit = isZbiornik;
+    // Params list — editable for zbiornik (but not for COA)
+    var canEdit = isZbiornik && userRola !== 'laborant_coa';
     var paramsHtml = '<div class="cv-params">' +
         '<div class="cv-params-head" style="display:flex;align-items:center;justify-content:space-between;">' +
             '<span>Parametry końcowe</span>' +
@@ -856,13 +1003,16 @@ function renderCompletedView() {
         }
     }
 
-    // Cert section — zbiorniki only
-    if (isZbiornik) {
-        html += '<div class="cv-certs" id="cv-certs"></div>';
+    // Cert section
+    html += '<div class="cv-certs" id="cv-certs"></div>';
+    if (userRola === 'laborant_coa' || userRola === 'laborant' || userRola === 'technolog') {
+        html += '<button onclick="openCertMappingEditor()" title="Konfiguracja pól świadectwa" style="margin-top:10px;display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border:1.5px solid var(--border);border-radius:6px;background:var(--surface);cursor:pointer;font-family:var(--font);font-size:10px;font-weight:600;color:var(--text-sec);transition:all 0.15s;" onmouseover="this.style.borderColor=\'var(--teal)\';this.style.color=\'var(--teal)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-sec)\'">' +
+            '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>' +
+            'Konfiguracja pól świadectwa</button>';
     }
 
     container.innerHTML = html;
-    if (isZbiornik) loadCompletedCerts();
+    loadCompletedCerts();
 
     // Dynamic topbar — hide when hero visible, show on scroll past hero
     var topbar = document.getElementById('topbar');
@@ -963,13 +1113,14 @@ async function loadCompletedCerts() {
                     ? '<span class="cv-row-badge-stale">Nieaktualne</span>'
                     : '<span class="cv-row-badge-ok">OK</span>') +
                 '<a href="/api/cert/' + c.id + '/pdf" target="_blank" class="cv-row-pdf">PDF</a>' +
-                '<button class="cv-row-del" onclick="event.stopPropagation();deleteCert(' + c.id + ',this)">Usuń</button>' +
+                (userRola !== 'laborant_kj' ? '<button class="cv-row-del" onclick="event.stopPropagation();deleteCert(' + c.id + ',this)">Usuń</button>' : '') +
             '</div>';
         });
     }
 
-    // Templates
-    if (tmplData.templates.length > 0) {
+    // Templates — only for laborant_coa (and legacy laborant)
+    var canIssueCerts = userRola === 'laborant_coa' || userRola === 'laborant' || userRola === 'technolog';
+    if (tmplData.templates.length > 0 && canIssueCerts) {
         // Laborant selector — who issues the certificate
         html += '<div class="cv-list-sep">Wystaw nowe</div>';
         html += '<div class="cv-issuer-row">' +
@@ -1091,8 +1242,11 @@ function confirmCertPopup() {
         extra[inp.dataset.key] = val;
     });
     if (!valid) return;
+    // Save refs before closing (closeCertPopup resets _pendingCert)
+    var btn = _pendingCert.btn;
+    var variantId = _pendingCert.variantId;
     closeCertPopup();
-    doGenerateCert(_pendingCert.btn, _pendingCert.variantId, extra);
+    doGenerateCert(btn, variantId, extra);
 }
 
 async function doGenerateCert(btn, variantId, extraFields) {
@@ -1332,10 +1486,18 @@ function renderOneSection(container, opts) {
         badgeHtml = '<span class="sec-badge b-wait">Oczekuje</span>';
     }
 
+    var editBtn = '';
+    if (sekcja === 'analiza_koncowa' && userRola !== 'laborant_coa' && !isReadonly) {
+        editBtn = '<button class="sec-edit-btn" onclick="openParamEditor()" title="Edytuj parametry">' +
+            '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>' +
+        '</button>';
+    }
+
     var headHtml =
         '<div class="sec-head">' +
             '<div class="sec-icon teal">' + opts.index + '</div>' +
             '<span class="sec-title">' + esc(opts.title) + '</span>' +
+            editBtn +
             badgeHtml +
         '</div>';
 
@@ -2621,9 +2783,325 @@ function psSkipStage(etap) {
   });
 }
 
+// ═══ PARAM EDITOR MODAL ═══
+
+var _peBindings = [];  // [{id, kod, label, skrot, typ, min, max, nawazka_g, binding_id}]
+var _peAvailable = []; // [{id, kod, label, skrot, typ}]
+
+function openParamEditor() {
+  // Fetch current bindings + available params in parallel
+  Promise.all([
+    fetch('/api/parametry/config?produkt=' + encodeURIComponent(window._batchProdukt) + '&kontekst=analiza_koncowa').then(function(r){return r.json();}),
+    fetch('/api/parametry/available').then(function(r){return r.json();}),
+    fetch('/api/parametry/list').then(function(r){return r.json();})
+  ]).then(function(results) {
+    var config = results[0];  // current params for this product
+    var available = results[1];  // all global params
+    var allWithBindings = results[2];  // all params with bindings (to get binding IDs)
+
+    // Map binding IDs: find parametry_etapy entries for this product+kontekst
+    _peBindings = config.map(function(p) {
+      // Find binding ID from allWithBindings
+      var globalParam = allWithBindings.find(function(g) { return g.kod === p.kod; });
+      var bindingId = null;
+      if (globalParam && globalParam.bindings) {
+        var b = globalParam.bindings.find(function(b) {
+          return b.kontekst === 'analiza_koncowa' && (b.produkt === window._batchProdukt || b.produkt === null);
+        });
+        if (b) bindingId = b.id;
+      }
+      return {
+        parametr_id: globalParam ? globalParam.id : null,
+        binding_id: bindingId,
+        kod: p.kod, label: p.label, skrot: p.skrot, typ: p.typ,
+        min: p.min, max: p.max, nawazka_g: p.nawazka_g
+      };
+    });
+
+    // Filter available: exclude already added
+    var usedKods = _peBindings.map(function(b){return b.kod;});
+    _peAvailable = available.filter(function(a) { return usedKods.indexOf(a.kod) === -1; });
+
+    renderParamEditor();
+    document.getElementById('pe-modal-overlay').classList.add('show');
+  });
+}
+
+function closeParamEditor() {
+  document.getElementById('pe-modal-overlay').classList.remove('show');
+}
+
+function renderParamEditor() {
+  var html = '';
+  _peBindings.forEach(function(b, i) {
+    var typCls = b.typ === 'titracja' ? 'ped-typ-t' : b.typ === 'obliczeniowy' ? 'ped-typ-o' : 'ped-typ-b';
+    var typLabel = b.typ === 'titracja' ? 'miarecz.' : b.typ === 'obliczeniowy' ? 'oblicz.' : 'bezpośr.';
+    html += '<div class="ped-row" id="ped-' + i + '">' +
+      '<span class="ped-kod">' + esc(b.kod) + '</span>' +
+      '<span class="ped-label">' + esc(b.skrot || b.label) + '</span>' +
+      '<span class="ped-typ ' + typCls + '">' + typLabel + '</span>' +
+      '<input class="ped-lim" type="text" inputmode="decimal" value="' + (b.min != null ? String(b.min).replace('.',',') : '') + '" placeholder="min" data-idx="' + i + '" data-field="min">' +
+      '<input class="ped-lim" type="text" inputmode="decimal" value="' + (b.max != null ? String(b.max).replace('.',',') : '') + '" placeholder="max" data-idx="' + i + '" data-field="max">' +
+      '<button class="ped-del" onclick="peRemove(' + i + ')" title="Usuń">&times;</button>' +
+    '</div>';
+  });
+
+  document.getElementById('pe-list').innerHTML = html || '<div style="color:var(--text-dim);font-size:11px;padding:8px;">Brak parametrów</div>';
+
+  // Update add dropdown
+  var sel = document.getElementById('pe-add-select');
+  sel.innerHTML = '<option value="">— wybierz parametr —</option>';
+  _peAvailable.forEach(function(a) {
+    sel.innerHTML += '<option value="' + a.id + '">' + a.kod + ' — ' + esc(a.label) + '</option>';
+  });
+}
+
+function peAdd() {
+  var sel = document.getElementById('pe-add-select');
+  var paramId = parseInt(sel.value);
+  if (!paramId) return;
+
+  var param = _peAvailable.find(function(a){return a.id === paramId;});
+  if (!param) return;
+
+  // Create binding via API
+  fetch('/api/parametry/etapy', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      parametr_id: paramId,
+      kontekst: 'analiza_koncowa',
+      produkt: window._batchProdukt,
+      kolejnosc: _peBindings.length + 1
+    })
+  }).then(function(r){return r.json();}).then(function(d) {
+    if (d.ok) {
+      _peBindings.push({
+        parametr_id: paramId, binding_id: d.id,
+        kod: param.kod, label: param.label, skrot: param.skrot, typ: param.typ,
+        min: null, max: null, nawazka_g: null
+      });
+      _peAvailable = _peAvailable.filter(function(a){return a.id !== paramId;});
+      renderParamEditor();
+    }
+  });
+}
+
+function peRemove(idx) {
+  var b = _peBindings[idx];
+  if (!b.binding_id) return;
+  fetch('/api/parametry/etapy/' + b.binding_id, {method: 'DELETE'})
+    .then(function(r){return r.json();}).then(function(d) {
+      if (d.ok) {
+        _peAvailable.push({id: b.parametr_id, kod: b.kod, label: b.label, skrot: b.skrot, typ: b.typ});
+        _peBindings.splice(idx, 1);
+        renderParamEditor();
+      }
+    });
+}
+
+function peSaveLimits() {
+  // Save all changed limits, then rebuild MBR
+  var promises = [];
+  document.querySelectorAll('.ped-lim').forEach(function(input) {
+    var idx = parseInt(input.dataset.idx);
+    var field = input.dataset.field;
+    var b = _peBindings[idx];
+    if (!b || !b.binding_id) return;
+    var val = input.value.trim().replace(',', '.');
+    var numVal = val === '' ? null : parseFloat(val);
+    if (b[field] === numVal) return; // no change
+    b[field] = numVal;
+    var body = {};
+    body[field === 'min' ? 'min_limit' : 'max_limit'] = numVal;
+    promises.push(
+      fetch('/api/parametry/etapy/' + b.binding_id, {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+      })
+    );
+  });
+
+  // After limits saved, rebuild MBR
+  Promise.all(promises).then(function() {
+    return fetch('/api/parametry/rebuild-mbr', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({produkt: window._batchProdukt})
+    });
+  }).then(function(r){return r.json();}).then(function(d) {
+    if (d.ok) {
+      closeParamEditor();
+      // Reload batch to pick up new parametry_lab
+      if (typeof loadBatch === 'function') loadBatch(ebrId);
+    }
+  });
+}
+
+// ═══ CERT MAPPING EDITOR ═══
+
+var _cmParams = [];
+var _cmAvailableCodes = [];
+
+function openCertMappingEditor() {
+  fetch('/api/cert/config/parameters?produkt=' + encodeURIComponent(window._batchProdukt))
+    .then(function(r){return r.json();})
+    .then(function(data) {
+      _cmParams = data.parameters || [];
+      _cmAvailableCodes = data.available_codes || [];
+      renderCertMapping();
+      document.getElementById('cm-modal-overlay').classList.add('show');
+    });
+}
+
+function closeCertMapping() {
+  document.getElementById('cm-modal-overlay').classList.remove('show');
+}
+
+function renderCertMapping() {
+  var html = '';
+  if (_cmParams.length === 0) {
+    html = '<div class="cm-empty">Brak parametrów. Dodaj pierwszy wiersz.</div>';
+  }
+  _cmParams.forEach(function(p, i) {
+    var dfOpts = '<option value="">(jakościowy — stały tekst)</option>';
+    _cmAvailableCodes.forEach(function(c) {
+      var sel = c.kod === p.data_field ? ' selected' : '';
+      dfOpts += '<option value="' + c.kod + '"' + sel + '>' + c.kod + ' — ' + esc(c.skrot || c.label) + '</option>';
+    });
+
+    html += '<div class="cm-card" id="cm-' + i + '">' +
+      '<div class="cm-card-top">' +
+        '<div class="cm-card-nr">' + (i + 1) + '</div>' +
+        '<span class="cm-card-id">' + esc(p.id || '') + '</span>' +
+        '<input type="hidden" data-idx="' + i + '" data-f="id" value="' + esc(p.id || '') + '">' +
+        '<div class="cm-card-names">' +
+          '<input value="' + esc(p.name_pl || '') + '" data-idx="' + i + '" data-f="name_pl" placeholder="Nazwa PL" title="Nazwa PL">' +
+          '<input value="' + esc(p.name_en || '') + '" data-idx="' + i + '" data-f="name_en" placeholder="Name EN" title="Name EN">' +
+        '</div>' +
+        '<button class="cm-card-del" onclick="cmRemove(' + i + ')" title="Usuń">&times;</button>' +
+      '</div>' +
+      '<div class="cm-card-body">' +
+        '<div class="cm-field">' +
+          '<span class="cm-field-label">Powiązany parametr</span>' +
+          '<select data-idx="' + i + '" data-f="data_field" onchange="cmFieldChange(' + i + ',this.value)">' + dfOpts + '</select>' +
+        '</div>' +
+        '<div class="cm-field">' +
+          '<span class="cm-field-label">Wymóg / Requirement</span>' +
+          '<input value="' + esc(p.requirement || '') + '" data-idx="' + i + '" data-f="requirement" placeholder="np. max 150">' +
+        '</div>' +
+        '<div class="cm-field">' +
+          '<span class="cm-field-label">Metoda</span>' +
+          '<input value="' + esc(p.method || '') + '" data-idx="' + i + '" data-f="method" placeholder="np. L928" style="font-family:var(--mono);">' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  });
+
+  document.getElementById('cm-list').innerHTML = html;
+}
+
+function cmFieldChange(idx, val) {
+  _cmParams[idx].data_field = val || null;
+  if (val) {
+    delete _cmParams[idx].qualitative_result;
+    if (!_cmParams[idx].format) _cmParams[idx].format = "1";
+  }
+}
+
+function cmRemove(idx) {
+  _cmParams.splice(idx, 1);
+  renderCertMapping();
+}
+
+function cmAdd() {
+  _cmParams.push({
+    id: 'nowy',
+    name_pl: '', name_en: '',
+    requirement: '', method: '',
+    data_field: null, format: '1'
+  });
+  renderCertMapping();
+  // Scroll to bottom
+  var list = document.getElementById('cm-list');
+  list.scrollTop = list.scrollHeight;
+}
+
+function cmSave() {
+  // Collect edited values from inputs
+  document.querySelectorAll('.cm-card input, .cm-card select').forEach(function(el) {
+    var idx = parseInt(el.dataset.idx);
+    var f = el.dataset.f;
+    if (isNaN(idx) || !f) return;
+    var val = el.value.trim();
+    if (f === 'data_field') {
+      _cmParams[idx].data_field = val || null;
+    } else {
+      _cmParams[idx][f] = val;
+    }
+  });
+
+  // Ensure qualitative params without data_field have qualitative_result
+  _cmParams.forEach(function(p) {
+    if (!p.data_field && !p.qualitative_result) {
+      p.qualitative_result = 'zgodny /right';
+    }
+  });
+
+  fetch('/api/cert/config/parameters', {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      produkt: window._batchProdukt,
+      parameters: _cmParams
+    })
+  }).then(function(r){return r.json();}).then(function(d) {
+    if (d.ok) closeCertMapping();
+    else alert(d.error || 'Błąd zapisu');
+  });
+}
+
 // ═══ INIT (must be after all function definitions) ═══
 renderSections();
 setupComputedFields();
 </script>
+
+{# ═══ CERT MAPPING MODAL ═══ #}
+<div class="pe-modal-overlay" id="cm-modal-overlay" onclick="if(event.target===this)closeCertMapping()">
+  <div class="pe-modal" style="width:720px;">
+    <div class="pe-modal-head">
+      <div class="pe-modal-title">Mapowanie tagów świadectwa — {{ ebr.produkt | short_product }}</div>
+      <button class="pe-modal-close" onclick="closeCertMapping()">&times;</button>
+    </div>
+    <div class="pe-modal-body" id="cm-list" style="max-height:50vh;overflow-y:auto;"></div>
+    <div class="pe-modal-footer">
+      <button class="ped-add-btn" onclick="cmAdd()" style="margin-right:auto;">+ Dodaj wiersz</button>
+      <button class="btn btn-o" onclick="closeCertMapping()">Anuluj</button>
+      <button class="btn btn-p" onclick="cmSave()">Zapisz</button>
+    </div>
+  </div>
+</div>
+
+{# ═══ PARAM EDITOR MODAL ═══ #}
+<div class="pe-modal-overlay" id="pe-modal-overlay" onclick="if(event.target===this)closeParamEditor()">
+  <div class="pe-modal">
+    <div class="pe-modal-head">
+      <div class="pe-modal-title">Edycja parametrów — Analiza końcowa</div>
+      <button class="pe-modal-close" onclick="closeParamEditor()">&times;</button>
+    </div>
+    <div class="pe-modal-body">
+      <div id="pe-list"></div>
+      <div class="ped-add">
+        <select id="pe-add-select"><option value="">— wybierz parametr —</option></select>
+        <button class="ped-add-btn" onclick="peAdd()">+ Dodaj</button>
+      </div>
+    </div>
+    <div class="pe-modal-footer">
+      <button class="btn btn-o" onclick="closeParamEditor()">Anuluj</button>
+      <button class="btn btn-p" onclick="peSaveLimits()">Zapisz i zastosuj</button>
+    </div>
+  </div>
+</div>
 
 <script src="/static/calculator.js"></script>

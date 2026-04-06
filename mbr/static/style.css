@@ -71,8 +71,8 @@
   --stage-rozj-bg: #eef2ff;
   --stage-stand: #7c3aed;              /* Standaryzacja — violet */
   --stage-stand-bg: #f5f3ff;
-  --stage-koncowa: #db2777;            /* Analiza końcowa — pink */
-  --stage-koncowa-bg: #fce7f3;
+  --stage-koncowa: #2563eb;            /* Analiza końcowa — blue */
+  --stage-koncowa-bg: #eff6ff;
   --stage-dodatki: #166534;             /* Dodatki — green */
   --stage-dodatki-bg: #f0fdf4;
   --stage-done: var(--green);          /* Gotowy */

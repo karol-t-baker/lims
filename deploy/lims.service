@@ -1,0 +1,16 @@
+[Unit]
+Description=LIMS Flask Application
+After=network.target docker.service
+Wants=docker.service
+
+[Service]
+Type=simple
+User=lims
+WorkingDirectory=/opt/lims
+Environment=MBR_SECRET_KEY=CHANGE-ME-TO-RANDOM-STRING
+ExecStart=/opt/lims/venv/bin/gunicorn --bind 127.0.0.1:5001 --workers 2 --timeout 120 mbr.app:app
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

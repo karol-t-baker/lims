@@ -1,7 +1,9 @@
+import json as _json
+
 from flask import request, jsonify, render_template
 
 from mbr.parametry import parametry_bp
-from mbr.parametry.registry import get_parametry_for_kontekst, get_calc_methods, get_konteksty
+from mbr.parametry.registry import get_parametry_for_kontekst, get_calc_methods, get_konteksty, build_parametry_lab
 from mbr.shared.decorators import login_required
 from mbr.db import db_session
 
@@ -151,6 +153,36 @@ def api_parametry_etapy_delete(binding_id):
     """Delete a binding."""
     with db_session() as db:
         db.execute("DELETE FROM parametry_etapy WHERE id=?", (binding_id,))
+        db.commit()
+    return jsonify({"ok": True})
+
+
+@parametry_bp.route("/api/parametry/available")
+@login_required
+def api_parametry_available():
+    """All active parameters (for picker). Returns [{id, kod, label, skrot, typ}]."""
+    with db_session() as db:
+        rows = db.execute(
+            "SELECT id, kod, label, skrot, typ FROM parametry_analityczne WHERE aktywny=1 ORDER BY typ, kod"
+        ).fetchall()
+    return jsonify([dict(r) for r in rows])
+
+
+@parametry_bp.route("/api/parametry/rebuild-mbr", methods=["POST"])
+@login_required
+def api_rebuild_mbr():
+    """Rebuild parametry_lab JSON in active MBR for a product from parametry_etapy."""
+    data = request.get_json(silent=True) or {}
+    produkt = data.get("produkt", "")
+    if not produkt:
+        return jsonify({"ok": False, "error": "produkt required"}), 400
+    with db_session() as db:
+        plab = build_parametry_lab(db, produkt)
+        plab_json = _json.dumps(plab, ensure_ascii=False)
+        db.execute(
+            "UPDATE mbr_templates SET parametry_lab=? WHERE produkt=? AND status='active'",
+            (plab_json, produkt),
+        )
         db.commit()
     return jsonify({"ok": True})
 

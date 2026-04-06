@@ -13,6 +13,7 @@
     "clause_pl": "Dokument utworzony elektronicznie, nie wymaga podpisu.",
     "clause_en": "The certificate is not signed as it is electronically edited."
   },
+  "rspo_number": "CU-RSPO SCC-857488",
   "products": {
     "Chegina_K40GLOL": {
       "display_name": "Chegina K40GLOL",
@@ -705,40 +706,40 @@
       "opinion_en": "The product complies with P819",
       "parameters": [
         {
-          "id": "dry_matter",
-          "name_pl": "Sucha masa [%]",
-          "name_en": "Dry matter [%]",
-          "requirement": "min 35,5",
-          "method": "L903",
           "data_field": "sm",
-          "format": "1"
+          "format": "1",
+          "id": "dry_matter",
+          "method": "L903",
+          "name_en": "Dry matter [%]",
+          "name_pl": "Sucha masa [%]",
+          "requirement": "min 35,5"
         },
         {
-          "id": "nd20",
-          "name_pl": "Wsp. załamania światła (nD20)",
-          "name_en": "Refraction (nD20)",
-          "requirement": "1,3800-1,3950",
-          "method": "PN-EN ISO 6320:2017-04",
           "data_field": "nd20",
-          "format": "4"
+          "format": "4",
+          "id": "nd20",
+          "method": "PN-EN ISO 6320:2017-04",
+          "name_en": "Refraction (nD20)",
+          "name_pl": "Wsp. załamania światła (nD20)",
+          "requirement": "1,3800-1,3950"
         },
         {
+          "data_field": "barwa_I2",
+          "format": "0",
           "id": "barwa_jod",
-          "name_pl": "Barwa w skali jodowej",
-          "name_en": "Colour (Iodine scale)",
-          "requirement": "max 3",
           "method": "L928",
-          "data_field": "barwa_fau",
-          "format": "0"
+          "name_en": "Colour (Iodine scale)",
+          "name_pl": "Barwa w skali jodowej",
+          "requirement": "max 3"
         },
         {
-          "id": "active_matter",
-          "name_pl": "Substancja aktywna [%]",
-          "name_en": "Active matter [%]",
-          "requirement": "30,0-32,0",
-          "method": "L932",
           "data_field": "sa",
-          "format": "1"
+          "format": "1",
+          "id": "active_matter",
+          "method": "L932",
+          "name_en": "Active matter [%]",
+          "name_pl": "Substancja aktywna [%]",
+          "requirement": "30,0-32,0"
         }
       ],
       "variants": [
@@ -963,7 +964,11 @@
             "has_order_number",
             "has_certificate_number",
             "has_rspo"
-          ]
+          ],
+          "overrides": {
+            "avon_code": "",
+            "avon_name": ""
+          }
         },
         {
           "id": "lehvoss",
@@ -971,7 +976,11 @@
           "flags": [
             "has_avon_code",
             "has_avon_name"
-          ]
+          ],
+          "overrides": {
+            "avon_code": "",
+            "avon_name": ""
+          }
         },
         {
           "id": "prime",
@@ -982,7 +991,11 @@
             "has_rspo",
             "has_avon_code",
             "has_avon_name"
-          ]
+          ],
+          "overrides": {
+            "avon_code": "",
+            "avon_name": ""
+          }
         },
         {
           "id": "revada",
@@ -1493,7 +1506,9 @@
                 "data_field": "wolny_glikol",
                 "format": "1"
               }
-            ]
+            ],
+            "avon_code": "",
+            "avon_name": ""
           }
         },
         {
@@ -1755,7 +1770,11 @@
             "has_order_number",
             "has_certificate_number",
             "has_rspo"
-          ]
+          ],
+          "overrides": {
+            "avon_code": "",
+            "avon_name": ""
+          }
         }
       ]
     },
@@ -1881,7 +1900,11 @@
             "has_order_number",
             "has_certificate_number",
             "has_rspo"
-          ]
+          ],
+          "overrides": {
+            "avon_code": "",
+            "avon_name": ""
+          }
         }
       ]
     },

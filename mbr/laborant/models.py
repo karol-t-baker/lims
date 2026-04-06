@@ -178,34 +178,10 @@ def _compute_stage_info(ebr_row: dict) -> dict:
         else:
             return {"stage_name": "Gotowy do zatwierdzenia", "stage_status": "done", "progress_pct": 100}
 
-    # New cyclic schema: analiza + dodatki
-    analiza_n = sections.get("analiza", 0)
-    dodatki_n = sections.get("dodatki", 0)
-
-    if analiza_n > 0 and dodatki_n > 0:
-        # Standaryzacja etap = analiza + dodatki, then Analiza końcowa = analiza again
-        # One full cycle: analiza_n + dodatki_n + analiza_n fields
-        first_stand = analiza_n + dodatki_n  # standaryzacja phase (analysis + additives)
-        if filled == 0:
-            return {"stage_name": "Standaryzacja", "stage_status": "waiting", "progress_pct": 0}
-        elif filled < first_stand:
-            return {"stage_name": "Standaryzacja", "stage_status": "in_progress", "progress_pct": round((filled / first_stand) * 50)}
-        else:
-            # Past first standaryzacja → in analiza końcowa or correction cycles
-            past_stand = filled - first_stand
-            correction_size = dodatki_n + analiza_n  # each correction = new additives + new analysis
-            if past_stand == 0:
-                return {"stage_name": "Analiza końcowa", "stage_status": "waiting", "progress_pct": 60}
-            pos_in_correction = past_stand % correction_size if correction_size > 0 else 0
-            if pos_in_correction == 0 and past_stand > 0:
-                # Just completed a full correction cycle → waiting for decision/next analiza końcowa
-                return {"stage_name": "Analiza końcowa", "stage_status": "waiting", "progress_pct": 60}
-            if pos_in_correction <= analiza_n:
-                # Filling analiza końcowa
-                return {"stage_name": "Analiza końcowa", "stage_status": "in_progress", "progress_pct": 75}
-            else:
-                # Filling correction additives (standaryzacja phase)
-                return {"stage_name": "Standaryzacja", "stage_status": "in_progress", "progress_pct": 50}
+    # MVP: cyclic standaryzacja disabled — treat analiza+dodatki as simple analiza końcowa
+    # TODO: re-enable when full standaryzacja cycle is implemented
+    # analiza_n = sections.get("analiza", 0)
+    # dodatki_n = sections.get("dodatki", 0)
 
     # Legacy: przed_standaryzacja + analiza_koncowa
     przed_n = sections.get("przed_standaryzacja", 0)

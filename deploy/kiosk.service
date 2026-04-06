@@ -1,0 +1,16 @@
+[Unit]
+Description=LIMS Kiosk (Chromium)
+After=graphical-session.target lims.service
+Wants=lims.service
+
+[Service]
+Type=simple
+User=lims
+Environment=DISPLAY=:0
+ExecStartPre=/bin/sleep 5
+ExecStart=/usr/bin/chromium-browser --noerrdialogs --disable-infobars --kiosk --ignore-certificate-errors https://lims.local
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=graphical-session.target

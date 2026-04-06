@@ -4,14 +4,14 @@ ETAPY_ANALIZY = {
     "Chegina_K7": {
         "amidowanie":        {"label": "Amidowanie",        "korekty": ["DMAPA", "Wydłużenie czasu"], "korekta_po_fakcie": True},
         "smca":              {"label": "Wytworzenie SMCA",  "korekty": ["NaOH", "MCA"], "korekta_po_fakcie": True},
-        "czwartorzedowanie": {"label": "Czwartorzędowanie", "korekty": ["NaOH", "MCA"]},
+        "czwartorzedowanie": {"label": "Czwartorzędowanie", "korekty": ["NaOH", "MCA", "HCl"]},
         "sulfonowanie":      {"label": "Sulfonowanie",      "korekty": ["Na2SO3"]},
         "utlenienie":        {"label": "Utlenienie",        "korekty": ["Perhydrol"]},
     },
     "Chegina_K40GLOL": {
         "amidowanie":        {"label": "Amidowanie",        "korekty": ["DMAPA", "Wydłużenie czasu"], "korekta_po_fakcie": True},
         "smca":              {"label": "Wytworzenie SMCA",  "korekty": ["NaOH", "MCA"], "korekta_po_fakcie": True},
-        "czwartorzedowanie": {"label": "Czwartorzędowanie", "korekty": ["NaOH", "MCA"]},
+        "czwartorzedowanie": {"label": "Czwartorzędowanie", "korekty": ["NaOH", "MCA", "HCl"]},
         "sulfonowanie":      {"label": "Sulfonowanie",      "korekty": ["Na2SO3"]},
         "utlenienie":        {"label": "Utlenienie",        "korekty": ["Kw. cytrynowy", "Perhydrol"]},
         "rozjasnianie":      {"label": "Rozjaśnianie",      "korekty": ["Perhydrol"]},
@@ -29,7 +29,7 @@ ETAPY_ANALIZY = {
         "smca": {"label": "Wytworzenie SMCA", "korekty": ["NaOH", "MCA"], "korekta_po_fakcie": True},
         "czwartorzedowanie": {
             "label": "Czwartorzędowanie",
-            "korekty": ["NaOH", "MCA"],
+            "korekty": ["NaOH", "MCA", "HCl"],
             "kroki": [
                 {"nr": 1, "label": "Po 1. porcji ługu", "parametry": ["ph_10proc", "nd20", "barwa_I2", "barwa_hz", "metnosc_fau"]},
                 {"nr": 2, "label": "Po 2. porcji ługu", "parametry": ["ph_10proc", "nd20", "aa", "barwa_I2", "barwa_hz", "metnosc_fau"]},

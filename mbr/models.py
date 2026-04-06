@@ -19,7 +19,7 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             user_id         INTEGER PRIMARY KEY AUTOINCREMENT,
             login           TEXT UNIQUE NOT NULL,
             password_hash   TEXT NOT NULL,
-            rola            TEXT NOT NULL CHECK(rola IN ('technolog', 'laborant')),
+            rola            TEXT NOT NULL CHECK(rola IN ('technolog', 'laborant', 'laborant_kj', 'laborant_coa', 'admin')),
             imie_nazwisko   TEXT
         );
 
@@ -128,7 +128,8 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             id      INTEGER PRIMARY KEY AUTOINCREMENT,
             text    TEXT NOT NULL,
             who     TEXT NOT NULL,
-            dt      TEXT NOT NULL
+            dt      TEXT NOT NULL,
+            priorytet TEXT DEFAULT 'normal'
         )
     """)
     db.execute("""
@@ -316,6 +317,35 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     try:
         db.execute("ALTER TABLE parametry_etapy ADD COLUMN krok INTEGER")
         db.commit()
+    except Exception:
+        pass
+
+    # Migration: add priorytet column to feedback
+    try:
+        db.execute("ALTER TABLE feedback ADD COLUMN priorytet TEXT DEFAULT 'normal'")
+        db.commit()
+    except Exception:
+        pass
+
+    # Migration: expand rola CHECK to include all roles
+    # SQLite can't ALTER CHECK constraints, so recreate table if needed
+    try:
+        row = db.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='mbr_users'").fetchone()
+        if row:
+            ddl = row[0] if isinstance(row, tuple) else row["sql"]
+            if "'laborant_kj'" not in ddl:
+                db.executescript("""
+                    CREATE TABLE mbr_users_new (
+                        user_id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                        login           TEXT UNIQUE NOT NULL,
+                        password_hash   TEXT NOT NULL,
+                        rola            TEXT NOT NULL CHECK(rola IN ('technolog', 'laborant', 'laborant_kj', 'laborant_coa', 'admin')),
+                        imie_nazwisko   TEXT
+                    );
+                    INSERT INTO mbr_users_new SELECT * FROM mbr_users;
+                    DROP TABLE mbr_users;
+                    ALTER TABLE mbr_users_new RENAME TO mbr_users;
+                """)
     except Exception:
         pass
 

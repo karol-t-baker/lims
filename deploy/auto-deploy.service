@@ -1,0 +1,9 @@
+[Unit]
+Description=LIMS Auto-Deploy (git pull every 5 min)
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=lims
+WorkingDirectory=/opt/lims
+ExecStart=/opt/lims/deploy/auto-deploy.sh

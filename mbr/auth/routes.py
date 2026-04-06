@@ -34,6 +34,9 @@ def logout():
 @auth_bp.route("/")
 @login_required
 def index():
-    if session["user"]["rola"] == "technolog":
+    rola = session["user"]["rola"]
+    if rola == "technolog":
         return redirect(url_for("technolog.mbr_list"))
+    if rola == "admin":
+        return redirect(url_for("admin.admin_panel"))
     return redirect(url_for("laborant.szarze_list"))

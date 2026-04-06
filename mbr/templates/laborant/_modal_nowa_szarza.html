@@ -92,6 +92,12 @@
           <div class="auto-nr" id="auto-nr-szarza" style="display:none;">
             <span class="nr-label">Nr partii</span>
             <span class="nr-value" id="nr-value-szarza"></span>
+            <label style="margin-left:auto;display:flex;align-items:center;gap:5px;cursor:pointer;font-size:10px;color:var(--text-dim);">
+              <input type="checkbox" id="manual-nr-szarza" onchange="toggleManualNr('szarza')"> Podaj ręcznie
+            </label>
+          </div>
+          <div id="manual-nr-wrap-szarza" style="display:none;margin-top:6px;">
+            <input class="form-input" type="text" id="manual-nr-input-szarza" placeholder="np. 15_2026" style="font-family:var(--mono);font-weight:600;">
           </div>
           <input class="form-input" type="hidden" name="nr_partii" id="nr-partii-input" required>
 
@@ -156,6 +162,12 @@
           <div class="auto-nr" id="auto-nr-zbiornik" style="display:none;">
             <span class="nr-label">Nr partii</span>
             <span class="nr-value" id="nr-value-zbiornik"></span>
+            <label style="margin-left:auto;display:flex;align-items:center;gap:5px;cursor:pointer;font-size:10px;color:var(--text-dim);">
+              <input type="checkbox" id="manual-nr-zbiornik" onchange="toggleManualNr('zbiornik')"> Podaj ręcznie
+            </label>
+          </div>
+          <div id="manual-nr-wrap-zbiornik" style="display:none;margin-top:6px;">
+            <input class="form-input" type="text" id="manual-nr-input-zbiornik" placeholder="np. 15_2026" style="font-family:var(--mono);font-weight:600;">
           </div>
           <input class="form-input" type="hidden" id="nr-partii-input-zb">
 
@@ -278,6 +290,20 @@ function fetchAutoNr(product, context) {
     });
 }
 
+function toggleManualNr(context) {
+  var checked = document.getElementById('manual-nr-' + context).checked;
+  var wrap = document.getElementById('manual-nr-wrap-' + context);
+  var autoVal = document.getElementById('nr-value-' + context);
+  wrap.style.display = checked ? 'block' : 'none';
+  if (checked) {
+    // Pre-fill with auto value
+    var input = document.getElementById('manual-nr-input-' + context);
+    input.value = autoVal.textContent;
+    input.focus();
+    input.select();
+  }
+}
+
 function clearProduct(context) {
   document.getElementById('produkt-input').value = '';
   var step = context === 'szarza' ? document.getElementById('step-2a') : document.getElementById('step-2b');
@@ -297,10 +323,14 @@ function clearProduct(context) {
   if (context === 'szarza') {
     document.getElementById('nr-partii-input').value = '';
     document.getElementById('auto-nr-szarza').style.display = 'none';
+    document.getElementById('manual-nr-wrap-szarza').style.display = 'none';
+    document.getElementById('manual-nr-szarza').checked = false;
   } else {
     var zb = document.getElementById('nr-partii-input-zb');
     if (zb) zb.value = '';
     document.getElementById('auto-nr-zbiornik').style.display = 'none';
+    document.getElementById('manual-nr-wrap-zbiornik').style.display = 'none';
+    document.getElementById('manual-nr-zbiornik').checked = false;
   }
 }
 
@@ -358,8 +388,22 @@ document.getElementById('new-batch-form').addEventListener('submit', function(e)
     return false;
   }
 
+  // Override nr_partii with manual value if checkbox is checked
+  if (currentTyp === 'szarza') {
+    var manualCb = document.getElementById('manual-nr-szarza');
+    if (manualCb && manualCb.checked) {
+      var manualVal = document.getElementById('manual-nr-input-szarza').value.trim();
+      if (manualVal) document.getElementById('nr-partii-input').value = manualVal;
+    }
+  }
+
   // Sync zbiornik nr_partii + save nr_zbiornika as nr_mieszalnika
   if (currentTyp === 'zbiornik') {
+    var manualCbZb = document.getElementById('manual-nr-zbiornik');
+    if (manualCbZb && manualCbZb.checked) {
+      var manualValZb = document.getElementById('manual-nr-input-zbiornik').value.trim();
+      if (manualValZb) document.getElementById('nr-partii-input-zb').value = manualValZb;
+    }
     var zbVal = document.getElementById('nr-partii-input-zb').value;
     document.getElementById('nr-partii-input').value = zbVal;
     document.getElementById('nr-partii-input-zb').removeAttribute('name');

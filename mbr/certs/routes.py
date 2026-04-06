@@ -1,11 +1,12 @@
 """Certificate routes for the certs blueprint."""
 
+import json as _json
 from pathlib import Path
 
 from flask import Response, abort, jsonify, request, send_file, session
 
 from mbr.certs import certs_bp
-from mbr.certs.generator import generate_certificate_pdf, get_required_fields, get_variants, save_certificate_pdf, save_certificate_data
+from mbr.certs.generator import generate_certificate_pdf, get_required_fields, get_variants, save_certificate_pdf, save_certificate_data, load_config, _CONFIG_PATH
 from mbr.certs.models import create_swiadectwo, list_swiadectwa
 from mbr.db import db_session
 from mbr.models import get_ebr, get_ebr_wyniki, get_mbr
@@ -168,6 +169,55 @@ def api_cert_list():
     with db_session() as db:
         certs = list_swiadectwa(db, ebr_id)
     return jsonify({"certs": certs})
+
+
+# ---------------------------------------------------------------------------
+# Cert config — parameter mapping editor
+# ---------------------------------------------------------------------------
+
+@certs_bp.route("/api/cert/config/parameters")
+@login_required
+def api_cert_config_params():
+    """Get cert parameters for a product. Returns list of param defs from cert_config.json."""
+    produkt = request.args.get("produkt", "")
+    cfg = load_config(reload=True)
+    product_cfg = cfg.get("products", {}).get(produkt, {})
+    params = product_cfg.get("parameters", [])
+    # Also return available analysis codes for dropdown
+    with db_session() as db:
+        available = db.execute(
+            "SELECT kod, label, skrot FROM parametry_analityczne WHERE aktywny=1 ORDER BY kod"
+        ).fetchall()
+    return jsonify({
+        "parameters": params,
+        "available_codes": [dict(r) for r in available],
+    })
+
+
+@certs_bp.route("/api/cert/config/parameters", methods=["PUT"])
+@login_required
+def api_cert_config_params_save():
+    """Save cert parameters for a product. Body: {produkt, parameters: [...]}."""
+    data = request.get_json(silent=True) or {}
+    produkt = data.get("produkt", "")
+    parameters = data.get("parameters", [])
+    if not produkt:
+        return jsonify({"ok": False, "error": "produkt required"}), 400
+
+    cfg = load_config(reload=True)
+    if produkt not in cfg.get("products", {}):
+        return jsonify({"ok": False, "error": "Product not in config"}), 404
+
+    cfg["products"][produkt]["parameters"] = parameters
+
+    # Write back to file
+    with open(_CONFIG_PATH, "w", encoding="utf-8") as f:
+        _json.dump(cfg, f, ensure_ascii=False, indent=2)
+
+    # Invalidate cache
+    load_config(reload=True)
+
+    return jsonify({"ok": True})
 
 
 # ---------------------------------------------------------------------------

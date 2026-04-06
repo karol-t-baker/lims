@@ -19,11 +19,29 @@ def api_workers():
 @workers_bp.route("/api/shift", methods=["GET", "POST"])
 @login_required
 def api_shift():
+    """Shift workers — shared globally via DB (same shift across all devices)."""
+    import json as _json
     if request.method == "POST":
         data = request.get_json(silent=True) or {}
         worker_ids = [int(x) for x in data.get("worker_ids", []) if isinstance(x, (int, float))]
         session["shift_workers"] = worker_ids
+        with db_session() as db:
+            db.execute(
+                """INSERT INTO user_settings (login, key, value) VALUES ('_system_', 'current_shift', ?)
+                   ON CONFLICT(login, key) DO UPDATE SET value=excluded.value""",
+                (_json.dumps(worker_ids),),
+            )
+            db.commit()
         return jsonify({"ok": True})
+    # GET: read from DB (shared), sync to session
+    with db_session() as db:
+        row = db.execute(
+            "SELECT value FROM user_settings WHERE login='_system_' AND key='current_shift'"
+        ).fetchone()
+    if row and row["value"]:
+        worker_ids = _json.loads(row["value"])
+        session["shift_workers"] = worker_ids
+        return jsonify({"worker_ids": worker_ids})
     return jsonify({"worker_ids": session.get("shift_workers", [])})
 
 

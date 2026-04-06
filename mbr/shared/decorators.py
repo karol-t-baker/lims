@@ -16,13 +16,13 @@ def login_required(f):
     return wrapper
 
 
-def role_required(rola):
-    """Decorator requiring a specific role (e.g. 'technolog')."""
+def role_required(*roles):
+    """Decorator requiring one of the given roles. Usage: @role_required('admin') or @role_required('laborant_kj', 'laborant')."""
     def decorator(f):
         @functools.wraps(f)
         @login_required
         def wrapper(*args, **kwargs):
-            if session["user"]["rola"] != rola:
+            if session["user"]["rola"] not in roles:
                 return "Brak uprawnień", 403
             return f(*args, **kwargs)
         return wrapper

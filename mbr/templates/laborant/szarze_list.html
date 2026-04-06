@@ -411,6 +411,7 @@
       <button class="ch-tab ch-prod-gl" data-product="Chegina_K40GL" onclick="loadRegistry('Chegina_K40GL')">K40GL</button>
       <button class="ch-tab ch-prod-glo" data-product="Chegina_K40GLO" onclick="loadRegistry('Chegina_K40GLO')">K40GLO</button>
       <button class="ch-tab ch-prod-glol" data-product="Chegina_K40GLOL" onclick="loadRegistry('Chegina_K40GLOL')">K40GLOL</button>
+      {% set main_products = ['Chegina_K7', 'Chegina_K40GL', 'Chegina_K40GLO', 'Chegina_K40GLOL'] %}
       {% set other_products = completed_products|default([])|reject('in', main_products)|list %}
       {% if other_products %}
       <div class="ch-more" id="ch-more">
@@ -563,6 +564,11 @@ async function loadBatch(ebrId) {
 }
 
 function showDashboard(skipHistory) {
+  // COA users don't have dashboard — redirect to registry
+  if ("{{ session.get('user', {}).get('rola', '') }}" === 'laborant_coa') {
+    showRegistry('Chegina_K7', skipHistory);
+    return;
+  }
   document.getElementById('panel-dashboard').style.display = '';
   document.getElementById('panel-detail').style.display = 'none';
   document.getElementById('panel-detail').innerHTML = '';
@@ -593,8 +599,12 @@ if (_dm) {
   loadBatch(parseInt(_dm[1]));
 } else {
   var _params = new URLSearchParams(window.location.search);
+  var _userRola = "{{ session.get('user', {}).get('rola', '') }}";
   if (_params.get('view') === 'registry') {
     showRegistry(_params.get('produkt') || 'Chegina_K7', true);
+  } else if (_userRola === 'laborant_coa') {
+    // COA user: start on completed registry
+    showRegistry('Chegina_K7', true);
   } else {
     expandRail();
   }
@@ -753,11 +763,17 @@ function renderSidebarEtapy() {
   const isZbiornik = typeof ebrTyp !== 'undefined' && ebrTyp === 'zbiornik';
   const esData = window._etapyStatus || [];
 
-  // For zbiornik — simple list
-  if (isZbiornik) {
+  // MVP: simplified sidebar — only analiza końcowa (no process stages)
+  // For zbiornik OR szarza without active process stages
+  if (isZbiornik || esData.length === 0) {
     let html = '<div class="se-list">';
+    let stepN = 1;
     etapy.filter(e => e.sekcja_lab === 'analiza_koncowa').forEach(e => {
-      html += '<div class="se-step is-active"><div class="se-num active">1</div><div class="se-info"><div class="se-name">' + e.nazwa + '</div></div></div>';
+      const isDone = ebrStatus === 'completed';
+      const cls = isDone ? 'is-done' : 'is-active';
+      const numCls = isDone ? 'done' : 'active';
+      html += '<div class="se-step ' + cls + '"><div class="se-num ' + numCls + '">' + stepN + '</div><div class="se-info"><div class="se-name">' + e.nazwa + '</div></div></div>';
+      stepN++;
     });
     html += '</div>';
     container.innerHTML = html;

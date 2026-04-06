@@ -20,7 +20,7 @@ from mbr.laborant.models import (
 
 
 @laborant_bp.route("/laborant/szarze")
-@role_required("laborant")
+@role_required("laborant", "laborant_kj", "laborant_coa")
 def szarze_list():
     from mbr.registry.models import list_completed_products
     with db_session() as db:
@@ -32,7 +32,7 @@ def szarze_list():
 
 
 @laborant_bp.route("/laborant/szarze/new", methods=["POST"])
-@role_required("laborant")
+@role_required("laborant", "laborant_kj")
 def szarze_new():
     with db_session() as db:
         typ = request.form.get("typ", "szarza")
@@ -50,12 +50,13 @@ def szarze_new():
             nr_zbiornika=request.form.get("nr_zbiornika", ""),
         )
 
-        # Initialize process stage tracking for full-pipeline products
-        if ebr_id and typ == 'szarza':
-            from mbr.etapy_models import init_etapy_status, get_process_stages
-            stages = get_process_stages(request.form["produkt"])
-            if stages:
-                init_etapy_status(db, ebr_id, request.form["produkt"])
+        # MVP: skip process stage initialization — only analiza końcowa for now
+        # TODO: re-enable when full batch card (etapy) is implemented
+        # if ebr_id and typ == 'szarza':
+        #     from mbr.etapy_models import init_etapy_status, get_process_stages
+        #     stages = get_process_stages(request.form["produkt"])
+        #     if stages:
+        #         init_etapy_status(db, ebr_id, request.form["produkt"])
 
     if ebr_id is None:
         flash("Brak aktywnego szablonu MBR dla tego produktu.")
@@ -109,7 +110,7 @@ def fast_entry_partial(ebr_id):
 
 
 @laborant_bp.route("/laborant/ebr/<int:ebr_id>/save", methods=["POST"])
-@login_required
+@role_required("laborant", "laborant_kj")
 def save_entry(ebr_id):
     data = request.get_json(silent=True)
     if not data:
@@ -187,7 +188,7 @@ def get_audit_log(ebr_id):
 
 
 @laborant_bp.route("/laborant/ebr/<int:ebr_id>/complete", methods=["POST"])
-@login_required
+@role_required("laborant", "laborant_kj")
 def complete_entry(ebr_id):
     data = request.get_json(silent=True) or {}
     zbiorniki = data.get("zbiorniki")

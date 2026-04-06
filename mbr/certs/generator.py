@@ -81,7 +81,14 @@ def get_required_fields(produkt: str, variant_id: str) -> list[str]:
     product_cfg = products[key]
     for v in product_cfg.get("variants", []):
         if v["id"] == variant_id:
-            return [f for f in v.get("flags", []) if f != "has_rspo"]
+            skip = {"has_rspo"}
+            # Skip avon fields if already defined in variant overrides
+            overrides = v.get("overrides", {})
+            if overrides.get("avon_code"):
+                skip.add("has_avon_code")
+            if overrides.get("avon_name"):
+                skip.add("has_avon_name")
+            return [f for f in v.get("flags", []) if f not in skip]
     return []
 
 
@@ -227,13 +234,16 @@ def build_context(
     order_number = extra.get("order_number", "") if "has_order_number" in flags else ""
     certificate_number = extra.get("certificate_number", "") if "has_certificate_number" in flags else ""
     has_rspo = "has_rspo" in flags
-    rspo_text = "CU-RSPO SCC-857488" if has_rspo else ""
+    rspo_number = cfg.get("rspo_number", "CU-RSPO SCC-857488")
+    rspo_text = rspo_number if has_rspo else ""
     # If MB variant (has_rspo but no has_certificate_number), auto-fill certificate_number with RSPO
     if has_rspo and "has_certificate_number" not in flags:
         certificate_number = rspo_text
         rspo_text = ""
-    avon_code = extra.get("avon_code", "") if "has_avon_code" in flags else ""
-    avon_name = extra.get("avon_name", "") if "has_avon_name" in flags else ""
+    # Avon fields: prefer static values from variant overrides, fallback to user input
+    overrides = variant.get("overrides", {})
+    avon_code = overrides.get("avon_code") or extra.get("avon_code", "") if "has_avon_code" in flags else ""
+    avon_name = overrides.get("avon_name") or extra.get("avon_name", "") if "has_avon_name" in flags else ""
 
     return {
         "company": cfg["company"],

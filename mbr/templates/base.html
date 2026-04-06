@@ -22,13 +22,22 @@
   <a class="rail-btn {% block nav_narzedzia %}{% endblock %}" href="{{ url_for('registry.narzedzia') }}" title="Narzędzia"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg><span class="rail-label">Narzędzia</span></a>
   {% endif %}
 
-  {% if session.get('user', {}).get('rola') == 'laborant' %}
+  {% if session.get('user', {}).get('rola') == 'admin' %}
+  <a class="rail-btn {% block nav_admin %}{% endblock %}" href="{{ url_for('admin.admin_panel') }}" title="Admin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg><span class="rail-label">Admin</span></a>
+  {% endif %}
+
+  {% if session.get('user', {}).get('rola') in ('laborant', 'laborant_kj') %}
   <a class="rail-btn {% block nav_szarze %}{% endblock %}" href="{{ url_for('laborant.szarze_list') }}" title="Szarze"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v4l4 8H5l4-8V3z"/><path d="M3 21h18"/><path d="M9 3h6"/></svg><span class="rail-label">Szarze</span></a>
   <button class="rail-btn" onclick="if(typeof openNewBatchModal==='function')openNewBatchModal()" title="Nowa szarza"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg><span class="rail-label">+ Nowa</span></button>
   <div class="rail-sep"></div>
   <button class="rail-btn" onclick="" title="Notatki"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><path d="M12 11h4"/><path d="M12 16h4"/><path d="M8 11h.01"/><path d="M8 16h.01"/></svg><span class="rail-label">Notatki</span></button>
   <button class="rail-btn" onclick="openFeedbackModal()" title="Feedback"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/><path d="M12 7v6"/><path d="M9 10h6"/></svg><span class="rail-label">Feedback</span></button>
   <a class="rail-btn {% block nav_narzedzia_lab %}{% endblock %}" href="{{ url_for('registry.narzedzia') }}" title="Narzędzia"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg><span class="rail-label">Narzędzia</span></a>
+  {% endif %}
+
+  {% if session.get('user', {}).get('rola') == 'laborant_coa' %}
+  <a class="rail-btn {% block nav_szarze_coa %}{% endblock %}" href="{{ url_for('laborant.szarze_list') }}" title="Szarze"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v4l4 8H5l4-8V3z"/><path d="M3 21h18"/><path d="M9 3h6"/></svg><span class="rail-label">Ukończone</span></a>
+  <a class="rail-btn" href="{{ url_for('registry.narzedzia') }}" title="Narzędzia"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg><span class="rail-label">Narzędzia</span></a>
   {% endif %}
 
   {# ═══ PARAMETRY — all roles ═══ #}
@@ -72,8 +81,10 @@
 <script src="{{ url_for('static', filename='lab_common.js') }}?v={{ v }}"></script>
 {% block scripts %}{% endblock %}
 
-<!-- Nowa szarza modal (global — available on all pages) -->
+<!-- Nowa szarza modal (only for roles that can create batches) -->
+{% if session.get('user', {}).get('rola') in ('laborant', 'laborant_kj', 'technolog') %}
 {% include "laborant/_modal_nowa_szarza.html" %}
+{% endif %}
 
 <!-- Metody modal (global — K shortcut from any page) -->
 {% include "_modal_metody.html" %}
@@ -375,6 +386,8 @@ document.addEventListener('keydown', function(e) {
   if (e.ctrlKey || e.altKey || e.metaKey) return;
 
   if (e.key === 'n' || e.key === 'N') {
+    var _rola = "{{ session.get('user', {}).get('rola', '') }}";
+    if (_rola === 'laborant_coa' || _rola === 'admin') return;
     e.preventDefault();
     var regModal = document.getElementById('reg-modal');
     if (regModal && regModal.classList.contains('show')) { if (typeof closeModal === 'function') closeModal(); }
