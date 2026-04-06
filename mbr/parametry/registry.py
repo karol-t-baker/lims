@@ -150,11 +150,15 @@ def get_etapy_config(db: sqlite3.Connection, produkt: str) -> dict:
         label = stage_legacy.get("label", etap.capitalize())
         korekty = stage_legacy.get("korekty", [])
 
-        result[etap] = {
+        entry = {
             "label": label,
             "parametry": parametry,
             "korekty": korekty,
         }
+        kroki = stage_legacy.get("kroki")
+        if kroki:
+            entry["kroki"] = kroki
+        result[etap] = entry
 
     return result
 

@@ -17,12 +17,33 @@ ETAPY_ANALIZY = {
         "rozjasnianie":      {"label": "Rozjaśnianie",      "korekty": ["Perhydrol"]},
     },
     "Chegina_K40GLO": {
-        "amidowanie":        {"label": "Amidowanie",        "korekty": ["DMAPA", "Wydłużenie czasu"]},
-        "smca":              {"label": "Wytworzenie SMCA",  "korekty": ["NaOH", "MCA"]},
-        "czwartorzedowanie": {"label": "Czwartorzędowanie", "korekty": ["NaOH", "MCA"]},
-        "sulfonowanie":      {"label": "Sulfonowanie",      "korekty": ["Na2SO3"]},
-        "utlenienie":        {"label": "Utlenienie",        "korekty": ["Kw. cytrynowy", "Perhydrol"]},
-        "rozjasnianie":      {"label": "Rozjaśnianie",      "korekty": ["Perhydrol"]},
+        "amidowanie": {
+            "label": "Amidowanie",
+            "korekty": ["DMAPA", "Wydłużenie czasu"],
+            "kroki": [
+                {"nr": 1, "label": "Synteza (po 7h)", "parametry": ["le", "barwa_fau"]},
+                {"nr": 2, "label": "Zakończenie destylacji", "parametry": ["la", "barwa_fau"]},
+            ],
+        },
+        "smca": {"label": "Wytworzenie SMCA", "korekty": ["NaOH", "MCA"]},
+        "czwartorzedowanie": {
+            "label": "Czwartorzędowanie",
+            "korekty": ["NaOH", "MCA"],
+            "kroki": [
+                {"nr": 1, "label": "Po 1. porcji ługu", "parametry": ["ph_10proc", "nd20", "barwa_fau", "barwa_hz", "metnosc"]},
+                {"nr": 2, "label": "Po 2. porcji ługu", "parametry": ["ph_10proc", "nd20", "aa", "barwa_fau", "barwa_hz", "metnosc"]},
+            ],
+        },
+        "sulfonowanie": {"label": "Sulfonowanie", "korekty": ["Na2SO3"]},
+        "utlenienie": {
+            "label": "Utlenienie",
+            "korekty": ["Kw. cytrynowy", "Perhydrol"],
+            "kroki": [
+                {"nr": 1, "label": "Obniżenie pH", "parametry": ["ph_10proc", "nd20", "barwa_fau", "barwa_hz", "metnosc", "so3"]},
+                {"nr": 2, "label": "Utlenianie perhydrolem", "parametry": ["ph_10proc", "nd20", "barwa_fau", "barwa_hz", "metnosc", "so3", "nacl"]},
+            ],
+        },
+        "rozjasnianie": {"label": "Rozjaśnianie", "korekty": ["Perhydrol"]},
     },
 }
 

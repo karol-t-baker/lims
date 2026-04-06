@@ -1802,6 +1802,15 @@ window.showProcessStage = function(etapKey) {
   // Get corrections for this stage
   var stageKorekty = _etapyKorekty.filter(function(k) { return k.etap === etapKey; });
 
+  // Determine if stage has sub-steps (kroki)
+  var kroki = stageConfig.kroki || null;
+  var currentKrok = window._currentKrok || 1;
+  // Reset krok if it doesn't belong to this stage's kroki
+  if (kroki) {
+    var validKrok = kroki.find(function(k) { return k.nr === currentKrok; });
+    if (!validKrok) currentKrok = 1;
+  }
+
   var isActive = status === 'in_progress' && ebrStatus === 'open';
   var isDone = status === 'done';
   var isPending = status === 'pending';
@@ -1851,6 +1860,36 @@ window.showProcessStage = function(etapKey) {
 
   var html = '<div class="cv-params">' +
     '<div class="cv-params-head">' + stageConfig.label + headerExtra + headerTs + '</div>';
+
+  // Render krok tabs if stage has sub-steps
+  if (kroki) {
+    html += '<div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:0;">';
+    kroki.forEach(function(k) {
+      var isActiveKrok = k.nr === currentKrok;
+      var hasData = false;
+      for (var rk in stageAnalizy) {
+        for (var pk in stageAnalizy[rk]) {
+          if (stageAnalizy[rk][pk].krok === k.nr) hasData = true;
+        }
+      }
+      html += '<div onclick="switchKrok(\'' + etapKey + '\',' + k.nr + ')" style="' +
+        'padding:8px 16px;font-size:10px;font-weight:600;cursor:pointer;' +
+        'border-bottom:2px solid ' + (isActiveKrok ? 'var(--teal)' : 'transparent') + ';' +
+        'color:' + (isActiveKrok ? 'var(--teal)' : hasData ? 'var(--text-sec)' : 'var(--text-dim)') + ';' +
+        '">' + k.nr + '. ' + k.label + '</div>';
+    });
+    html += '</div>';
+
+    // Filter parametry to only show current krok's params
+    var krokDef = kroki.find(function(k) { return k.nr === currentKrok; });
+    if (krokDef) {
+      stageConfig = Object.assign({}, stageConfig, {
+        parametry: stageConfig.parametry.filter(function(p) {
+          return krokDef.parametry.indexOf(p.kod) >= 0;
+        })
+      });
+    }
+  }
 
   // Helper: render one runda's fields
   function renderRundaFields(rundaNum, editable) {
@@ -2093,6 +2132,11 @@ window.showProcessStage = function(etapKey) {
   }
 }
 
+function switchKrok(etapKey, krokNr) {
+  window._currentKrok = krokNr;
+  showProcessStage(etapKey);
+}
+
 // Auto-save debounce for process stage fields
 var _psSaveTimers = {};
 function psAutoSave(input) {
@@ -2131,14 +2175,14 @@ function psSave(input) {
   fetch('/api/ebr/' + ebrId + '/etapy-analizy', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({etap: etap, runda: runda, wyniki: wyniki})
+    body: JSON.stringify({etap: etap, runda: runda, wyniki: wyniki, krok: window._currentKrok || 1})
   }).then(function(resp) {
     if (resp.ok) {
       input.style.outline = '2px solid var(--green)';
       // Update local cache
       if (!_etapyAnalizy[etap]) _etapyAnalizy[etap] = {};
       if (!_etapyAnalizy[etap][runda]) _etapyAnalizy[etap][runda] = {};
-      _etapyAnalizy[etap][runda][kod] = {wartosc: parseFloat(val), dt_wpisu: new Date().toISOString(), wpisal: 'me'};
+      _etapyAnalizy[etap][runda][kod] = {wartosc: parseFloat(val), dt_wpisu: new Date().toISOString(), wpisal: 'me', krok: window._currentKrok || 1};
       var dot = input.parentElement && input.parentElement.querySelector('.status-dot');
       if (dot) dot.classList.add('ok');
     } else {
