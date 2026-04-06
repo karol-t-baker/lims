@@ -191,6 +191,18 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             UNIQUE(produkt, kontekst, parametr_id)
         )
     """)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS audit_log (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            dt          TEXT NOT NULL,
+            tabela      TEXT NOT NULL,
+            rekord_id   INTEGER NOT NULL,
+            pole        TEXT NOT NULL,
+            stara_wartosc TEXT,
+            nowa_wartosc  TEXT,
+            zmienil     TEXT NOT NULL
+        )
+    """)
     db.execute("CREATE INDEX IF NOT EXISTS idx_wyniki_ebr_limicie ON ebr_wyniki(ebr_id, w_limicie, dt_wpisu)")
     db.commit()
 
@@ -270,6 +282,25 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     # Migration: add metoda_id to parametry_analityczne
     try:
         db.execute("ALTER TABLE parametry_analityczne ADD COLUMN metoda_id INTEGER REFERENCES metody_miareczkowe(id)")
+        db.commit()
+    except Exception:
+        pass
+
+    # Migration: golden batch flag
+    try:
+        db.execute("ALTER TABLE ebr_batches ADD COLUMN is_golden INTEGER DEFAULT 0")
+        db.commit()
+    except Exception:
+        pass
+
+    # Migration: wartosc_text for hybrid fields (mętność: number or text like "mętna jasna")
+    try:
+        db.execute("ALTER TABLE ebr_etapy_analizy ADD COLUMN wartosc_text TEXT")
+        db.commit()
+    except Exception:
+        pass
+    try:
+        db.execute("ALTER TABLE ebr_wyniki ADD COLUMN wartosc_text TEXT")
         db.commit()
     except Exception:
         pass

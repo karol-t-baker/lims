@@ -21,16 +21,36 @@ def save_etap_analizy(
     for kod, value in wyniki.items():
         if value is None or value == "":
             continue
+        # Support hybrid: numeric or text (mętność)
+        val = None
+        val_text = None
         try:
             val = float(value)
         except (ValueError, TypeError):
-            continue
+            val_text = str(value).strip()
+            if not val_text:
+                continue
+
+        # Audit: log old value before overwrite
+        old = db.execute(
+            "SELECT id, wartosc, wartosc_text FROM ebr_etapy_analizy WHERE ebr_id=? AND etap=? AND runda=? AND kod_parametru=?",
+            (ebr_id, etap, runda, kod),
+        ).fetchone()
+        if old:
+            old_val = str(old["wartosc"]) if old["wartosc"] is not None else old["wartosc_text"] or ""
+            new_val = str(val) if val is not None else val_text or ""
+            if old_val != new_val:
+                db.execute(
+                    "INSERT INTO audit_log (dt, tabela, rekord_id, pole, stara_wartosc, nowa_wartosc, zmienil) VALUES (?,?,?,?,?,?,?)",
+                    (now, "ebr_etapy_analizy", old["id"], kod, old_val, new_val, user),
+                )
+
         db.execute(
-            """INSERT INTO ebr_etapy_analizy (ebr_id, etap, runda, kod_parametru, wartosc, dt_wpisu, wpisal)
-               VALUES (?, ?, ?, ?, ?, ?, ?)
+            """INSERT INTO ebr_etapy_analizy (ebr_id, etap, runda, kod_parametru, wartosc, wartosc_text, dt_wpisu, wpisal)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                ON CONFLICT(ebr_id, etap, runda, kod_parametru)
-               DO UPDATE SET wartosc=excluded.wartosc, dt_wpisu=excluded.dt_wpisu, wpisal=excluded.wpisal""",
-            (ebr_id, etap, runda, kod, val, now, user),
+               DO UPDATE SET wartosc=excluded.wartosc, wartosc_text=excluded.wartosc_text, dt_wpisu=excluded.dt_wpisu, wpisal=excluded.wpisal""",
+            (ebr_id, etap, runda, kod, val, val_text, now, user),
         )
     db.commit()
 

@@ -466,6 +466,17 @@ def save_wyniki(
         except (ValueError, TypeError):
             continue
 
+        # Audit: log old value before overwrite
+        old_row = db.execute(
+            "SELECT wynik_id, wartosc FROM ebr_wyniki WHERE ebr_id=? AND sekcja=? AND kod_parametru=?",
+            (ebr_id, sekcja, kod),
+        ).fetchone()
+        if old_row and old_row["wartosc"] is not None and old_row["wartosc"] != wartosc:
+            db.execute(
+                "INSERT INTO audit_log (dt, tabela, rekord_id, pole, stara_wartosc, nowa_wartosc, zmienil) VALUES (?,?,?,?,?,?,?)",
+                (now, "ebr_wyniki", old_row["wynik_id"], kod, str(old_row["wartosc"]), str(wartosc), user),
+            )
+
         tag = pole.get("tag", "")
         min_limit = pole.get("min")
         max_limit = pole.get("max")

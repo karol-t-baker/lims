@@ -159,6 +159,33 @@ def save_entry(ebr_id):
     return jsonify({"ok": True})
 
 
+@laborant_bp.route("/api/ebr/<int:ebr_id>/golden", methods=["POST"])
+@login_required
+def toggle_golden(ebr_id):
+    with db_session() as db:
+        row = db.execute("SELECT is_golden FROM ebr_batches WHERE ebr_id=?", (ebr_id,)).fetchone()
+        if not row:
+            return jsonify({"error": "not found"}), 404
+        new_val = 0 if row["is_golden"] else 1
+        db.execute("UPDATE ebr_batches SET is_golden=? WHERE ebr_id=?", (new_val, ebr_id))
+        db.commit()
+    return jsonify({"ok": True, "is_golden": new_val})
+
+
+@laborant_bp.route("/api/ebr/<int:ebr_id>/audit")
+@login_required
+def get_audit_log(ebr_id):
+    with db_session() as db:
+        # Get all audit entries for this batch's records
+        rows = db.execute("""
+            SELECT a.* FROM audit_log a
+            WHERE (a.tabela='ebr_etapy_analizy' AND a.rekord_id IN (SELECT id FROM ebr_etapy_analizy WHERE ebr_id=?))
+               OR (a.tabela='ebr_wyniki' AND a.rekord_id IN (SELECT wynik_id FROM ebr_wyniki WHERE ebr_id=?))
+            ORDER BY a.dt DESC
+        """, (ebr_id, ebr_id)).fetchall()
+    return jsonify({"audit": [dict(r) for r in rows]})
+
+
 @laborant_bp.route("/laborant/ebr/<int:ebr_id>/complete", methods=["POST"])
 @login_required
 def complete_entry(ebr_id):
