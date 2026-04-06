@@ -99,12 +99,13 @@ def coa_home():
 def api_coa_sync():
     server = _get_setting("server_url", DEFAULT_SERVER)
     since = _get_setting("last_sync", "2000-01-01T00:00:00")
+    ref_hash = _get_setting("ref_hash", "")
     try:
         import urllib3
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         r = http_requests.get(
             f"{server}/api/admin/sync-delta",
-            params={"since": since},
+            params={"since": since, "ref_hash": ref_hash},
             timeout=15, verify=False,
         )
         r.raise_for_status()
@@ -115,19 +116,20 @@ def api_coa_sync():
         db = get_db()
         counts = {"new": 0, "updated": 0}
 
-        # Upsert reference tables (full replace)
-        for table, rows in data["reference"].items():
-            if not rows:
-                continue
-            cols = list(rows[0].keys())
-            placeholders = ",".join("?" * len(cols))
-            col_names = ",".join(cols)
-            for row in rows:
-                vals = [row[c] for c in cols]
-                db.execute(
-                    f"INSERT OR REPLACE INTO {table} ({col_names}) VALUES ({placeholders})",
-                    vals,
-                )
+        # Upsert reference tables (only if server sent them — hash changed)
+        if data.get("reference"):
+            for table, rows in data["reference"].items():
+                if not rows:
+                    continue
+                cols = list(rows[0].keys())
+                placeholders = ",".join("?" * len(cols))
+                col_names = ",".join(cols)
+                for row in rows:
+                    vals = [row[c] for c in cols]
+                    db.execute(
+                        f"INSERT OR REPLACE INTO {table} ({col_names}) VALUES ({placeholders})",
+                        vals,
+                    )
 
         # Upsert delta tables
         for table, rows in data["delta"].items():
@@ -136,10 +138,9 @@ def api_coa_sync():
             cols = list(rows[0].keys())
             placeholders = ",".join("?" * len(cols))
             col_names = ",".join(cols)
+            pk = "ebr_id" if table == "ebr_batches" else "wynik_id" if table == "ebr_wyniki" else "id"
             for row in rows:
                 vals = [row[c] for c in cols]
-                # Check if exists
-                pk = "ebr_id" if table == "ebr_batches" else "wynik_id" if table == "ebr_wyniki" else "id"
                 existing = db.execute(f"SELECT {pk} FROM {table} WHERE {pk}=?", (row[pk],)).fetchone()
                 db.execute(
                     f"INSERT OR REPLACE INTO {table} ({col_names}) VALUES ({placeholders})",
@@ -153,22 +154,24 @@ def api_coa_sync():
         db.commit()
         db.close()
 
-        # Save sync timestamp
+        # Save sync timestamp + ref hash
         now = datetime.now().isoformat(timespec="seconds")
         _set_setting("last_sync", now)
+        if data.get("ref_hash"):
+            _set_setting("ref_hash", data["ref_hash"])
 
-        # Backup
-        backup_dir_str = _get_setting("backup_dir", "")
-        backup_dir = Path(backup_dir_str) if backup_dir_str else Path(DEFAULT_BACKUP_DIR)
-        backup_dir.mkdir(parents=True, exist_ok=True)
-        ts = datetime.now().strftime("%Y-%m-%d_%H-%M")
+        # Backup max once per day
         import shutil
-        shutil.copy2(DB_PATH, backup_dir / f"batch_db_{ts}.sqlite")
-
-        # Keep only 5 newest backups
-        backups = sorted(backup_dir.glob("batch_db_*.sqlite"), key=lambda p: p.stat().st_mtime, reverse=True)
-        for old in backups[5:]:
-            old.unlink()
+        backup_dir = Path(_get_setting("backup_dir", DEFAULT_BACKUP_DIR))
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        today = datetime.now().strftime("%Y-%m-%d")
+        today_backup = backup_dir / f"batch_db_{today}.sqlite"
+        if not today_backup.exists():
+            shutil.copy2(DB_PATH, today_backup)
+            # Keep only 5 newest
+            backups = sorted(backup_dir.glob("batch_db_*.sqlite"), key=lambda p: p.stat().st_mtime, reverse=True)
+            for old in backups[5:]:
+                old.unlink()
 
         n_batches = len(data["delta"]["ebr_batches"])
         total = data.get("total_completed", "?")
