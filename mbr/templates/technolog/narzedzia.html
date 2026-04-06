@@ -26,6 +26,10 @@
         <div class="nsc-item"><kbd>F</kbd><span>Feedback</span></div>
         <div class="nsc-item"><kbd>Z</kbd><span>Zmiana</span></div>
       </div>
+      <div class="nsc-group">
+        <div class="nsc-group-label">Kalkulatory</div>
+        <div class="nsc-item"><kbd>M</kbd><span>Kalkulator miareczkowy</span></div>
+      </div>
     </div>
   </div>
 
@@ -309,6 +313,24 @@ function openMetodyModal(){
   if(!_mcM.length) fetch('/api/metody-miareczkowe').then(function(r){return r.json()}).then(function(d){_mcM=d;mcRenderList()});
 }
 function closeMetodyModal(){ document.getElementById('mc-overlay').classList.remove('show'); }
+function toggleMetodyModal(){
+  var ov = document.getElementById('mc-overlay');
+  if(ov.classList.contains('show')) closeMetodyModal(); else openMetodyModal();
+}
+
+// Keyboard shortcut: M toggles metody modal (only when not typing in input/select)
+document.addEventListener('keydown', function(e){
+  if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||e.target.tagName==='TEXTAREA') return;
+  if(e.key==='m'||e.key==='M'){
+    e.preventDefault();
+    toggleMetodyModal();
+  }
+  // Escape closes modal
+  if(e.key==='Escape'){
+    var ov=document.getElementById('mc-overlay');
+    if(ov&&ov.classList.contains('show')) closeMetodyModal();
+  }
+});
 
 function mcRenderList(){
   document.getElementById('mc-list').innerHTML=_mcM.map(function(m){
