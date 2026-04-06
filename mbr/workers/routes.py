@@ -66,6 +66,15 @@ def api_toggle_worker(worker_id):
     return jsonify({"ok": True, "aktywny": new_val})
 
 
+@workers_bp.route("/api/workers/<int:worker_id>", methods=["DELETE"])
+@login_required
+def api_delete_worker(worker_id):
+    from mbr.workers.models import delete_worker
+    with db_session() as db:
+        delete_worker(db, worker_id)
+    return jsonify({"ok": True})
+
+
 @workers_bp.route("/api/workers/all")
 @login_required
 def api_workers_all():

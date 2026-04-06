@@ -45,6 +45,11 @@ def toggle_worker_active(db, worker_id):
     return new_val
 
 
+def delete_worker(db, worker_id):
+    db.execute("DELETE FROM workers WHERE id=?", (worker_id,))
+    db.commit()
+
+
 # Backwards compat alias
 def update_worker_nickname(db, worker_id, nickname):
     update_worker_profile(db, worker_id, nickname=nickname)
