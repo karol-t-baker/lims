@@ -1999,11 +1999,11 @@ window.showProcessStage = function(etapKey) {
       }
 
       // Special hybrid input for mętność
-      if (param.kod === 'metnosc') {
+      if (param.kod === 'metnosc_fau' || param.kod === 'barwa_opis') {
         h += '<div class="ff">' +
           '<div class="status-dot"></div>' +
           '<label>' + (param.skrot || param.label) + '</label>' +
-          '<input type="text" list="metnosc-opts"' +
+          '<input type="text" list="barwa-text-opts"' +
             ' data-etap="' + etapKey + '" data-runda="' + rundaNum + '" data-kod="' + param.kod + '"' +
             ' value="' + val + '"' +
             ' class="' + inputClass + '"' +
@@ -2011,7 +2011,7 @@ window.showProcessStage = function(etapKey) {
             ' placeholder="NTU lub opis"' +
             (editable ? ' oninput="psAutoSave(this)" onblur="psSave(this)"' : '') +
             '>' +
-          '<datalist id="metnosc-opts">' +
+          '<datalist id="barwa-text-opts">' +
             '<option value="klarowna">' +
             '<option value="opalizująca">' +
             '<option value="mętna jasna">' +
