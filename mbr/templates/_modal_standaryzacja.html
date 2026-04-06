@@ -92,35 +92,40 @@ function scRender(){
   var res = scCalc(prod);
 
   var body = document.getElementById('sc-body');
+
+  // Section 3 result — NaCl or final concentration after dilution
+  var sec3res = res.nacl !== null ? res.nacl.toFixed(2)+' kg' : (res.clKoncowe !== null ? 'Cl\u207b po rozcie\u0144czeniu: '+res.clKoncowe.toFixed(3)+'%' : '\u2014');
+  var sec3cls = (res.nacl !== null || res.clKoncowe !== null) ? ' has-val' : '';
+
   body.innerHTML =
     '<div class="sc-tiles">'+tiles+'</div>'+
 
     // Section 1: Woda (refrakcja)
     '<div class="sc-section">'+
-      '<div class="sc-sec-hdr"><div class="sc-step" style="background:var(--teal)">1</div><div class="sc-sec-title">Refrakcja — korekta wody</div>'+
-        '<div class="sc-sec-res'+(res.woda!==null?' has-val':'')+'">'+( res.woda!==null?res.woda.toFixed(1)+' kg':'—')+'</div></div>'+
+      '<div class="sc-sec-hdr"><div class="sc-step" style="background:var(--teal)">1</div><div class="sc-sec-title">Refrakcja \u2014 korekta wody</div>'+
+        '<div class="sc-sec-res'+(res.woda!==null?' has-val':'')+'">'+( res.woda!==null?res.woda.toFixed(1)+' kg':'\u2014')+'</div></div>'+
       '<div class="sc-sec-body" style="grid-template-columns:1fr 1fr">'+
         '<div class="sc-fg"><div class="sc-lbl">Masa nastawu [kg]</div><input class="sc-inp" type="number" inputmode="decimal" placeholder="np. 6500" value="'+_sc.nastaw+'" oninput="_sc.nastaw=this.value;scUpdate()"></div>'+
-        '<div class="sc-fg"><div class="sc-lbl">Refrakcja R₀</div><input class="sc-inp" type="number" inputmode="decimal" step="0.0001" placeholder="np. 1.4120" value="'+_sc.R0+'" oninput="_sc.R0=this.value;scUpdate()"></div>'+
+        '<div class="sc-fg"><div class="sc-lbl">Refrakcja R\u2080</div><input class="sc-inp" type="number" inputmode="decimal" step="0.0001" placeholder="np. 1.4120" value="'+_sc.R0+'" oninput="_sc.R0=this.value;scUpdate()"></div>'+
       '</div>'+
-      '<div class="sc-formula">Rk='+prod.Rk+' · ((R₀−Rk) × (nastaw−korekta)) / '+prod.den+'</div>'+
+      '<div class="sc-formula">Rk='+prod.Rk+' \u00b7 ((R\u2080\u2212Rk) \u00d7 (nastaw\u2212korekta)) / '+prod.den+'</div>'+
     '</div>'+
 
     // Section 2: pH — kwas
     '<div class="sc-section">'+
-      '<div class="sc-sec-hdr"><div class="sc-step" style="background:var(--amber)">2</div><div class="sc-sec-title">Korekta pH — kwas</div>'+
-        '<div class="sc-sec-res'+(res.kwas!==null?' has-val':'')+'">'+( res.kwas!==null?res.kwas.toFixed(2)+' kg':'—')+'</div></div>'+
+      '<div class="sc-sec-hdr"><div class="sc-step" style="background:var(--amber)">2</div><div class="sc-sec-title">Korekta pH \u2014 kwas</div>'+
+        '<div class="sc-sec-res'+(res.kwas!==null?' has-val':'')+'">'+( res.kwas!==null?res.kwas.toFixed(2)+' kg':'\u2014')+'</div></div>'+
       '<div class="sc-sec-body" style="grid-template-columns:1fr 1fr 1fr">'+
         '<div class="sc-fg"><div class="sc-lbl">pH zmierzone</div><input class="sc-inp" type="number" inputmode="decimal" step="0.01" placeholder="np. 12.0" value="'+_sc.pH0+'" oninput="_sc.pH0=this.value;scUpdate()"></div>'+
         '<div class="sc-fg"><div class="sc-lbl">pH docelowe</div><input class="sc-inp" type="number" inputmode="decimal" step="0.01" placeholder="np. 5.0" value="'+_sc.pHk+'" oninput="_sc.pHk=this.value;scUpdate()"></div>'+
-        '<div class="sc-fg"><div class="sc-lbl">Kwas — dawka [kg]</div><input class="sc-inp" type="number" inputmode="decimal" placeholder="kg" value="'+_sc.kwas+'" oninput="_sc.kwas=this.value;scUpdate()"></div>'+
+        '<div class="sc-fg"><div class="sc-lbl">Kwas \u2014 dawka [kg]</div><input class="sc-inp" type="number" inputmode="decimal" placeholder="kg" value="'+_sc.kwas+'" oninput="_sc.kwas=this.value;scUpdate()"></div>'+
       '</div>'+
     '</div>'+
 
     // Section 3: Chlorki — NaCl
     '<div class="sc-section">'+
-      '<div class="sc-sec-hdr"><div class="sc-step" style="background:var(--green)">3</div><div class="sc-sec-title">Chlorki — NaCl</div>'+
-        '<div class="sc-sec-res'+(res.nacl!==null?' has-val':'')+'">'+( res.nacl!==null?res.nacl.toFixed(2)+' kg':'—')+'</div></div>'+
+      '<div class="sc-sec-hdr"><div class="sc-step" style="background:var(--green)">3</div><div class="sc-sec-title">Chlorki \u2014 NaCl</div>'+
+        '<div class="sc-sec-res'+sec3cls+'">'+sec3res+'</div></div>'+
       '<div class="sc-sec-body" style="grid-template-columns:1fr 1fr">'+
         '<div class="sc-fg"><div class="sc-lbl">Chlorki zmierzone [%]</div><input class="sc-inp" type="number" inputmode="decimal" step="0.01" placeholder="np. 0.35" value="'+_sc.Ccl+'" oninput="_sc.Ccl=this.value;scUpdate()"></div>'+
         '<div class="sc-fg"><div class="sc-lbl">Chlorki docelowe [%]</div><input class="sc-inp" type="number" inputmode="decimal" step="0.01" placeholder="np. 0.50" value="'+_sc.Ck+'" oninput="_sc.Ck=this.value;scUpdate()"></div>'+
@@ -148,18 +153,25 @@ function scCalc(prod){
     if(woda < 0) woda = 0;
   }
 
-  // NaCl
+  // NaCl + końcowe stężenie
+  var Mn = nastaw > 0 ? nastaw - korekta : 0;
+  var Mc = Mn + (woda || 0) + kwas;
+  var clKoncowe = null;
+
   if(nastaw > 0 && Ck > 0 && Ccl >= 0){
-    var Mn = nastaw - korekta;
-    var Mc = Mn + (woda || 0) + kwas;
     nacl = (Ck/100 * Mc - Mn * Ccl/100) / (1 - Ck/100);
     if(nacl < 0) nacl = 0;
+  }
+
+  // Jeśli nie podano Ck (docelowe) ale jest Ccl i woda — pokaż końcowe stężenie po rozcieńczeniu
+  if(nastaw > 0 && Ccl > 0 && Mc > 0 && nacl === null){
+    clKoncowe = (Mn * Ccl / 100) / Mc * 100;
   }
 
   // Woda łącznie
   var wodaTotal = (woda || 0) + kwas;
 
-  return {woda: woda, kwas: kwas > 0 ? kwas : null, nacl: nacl, wodaTotal: wodaTotal};
+  return {woda: woda, kwas: kwas > 0 ? kwas : null, nacl: nacl, clKoncowe: clKoncowe, wodaTotal: wodaTotal};
 }
 
 function scUpdate(){
@@ -170,7 +182,11 @@ function scUpdate(){
   var secs = document.querySelectorAll('.sc-sec-res');
   if(secs[0]){ secs[0].textContent = res.woda !== null ? res.woda.toFixed(1)+' kg' : '—'; secs[0].className = 'sc-sec-res'+(res.woda!==null?' has-val':''); }
   if(secs[1]){ secs[1].textContent = res.kwas !== null ? res.kwas.toFixed(2)+' kg' : '—'; secs[1].className = 'sc-sec-res'+(res.kwas!==null?' has-val':''); }
-  if(secs[2]){ secs[2].textContent = res.nacl !== null ? res.nacl.toFixed(2)+' kg' : '—'; secs[2].className = 'sc-sec-res'+(res.nacl!==null?' has-val':''); }
+  if(secs[2]){
+    var s3txt = res.nacl !== null ? res.nacl.toFixed(2)+' kg' : (res.clKoncowe !== null ? 'Cl\u207b po rozc.: '+res.clKoncowe.toFixed(3)+'%' : '\u2014');
+    secs[2].textContent = s3txt;
+    secs[2].className = 'sc-sec-res'+((res.nacl!==null||res.clKoncowe!==null)?' has-val':'');
+  }
 
   scUpdateSummary(res);
 }
@@ -185,7 +201,7 @@ function scUpdateSummary(res){
   el.innerHTML =
     '<div class="sc-sum-item"><div class="sc-sum-lbl">Woda</div><div class="sc-sum-val">'+(res.woda!==null?res.woda.toFixed(1):'—')+'<span class="sc-sum-unit">kg</span></div></div>'+
     '<div class="sc-sum-item"><div class="sc-sum-lbl">Kwas</div><div class="sc-sum-val">'+(res.kwas!==null?res.kwas.toFixed(1):'—')+'<span class="sc-sum-unit">kg</span></div></div>'+
-    '<div class="sc-sum-item"><div class="sc-sum-lbl">NaCl</div><div class="sc-sum-val">'+(res.nacl!==null?res.nacl.toFixed(1):'—')+'<span class="sc-sum-unit">kg</span></div></div>'+
+    '<div class="sc-sum-item"><div class="sc-sum-lbl">'+(res.nacl!==null?'NaCl':(res.clKoncowe!==null?'Cl\u207b ko\u0144c.':'NaCl'))+'</div><div class="sc-sum-val">'+(res.nacl!==null?res.nacl.toFixed(1):(res.clKoncowe!==null?res.clKoncowe.toFixed(3):'\u2014'))+'<span class="sc-sum-unit">'+(res.nacl!==null?'kg':(res.clKoncowe!==null?'%':''))+'</span></div></div>'+
     '<div class="sc-sum-total"><div class="sc-sum-lbl">Woda łącznie</div><div class="sc-sum-val accent">'+res.wodaTotal.toFixed(1)+'<span class="sc-sum-unit">kg</span></div></div>';
 }
 
