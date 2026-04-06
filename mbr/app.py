@@ -13,11 +13,14 @@ def create_app():
 
     @app.after_request
     def cache_control(response):
-        if response.content_type and ('text/html' in response.content_type or 'application/json' in response.content_type):
-            # HTML + API: never cache (templates change during dev)
+        ct = response.content_type or ''
+        if 'text/html' in ct or 'application/json' in ct:
+            # HTML + API: never cache
             response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
             response.headers["Pragma"] = "no-cache"
-        # Static files (CSS/JS): cached by browser, cache-busted via ?v= query string
+        elif 'text/css' in ct or 'javascript' in ct or 'image/' in ct or 'font/' in ct:
+            # Static assets: cache for 1 year (cache-busted via ?v= query string)
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
         return response
 
     # Shared: filters, context processor
