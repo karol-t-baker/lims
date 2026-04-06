@@ -359,17 +359,26 @@ function renderPanel(p) {
   var hasBias = isOblicz && p.bindings && p.bindings.some(function(b) { return b.sa_bias != null; });
   if (p.bindings && p.bindings.length > 0) {
     h += '<table class="pe-bind"><thead><tr><th>Kontekst</th><th>Produkt</th>';
-    if (hasBias) h += '<th>Bias</th>';
-    else if (isOblicz) h += '<th>Formuła</th>';
+    if (isOblicz) {
+      h += '<th>Formuła</th>';
+      if (hasBias) h += '<th>Bias</th>';
+    }
     h += '<th>Naważka [g]</th><th>Min</th><th>Max</th><th style="width:30px;"></th></tr></thead><tbody>';
     p.bindings.forEach(function(b) {
+      // Resolve formula for display: replace sa_bias placeholder with actual value
+      var resolvedFormula = p.formula || '';
+      if (b.sa_bias != null && resolvedFormula.indexOf('sa_bias') >= 0) {
+        resolvedFormula = resolvedFormula.replace('sa_bias', String(b.sa_bias));
+      }
+
       h += '<tr>' +
         '<td><span class="pe-ctx ' + ctxCls(b.kontekst) + '">' + b.kontekst + '</span></td>' +
         '<td>' + (b.produkt ? '<span class="pe-prod">' + b.produkt.replace(/_/g, ' ') + '</span>' : '<span class="pe-prod-default">wszystkie</span>') + '</td>';
-      if (hasBias) {
-        h += '<td><input type="text" inputmode="decimal" value="' + (b.sa_bias != null ? String(b.sa_bias).replace('.',',') : '') + '" onclick="event.stopPropagation()" onblur="saveBinding(' + b.id + ',\'sa_bias\',this)" placeholder="0" style="width:60px;"></td>';
-      } else if (isOblicz) {
-        h += '<td><input type="text" value="' + esc(b.formula || '') + '" onclick="event.stopPropagation()" onblur="saveBindingText(' + b.id + ',\'formula\',this)" placeholder="(globalna)" style="width:140px;font-family:var(--mono);font-size:10px;"></td>';
+      if (isOblicz) {
+        h += '<td style="font-family:var(--mono);font-size:10px;color:var(--text-dim);">' + esc(resolvedFormula) + '</td>';
+        if (hasBias) {
+          h += '<td><input type="text" inputmode="decimal" value="' + (b.sa_bias != null ? String(b.sa_bias).replace('.',',') : '') + '" onclick="event.stopPropagation()" onblur="saveBinding(' + b.id + ',\'sa_bias\',this)" placeholder="0" style="width:60px;"></td>';
+        }
       }
       h += '<td><input type="text" inputmode="decimal" value="' + (b.nawazka_g != null ? String(b.nawazka_g).replace('.',',') : '') + '" onclick="event.stopPropagation()" onblur="saveBinding(' + b.id + ',\'nawazka_g\',this)"></td>' +
         '<td><input type="text" inputmode="decimal" value="' + (b.min_limit != null ? String(b.min_limit).replace('.',',') : '') + '" onclick="event.stopPropagation()" onblur="saveBinding(' + b.id + ',\'min_limit\',this)"></td>' +
