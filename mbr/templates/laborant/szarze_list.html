@@ -347,7 +347,7 @@
     </div>
 
     {# Tabela otwartych — flex-grow fills remaining space #}
-    <div class="section-title" style="flex-shrink:0;">Otwarte szarze <span class="section-count">{{ szarze_only|length }}</span></div>
+    <div class="section-title" style="flex-shrink:0;">Otwarte szarze <span class="section-count">{{ szarze_only|length }}</span>{% if zbiorniki_only %} <span class="section-count" style="background:var(--blue-bg);color:var(--blue);">{{ zbiorniki_only|length }} zb.</span>{% endif %}</div>
     {% if batches %}
     <div class="table-flex-fill">
     <table class="queue-table">
