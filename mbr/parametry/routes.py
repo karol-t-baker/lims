@@ -112,6 +112,39 @@ def api_parametry_etapy_update(binding_id):
     return jsonify({"ok": True})
 
 
+@parametry_bp.route("/api/parametry/sa-bias", methods=["PUT"])
+@login_required
+def api_parametry_sa_bias():
+    """Update sa_bias for a product's binding. Body: {kod, produkt, sa_bias}"""
+    data = request.get_json(silent=True) or {}
+    kod = data.get("kod", "sa")
+    produkt = data.get("produkt", "")
+    sa_bias = data.get("sa_bias")
+    if sa_bias is None:
+        return jsonify({"error": "sa_bias required"}), 400
+    with db_session() as db:
+        # Find binding for this product + kod in analiza_koncowa
+        row = db.execute(
+            """SELECT pe.id FROM parametry_etapy pe
+               JOIN parametry_analityczne pa ON pe.parametr_id = pa.id
+               WHERE pa.kod = ? AND pe.produkt = ? AND pe.kontekst = 'analiza_koncowa'""",
+            (kod, produkt),
+        ).fetchone()
+        if not row:
+            # Try default (NULL produkt)
+            row = db.execute(
+                """SELECT pe.id FROM parametry_etapy pe
+                   JOIN parametry_analityczne pa ON pe.parametr_id = pa.id
+                   WHERE pa.kod = ? AND pe.produkt IS NULL AND pe.kontekst = 'analiza_koncowa'""",
+                (kod,),
+            ).fetchone()
+        if not row:
+            return jsonify({"error": "Binding not found"}), 404
+        db.execute("UPDATE parametry_etapy SET sa_bias = ? WHERE id = ?", (sa_bias, row["id"]))
+        db.commit()
+    return jsonify({"ok": True})
+
+
 @parametry_bp.route("/api/parametry/etapy/<int:binding_id>", methods=["DELETE"])
 @login_required
 def api_parametry_etapy_delete(binding_id):

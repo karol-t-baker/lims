@@ -1577,6 +1577,36 @@ function scrollToSection(sekcja) {
 }
 
 
+function updateBiasPreview(val, kod) {
+    var el = document.getElementById('calc-bias-preview');
+    if (el) {
+        var b = parseFloat(val) || 0;
+        el.textContent = 'Formuła: sm - nacl - ' + b;
+    }
+}
+
+function saveBias(kod) {
+    var inp = document.getElementById('calc-bias-inp');
+    if (!inp) return;
+    var bias = parseFloat(inp.value);
+    if (isNaN(bias)) return;
+    var produkt = window._batchProdukt || '';
+    // Save via API — update sa_bias for this product's binding
+    fetch('/api/parametry/sa-bias', {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({kod: kod, produkt: produkt, sa_bias: bias})
+    }).then(function(r) {
+        if (r.ok) {
+            var st = document.getElementById('calc-bias-status');
+            if (st) { st.textContent = '✓ Zapisano'; st.style.opacity = '1'; setTimeout(function() { st.style.opacity = '0'; }, 2000); }
+            // Update formula display
+            var formulaEl = document.querySelector('#calc-container .calc-formula');
+            if (formulaEl) formulaEl.textContent = 'sm - nacl - ' + bias;
+        }
+    });
+}
+
 function showRightPanel(view) {
     document.getElementById('tab-hist').classList.toggle('active', view === 'hist');
     document.getElementById('tab-calc').classList.toggle('active', view === 'calc');
@@ -1626,15 +1656,39 @@ window._panelFocusBridge = function(e) {
         if (calcContainer) {
             var kod = input.dataset.kod || '';
             var formula = input.dataset.formula || '';
-            calcContainer.innerHTML =
+            var deps = formula.match(/[a-z_]+/g) || [];
+            // Check if formula has bias (contains a number after last variable)
+            var biasMatch = formula.match(/[a-z_]+\s*[-+]\s*([0-9.]+)\s*$/);
+            var currentBias = biasMatch ? biasMatch[1] : null;
+
+            var html =
                 '<div class="calc-header">' +
                     '<div class="calc-param">' + kod.toUpperCase() + '</div>' +
                     '<div class="calc-method">Parametr obliczeniowy</div>' +
                     '<div class="calc-formula">' + formula + '</div>' +
                 '</div>' +
                 '<div style="padding:8px 0;font-size:11px;color:var(--text-dim);">' +
-                    'Wartość obliczana automatycznie z pól: <strong>' + formula.match(/[a-z_]+/g).join(', ') + '</strong>' +
+                    'Obliczany z: <strong>' + deps.join(', ') + '</strong>' +
                 '</div>';
+
+            // Bias editor for SA-type params
+            if (currentBias !== null) {
+                html +=
+                    '<div style="margin-top:12px;padding:12px;background:var(--surface-alt);border-radius:8px;border:1px solid var(--border-subtle);">' +
+                        '<div style="font-size:8px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px;">Bias (korekta)</div>' +
+                        '<div style="display:flex;align-items:center;gap:8px;">' +
+                            '<input id="calc-bias-inp" type="number" step="0.1" value="' + currentBias + '" ' +
+                                'style="width:80px;padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:14px;font-family:var(--mono);text-align:center;-moz-appearance:textfield;" ' +
+                                'oninput="updateBiasPreview(this.value,\'' + kod + '\')">' +
+                            '<button onclick="saveBias(\'' + kod + '\')" ' +
+                                'style="padding:6px 14px;background:var(--teal);color:#fff;border:none;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font);">Zapisz</button>' +
+                            '<span id="calc-bias-status" style="font-size:9px;color:var(--green);opacity:0;transition:opacity 0.3s;"></span>' +
+                        '</div>' +
+                        '<div id="calc-bias-preview" style="margin-top:4px;font-size:9px;color:var(--text-dim);font-family:var(--mono);"></div>' +
+                    '</div>';
+            }
+
+            calcContainer.innerHTML = html;
         }
         return;
     }
