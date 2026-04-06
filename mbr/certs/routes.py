@@ -124,13 +124,16 @@ def api_cert_delete(cert_id):
         row = db.execute("SELECT pdf_path FROM swiadectwa WHERE id = ?", (cert_id,)).fetchone()
         if row is None:
             return jsonify({"error": "not found"}), 404
-        # Delete PDF file — validate path stays within project
-        project_root = Path(__file__).parent.parent.parent
-        pdf_path = (project_root / row["pdf_path"]).resolve()
-        if not str(pdf_path).startswith(str(project_root.resolve())):
-            return jsonify({"error": "invalid path"}), 400
-        if pdf_path.exists():
-            pdf_path.unlink()
+        # Delete PDF file — handle both absolute and relative paths
+        pdf_path = Path(row["pdf_path"])
+        if not pdf_path.is_absolute():
+            project_root = Path(__file__).parent.parent.parent
+            pdf_path = (project_root / pdf_path).resolve()
+        try:
+            if pdf_path.exists():
+                pdf_path.unlink()
+        except Exception:
+            pass  # File may already be deleted or inaccessible
         # Delete DB record
         db.execute("DELETE FROM swiadectwa WHERE id = ?", (cert_id,))
         db.commit()
