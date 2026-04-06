@@ -349,6 +349,26 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     except Exception:
         pass
 
+    # Migration: add sync_seq to ebr_batches for index-based COA sync
+    try:
+        db.execute("ALTER TABLE ebr_batches ADD COLUMN sync_seq INTEGER")
+        db.commit()
+    except Exception:
+        pass  # column already exists
+
+    db.execute("CREATE INDEX IF NOT EXISTS idx_batches_sync_seq ON ebr_batches(sync_seq)")
+
+    # Backfill sync_seq for already-completed batches (ordered by dt_end)
+    db.execute("""
+        UPDATE ebr_batches SET sync_seq = (
+            SELECT COUNT(*) FROM ebr_batches b2
+            WHERE b2.status = 'completed' AND b2.dt_end <= ebr_batches.dt_end
+              AND b2.ebr_id <= ebr_batches.ebr_id
+        )
+        WHERE status = 'completed' AND sync_seq IS NULL
+    """)
+    db.commit()
+
 
 # ---------------------------------------------------------------------------
 # Auto-numbering — moved to mbr.laborant.models, re-exported for backward compat
