@@ -56,17 +56,19 @@ def api_cert_generate():
             for kod, row in sekcja_data.items():
                 wyniki_flat[kod] = row
 
-        # Resolve wystawil
-        shift_ids = session.get("shift_workers", [])
-        if shift_ids:
-            workers = []
-            for wid in shift_ids:
-                w = db.execute("SELECT nickname FROM workers WHERE id=?", (wid,)).fetchone()
-                if w:
-                    workers.append(w["nickname"])
-            wystawil = ", ".join(workers) if workers else session["user"]["login"]
-        else:
-            wystawil = session["user"]["login"]
+        # Resolve wystawil — prefer explicit from request, fallback to shift/session
+        wystawil = (data.get("wystawil") or "").strip()
+        if not wystawil:
+            shift_ids = session.get("shift_workers", [])
+            if shift_ids:
+                workers = []
+                for wid in shift_ids:
+                    w = db.execute("SELECT imie, nazwisko FROM workers WHERE id=?", (wid,)).fetchone()
+                    if w:
+                        workers.append(w["imie"] + " " + w["nazwisko"])
+                wystawil = ", ".join(workers) if workers else session["user"]["login"]
+            else:
+                wystawil = session["user"]["login"]
 
         # Find variant label for filename
         variants = get_variants(ebr["produkt"])

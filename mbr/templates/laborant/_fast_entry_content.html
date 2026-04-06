@@ -370,6 +370,10 @@
     font-size: 10px; font-weight: 700; flex-shrink: 0;
 }
 .cv-list { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.cv-issuer-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px; border-bottom: 1px solid var(--border-subtle);
+}
 .cv-list-sep {
     font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
     text-transform: uppercase; color: var(--text-dim);
@@ -947,7 +951,12 @@ async function loadCompletedCerts() {
 
     // Templates
     if (tmplData.templates.length > 0) {
+        // Laborant selector — who issues the certificate
         html += '<div class="cv-list-sep">Wystaw nowe</div>';
+        html += '<div class="cv-issuer-row">' +
+            '<label style="font-size:9px;font-weight:700;color:var(--text-dim);letter-spacing:0.5px;text-transform:uppercase;">Wystawił:</label>' +
+            '<select id="cv-issuer-select" style="padding:4px 8px;border:1px solid var(--border);border-radius:5px;font-size:11px;font-family:var(--font);min-width:140px;"></select>' +
+        '</div>';
         tmplData.templates.forEach(function(t) {
             var rf = JSON.stringify(t.required_fields || []);
             html += '<div class="cv-row cv-row-tmpl">' +
@@ -968,6 +977,29 @@ async function loadCompletedCerts() {
     html += '</div>';
 
     el.innerHTML = html;
+
+    // Populate issuer dropdown with active shift workers
+    var sel = document.getElementById('cv-issuer-select');
+    if (sel) {
+        fetch('/api/shift').then(function(r){return r.json()}).then(function(shiftData){
+            var shiftIds = shiftData.worker_ids || [];
+            if (!shiftIds.length) {
+                // No shift set — just show login user
+                sel.innerHTML = '<option value="">{{ session.user.login if session.user }}</option>';
+                return;
+            }
+            fetch('/api/workers').then(function(r){return r.json()}).then(function(wData){
+                var html = '';
+                wData.workers.forEach(function(w){
+                    if (shiftIds.indexOf(w.id) >= 0) {
+                        html += '<option value="' + w.imie + ' ' + w.nazwisko + '">' + w.inicjaly + ' — ' + w.imie + ' ' + w.nazwisko + '</option>';
+                    }
+                });
+                if (!html) html = '<option value="">brak</option>';
+                sel.innerHTML = html;
+            });
+        });
+    }
 }
 
 function deleteCert(certId, btn) {
@@ -1052,7 +1084,7 @@ async function doGenerateCert(btn, variantId, extraFields) {
     var resp = await fetch('/api/cert/generate', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ebr_id: ebrId, variant_id: variantId, extra_fields: extraFields})
+        body: JSON.stringify({ebr_id: ebrId, variant_id: variantId, extra_fields: extraFields, wystawil: (document.getElementById('cv-issuer-select') || {}).value || ''})
     });
     var data = await resp.json();
     if (data.ok) {
