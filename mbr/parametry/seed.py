@@ -32,6 +32,7 @@ PARAMETRY = [
     {"kod": "gestosc",    "label": "Gęstość",              "skrot": "d",        "typ": "bezposredni", "precision": 3},
     {"kod": "h2o",        "label": "Zawartość wody",       "skrot": "H₂O",     "typ": "bezposredni", "precision": 1},
     {"kod": "woda",       "label": "Zawartość wody",       "skrot": "Woda",     "typ": "bezposredni", "precision": 1},
+    {"kod": "metnosc",    "label": "Mętność",              "skrot": "Mętność",  "typ": "bezposredni", "precision": 0},
 
     # --- titracja ---
     {"kod": "la",
@@ -197,6 +198,24 @@ ETAPY_BINDINGS = [
     _b("Chegina_K40GLOL", "rozjasnianie", "h2o2",       2, 0.005, 0.050),
     _b("Chegina_K40GLOL", "rozjasnianie", "barwa_fau",  3, None,  5),
     _b("Chegina_K40GLOL", "rozjasnianie", "barwa_hz",   4, None,  150),
+
+    # barwa_fau in amidowanie
+    _b(None, "amidowanie", "barwa_fau",  5, None,  None),
+    # barwa_fau + barwa_hz + metnosc in czwartorzedowanie
+    _b(None, "czwartorzedowanie", "barwa_fau",  4, None,  None),
+    _b(None, "czwartorzedowanie", "barwa_hz",   5, None,  None),
+    _b(None, "czwartorzedowanie", "metnosc",    6, None,  None),
+    # barwa_fau + barwa_hz + metnosc in sulfonowanie
+    _b(None, "sulfonowanie", "barwa_fau",  4, None,  None),
+    _b(None, "sulfonowanie", "barwa_hz",   5, None,  None),
+    _b(None, "sulfonowanie", "metnosc",    6, None,  None),
+    # barwa_fau + barwa_hz + metnosc + nacl in utlenienie
+    _b(None, "utlenienie", "barwa_fau",    5, None,  None),
+    _b(None, "utlenienie", "barwa_hz",     6, None,  None),
+    _b(None, "utlenienie", "metnosc",      7, None,  None),
+    _b(None, "utlenienie", "nacl",         8, None,  2.0),
+    # metnosc in rozjasnianie for GLOL
+    _b("Chegina_K40GLOL", "rozjasnianie", "metnosc", 5, None, None),
 
     # =========================================================
     # analiza_koncowa — per product (from seed_mbr.py)
