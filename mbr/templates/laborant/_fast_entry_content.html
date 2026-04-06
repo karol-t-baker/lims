@@ -1911,34 +1911,122 @@ window.showProcessStage = function(etapKey) {
   var html = '<div class="cv-params">' +
     '<div class="cv-params-head">' + stageConfig.label + headerExtra + headerTs + '</div>';
 
-  // Render krok tabs if stage has sub-steps
+  // Render kroki as sequential sections (not tabs)
+  // Each krok is a separate card. Krok N+1 appears only when krok N has data.
   if (kroki) {
-    html += '<div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:0;">';
+    // Build per-krok data check
+    var krokiData = {};
     kroki.forEach(function(k) {
-      var isActiveKrok = k.nr === currentKrok;
-      var hasData = false;
+      krokiData[k.nr] = false;
       for (var rk in stageAnalizy) {
         for (var pk in stageAnalizy[rk]) {
-          if (stageAnalizy[rk][pk].krok === k.nr) hasData = true;
+          if (stageAnalizy[rk][pk].krok === k.nr) krokiData[k.nr] = true;
         }
       }
-      html += '<div onclick="switchKrok(\'' + etapKey + '\',' + k.nr + ')" style="' +
-        'padding:8px 16px;font-size:10px;font-weight:600;cursor:pointer;' +
-        'border-bottom:2px solid ' + (isActiveKrok ? 'var(--teal)' : 'transparent') + ';' +
-        'color:' + (isActiveKrok ? 'var(--teal)' : hasData ? 'var(--text-sec)' : 'var(--text-dim)') + ';' +
-        '">' + k.nr + '. ' + k.label + '</div>';
     });
-    html += '</div>';
 
-    // Filter parametry to only show current krok's params
-    var krokDef = kroki.find(function(k) { return k.nr === currentKrok; });
-    if (krokDef) {
-      stageConfig = Object.assign({}, stageConfig, {
-        parametry: stageConfig.parametry.filter(function(p) {
-          return krokDef.parametry.indexOf(p.kod) >= 0;
-        })
-      });
+    // Render each krok sequentially
+    var krokHtml = '';
+    for (var ki = 0; ki < kroki.length; ki++) {
+      var k = kroki[ki];
+      var prevHasData = ki === 0 || krokiData[kroki[ki - 1].nr];
+      var isCurrentKrok = prevHasData && (ki === kroki.length - 1 || !krokiData[k.nr] || true);
+      var isLocked = !prevHasData;
+
+      // Krok header
+      var krokStatus = krokiData[k.nr]
+        ? '<span style="font-size:8px;font-weight:600;padding:1px 6px;border-radius:8px;background:var(--green-bg);color:var(--green);">✓</span>'
+        : (isLocked
+          ? '<span style="font-size:8px;color:var(--text-dim);">zablokowany</span>'
+          : '<span style="font-size:8px;font-weight:600;padding:1px 6px;border-radius:8px;background:var(--teal-bg);color:var(--teal);">aktywny</span>');
+
+      krokHtml += '<div class="ps-krok-section" style="margin-bottom:8px;border:1px solid ' + (isLocked ? 'var(--border-subtle)' : 'var(--border)') + ';border-radius:8px;overflow:hidden;' + (isLocked ? 'opacity:0.5;' : '') + '">';
+      krokHtml += '<div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--surface-alt);border-bottom:1px solid var(--border-subtle);">';
+      krokHtml += '<div style="width:20px;height:20px;border-radius:50%;background:' + (isLocked ? 'var(--border)' : 'var(--teal)') + ';color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;">' + k.nr + '</div>';
+      krokHtml += '<span style="font-size:11px;font-weight:600;color:' + (isLocked ? 'var(--text-dim)' : 'var(--text)') + ';">' + k.label + '</span>';
+      krokHtml += krokStatus;
+      krokHtml += '</div>';
+
+      if (!isLocked) {
+        // Filter params for this krok
+        var krokParams = stageConfig.parametry.filter(function(p) {
+          return k.parametry.indexOf(p.kod) >= 0;
+        });
+
+        // Render fields for this krok inline
+        krokHtml += '<div style="padding:8px 14px;" data-krok="' + k.nr + '">';
+        krokParams.forEach(function(param) {
+          var val = '';
+          if (stageAnalizy[currentRunda] && stageAnalizy[currentRunda][param.kod]) {
+            val = String(stageAnalizy[currentRunda][param.kod].wartosc).replace('.', ',');
+          }
+          var normRange = '';
+          if (param.min != null && param.max != null) normRange = param.min + ' – ' + param.max;
+          else if (param.min != null) normRange = '> ' + param.min;
+          else if (param.max != null) normRange = '< ' + param.max;
+
+          var isTitr = param.typ === 'titracja';
+          var typeTag = isTitr ? '<span class="type-tag t-titr">M</span>' : '';
+          var inputClass = '';
+          if (val) {
+            var numVal = parseFloat(val.replace(',', '.'));
+            var inLimit = true;
+            if (param.min != null && numVal < param.min) inLimit = false;
+            if (param.max != null && numVal > param.max) inLimit = false;
+            inputClass = inLimit ? 'ok' : 'err';
+          }
+
+          // Check for hybrid fields (metnosc_fau, barwa_opis)
+          if (param.kod === 'metnosc_fau' || param.kod === 'barwa_opis') {
+            krokHtml += '<div class="ff"><div class="status-dot"></div>' +
+              '<label>' + (param.skrot || param.label) + '</label>' +
+              '<input type="text" list="barwa-text-opts"' +
+              ' data-etap="' + etapKey + '" data-runda="' + currentRunda + '" data-kod="' + param.kod + '"' +
+              ' value="' + val + '" class="' + inputClass + '"' +
+              (!(isActive && !krokiData[k.nr] || isActive && ki === kroki.length - 1) ? ' readonly' : '') +
+              ' placeholder="opis lub liczba"' +
+              (isActive ? ' oninput="psAutoSave(this)" onblur="psSave(this)"' : '') +
+              '>' +
+              '<datalist id="barwa-text-opts"><option value="klarowna"><option value="opalizująca"><option value="mętna jasna"><option value="mętna"><option value="mętna ciemna"></datalist>' +
+              '<div class="ff-right"><span class="norm-range">' + normRange + '</span></div></div>';
+          } else {
+            var extraAttrs = '';
+            if (param.metoda_id) extraAttrs += ' data-metoda-id="' + param.metoda_id + '"';
+            if (param.nawazka_g != null) extraAttrs += ' data-nawazka="' + param.nawazka_g + '"';
+
+            krokHtml += '<div class="ff' + (isTitr ? ' titr' : '') + '">' +
+              '<div class="status-dot"></div>' +
+              '<label>' + (param.skrot || param.label) + '</label>' +
+              '<input type="text" inputmode="decimal"' +
+              ' data-etap="' + etapKey + '" data-runda="' + currentRunda + '" data-kod="' + param.kod + '"' +
+              ' data-min="' + (param.min != null ? param.min : '') + '"' +
+              ' data-max="' + (param.max != null ? param.max : '') + '"' +
+              extraAttrs +
+              ' value="' + val + '" class="' + inputClass + '"' +
+              (!(isActive) ? ' readonly' : '') +
+              ' placeholder="\u2014"' +
+              (isActive ? ' oninput="validateField(this); psAutoSave(this)" onblur="psSave(this)"' : '') +
+              '>' +
+              '<div class="ff-right"><span class="norm-range">' + normRange + '</span>' + typeTag + '</div></div>';
+          }
+        });
+        krokHtml += '</div>';
+      }
+      krokHtml += '</div>';
     }
+
+    // Replace the normal round rendering with krok-based rendering
+    // Set currentKrok for psSave
+    window._currentKrok = 1;
+    for (var kci = kroki.length - 1; kci >= 0; kci--) {
+      if (!krokiData[kroki[kci].nr] || kci === kroki.length - 1) { window._currentKrok = kroki[kci].nr; break; }
+    }
+
+    // Insert krok HTML before the correction form, skip normal round accordion
+    html += krokHtml;
+
+    // Skip normal renderRundaFields — we already rendered fields per krok
+    // Jump to correction form
   }
 
   // Helper: render one runda's fields
@@ -2051,6 +2139,8 @@ window.showProcessStage = function(etapKey) {
   }
 
   // Render all rounds accordion style: previous collapsed with summary, current expanded
+  // Skip if kroki already rendered fields above
+  if (!kroki)
   for (var rn = 1; rn <= currentRunda; rn++) {
     var isLastRunda = rn === currentRunda;
     var rundaEditable = isActive && isLastRunda;
