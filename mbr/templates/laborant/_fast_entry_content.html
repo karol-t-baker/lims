@@ -371,9 +371,27 @@
 }
 .cv-list { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
 .cv-issuer-row {
-    display: flex; align-items: center; gap: 8px;
-    padding: 8px 14px; border-bottom: 1px solid var(--border-subtle);
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px;
+    background: #faf8f4;
+    border-bottom: 1px solid var(--border-subtle);
 }
+.cv-issuer-label {
+    font-size: 9px; font-weight: 800; color: var(--text-dim);
+    letter-spacing: 0.8px; text-transform: uppercase; white-space: nowrap;
+}
+.cv-issuer-select {
+    flex: 1; padding: 6px 10px;
+    border: 1.5px solid var(--border); border-radius: 6px;
+    font-size: 11px; font-family: var(--font); color: var(--text);
+    background: var(--surface);
+    -webkit-appearance: none; appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23888' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center;
+    padding-right: 28px; cursor: pointer;
+    transition: border-color 0.15s;
+}
+.cv-issuer-select:focus { border-color: var(--teal); outline: none; box-shadow: 0 0 0 2px var(--teal-bg); }
 .cv-list-sep {
     font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
     text-transform: uppercase; color: var(--text-dim);
@@ -954,8 +972,8 @@ async function loadCompletedCerts() {
         // Laborant selector — who issues the certificate
         html += '<div class="cv-list-sep">Wystaw nowe</div>';
         html += '<div class="cv-issuer-row">' +
-            '<label style="font-size:9px;font-weight:700;color:var(--text-dim);letter-spacing:0.5px;text-transform:uppercase;">Wystawił:</label>' +
-            '<select id="cv-issuer-select" style="padding:4px 8px;border:1px solid var(--border);border-radius:5px;font-size:11px;font-family:var(--font);min-width:140px;"></select>' +
+            '<label class="cv-issuer-label">Wystawił:</label>' +
+            '<select id="cv-issuer-select" class="cv-issuer-select"></select>' +
         '</div>';
         tmplData.templates.forEach(function(t) {
             var rf = JSON.stringify(t.required_fields || []);
