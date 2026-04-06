@@ -111,10 +111,10 @@ function loadWorkers() {
         '<td style="padding:6px 8px;text-align:center;">' +
           (isActive ? '<span style="font-size:9px;color:var(--green);font-weight:600;">Aktywny</span>' : '<span style="font-size:9px;color:var(--text-dim);">Nieaktywny</span>') +
         '</td>' +
-        '<td style="padding:6px 8px;text-align:center;">' +
-          '<button onclick="toggleWorker(' + w.id + ')" style="background:none;border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-size:9px;cursor:pointer;color:var(--text-sec);margin-right:4px;">' +
-          (isActive ? 'Deaktywuj' : 'Aktywuj') + '</button>' +
-          '<button onclick="deleteWorker(' + w.id + ',\'' + w.imie + ' ' + w.nazwisko + '\')" style="background:none;border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-size:9px;cursor:pointer;color:var(--red);">Usuń</button>' +
+        '<td style="padding:6px 8px;text-align:right;white-space:nowrap;">' +
+          '<button onclick="toggleWorker(' + w.id + ')" style="background:none;border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-size:9px;cursor:pointer;color:var(--text-sec);display:inline-block;">' +
+          (isActive ? 'Deaktywuj' : 'Aktywuj') + '</button> ' +
+          '<button onclick="deleteWorker(' + w.id + ',\'' + w.imie + ' ' + w.nazwisko + '\')" style="background:none;border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-size:9px;cursor:pointer;color:var(--red);display:inline-block;">Usuń</button>' +
         '</td></tr>';
     });
     html += '</tbody></table>';
