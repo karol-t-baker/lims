@@ -498,6 +498,12 @@ def save_wyniki(
               w_limicie, komentarz, now, user))
     db.commit()
 
+    # Bump sync_seq so COA picks up the change
+    if ebr and ebr.get("status") == "completed":
+        next_seq = db.execute("SELECT COALESCE(MAX(sync_seq), 0) + 1 FROM ebr_batches").fetchone()[0]
+        db.execute("UPDATE ebr_batches SET sync_seq = ? WHERE ebr_id = ?", (next_seq, ebr_id))
+        db.commit()
+
 
 def complete_ebr(db: sqlite3.Connection, ebr_id: int, zbiorniki: list | None = None) -> None:
     """Set status='completed', dt_end=now, assign sync_seq. Optionally save pump-out targets."""
