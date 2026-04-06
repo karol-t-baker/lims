@@ -280,10 +280,10 @@ def api_completed():
 
 @admin_bp.route("/api/admin/sync-delta", methods=["GET", "POST"])
 def api_sync_delta():
-    """Return records changed since given timestamp.
+    """DEPRECATED: Use GET /api/completed?since=N instead.
 
-    Accepts GET (query params) or POST (JSON body) for backwards compatibility.
-    POST also accepts local_ids to detect missing batches.
+    Kept for backwards compatibility during transition.
+    Return records changed since given timestamp.
     """
     import hashlib
     if request.is_json:
