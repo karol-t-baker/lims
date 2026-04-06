@@ -31,6 +31,7 @@ MBR_DIR = APP_DIR.parent / "mbr"
 
 DEFAULT_SERVER = "http://labcore.local:5001"
 DEFAULT_OUTPUT_DIR = str(Path.home() / "Desktop" / "Swiadectwa")
+DEFAULT_BACKUP_DIR = str(Path.home() / "Desktop" / "Backupy_LIMS")
 
 
 def _get_setting(key, default=""):
@@ -157,7 +158,7 @@ def api_coa_sync():
 
         # Backup
         backup_dir_str = _get_setting("backup_dir", "")
-        backup_dir = Path(backup_dir_str) if backup_dir_str else DATA_DIR / "backups"
+        backup_dir = Path(backup_dir_str) if backup_dir_str else Path(DEFAULT_BACKUP_DIR)
         backup_dir.mkdir(parents=True, exist_ok=True)
         ts = datetime.now().strftime("%Y-%m-%d_%H-%M")
         import shutil
@@ -208,7 +209,7 @@ def api_coa_settings():
     return jsonify({
         "server_url": _get_setting("server_url", DEFAULT_SERVER),
         "output_dir": _get_setting("output_dir", DEFAULT_OUTPUT_DIR),
-        "backup_dir": _get_setting("backup_dir", str(DATA_DIR / "backups")),
+        "backup_dir": _get_setting("backup_dir", DEFAULT_BACKUP_DIR),
     })
 
 
