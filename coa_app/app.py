@@ -118,7 +118,7 @@ def api_coa_sync():
 
     # If local DB is empty/missing, force full sync
     try:
-        db_check = get_db()
+        db_check = _mbr_db.get_db()
         count = db_check.execute("SELECT COUNT(*) FROM ebr_batches").fetchone()[0]
         db_check.close()
         if count == 0:
@@ -140,7 +140,7 @@ def api_coa_sync():
         if not data.get("ok"):
             return jsonify({"ok": False, "error": data.get("error", "Unknown")}), 500
 
-        db = get_db()
+        db = _mbr_db.get_db()
         counts = {"new": 0, "updated": 0}
 
         # Upsert reference tables (only if server sent them — hash changed)
