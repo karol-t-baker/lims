@@ -38,7 +38,8 @@ def _get_setting(key, default=""):
     sf = DATA_DIR / "settings.json"
     if sf.exists():
         with open(sf, encoding="utf-8") as f:
-            return json.load(f).get(key, default)
+            val = json.load(f).get(key, "")
+            return val if val else default
     return default
 
 
