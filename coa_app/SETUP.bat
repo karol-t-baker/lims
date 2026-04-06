@@ -64,7 +64,7 @@ echo  [OK] Repozytorium pobrane
 :: Install Python dependencies
 echo  [..] Instalacja zaleznosci Python...
 cd /d "%INSTALL_DIR%"
-pip install flask docxtpl docx2pdf requests bcrypt --quiet
+pip install flask docxtpl docx2pdf comtypes requests bcrypt --quiet
 if %errorlevel% neq 0 (
     echo  [X] Blad instalacji zaleznosci!
     pause

@@ -390,10 +390,20 @@ def coa_cert_generate():
 
     tpl.save(str(docx_path))
 
-    # Convert docx → pdf using Word
+    # Convert docx → pdf using Word (hidden, no flashing window)
     try:
-        from docx2pdf import convert
-        convert(str(docx_path), str(pdf_path))
+        import platform
+        if platform.system() == "Windows":
+            import comtypes.client
+            word = comtypes.client.CreateObject("Word.Application")
+            word.Visible = False
+            doc = word.Documents.Open(str(docx_path.resolve()))
+            doc.SaveAs(str(pdf_path.resolve()), FileFormat=17)  # 17 = wdFormatPDF
+            doc.Close()
+            word.Quit()
+        else:
+            from docx2pdf import convert
+            convert(str(docx_path), str(pdf_path))
         docx_path.unlink()
     except Exception as e:
         return jsonify({"ok": False, "error": f"PDF error: {e}. Is Word installed?"}), 500
