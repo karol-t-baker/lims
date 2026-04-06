@@ -117,11 +117,14 @@ def api_coa_sync():
     ref_hash = _get_setting("ref_hash", "")
 
     # If local DB is empty/missing, force full sync
+    local_count = 0
+    local_ids = []
     try:
         db_check = _mbr_db.get_db()
-        count = db_check.execute("SELECT COUNT(*) FROM ebr_batches").fetchone()[0]
+        local_count = db_check.execute("SELECT COUNT(*) FROM ebr_batches").fetchone()[0]
+        local_ids = [r[0] for r in db_check.execute("SELECT ebr_id FROM ebr_batches").fetchall()]
         db_check.close()
-        if count == 0:
+        if local_count == 0:
             since = "2000-01-01T00:00:00"
             ref_hash = ""
     except Exception:
@@ -130,9 +133,9 @@ def api_coa_sync():
     try:
         import urllib3
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-        r = http_requests.get(
+        r = http_requests.post(
             f"{server}/api/admin/sync-delta",
-            params={"since": since, "ref_hash": ref_hash},
+            json={"since": since, "ref_hash": ref_hash, "local_ids": local_ids},
             timeout=15, verify=False,
         )
         r.raise_for_status()
@@ -181,9 +184,9 @@ def api_coa_sync():
         db.commit()
         db.close()
 
-        # Save sync timestamp + ref hash
-        now = datetime.now().isoformat(timespec="seconds")
-        _set_setting("last_sync", now)
+        # Save sync timestamp from server (avoids clock skew issues)
+        sync_ts = data.get("server_now") or datetime.now().isoformat(timespec="seconds")
+        _set_setting("last_sync", sync_ts)
         if data.get("ref_hash"):
             _set_setting("ref_hash", data["ref_hash"])
 
