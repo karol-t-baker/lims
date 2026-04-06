@@ -7,7 +7,7 @@ import pytest
 
 from mbr.db import get_db
 from mbr.models import init_mbr_tables
-from mbr.laborant.models import complete_ebr
+from mbr.laborant.models import complete_ebr, save_wyniki, get_ebr
 
 
 @pytest.fixture
@@ -56,3 +56,20 @@ def test_sync_seq_column_exists(db):
     cols = {r[1]: r[2] for r in db.execute("PRAGMA table_info(ebr_batches)").fetchall()}
     assert "sync_seq" in cols
     assert cols["sync_seq"] == "INTEGER"
+
+
+def test_save_wyniki_bumps_sync_seq_on_completed(db):
+    """Changing wyniki on a completed batch bumps its sync_seq."""
+    ebr_id = _create_batch(db, "C__3", "3/2026")
+    complete_ebr(db, ebr_id)
+
+    old_seq = db.execute("SELECT sync_seq FROM ebr_batches WHERE ebr_id=?", (ebr_id,)).fetchone()[0]
+
+    # Simulate saving a result
+    ebr = get_ebr(db, ebr_id)
+    save_wyniki(db, ebr_id, "analiza_koncowa", {
+        "ph": {"wartosc": "7.5", "tag": "ph", "min": 6.0, "max": 9.0}
+    }, "test_user", ebr=ebr)
+
+    new_seq = db.execute("SELECT sync_seq FROM ebr_batches WHERE ebr_id=?", (ebr_id,)).fetchone()[0]
+    assert new_seq > old_seq
