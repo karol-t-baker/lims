@@ -1618,6 +1618,27 @@ window._panelFocusBridge = function(e) {
         }
         return;
     }
+    // Computed field focused → show formula in calculator panel
+    var ffComp = input.closest('.ff.computed');
+    if (ffComp && input.dataset.formula) {
+        showRightPanel('calc');
+        var calcContainer = document.getElementById('calc-container');
+        if (calcContainer) {
+            var kod = input.dataset.kod || '';
+            var formula = input.dataset.formula || '';
+            calcContainer.innerHTML =
+                '<div class="calc-header">' +
+                    '<div class="calc-param">' + kod.toUpperCase() + '</div>' +
+                    '<div class="calc-method">Parametr obliczeniowy</div>' +
+                    '<div class="calc-formula">' + formula + '</div>' +
+                '</div>' +
+                '<div style="padding:8px 0;font-size:11px;color:var(--text-dim);">' +
+                    'Wartość obliczana automatycznie z pól: <strong>' + formula.match(/[a-z_]+/g).join(', ') + '</strong>' +
+                '</div>';
+        }
+        return;
+    }
+
     // Non-titr field focused → wartości typowe
     if (input.closest('.ff') || input.closest('.section-fields') || input.closest('#ps-stage-content')) {
         showRightPanel('hist');
