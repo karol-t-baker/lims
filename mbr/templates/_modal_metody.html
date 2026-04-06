@@ -1,0 +1,161 @@
+{# ═══ METODY MODAL — V2 Split Panel (global, included in base.html) ═══ #}
+<div class="mc-overlay" id="mc-overlay" onclick="if(event.target===this)closeMetodyModal()">
+  <div class="mc-modal">
+    <div class="mc-ribbon"></div>
+    <div class="mc-top">
+      <span class="mc-top-title">Kalkulator miareczkowy</span>
+      <span class="mc-top-hint" style="margin-left:8px;font-size:9px;color:var(--text-dim);">K</span>
+      <button class="mc-top-close" onclick="closeMetodyModal()">&times;</button>
+    </div>
+    <div class="mc-split">
+      <div class="mc-side">
+        <div class="mc-side-hdr">Metody</div>
+        <div id="mc-list"></div>
+      </div>
+      <div class="mc-main" id="mc-main">
+        <div class="mc-placeholder">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" style="width:32px;height:32px;color:var(--border)"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+          <div>↑↓ wybierz · Enter potwierdź</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.mc-overlay { position:fixed;inset:0;background:rgba(26,26,26,0.5);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;z-index:200; }
+.mc-overlay.show { display:flex;animation:mcFadeIn .18s ease; }
+@keyframes mcFadeIn { from{opacity:0}to{opacity:1} }
+.mc-modal { width:780px;max-width:94vw;height:500px;max-height:88vh;background:var(--surface);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 16px 56px rgba(0,0,0,.22),0 0 0 1px rgba(0,0,0,.06);animation:mcSlideUp .22s cubic-bezier(.2,.9,.3,1); }
+@keyframes mcSlideUp { from{opacity:0;transform:translateY(16px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)} }
+.mc-ribbon { height:3px;background:linear-gradient(90deg,var(--teal-dark),var(--teal),#10b981,var(--teal),var(--teal-dark));flex-shrink:0; }
+.mc-top { display:flex;align-items:center;padding:10px 20px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--surface); }
+.mc-top-title { font-size:12px;font-weight:700;color:var(--text);letter-spacing:.3px; }
+.mc-top-close { margin-left:auto;background:none;border:none;font-size:18px;color:var(--text-dim);cursor:pointer;width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:all .12s;line-height:1; }
+.mc-top-close:hover { background:var(--red-bg);color:var(--red); }
+.mc-split { flex:1;display:flex;overflow:hidden; }
+.mc-side { width:185px;flex-shrink:0;border-right:1px solid var(--border);overflow-y:auto;background:var(--surface); }
+.mc-side::-webkit-scrollbar { width:3px; } .mc-side::-webkit-scrollbar-thumb { background:var(--border);border-radius:3px; }
+.mc-side-hdr { padding:9px 14px;font-size:8px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;color:var(--text-dim);border-bottom:1px solid var(--border);background:var(--surface-alt);position:sticky;top:0;z-index:1; }
+.mc-item { padding:7px 14px;font-size:11px;color:var(--text-sec);cursor:pointer;border-left:3px solid transparent;transition:all .1s; }
+.mc-item:hover { background:var(--surface-alt);color:var(--text); }
+.mc-item.act { background:var(--teal-bg);color:var(--teal);border-left-color:var(--teal);font-weight:600; }
+.mc-item.hl { background:var(--surface-alt);color:var(--text);border-left-color:var(--amber); }
+.mc-item.act.hl { background:var(--teal-bg);border-left-color:var(--teal); }
+.mc-main { flex:1;display:flex;flex-direction:column;overflow:hidden;background:#fdfcfa; }
+.mc-placeholder { display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;height:100%;color:var(--border);font-size:11px; }
+.mc-head { padding:12px 20px 8px;flex-shrink:0;background:var(--surface);border-bottom:1px solid var(--border-subtle); }
+.mc-title { font-size:14px;font-weight:700;color:var(--text); }
+.mc-meta { display:flex;gap:8px;align-items:center;margin-top:4px;flex-wrap:wrap; }
+.mc-ftag { font-family:var(--mono);font-size:9px;color:var(--text-dim);background:var(--surface-alt);padding:3px 8px;border-radius:4px;border:1px solid var(--border-subtle); }
+.mc-htag { font-size:9px;color:var(--teal);font-weight:700;background:var(--teal-bg);padding:2px 8px;border-radius:4px; }
+.mc-titr-inline { padding:3px 8px;border:1px solid var(--border);border-radius:4px;font-size:9px;font-family:var(--font);background:var(--surface);color:var(--text);-webkit-appearance:none;appearance:none; }
+.mc-titr-inline:focus { border-color:var(--teal);outline:none; }
+.mc-titr-mini { width:46px;padding:2px 4px;border:1px solid var(--border);border-radius:4px;font-size:9px;font-family:var(--mono);text-align:center;color:var(--text);-moz-appearance:textfield; }
+.mc-titr-mini::-webkit-outer-spin-button,.mc-titr-mini::-webkit-inner-spin-button { -webkit-appearance:none;margin:0; }
+.mc-titr-mini:focus { border-color:var(--teal);outline:none; }
+.mc-body { flex:1;overflow-y:auto;padding:12px 20px 14px; }
+.mc-body::-webkit-scrollbar { width:3px; } .mc-body::-webkit-scrollbar-thumb { background:var(--border);border-radius:3px; }
+.mc-table { width:100%;border-collapse:collapse;font-size:11px; }
+.mc-table th { text-align:left;padding:6px 8px;font-size:7px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--text-dim);border-bottom:2px solid var(--border); }
+.mc-table td { padding:6px 8px;border-bottom:1px solid var(--border-subtle);vertical-align:middle; }
+.mc-table tbody tr:hover { background:rgba(13,115,119,.02); }
+.mc-inp { width:72px;padding:6px 8px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;font-family:var(--mono);text-align:center;background:var(--surface);color:var(--text);transition:border-color .15s,box-shadow .15s;-moz-appearance:textfield; }
+.mc-inp::-webkit-outer-spin-button,.mc-inp::-webkit-inner-spin-button { -webkit-appearance:none;margin:0; }
+.mc-inp:focus { border-color:var(--teal);outline:none;box-shadow:0 0 0 3px var(--teal-bg); }
+.mc-inp::placeholder { color:var(--border);font-size:10px; }
+.mc-res { font-family:var(--mono);font-weight:600;color:var(--teal);font-size:12px;letter-spacing:-.3px; }
+.mc-del { background:none;border:none;cursor:pointer;color:var(--border);font-size:13px;padding:3px 5px;border-radius:4px;transition:all .1s; }
+.mc-del:hover { color:var(--red);background:var(--red-bg); }
+.mc-add-btn { background:none;border:1.5px dashed var(--border);border-radius:6px;padding:6px 14px;font-size:10px;color:var(--teal);cursor:pointer;font-family:var(--font);font-weight:600;margin-top:8px;transition:all .12s;letter-spacing:.2px; }
+.mc-add-btn:hover { background:var(--teal-bg);border-color:var(--teal); }
+.mc-footer { flex-shrink:0;padding:10px 20px;border-top:1px solid var(--border);background:var(--surface-alt);display:flex;align-items:center;gap:12px; }
+.mc-f-lbl { font-size:7px;letter-spacing:1.2px;text-transform:uppercase;color:var(--text-dim);font-weight:800; }
+.mc-f-val { font-size:20px;font-weight:700;font-family:var(--mono);color:var(--text);letter-spacing:-.5px; }
+.mc-f-pill { display:inline-flex;align-items:center;gap:4px;font-size:9px;font-weight:700;padding:3px 10px;border-radius:10px; }
+.mc-f-pill.ok { background:var(--green-bg);color:var(--green); }
+.mc-f-pill.err { background:var(--red-bg);color:var(--red); }
+.mc-f-pill svg { width:10px;height:10px; }
+.mc-f-stats { margin-left:auto;display:flex;gap:14px;font-family:var(--mono); }
+.mc-fs-l { font-size:7px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;font-weight:800; }
+.mc-fs-v { font-size:11px;color:var(--text-sec);font-weight:600; }
+.mc-f-empty { font-size:10px;color:var(--text-dim);font-style:italic; }
+</style>
+
+<script>
+var _mcM=[],_mcA=null,_mcR=[],_mcT={},_mcHighlight=-1;
+
+function openMetodyModal(){
+  var ov=document.getElementById('mc-overlay');
+  if(!ov) return;
+  ov.classList.add('show');
+  if(!_mcM.length){
+    fetch('/api/metody-miareczkowe').then(function(r){return r.json()}).then(function(d){_mcM=d;mcRenderList();if(_mcM.length)mcHighlight(0);});
+  } else if(_mcHighlight<0) mcHighlight(0);
+}
+function closeMetodyModal(){var ov=document.getElementById('mc-overlay');if(ov)ov.classList.remove('show');}
+function toggleMetodyModal(){var ov=document.getElementById('mc-overlay');if(!ov)return;if(ov.classList.contains('show'))closeMetodyModal();else openMetodyModal();}
+
+function mcHighlight(idx){
+  if(idx<0)idx=_mcM.length-1;if(idx>=_mcM.length)idx=0;_mcHighlight=idx;
+  document.querySelectorAll('.mc-item').forEach(function(el,i){el.classList.toggle('hl',i===idx);});
+  var item=document.querySelectorAll('.mc-item')[idx];if(item)item.scrollIntoView({block:'nearest'});
+}
+function mcConfirmHighlight(){
+  if(_mcHighlight>=0&&_mcHighlight<_mcM.length){mcSel(_mcM[_mcHighlight].id);setTimeout(function(){var inp=document.querySelector('#mc-main .mc-inp');if(inp)inp.focus();},50);}
+}
+
+// Global keyboard: K toggle, arrows, Enter, Escape
+document.addEventListener('keydown',function(e){
+  var ov=document.getElementById('mc-overlay');
+  var isOpen=ov&&ov.classList.contains('show');
+  var inInput=e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||e.target.tagName==='TEXTAREA';
+  if(!inInput&&(e.key==='k'||e.key==='K')){e.preventDefault();toggleMetodyModal();return;}
+  if(!isOpen)return;
+  if(e.key==='Escape'){e.preventDefault();closeMetodyModal();return;}
+  if(!_mcA||!inInput){
+    if(e.key==='ArrowDown'){e.preventDefault();mcHighlight(_mcHighlight+1);return;}
+    if(e.key==='ArrowUp'){e.preventDefault();mcHighlight(_mcHighlight-1);return;}
+    if(e.key==='Enter'){e.preventDefault();mcConfirmHighlight();return;}
+  }
+  if(inInput&&e.key==='Enter'){
+    var allInps=Array.from(document.querySelectorAll('#mc-main .mc-inp'));var idx=allInps.indexOf(e.target);
+    if(idx===allInps.length-1){e.preventDefault();mcAddR();mcRender();setTimeout(function(){var ni=document.querySelectorAll('#mc-main .mc-inp');if(ni.length>allInps.length)ni[allInps.length].focus();},50);}
+  }
+});
+
+function mcRenderList(){document.getElementById('mc-list').innerHTML=_mcM.map(function(m,i){return '<div class="mc-item'+(i===_mcHighlight?' hl':'')+'" data-id="'+m.id+'" onclick="mcSel('+m.id+')">'+m.nazwa+'</div>';}).join('');}
+
+function mcSel(id){
+  for(var i=0;i<_mcM.length;i++){if(_mcM[i].id===id){_mcHighlight=i;break;}}
+  document.querySelectorAll('.mc-item').forEach(function(e,i){e.classList.toggle('act',parseInt(e.dataset.id)===id);e.classList.toggle('hl',i===_mcHighlight);});
+  fetch('/api/metody-miareczkowe/'+id).then(function(r){return r.json()}).then(function(m){_mcA=m;_mcR=[];_mcT={};(m.titrants||[]).forEach(function(t){_mcT[t.id]=t.default!==undefined?t.default:0.1});mcAddR();mcAddR();mcRender();});
+}
+function mcAddR(){var n=(_mcA&&_mcA.volumes)?_mcA.volumes.length:1;_mcR.push({m:'',vols:new Array(n).fill('')});}
+function mcCalc(row){var m=_mcA;if(!m)return null;var v={};if(m.mass_required){var mm=parseFloat(row.m);if(isNaN(mm)||mm===0)return null;v.M=mm;}for(var i=0;i<(m.volumes||[]).length;i++){var vv=parseFloat(row.vols[i]);if(isNaN(vv))return null;v['V'+(i+1)]=vv;}(m.titrants||[]).forEach(function(t){v[t.id]=_mcT[t.id]!==undefined?_mcT[t.id]:(t.default||0.1)});try{var k=Object.keys(v);var fn=new Function(k.join(','),'return ('+m.formula+')');var r=fn.apply(null,k.map(function(x){return v[x]}));return isFinite(r)?r:null}catch(e){return null}}
+
+function mcRender(){
+  var m=_mcA,el=document.getElementById('mc-main');if(!m)return;
+  var titr='';(m.titrants||[]).forEach(function(t){if(t.options&&t.options.length){titr+='<select class="mc-titr-inline" onchange="mcTitrChange(\''+t.id+'\',parseFloat(this.value))">';t.options.forEach(function(o){titr+='<option value="'+o.value+'"'+(String(o.value)===String(_mcT[t.id])?' selected':'')+'>'+o.label+'</option>'});titr+='</select>';}else{titr+='<span style="font-size:9px;color:var(--text-dim)">'+(t.label||t.id)+': <input class="mc-titr-mini" type="number" step="any" value="'+(_mcT[t.id]||'')+'" oninput="mcTitrChange(\''+t.id+'\',parseFloat(this.value))"></span>';}});
+  var th='<tr><th style="width:18px">#</th>';if(m.mass_required)th+='<th>M [g]</th>';(m.volumes||[]).forEach(function(v){th+='<th>'+(v.label||'V')+'</th>'});th+='<th>Wynik</th><th style="width:18px"></th></tr>';
+  var tb='';_mcR.forEach(function(row,ri){var r=mcCalc(row);tb+='<tr><td style="font-size:8px;color:var(--text-dim);font-weight:700">'+(ri+1)+'</td>';if(m.mass_required)tb+='<td><input class="mc-inp" type="number" step="any" placeholder="g" value="'+row.m+'" oninput="mcRch('+ri+',\'m\',this.value)"></td>';(row.vols||[]).forEach(function(v,vi){tb+='<td><input class="mc-inp" type="number" step="any" placeholder="ml" value="'+v+'" oninput="mcRch('+ri+',\'v'+vi+'\',this.value)"></td>'});tb+='<td class="mc-res">'+(r!==null?r.toFixed(4):'—')+'</td><td><button class="mc-del" onclick="mcDel('+ri+')">✕</button></td></tr>';});
+  var mh=m.suggested_mass?'<span class="mc-htag">Naważka: '+m.suggested_mass+' g</span>':'';
+  el.innerHTML='<div class="mc-head"><div class="mc-title">'+m.nazwa+'</div><div class="mc-meta"><span class="mc-ftag">'+m.formula+'</span>'+mh+titr+'</div></div><div class="mc-body"><table class="mc-table"><thead>'+th+'</thead><tbody id="mc-tb">'+tb+'</tbody></table><button class="mc-add-btn" onclick="mcAddR();mcRender()">+ Dodaj próbkę</button></div><div class="mc-footer" id="mc-foot">'+mcFhtml()+'</div>';
+}
+
+function mcFhtml(){
+  var res=_mcR.map(function(r){return mcCalc(r)}).filter(function(r){return r!==null});
+  if(res.length<1)return '<div class="mc-f-empty">Wprowadź dane próbek</div>';
+  if(res.length===1)return '<div><div class="mc-f-lbl">Wynik</div><div class="mc-f-val">'+res[0].toFixed(4).replace('.',',')+'</div></div><div style="font-size:8px;color:var(--text-dim)">Dodaj drugą próbkę</div>';
+  var s=calcStats(res),c=s.convergent?'ok':'err';
+  var ic=s.convergent?'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 8 6.5 11.5 13 5"/></svg>':'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 4l8 8M12 4l-8 8"/></svg>';
+  var sl=res.length===2?'RSM':'RSD',sv=res.length===2?s.rsm:s.rsd;
+  return '<div><div class="mc-f-lbl">Średnia</div><div class="mc-f-val">'+s.mean.toFixed(4).replace('.',',')+'</div></div><div class="mc-f-pill '+c+'">'+ic+' '+(s.convergent?'Zbieżne':'Brak')+'</div><div class="mc-f-stats"><div><div class="mc-fs-l">Δ</div><div class="mc-fs-v">'+s.delta.toFixed(4).replace('.',',')+'</div></div><div><div class="mc-fs-l">'+sl+'</div><div class="mc-fs-v">'+sv.toFixed(2).replace('.',',')+'%</div></div><div><div class="mc-fs-l">N</div><div class="mc-fs-v">'+res.length+'</div></div></div>';
+}
+
+var _mcTitrTimer=null;
+function mcTitrChange(id,val){_mcT[id]=val;mcRefresh();clearTimeout(_mcTitrTimer);_mcTitrTimer=setTimeout(function(){if(_mcA&&_mcA.id)fetch('/api/metody-miareczkowe/'+_mcA.id+'/stezenia',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(_mcT)});},800);}
+function mcRch(ri,f,val){if(f==='m')_mcR[ri].m=val;else{var vi=parseInt(f.slice(1));_mcR[ri].vols[vi]=val}mcRefresh();}
+function mcDel(ri){_mcR.splice(ri,1);mcRender();}
+function mcRefresh(){_mcR.forEach(function(row,ri){var r=mcCalc(row);var td=document.querySelector('#mc-tb tr:nth-child('+(ri+1)+') .mc-res');if(td)td.textContent=r!==null?r.toFixed(4):'—'});var f=document.getElementById('mc-foot');if(f)f.innerHTML=mcFhtml();}
+</script>
