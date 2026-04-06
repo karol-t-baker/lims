@@ -273,19 +273,15 @@ ETAPY_BINDINGS = [
     # =========================================================
     # dodatki — all 4 core products
     # =========================================================
-    *[
-        _b(prod, "dodatki", "kwas_ca", 1, 0, 9999),
-        _b(prod, "dodatki", "kwas_hcl", 2, 0, 9999)
-        for prod in ("Chegina_K40GL", "Chegina_K40GLO", "Chegina_K40GLOL", "Chegina_K7")
-    ],
-    *[
-        _b(prod, "dodatki", "woda_kg", 2, 0, 9999)
-        for prod in ("Chegina_K40GL", "Chegina_K40GLO", "Chegina_K40GLOL", "Chegina_K7")
-    ],
-    *[
-        _b(prod, "dodatki", "nacl_kg", 3, 0, 9999)
-        for prod in ("Chegina_K40GL", "Chegina_K40GLO", "Chegina_K40GLOL", "Chegina_K7")
-    ],
+    *[item for prod in ("Chegina_K40GL", "Chegina_K40GLO", "Chegina_K40GLOL", "Chegina_K7")
+      for item in (
+          _b(prod, "dodatki", "kwas_ca", 1, 0, 9999),
+          _b(prod, "dodatki", "kwas_hcl", 2, 0, 9999),
+      )],
+    *[_b(prod, "dodatki", "woda_kg", 2, 0, 9999)
+      for prod in ("Chegina_K40GL", "Chegina_K40GLO", "Chegina_K40GLOL", "Chegina_K7")],
+    *[_b(prod, "dodatki", "nacl_kg", 3, 0, 9999)
+      for prod in ("Chegina_K40GL", "Chegina_K40GLO", "Chegina_K40GLOL", "Chegina_K7")],
 ]
 
 # ---------------------------------------------------------------------------
