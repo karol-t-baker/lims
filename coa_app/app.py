@@ -33,6 +33,33 @@ DEFAULT_SERVER = "http://labcore.local:5001"
 DEFAULT_OUTPUT_DIR = str(Path.home() / "Desktop" / "Swiadectwa")
 DEFAULT_BACKUP_DIR = str(Path.home() / "Desktop" / "Backupy_LIMS")
 
+# Persistent Word instance for fast PDF conversion (Windows only)
+_word_app = None
+
+def _word_convert(docx_path: str, pdf_path: str):
+    """Convert docx to pdf. On Windows: reuse hidden Word instance. Else: docx2pdf."""
+    global _word_app
+    import platform
+    if platform.system() == "Windows":
+        import comtypes.client
+        try:
+            if _word_app is None:
+                _word_app = comtypes.client.CreateObject("Word.Application")
+                _word_app.Visible = False
+            doc = _word_app.Documents.Open(docx_path)
+            doc.SaveAs(pdf_path, FileFormat=17)
+            doc.Close()
+        except Exception:
+            # Word crashed or was closed — restart
+            _word_app = comtypes.client.CreateObject("Word.Application")
+            _word_app.Visible = False
+            doc = _word_app.Documents.Open(docx_path)
+            doc.SaveAs(pdf_path, FileFormat=17)
+            doc.Close()
+    else:
+        from docx2pdf import convert
+        convert(docx_path, pdf_path)
+
 
 def _get_setting(key, default=""):
     sf = DATA_DIR / "settings.json"
@@ -390,20 +417,9 @@ def coa_cert_generate():
 
     tpl.save(str(docx_path))
 
-    # Convert docx → pdf using Word (hidden, no flashing window)
+    # Convert docx → pdf using Word (hidden, kept alive for speed)
     try:
-        import platform
-        if platform.system() == "Windows":
-            import comtypes.client
-            word = comtypes.client.CreateObject("Word.Application")
-            word.Visible = False
-            doc = word.Documents.Open(str(docx_path.resolve()))
-            doc.SaveAs(str(pdf_path.resolve()), FileFormat=17)  # 17 = wdFormatPDF
-            doc.Close()
-            word.Quit()
-        else:
-            from docx2pdf import convert
-            convert(str(docx_path), str(pdf_path))
+        _word_convert(str(docx_path.resolve()), str(pdf_path.resolve()))
         docx_path.unlink()
     except Exception as e:
         return jsonify({"ok": False, "error": f"PDF error: {e}. Is Word installed?"}), 500
