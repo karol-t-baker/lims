@@ -101,7 +101,15 @@ def api_coa_sync():
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         r = http_requests.get(f"{server}/api/admin/db-snapshot", timeout=15, verify=False)
         r.raise_for_status()
+        # Save as current DB
         with open(DB_PATH, "wb") as f:
+            f.write(r.content)
+        # Save backup copy with timestamp
+        backup_dir = DATA_DIR / "backups"
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().strftime("%Y-%m-%d_%H-%M")
+        backup_path = backup_dir / f"batch_db_{ts}.sqlite"
+        with open(backup_path, "wb") as f:
             f.write(r.content)
         size_kb = len(r.content) // 1024
         return jsonify({"ok": True, "size_kb": size_kb})
