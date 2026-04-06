@@ -6,7 +6,7 @@ from pathlib import Path
 from flask import Response, abort, jsonify, request, send_file, session
 
 from mbr.certs import certs_bp
-from mbr.certs.generator import generate_certificate_pdf, get_required_fields, get_variants, save_certificate_pdf, save_certificate_data, load_config, _CONFIG_PATH
+from mbr.certs.generator import generate_certificate_pdf, get_required_fields, get_variants, save_certificate_data, load_config, _CONFIG_PATH
 from mbr.certs.models import create_swiadectwo, list_swiadectwa
 from mbr.db import db_session
 from mbr.models import get_ebr, get_ebr_wyniki, get_mbr
@@ -88,17 +88,6 @@ def api_cert_generate():
         except Exception as e:
             return jsonify({"ok": False, "error": str(e)}), 500
 
-        # Read user's configured output path
-        user_login = session["user"]["login"]
-        setting_row = db.execute(
-            "SELECT value FROM user_settings WHERE login=? AND key='cert_output_dir'",
-            (user_login,),
-        ).fetchone()
-        output_dir = setting_row["value"] if setting_row else None
-
-        # Save PDF to user's configured path (or ~/Desktop/)
-        pdf_path = save_certificate_pdf(pdf_bytes, ebr["produkt"], variant_label, ebr["nr_partii"], output_dir)
-
         # Save generation data to archive (for regeneration)
         import json as _json
         generation_data = {
@@ -111,11 +100,20 @@ def api_cert_generate():
             "extra_fields": extra_fields,
             "wystawil": wystawil,
         }
-        data_path = save_certificate_data(ebr["produkt"], variant_label, ebr["nr_partii"], generation_data)
+        save_certificate_data(ebr["produkt"], variant_label, ebr["nr_partii"], generation_data)
 
-        cert_id = create_swiadectwo(db, ebr_id, variant_label, ebr["nr_partii"], pdf_path, wystawil, data_json=_json.dumps(generation_data, ensure_ascii=False))
+        cert_id = create_swiadectwo(db, ebr_id, variant_label, ebr["nr_partii"], "", wystawil, data_json=_json.dumps(generation_data, ensure_ascii=False))
 
-    return jsonify({"ok": True, "cert_id": cert_id, "pdf_path": pdf_path})
+    # Return PDF as download to user's browser
+    filename = f"{variant_label} {ebr['nr_partii'].replace('/', '_')}.pdf"
+    return Response(
+        pdf_bytes,
+        mimetype="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Cert-Id": str(cert_id),
+        },
+    )
 
 
 @certs_bp.route("/api/cert/<int:cert_id>", methods=["DELETE"])

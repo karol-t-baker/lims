@@ -1254,21 +1254,34 @@ async function doGenerateCert(btn, variantId, extraFields) {
     btn.style.opacity = '0.5';
     var origText = btn.innerHTML;
     btn.innerHTML = '<span>Generowanie...</span>';
-    var resp = await fetch('/api/cert/generate', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ebr_id: ebrId, variant_id: variantId, extra_fields: extraFields, wystawil: (document.getElementById('cv-issuer-select') || {}).value || ''})
-    });
-    var data = await resp.json();
-    if (data.ok) {
-        window.open('/api/cert/' + data.cert_id + '/pdf', '_blank');
-        loadCompletedCerts();
-    } else {
-        btn.disabled = false;
-        btn.style.opacity = '1';
-        btn.innerHTML = origText;
-        alert('Błąd: ' + (data.error || 'Nieznany błąd'));
+    try {
+        var resp = await fetch('/api/cert/generate', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ebr_id: ebrId, variant_id: variantId, extra_fields: extraFields, wystawil: (document.getElementById('cv-issuer-select') || {}).value || ''})
+        });
+        if (resp.ok && resp.headers.get('Content-Type') === 'application/pdf') {
+            // Download PDF to user's computer
+            var blob = await resp.blob();
+            var cd = resp.headers.get('Content-Disposition') || '';
+            var match = cd.match(/filename="(.+)"/);
+            var filename = match ? match[1] : 'swiadectwo.pdf';
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(a.href);
+            loadCompletedCerts();
+        } else {
+            var data = await resp.json();
+            alert('Błąd: ' + (data.error || 'Nieznany błąd'));
+        }
+    } catch(e) {
+        alert('Błąd połączenia: ' + e.message);
     }
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    btn.innerHTML = origText;
 }
 
 // --- Linear rendering (zbiornik, simple products) — original logic ---
