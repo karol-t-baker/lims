@@ -100,6 +100,18 @@ def api_coa_sync():
     server = _get_setting("server_url", DEFAULT_SERVER)
     since = _get_setting("last_sync", "2000-01-01T00:00:00")
     ref_hash = _get_setting("ref_hash", "")
+
+    # If local DB is empty/missing, force full sync
+    try:
+        db_check = get_db()
+        count = db_check.execute("SELECT COUNT(*) FROM ebr_batches").fetchone()[0]
+        db_check.close()
+        if count == 0:
+            since = "2000-01-01T00:00:00"
+            ref_hash = ""
+    except Exception:
+        since = "2000-01-01T00:00:00"
+        ref_hash = ""
     try:
         import urllib3
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
