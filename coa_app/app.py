@@ -113,29 +113,31 @@ def coa_home():
 @app.route("/api/coa/sync", methods=["POST"])
 def api_coa_sync():
     server = _get_setting("server_url", DEFAULT_SERVER)
-    since = _get_setting("last_sync", "2000-01-01T00:00:00")
+
+    # One-time migration: if old timestamp-based setting exists but seq doesn't, start from 0
+    if _get_setting("last_sync_seq", "") == "" and _get_setting("last_sync", "") != "":
+        _set_setting("last_sync_seq", "0")
+
+    last_seq = int(_get_setting("last_sync_seq", "0"))
     ref_hash = _get_setting("ref_hash", "")
 
-    # If local DB is empty/missing, force full sync
-    local_count = 0
-    local_ids = []
+    # If local DB is empty, force full sync from seq 0
     try:
         db_check = _mbr_db.get_db()
         local_count = db_check.execute("SELECT COUNT(*) FROM ebr_batches").fetchone()[0]
-        local_ids = [r[0] for r in db_check.execute("SELECT ebr_id FROM ebr_batches").fetchall()]
         db_check.close()
         if local_count == 0:
-            since = "2000-01-01T00:00:00"
+            last_seq = 0
             ref_hash = ""
     except Exception:
-        since = "2000-01-01T00:00:00"
+        last_seq = 0
         ref_hash = ""
+
     try:
         import urllib3
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-        r = http_requests.post(
-            f"{server}/api/admin/sync-delta",
-            json={"since": since, "ref_hash": ref_hash, "local_ids": local_ids},
+        r = http_requests.get(
+            f"{server}/api/completed?since={last_seq}&ref_hash={ref_hash}",
             timeout=15, verify=False,
         )
         r.raise_for_status()
@@ -161,32 +163,39 @@ def api_coa_sync():
                         vals,
                     )
 
-        # Upsert delta tables
-        for table, rows in data["delta"].items():
-            if not rows:
-                continue
-            cols = list(rows[0].keys())
+        # Upsert batches
+        for row in data.get("batches", []):
+            cols = list(row.keys())
             placeholders = ",".join("?" * len(cols))
             col_names = ",".join(cols)
-            pk = "ebr_id" if table == "ebr_batches" else "wynik_id" if table == "ebr_wyniki" else "id"
-            for row in rows:
-                vals = [row[c] for c in cols]
-                existing = db.execute(f"SELECT {pk} FROM {table} WHERE {pk}=?", (row[pk],)).fetchone()
-                db.execute(
-                    f"INSERT OR REPLACE INTO {table} ({col_names}) VALUES ({placeholders})",
-                    vals,
-                )
-                if existing:
-                    counts["updated"] += 1
-                else:
-                    counts["new"] += 1
+            pk = row["ebr_id"]
+            existing = db.execute("SELECT ebr_id FROM ebr_batches WHERE ebr_id=?", (pk,)).fetchone()
+            db.execute(f"INSERT OR REPLACE INTO ebr_batches ({col_names}) VALUES ({placeholders})",
+                       [row[c] for c in cols])
+            counts["updated" if existing else "new"] += 1
+
+        # Upsert wyniki
+        for row in data.get("wyniki", []):
+            cols = list(row.keys())
+            placeholders = ",".join("?" * len(cols))
+            col_names = ",".join(cols)
+            db.execute(f"INSERT OR REPLACE INTO ebr_wyniki ({col_names}) VALUES ({placeholders})",
+                       [row[c] for c in cols])
+
+        # Upsert swiadectwa
+        for row in data.get("swiadectwa", []):
+            cols = list(row.keys())
+            placeholders = ",".join("?" * len(cols))
+            col_names = ",".join(cols)
+            db.execute(f"INSERT OR REPLACE INTO swiadectwa ({col_names}) VALUES ({placeholders})",
+                       [row[c] for c in cols])
 
         db.commit()
         db.close()
 
-        # Save sync timestamp from server (avoids clock skew issues)
-        sync_ts = data.get("server_now") or datetime.now().isoformat(timespec="seconds")
-        _set_setting("last_sync", sync_ts)
+        # Save new sync seq from server
+        new_seq = data.get("max_seq", last_seq)
+        _set_setting("last_sync_seq", str(new_seq))
         if data.get("ref_hash"):
             _set_setting("ref_hash", data["ref_hash"])
 
@@ -198,12 +207,11 @@ def api_coa_sync():
         today_backup = backup_dir / f"batch_db_{today}.sqlite"
         if not today_backup.exists():
             shutil.copy2(DB_PATH, today_backup)
-            # Keep only 5 newest
             backups = sorted(backup_dir.glob("batch_db_*.sqlite"), key=lambda p: p.stat().st_mtime, reverse=True)
             for old in backups[5:]:
                 old.unlink()
 
-        n_batches = len(data["delta"]["ebr_batches"])
+        n_batches = len(data.get("batches", []))
         total = data.get("total_completed", "?")
         return jsonify({
             "ok": True,
@@ -211,6 +219,7 @@ def api_coa_sync():
             "updated": counts["updated"],
             "batches_synced": n_batches,
             "total_on_server": total,
+            "sync_seq": new_seq,
         })
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
@@ -227,7 +236,7 @@ def api_coa_sync_full():
         r.raise_for_status()
         with open(DB_PATH, "wb") as f:
             f.write(r.content)
-        _set_setting("last_sync", datetime.now().isoformat(timespec="seconds"))
+        _set_setting("last_sync_seq", "0")
         size_kb = len(r.content) // 1024
         return jsonify({"ok": True, "size_kb": size_kb, "mode": "full"})
     except Exception as e:
