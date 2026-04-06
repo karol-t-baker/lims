@@ -231,11 +231,12 @@ async function openCalculatorFull(metoda_id, kod, sekcja, nawazka) {
         sekcja: sekcja,
         ebrId: window.ebrId,
         method: {
+            _metoda_id: method.id,
             name: method.nazwa,
             method: method.nazwa,
             formula: method.formula,
             factor: null,
-            suggested_mass: nawazka || null,
+            suggested_mass: nawazka || method.suggested_mass || null,
             mass_required: method.mass_required,
             volumes: method.volumes || [],
             titrants: method.titrants || [],
@@ -435,7 +436,7 @@ function renderCalculatorFull() {
         html += '<div class="calc-hint">Sugerowana nawa\u017cka: <strong>' + method.suggested_mass + ' g</strong></div>';
     }
 
-    // Titrant inputs
+    // Titrant inputs — changes auto-saved to DB as single source of truth
     if (method.titrants && method.titrants.length > 0) {
         method.titrants.forEach(function(t) {
             var val = _calcTitrantValues[t.id] !== undefined ? _calcTitrantValues[t.id] : (t.default || 0.1);
@@ -445,7 +446,7 @@ function renderCalculatorFull() {
                 html += '<div class="calc-titrant-auto"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="2 8 6 12 14 4"/></svg>' + t._autoSelected + '</div>';
             }
             if (t.options && t.options.length > 0) {
-                html += '<select onchange="_calcTitrantValues[\'' + t.id + '\'] = parseFloat(this.value); updateResultsFull();">';
+                html += '<select onchange="onTitrantChange(\'' + t.id + '\', parseFloat(this.value))">';
                 t.options.forEach(function(opt) {
                     var optVal = typeof opt === 'object' ? opt.value : opt;
                     var optLabel = typeof opt === 'object' ? opt.label : opt;
@@ -454,7 +455,7 @@ function renderCalculatorFull() {
                 });
                 html += '</select>';
             } else {
-                html += '<input type="number" step="any" value="' + val + '" oninput="_calcTitrantValues[\'' + t.id + '\'] = parseFloat(this.value); updateResultsFull();" placeholder="---">';
+                html += '<input type="number" step="any" value="' + val + '" oninput="onTitrantChange(\'' + t.id + '\', parseFloat(this.value))" placeholder="---">';
             }
             html += '</div>';
         });
@@ -694,6 +695,26 @@ async function acceptCalc() {
 function openCalc(tag, kod, sekcja, calcMethod) { openCalculator(tag, kod, sekcja, calcMethod); }
 function recalc() { renderCalculator(); }
 
+// Titrant concentration change — update local + save to DB + recalculate
+var _saveTitrantTimer = null;
+function onTitrantChange(titrantId, value) {
+    _calcTitrantValues[titrantId] = value;
+    updateResultsFull();
+    // Debounced save to DB (single source of truth)
+    clearTimeout(_saveTitrantTimer);
+    _saveTitrantTimer = setTimeout(function() {
+        if (_calcState.method && _calcState.method._metoda_id) {
+            fetch('/api/metody-miareczkowe/' + _calcState.method._metoda_id + '/stezenia', {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(_calcTitrantValues)
+            });
+            // Invalidate cache so next open fetches fresh defaults
+            delete _metodaCache[_calcState.method._metoda_id];
+        }
+    }, 800);
+}
+
 // Export
 window.openCalculator = openCalculator;
 window.openCalculatorFull = openCalculatorFull;
@@ -705,5 +726,6 @@ window.addSampleFull = addSampleFull;
 window.onSampleInput = onSampleInput;
 window.onSampleInputFull = onSampleInputFull;
 window.updateResultsFull = updateResultsFull;
+window.onTitrantChange = onTitrantChange;
 
 } // end guard: CALC_METHODS already defined

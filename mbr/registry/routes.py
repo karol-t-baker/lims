@@ -115,7 +115,14 @@ def api_metoda_detail(method_id):
         return jsonify({"error": "Not found"}), 404
     d = dict(row)
     d["volumes"] = _json.loads(d.pop("volumes_json"))
-    d["titrants"] = _json.loads(d.pop("titrants_json"))
+    titrants = _json.loads(d.pop("titrants_json"))
+    stezenia = _json.loads(d.pop("stezenia_json") or "{}") if d.get("stezenia_json") else {}
+    # Merge saved concentrations into titrant defaults
+    for t in titrants:
+        if t["id"] in stezenia:
+            t["default"] = stezenia[t["id"]]
+    d["titrants"] = titrants
+    d["stezenia"] = stezenia
     # Add suggested mass from most common nawazka for this method
     with db_session() as db2:
         naw_row = db2.execute(
@@ -127,6 +134,21 @@ def api_metoda_detail(method_id):
         ).fetchone()
     d["suggested_mass"] = naw_row["nawazka_g"] if naw_row else None
     return jsonify(d)
+
+
+@registry_bp.route("/api/metody-miareczkowe/<int:method_id>/stezenia", methods=["PUT"])
+@login_required
+def api_metoda_stezenia(method_id):
+    """Save titrant concentrations for a method. Body: {"T1": 0.1, "T2": 307.0}"""
+    import json as _json
+    data = request.get_json(silent=True) or {}
+    with db_session() as db:
+        db.execute(
+            "UPDATE metody_miareczkowe SET stezenia_json=? WHERE id=?",
+            (_json.dumps(data), method_id),
+        )
+        db.commit()
+    return jsonify({"ok": True})
 
 
 @registry_bp.route("/api/corrections")

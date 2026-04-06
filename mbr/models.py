@@ -260,6 +260,13 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     except Exception:
         pass
 
+    # Migration: add stezenia_json to metody_miareczkowe (persistent titrant concentrations)
+    try:
+        db.execute("ALTER TABLE metody_miareczkowe ADD COLUMN stezenia_json TEXT")
+        db.commit()
+    except Exception:
+        pass
+
     # Migration: add metoda_id to parametry_analityczne
     try:
         db.execute("ALTER TABLE parametry_analityczne ADD COLUMN metoda_id INTEGER REFERENCES metody_miareczkowe(id)")

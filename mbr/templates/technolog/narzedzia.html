@@ -455,11 +455,11 @@ function mcRender(){
   var titr='';
   (m.titrants||[]).forEach(function(t){
     if(t.options&&t.options.length){
-      titr+='<select class="mc-titr-inline" onchange="_mcT[\''+t.id+'\']=parseFloat(this.value);mcRefresh()">';
+      titr+='<select class="mc-titr-inline" onchange="mcTitrChange(\''+t.id+'\',parseFloat(this.value))">';
       t.options.forEach(function(o){titr+='<option value="'+o.value+'"'+(String(o.value)===String(_mcT[t.id])?' selected':'')+'>'+o.label+'</option>'});
       titr+='</select>';
     }else{
-      titr+='<span style="font-size:9px;color:var(--text-dim)">'+(t.label||t.id)+': <input class="mc-titr-mini" type="number" step="any" value="'+(_mcT[t.id]||'')+'" oninput="_mcT[\''+t.id+'\']=parseFloat(this.value);mcRefresh()"></span>';
+      titr+='<span style="font-size:9px;color:var(--text-dim)">'+(t.label||t.id)+': <input class="mc-titr-mini" type="number" step="any" value="'+(_mcT[t.id]||'')+'" oninput="mcTitrChange(\''+t.id+'\',parseFloat(this.value))"></span>';
     }
   });
   var th='<tr><th style="width:18px">#</th>';
@@ -499,6 +499,14 @@ function mcFhtml(){
     '<div><div class="mc-fs-l">N</div><div class="mc-fs-v">'+res.length+'</div></div></div>';
 }
 
+var _mcTitrTimer=null;
+function mcTitrChange(id,val){
+  _mcT[id]=val; mcRefresh();
+  clearTimeout(_mcTitrTimer);
+  _mcTitrTimer=setTimeout(function(){
+    if(_mcA&&_mcA.id) fetch('/api/metody-miareczkowe/'+_mcA.id+'/stezenia',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(_mcT)});
+  },800);
+}
 function mcRch(ri,f,val){if(f==='m')_mcR[ri].m=val;else{var vi=parseInt(f.slice(1));_mcR[ri].vols[vi]=val}mcRefresh()}
 function mcDel(ri){_mcR.splice(ri,1);mcRender()}
 function mcRefresh(){
