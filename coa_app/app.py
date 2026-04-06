@@ -165,6 +165,11 @@ def api_coa_sync():
         import shutil
         shutil.copy2(DB_PATH, backup_dir / f"batch_db_{ts}.sqlite")
 
+        # Keep only 5 newest backups
+        backups = sorted(backup_dir.glob("batch_db_*.sqlite"), key=lambda p: p.stat().st_mtime, reverse=True)
+        for old in backups[5:]:
+            old.unlink()
+
         n_batches = len(data["delta"]["ebr_batches"])
         total = data.get("total_completed", "?")
         return jsonify({
