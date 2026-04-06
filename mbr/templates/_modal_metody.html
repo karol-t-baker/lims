@@ -120,7 +120,7 @@ document.addEventListener('keydown',function(e){
   }
   if(inInput&&e.key==='Enter'){
     var allInps=Array.from(document.querySelectorAll('#mc-main .mc-inp'));var idx=allInps.indexOf(e.target);
-    if(idx===allInps.length-1){e.preventDefault();mcAddR();mcRender();setTimeout(function(){var ni=document.querySelectorAll('#mc-main .mc-inp');if(ni.length>allInps.length)ni[allInps.length].focus();},50);}
+    if(idx===allInps.length-1){e.preventDefault();mcSyncFromDom();mcAddR();mcRender();setTimeout(function(){var ni=document.querySelectorAll('#mc-main .mc-inp');if(ni.length>allInps.length)ni[allInps.length].focus();},50);}
   }
 });
 
@@ -131,6 +131,17 @@ function mcSel(id){
   document.querySelectorAll('.mc-item').forEach(function(e,i){e.classList.toggle('act',parseInt(e.dataset.id)===id);e.classList.toggle('hl',i===_mcHighlight);});
   fetch('/api/metody-miareczkowe/'+id).then(function(r){return r.json()}).then(function(m){_mcA=m;_mcR=[];_mcT={};(m.titrants||[]).forEach(function(t){_mcT[t.id]=t.default!==undefined?t.default:0.1});mcAddR();mcAddR();mcRender();});
 }
+function mcSyncFromDom(){
+  // Sync input values from DOM back to _mcR before re-render
+  _mcR.forEach(function(row,ri){
+    var tr=document.querySelector('#mc-tb tr:nth-child('+(ri+1)+')');
+    if(!tr)return;
+    var inps=tr.querySelectorAll('.mc-inp');
+    var idx=0;
+    if(_mcA&&_mcA.mass_required&&inps[idx]){row.m=inps[idx].value;idx++;}
+    (row.vols||[]).forEach(function(v,vi){if(inps[idx]){row.vols[vi]=inps[idx].value;idx++;}});
+  });
+}
 function mcAddR(){var n=(_mcA&&_mcA.volumes)?_mcA.volumes.length:1;_mcR.push({m:'',vols:new Array(n).fill('')});}
 function mcCalc(row){var m=_mcA;if(!m)return null;var v={};if(m.mass_required){var mm=parseFloat(row.m);if(isNaN(mm)||mm===0)return null;v.M=mm;}for(var i=0;i<(m.volumes||[]).length;i++){var vv=parseFloat(row.vols[i]);if(isNaN(vv))return null;v['V'+(i+1)]=vv;}(m.titrants||[]).forEach(function(t){v[t.id]=_mcT[t.id]!==undefined?_mcT[t.id]:(t.default||0.1)});try{var k=Object.keys(v);var fn=new Function(k.join(','),'return ('+m.formula+')');var r=fn.apply(null,k.map(function(x){return v[x]}));return isFinite(r)?r:null}catch(e){return null}}
 
@@ -140,7 +151,7 @@ function mcRender(){
   var th='<tr><th style="width:18px">#</th>';if(m.mass_required)th+='<th>M [g]</th>';(m.volumes||[]).forEach(function(v){th+='<th>'+(v.label||'V')+'</th>'});th+='<th>Wynik</th><th style="width:18px"></th></tr>';
   var tb='';_mcR.forEach(function(row,ri){var r=mcCalc(row);tb+='<tr><td style="font-size:8px;color:var(--text-dim);font-weight:700">'+(ri+1)+'</td>';if(m.mass_required)tb+='<td><input class="mc-inp" type="number" step="any" placeholder="g" value="'+row.m+'" oninput="mcRch('+ri+',\'m\',this.value)"></td>';(row.vols||[]).forEach(function(v,vi){tb+='<td><input class="mc-inp" type="number" step="any" placeholder="ml" value="'+v+'" oninput="mcRch('+ri+',\'v'+vi+'\',this.value)"></td>'});tb+='<td class="mc-res">'+(r!==null?r.toFixed(4):'—')+'</td><td><button class="mc-del" onclick="mcDel('+ri+')">✕</button></td></tr>';});
   var mh=m.suggested_mass?'<span class="mc-htag">Naważka: '+m.suggested_mass+' g</span>':'';
-  el.innerHTML='<div class="mc-head"><div class="mc-title">'+m.nazwa+'</div><div class="mc-meta"><span class="mc-ftag">'+m.formula+'</span>'+mh+titr+'</div></div><div class="mc-body"><table class="mc-table"><thead>'+th+'</thead><tbody id="mc-tb">'+tb+'</tbody></table><button class="mc-add-btn" onclick="mcAddR();mcRender()">+ Dodaj próbkę</button></div><div class="mc-footer" id="mc-foot">'+mcFhtml()+'</div>';
+  el.innerHTML='<div class="mc-head"><div class="mc-title">'+m.nazwa+'</div><div class="mc-meta"><span class="mc-ftag">'+m.formula+'</span>'+mh+titr+'</div></div><div class="mc-body"><table class="mc-table"><thead>'+th+'</thead><tbody id="mc-tb">'+tb+'</tbody></table><button class="mc-add-btn" onclick="mcSyncFromDom();mcAddR();mcRender()">+ Dodaj próbkę</button></div><div class="mc-footer" id="mc-foot">'+mcFhtml()+'</div>';
 }
 
 function mcFhtml(){
@@ -156,6 +167,6 @@ function mcFhtml(){
 var _mcTitrTimer=null;
 function mcTitrChange(id,val){_mcT[id]=val;mcRefresh();clearTimeout(_mcTitrTimer);_mcTitrTimer=setTimeout(function(){if(_mcA&&_mcA.id)fetch('/api/metody-miareczkowe/'+_mcA.id+'/stezenia',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(_mcT)});},800);}
 function mcRch(ri,f,val){if(f==='m')_mcR[ri].m=val;else{var vi=parseInt(f.slice(1));_mcR[ri].vols[vi]=val}mcRefresh();}
-function mcDel(ri){_mcR.splice(ri,1);mcRender();}
+function mcDel(ri){mcSyncFromDom();_mcR.splice(ri,1);mcRender();}
 function mcRefresh(){_mcR.forEach(function(row,ri){var r=mcCalc(row);var td=document.querySelector('#mc-tb tr:nth-child('+(ri+1)+') .mc-res');if(td)td.textContent=r!==null?r.toFixed(4):'—'});var f=document.getElementById('mc-foot');if(f)f.innerHTML=mcFhtml();}
 </script>
