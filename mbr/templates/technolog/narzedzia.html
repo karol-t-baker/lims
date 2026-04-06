@@ -195,6 +195,11 @@
   background: var(--teal-bg); color: var(--teal);
   border-left-color: var(--teal); font-weight: 600;
 }
+.mc-item.hl {
+  background: var(--surface-alt); color: var(--text);
+  border-left-color: var(--amber);
+}
+.mc-item.act.hl { background: var(--teal-bg); border-left-color: var(--teal); }
 
 /* ═══ Main panel ═══ */
 .mc-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #fdfcfa; }
@@ -308,38 +313,123 @@
 <script>
 var _mcM=[], _mcA=null, _mcR=[], _mcT={};
 
+var _mcHighlight = -1; // index of highlighted method in sidebar
+
 function openMetodyModal(){
-  document.getElementById('mc-overlay').classList.add('show');
-  if(!_mcM.length) fetch('/api/metody-miareczkowe').then(function(r){return r.json()}).then(function(d){_mcM=d;mcRenderList()});
+  var ov = document.getElementById('mc-overlay');
+  ov.classList.add('show');
+  if(!_mcM.length) {
+    fetch('/api/metody-miareczkowe').then(function(r){return r.json()}).then(function(d){
+      _mcM=d; mcRenderList();
+      // Auto-highlight first method
+      if(_mcM.length) mcHighlight(0);
+    });
+  } else if(_mcHighlight < 0) {
+    mcHighlight(0);
+  }
 }
-function closeMetodyModal(){ document.getElementById('mc-overlay').classList.remove('show'); }
+function closeMetodyModal(){
+  document.getElementById('mc-overlay').classList.remove('show');
+}
 function toggleMetodyModal(){
   var ov = document.getElementById('mc-overlay');
   if(ov.classList.contains('show')) closeMetodyModal(); else openMetodyModal();
 }
 
-// Keyboard shortcut: M toggles metody modal (only when not typing in input/select)
+function mcHighlight(idx){
+  if(idx < 0) idx = _mcM.length - 1;
+  if(idx >= _mcM.length) idx = 0;
+  _mcHighlight = idx;
+  document.querySelectorAll('.mc-item').forEach(function(el, i){
+    el.classList.toggle('hl', i === idx);
+  });
+  // Scroll into view
+  var item = document.querySelectorAll('.mc-item')[idx];
+  if(item) item.scrollIntoView({block:'nearest'});
+}
+
+function mcConfirmHighlight(){
+  if(_mcHighlight >= 0 && _mcHighlight < _mcM.length){
+    mcSel(_mcM[_mcHighlight].id);
+    // Focus first input after render
+    setTimeout(function(){
+      var inp = document.querySelector('#mc-main .mc-inp');
+      if(inp) inp.focus();
+    }, 50);
+  }
+}
+
+// Keyboard: K toggle, arrows navigate, Enter selects, Escape closes, Tab+Enter in fields
 document.addEventListener('keydown', function(e){
-  if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||e.target.tagName==='TEXTAREA') return;
-  if(e.key==='k'||e.key==='K'){
+  var ov = document.getElementById('mc-overlay');
+  var isOpen = ov && ov.classList.contains('show');
+  var inInput = e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||e.target.tagName==='TEXTAREA';
+
+  // K toggles modal (only when not in input)
+  if(!inInput && (e.key==='k'||e.key==='K')){
     e.preventDefault();
     toggleMetodyModal();
+    return;
   }
-  // Escape closes modal
+
+  if(!isOpen) return;
+
+  // Escape closes
   if(e.key==='Escape'){
-    var ov=document.getElementById('mc-overlay');
-    if(ov&&ov.classList.contains('show')) closeMetodyModal();
+    e.preventDefault();
+    closeMetodyModal();
+    return;
+  }
+
+  // If no method selected yet (still in sidebar navigation mode)
+  if(!_mcA || !inInput){
+    if(e.key==='ArrowDown'){
+      e.preventDefault();
+      mcHighlight(_mcHighlight + 1);
+      return;
+    }
+    if(e.key==='ArrowUp'){
+      e.preventDefault();
+      mcHighlight(_mcHighlight - 1);
+      return;
+    }
+    if(e.key==='Enter'){
+      e.preventDefault();
+      mcConfirmHighlight();
+      return;
+    }
+  }
+
+  // Inside inputs: Enter on last volume of last row → add new row + focus
+  if(inInput && e.key==='Enter'){
+    var allInps = Array.from(document.querySelectorAll('#mc-main .mc-inp'));
+    var idx = allInps.indexOf(e.target);
+    if(idx === allInps.length - 1){
+      // Last input → add row
+      e.preventDefault();
+      mcAddR(); mcRender();
+      setTimeout(function(){
+        var newInps = document.querySelectorAll('#mc-main .mc-inp');
+        // Focus first input of new row (skip old ones)
+        if(newInps.length > allInps.length) newInps[allInps.length].focus();
+      }, 50);
+    }
   }
 });
 
 function mcRenderList(){
-  document.getElementById('mc-list').innerHTML=_mcM.map(function(m){
-    return '<div class="mc-item" data-id="'+m.id+'" onclick="mcSel('+m.id+')">'+m.nazwa+'</div>';
+  document.getElementById('mc-list').innerHTML=_mcM.map(function(m, i){
+    return '<div class="mc-item' + (i === _mcHighlight ? ' hl' : '') + '" data-id="'+m.id+'" data-idx="'+i+'" onclick="mcSel('+m.id+')">'+m.nazwa+'</div>';
   }).join('');
 }
 
 function mcSel(id){
-  document.querySelectorAll('.mc-item').forEach(function(e){e.classList.toggle('act',parseInt(e.dataset.id)===id)});
+  // Update highlight index
+  for(var i=0;i<_mcM.length;i++){ if(_mcM[i].id===id){_mcHighlight=i;break;} }
+  document.querySelectorAll('.mc-item').forEach(function(e,i){
+    e.classList.toggle('act',parseInt(e.dataset.id)===id);
+    e.classList.toggle('hl',i===_mcHighlight);
+  });
   fetch('/api/metody-miareczkowe/'+id).then(function(r){return r.json()}).then(function(m){
     _mcA=m;_mcR=[];_mcT={};
     (m.titrants||[]).forEach(function(t){_mcT[t.id]=t.default!==undefined?t.default:0.1});
