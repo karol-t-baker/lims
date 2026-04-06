@@ -1909,6 +1909,33 @@ window.showProcessStage = function(etapKey) {
         }
       }
 
+      // Special hybrid input for mętność
+      if (param.kod === 'metnosc') {
+        h += '<div class="ff">' +
+          '<div class="status-dot"></div>' +
+          '<label>' + (param.skrot || param.label) + '</label>' +
+          '<input type="text" list="metnosc-opts"' +
+            ' data-etap="' + etapKey + '" data-runda="' + rundaNum + '" data-kod="' + param.kod + '"' +
+            ' value="' + val + '"' +
+            ' class="' + inputClass + '"' +
+            (!editable ? ' readonly' : '') +
+            ' placeholder="NTU lub opis"' +
+            (editable ? ' oninput="psAutoSave(this)" onblur="psSave(this)"' : '') +
+            '>' +
+          '<datalist id="metnosc-opts">' +
+            '<option value="klarowna">' +
+            '<option value="opalizująca">' +
+            '<option value="mętna jasna">' +
+            '<option value="mętna">' +
+            '<option value="mętna ciemna">' +
+          '</datalist>' +
+          '<div class="ff-right">' +
+            '<span class="norm-range"></span>' +
+          '</div>' +
+        '</div>';
+        return; // skip standard rendering for this param
+      }
+
       h += '<div class="ff' + (isTitr ? ' titr' : '') + (isObl ? ' computed' : '') + '">' +
         '<div class="status-dot"></div>' +
         '<label>' + (param.skrot || param.label) + '</label>' +
@@ -2081,7 +2108,15 @@ function psSave(input) {
 
   var val = input.value.replace(',', '.');
   var wyniki = {};
-  wyniki[kod] = parseFloat(val);
+  var numVal = parseFloat(val);
+  if (isNaN(numVal) && input.value.trim()) {
+    // Text value (e.g. "mętna jasna") — send as string
+    wyniki[kod] = input.value.trim();
+  } else if (!isNaN(numVal)) {
+    wyniki[kod] = numVal;
+  } else {
+    return; // empty
+  }
 
   input.style.outline = '2px solid var(--teal)';
   fetch('/api/ebr/' + ebrId + '/etapy-analizy', {
