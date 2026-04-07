@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Zbiorniki{% endblock %}
+{% block nav_admin %}active{% endblock %}
+
+{% block topbar_title %}
+  <span style="font-weight:700;">Zbiorniki magazynowe</span>
+{% endblock %}
+
+{% block head %}
+<style>
+.zb-wrap { padding: 24px 32px; max-width: 900px; overflow-y: auto; max-height: calc(100vh - 52px); }
+.zb-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.zb-table th { text-align: left; padding: 10px 12px; font-size: 10px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid var(--border); }
+.zb-table td { padding: 8px 12px; border-bottom: 1px solid var(--border-subtle); }
+.zb-table tr:hover { background: var(--surface-alt); }
+.zb-nr { font-weight: 700; font-family: var(--mono); }
+.zb-input { border: 1px solid transparent; background: transparent; padding: 4px 8px; border-radius: 4px; font-size: 12px; width: 100%; font-family: inherit; }
+.zb-input:hover { border-color: var(--border); }
+.zb-input:focus { border-color: var(--teal); outline: none; background: var(--surface); }
+.zb-toggle { cursor: pointer; padding: 3px 10px; border-radius: 12px; font-size: 10px; font-weight: 600; border: none; }
+.zb-toggle.on { background: var(--green-bg, #dcfce7); color: var(--green, #16a34a); }
+.zb-toggle.off { background: var(--red-bg, #fef2f2); color: var(--red, #dc2626); }
+.zb-add { margin-top: 16px; display: flex; gap: 8px; align-items: center; }
+.zb-add input { padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 12px; }
+.zb-add button { padding: 8px 16px; background: var(--teal); color: #fff; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.zb-add button:hover { opacity: 0.9; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="zb-wrap">
+  <table class="zb-table" id="zb-table">
+    <thead>
+      <tr>
+        <th>Nr</th>
+        <th>Pojemność [t]</th>
+        <th>Produkt</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody id="zb-body"></tbody>
+  </table>
+
+  <div class="zb-add">
+    <input type="text" id="add-nr" placeholder="np. M20" style="width:80px;">
+    <input type="number" id="add-cap" placeholder="Pojemność" style="width:100px;">
+    <input type="text" id="add-prod" placeholder="Produkt" style="width:180px;">
+    <button onclick="addZbiornik()">Dodaj</button>
+  </div>
+</div>
+
+<script>
+var _zbData = [];
+
+async function loadZbiorniki() {
+  var resp = await fetch('/api/zbiorniki?all=1');
+  _zbData = await resp.json();
+  renderTable();
+}
+
+function renderTable() {
+  var html = '';
+  _zbData.forEach(function(z) {
+    html += '<tr data-id="' + z.id + '">' +
+      '<td class="zb-nr">' + z.nr_zbiornika + '</td>' +
+      '<td><input class="zb-input" type="number" value="' + (z.max_pojemnosc || '') + '" onchange="saveField(' + z.id + ', \'max_pojemnosc\', parseFloat(this.value))"></td>' +
+      '<td><input class="zb-input" type="text" value="' + (z.produkt || '') + '" onchange="saveField(' + z.id + ', \'produkt\', this.value)"></td>' +
+      '<td><button class="zb-toggle ' + (z.aktywny ? 'on' : 'off') + '" onclick="toggleActive(' + z.id + ', ' + z.aktywny + ')">' + (z.aktywny ? 'Aktywny' : 'Nieaktywny') + '</button></td>' +
+    '</tr>';
+  });
+  document.getElementById('zb-body').innerHTML = html;
+}
+
+async function saveField(id, field, value) {
+  var body = {};
+  body[field] = value;
+  await fetch('/api/zbiorniki/' + id, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  });
+}
+
+async function toggleActive(id, current) {
+  await saveField(id, 'aktywny', current ? 0 : 1);
+  loadZbiorniki();
+}
+
+async function addZbiornik() {
+  var nr = document.getElementById('add-nr').value.trim();
+  var cap = parseFloat(document.getElementById('add-cap').value) || 0;
+  var prod = document.getElementById('add-prod').value.trim();
+  if (!nr) return;
+  var resp = await fetch('/api/zbiorniki', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({nr_zbiornika: nr, max_pojemnosc: cap, produkt: prod})
+  });
+  if (resp.ok) {
+    document.getElementById('add-nr').value = '';
+    document.getElementById('add-cap').value = '';
+    document.getElementById('add-prod').value = '';
+    loadZbiorniki();
+  }
+}
+
+loadZbiorniki();
+</script>
+{% endblock %}
