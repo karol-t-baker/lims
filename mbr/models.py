@@ -180,6 +180,11 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             (nazwa, kod),
         )
 
+    # Migration: add kod_produktu column if missing (existing DBs)
+    cols = [r[1] for r in db.execute("PRAGMA table_info(zbiorniki)").fetchall()]
+    if "kod_produktu" not in cols:
+        db.execute("ALTER TABLE zbiorniki ADD COLUMN kod_produktu TEXT")
+
     # Map zbiornik product names → codes
     _ZB_PRODUKT_TO_KOD = {
         "Cheginy GLOL": "GLOL", "Cheginy GLO": "GLO", "Cheginy GL": "GL",
@@ -195,17 +200,6 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
                 "UPDATE zbiorniki SET kod_produktu = ? WHERE produkt = ? AND (kod_produktu IS NULL OR kod_produktu = '')",
                 (kod, zb_prod),
             )
-
-    # Migration: add kod_produktu column if missing (existing DBs)
-    cols = [r[1] for r in db.execute("PRAGMA table_info(zbiorniki)").fetchall()]
-    if "kod_produktu" not in cols:
-        db.execute("ALTER TABLE zbiorniki ADD COLUMN kod_produktu TEXT")
-
-    # Migration: add produkty table columns check
-    try:
-        db.execute("SELECT id FROM produkty LIMIT 1")
-    except Exception:
-        pass  # table created above
 
     db.commit()
 
