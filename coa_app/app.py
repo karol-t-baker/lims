@@ -33,11 +33,31 @@ DEFAULT_SERVER = "http://labcore.local:5001"
 DEFAULT_OUTPUT_DIR = str(Path.home() / "Desktop" / "Swiadectwa")
 DEFAULT_BACKUP_DIR = str(Path.home() / "Desktop" / "Backupy_LIMS")
 
+def _find_soffice() -> str:
+    """Find LibreOffice soffice binary."""
+    import shutil
+    # Check PATH first
+    found = shutil.which("soffice")
+    if found:
+        return found
+    # Common Windows locations
+    if sys.platform == "win32":
+        for prog in [os.environ.get("PROGRAMFILES", r"C:\Program Files"),
+                     os.environ.get("PROGRAMFILES(X86)", r"C:\Program Files (x86)")]:
+            candidate = Path(prog) / "LibreOffice" / "program" / "soffice.exe"
+            if candidate.exists():
+                return str(candidate)
+    raise FileNotFoundError(
+        "LibreOffice nie znaleziony. Zainstaluj LibreOffice: https://www.libreoffice.org/download/"
+    )
+
+
 def _word_convert(docx_path: str, pdf_path: str):
     """Convert docx to pdf using LibreOffice headless."""
     import subprocess
+    soffice = _find_soffice()
     result = subprocess.run([
-        "soffice", "--headless", "--convert-to", "pdf",
+        soffice, "--headless", "--convert-to", "pdf",
         "--outdir", str(Path(pdf_path).parent),
         docx_path,
     ], capture_output=True, text=True, timeout=30)
