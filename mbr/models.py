@@ -110,7 +110,44 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             zatwierdzil     TEXT,
             UNIQUE(ebr_id, etap)
         );
+
+        CREATE TABLE IF NOT EXISTS zbiorniki (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nr_zbiornika TEXT UNIQUE NOT NULL,
+            max_pojemnosc REAL,
+            produkt TEXT,
+            aktywny INTEGER DEFAULT 1
+        );
+
+        CREATE TABLE IF NOT EXISTS zbiornik_szarze (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ebr_id INTEGER NOT NULL,
+            zbiornik_id INTEGER NOT NULL REFERENCES zbiorniki(id),
+            masa_kg REAL,
+            dt_dodania TEXT,
+            UNIQUE(ebr_id, zbiornik_id)
+        );
     """)
+    # Seed zbiorniki (tanks) — INSERT OR IGNORE for idempotency
+    _ZBIORNIKI_SEED = [
+        ("M1", 30, "Cheginy GLOL"), ("M2", 30, "Cheginy GLO"),
+        ("M3", 35, "Cheginy GLOL"), ("M4", 20, "Alkohole Cetostearylowe"),
+        ("M5", 27, "DEA"), ("M6", 25, "Chelamid DK"),
+        ("M7", 12, "Olej palmowy"), ("M8", 25, "Olej palmowy"),
+        ("M9", 22, "Cheginy"), ("M10", 33, "Chelamid"),
+        ("M11", 30, "Kwasy kokosowe"), ("M12", 30, "DMAPA"),
+        ("M13", 25, "Olej kokosowy"), ("M14", 48, "Cheginy KK"),
+        ("M15", 42, "Cheginy K7"), ("M16", 25, "Cheginy GL"),
+        ("M17", 25, "Cheginy GLO"), ("M18", 27, "Chelamid DK"),
+        ("M19", 25, "Kwasy kokosowe"),
+    ]
+    for nr, cap, prod in _ZBIORNIKI_SEED:
+        db.execute(
+            "INSERT OR IGNORE INTO zbiorniki (nr_zbiornika, max_pojemnosc, produkt) VALUES (?, ?, ?)",
+            (nr, cap, prod),
+        )
+    db.commit()
+
     db.execute("""
         CREATE TABLE IF NOT EXISTS workers (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
