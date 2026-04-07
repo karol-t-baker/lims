@@ -105,7 +105,8 @@ def api_cert_generate():
         cert_id = create_swiadectwo(db, ebr_id, variant_label, ebr["nr_partii"], "", wystawil, data_json=_json.dumps(generation_data, ensure_ascii=False))
 
     # Return PDF as download to user's browser
-    filename = f"{variant_label} {ebr['nr_partii'].replace('/', '_')}.pdf"
+    nr_only = ebr['nr_partii'].split('/')[0].strip()
+    filename = f"{variant_label} {nr_only}.pdf"
     return Response(
         pdf_bytes,
         mimetype="application/pdf",
