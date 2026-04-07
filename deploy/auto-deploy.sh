@@ -16,6 +16,12 @@ fi
 
 echo "$(date): New commits detected, deploying..."
 
+# Backup database before deploy
+mkdir -p data/backups
+cp data/batch_db.sqlite "data/backups/pre-deploy-$(date +%Y%m%d-%H%M%S).sqlite"
+# Keep only 10 newest backups
+ls -t data/backups/pre-deploy-*.sqlite 2>/dev/null | tail -n +11 | xargs rm -f 2>/dev/null
+
 git pull origin main --quiet
 
 # Install any new dependencies
