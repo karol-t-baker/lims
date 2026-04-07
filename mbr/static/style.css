@@ -1322,11 +1322,12 @@ body {
 @keyframes overlayIn { from { opacity: 0; } to { opacity: 1; } }
 
 .modal {
-  width: 520px; max-width: 95vw;
+  width: 520px; max-width: 95vw; max-height: 90vh;
   background: var(--surface);
   border-radius: 16px;
   box-shadow: 0 8px 40px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
   overflow: hidden;
+  display: flex; flex-direction: column;
   animation: modalIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 @keyframes modalIn { from { opacity: 0; transform: translateY(16px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
@@ -1355,7 +1356,7 @@ body {
   transition: all 0.12s;
 }
 .modal-close:hover { border-color: var(--text-sec); color: var(--text); background: var(--surface-alt); }
-.modal-body { padding: 24px; }
+.modal-body { padding: 24px; overflow-y: auto; flex: 1; min-height: 0; }
 .modal-footer {
   padding: 18px 24px; border-top: 1px solid var(--border-subtle);
   display: flex; align-items: center; gap: 8px;
