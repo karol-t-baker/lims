@@ -208,13 +208,82 @@ def api_db_snapshot():
                      as_attachment=True, download_name="batch_db.sqlite")
 
 
+@admin_bp.route("/api/completed")
+def api_completed():
+    """Return completed batches with sync_seq > since.
+
+    Query params:
+        since (int): last known sync_seq (default 0 = return all)
+        ref_hash (str): client's reference table hash (optional)
+    """
+    import hashlib
+    since = request.args.get("since", 0, type=int)
+    client_ref_hash = request.args.get("ref_hash", "")
+
+    with db_session() as db:
+        # Reference tables (same hash logic as existing sync)
+        ref_counts = (
+            str(db.execute("SELECT COUNT(*) FROM parametry_analityczne").fetchone()[0]) +
+            str(db.execute("SELECT COUNT(*) FROM metody_miareczkowe").fetchone()[0]) +
+            str(db.execute("SELECT COUNT(*) FROM workers").fetchone()[0]) +
+            str(db.execute("SELECT COUNT(*) FROM mbr_templates").fetchone()[0])
+        )
+        ref_hash = hashlib.md5(ref_counts.encode()).hexdigest()[:8]
+
+        reference = None
+        if client_ref_hash != ref_hash:
+            reference = {
+                "parametry_analityczne": [dict(r) for r in db.execute("SELECT * FROM parametry_analityczne").fetchall()],
+                "metody_miareczkowe": [dict(r) for r in db.execute("SELECT * FROM metody_miareczkowe").fetchall()],
+                "workers": [dict(r) for r in db.execute("SELECT * FROM workers").fetchall()],
+                "mbr_templates": [dict(r) for r in db.execute("SELECT * FROM mbr_templates").fetchall()],
+            }
+
+        # Batches with sync_seq > since
+        batches = [dict(r) for r in db.execute(
+            "SELECT * FROM ebr_batches WHERE status='completed' AND sync_seq > ? ORDER BY sync_seq",
+            (since,),
+        ).fetchall()]
+
+        batch_ids = [b["ebr_id"] for b in batches]
+        wyniki = []
+        swiadectwa = []
+        if batch_ids:
+            placeholders = ",".join("?" * len(batch_ids))
+            wyniki = [dict(r) for r in db.execute(
+                f"SELECT * FROM ebr_wyniki WHERE ebr_id IN ({placeholders})", batch_ids
+            ).fetchall()]
+            swiadectwa = [dict(r) for r in db.execute(
+                f"SELECT * FROM swiadectwa WHERE ebr_id IN ({placeholders})", batch_ids
+            ).fetchall()]
+
+        max_seq = db.execute(
+            "SELECT COALESCE(MAX(sync_seq), 0) FROM ebr_batches WHERE status='completed'"
+        ).fetchone()[0]
+
+        total_completed = db.execute(
+            "SELECT COUNT(*) FROM ebr_batches WHERE status='completed'"
+        ).fetchone()[0]
+
+    return jsonify({
+        "ok": True,
+        "since": since,
+        "max_seq": max_seq,
+        "ref_hash": ref_hash,
+        "reference": reference,
+        "batches": batches,
+        "wyniki": wyniki,
+        "swiadectwa": swiadectwa,
+        "total_completed": total_completed,
+    })
+
+
 @admin_bp.route("/api/admin/sync-delta")
 def api_sync_delta():
-    """Return records changed since given timestamp.
+    """DEPRECATED: Use GET /api/completed?since=N instead.
 
-    Params:
-        since: ISO timestamp of last sync
-        ref_hash: hash of reference data COA already has (skip if matches)
+    Kept for backwards compatibility during transition.
+    Return records changed since given timestamp.
     """
     import hashlib
     since = request.args.get("since", "2000-01-01T00:00:00")

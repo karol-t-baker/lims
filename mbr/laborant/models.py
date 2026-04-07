@@ -498,14 +498,25 @@ def save_wyniki(
               w_limicie, komentarz, now, user))
     db.commit()
 
+    # Bump sync_seq so COA picks up the change
+    if ebr and ebr.get("status") == "completed":
+        next_seq = db.execute("SELECT COALESCE(MAX(sync_seq), 0) + 1 FROM ebr_batches").fetchone()[0]
+        db.execute("UPDATE ebr_batches SET sync_seq = ? WHERE ebr_id = ?", (next_seq, ebr_id))
+        db.commit()
+
 
 def complete_ebr(db: sqlite3.Connection, ebr_id: int, zbiorniki: list | None = None) -> None:
-    """Set status='completed', dt_end=now. Optionally save pump-out targets."""
+    """Set status='completed', dt_end=now, assign sync_seq. Optionally save pump-out targets."""
     now = datetime.now().isoformat(timespec="seconds")
     zbiorniki_json = json.dumps(zbiorniki, ensure_ascii=False) if zbiorniki else None
+
+    # Next sync_seq = max existing + 1 (atomic within single-writer SQLite)
+    row = db.execute("SELECT COALESCE(MAX(sync_seq), 0) FROM ebr_batches").fetchone()
+    next_seq = row[0] + 1
+
     db.execute(
-        "UPDATE ebr_batches SET status = 'completed', dt_end = ?, przepompowanie_json = ? WHERE ebr_id = ?",
-        (now, zbiorniki_json, ebr_id),
+        "UPDATE ebr_batches SET status = 'completed', dt_end = ?, przepompowanie_json = ?, sync_seq = ? WHERE ebr_id = ?",
+        (now, zbiorniki_json, next_seq, ebr_id),
     )
     db.commit()
 

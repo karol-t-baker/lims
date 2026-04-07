@@ -349,6 +349,71 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     except Exception:
         pass
 
+    # Migration: add sync_seq to ebr_batches for index-based COA sync
+    try:
+        db.execute("ALTER TABLE ebr_batches ADD COLUMN sync_seq INTEGER")
+        db.commit()
+    except Exception:
+        pass  # column already exists
+
+    db.execute("CREATE INDEX IF NOT EXISTS idx_batches_sync_seq ON ebr_batches(sync_seq)")
+
+    # Backfill sync_seq for already-completed batches (ordered by dt_end)
+    db.execute("""
+        UPDATE ebr_batches SET sync_seq = (
+            SELECT COUNT(*) FROM ebr_batches b2
+            WHERE b2.status = 'completed'
+              AND (b2.dt_end < ebr_batches.dt_end
+                   OR (b2.dt_end = ebr_batches.dt_end AND b2.ebr_id <= ebr_batches.ebr_id))
+        )
+        WHERE status = 'completed' AND sync_seq IS NULL
+    """)
+    db.commit()
+
+    # Migration: deduplicate parameter codes
+    # woda → h2o, barwa_I2 → barwa_fau, dea → dietanolamina, siarczynow → so3
+    _PARAM_RENAMES = [
+        ("woda", "h2o"),
+        ("barwa_I2", "barwa_fau"),
+        ("dea", "dietanolamina"),
+        ("siarczynow", "so3"),
+    ]
+    for old_kod, new_kod in _PARAM_RENAMES:
+        # Update existing wyniki referencing old code
+        db.execute(
+            "UPDATE ebr_wyniki SET kod_parametru = ? WHERE kod_parametru = ?",
+            (new_kod, old_kod),
+        )
+        # Update etapy_analizy if applicable
+        db.execute(
+            "UPDATE OR IGNORE ebr_etapy_analizy SET kod_parametru = ? WHERE kod_parametru = ?",
+            (new_kod, old_kod),
+        )
+        # Remove duplicate parametry_analityczne entry (keep the target)
+        target_exists = db.execute(
+            "SELECT id FROM parametry_analityczne WHERE kod = ?", (new_kod,)
+        ).fetchone()
+        if target_exists:
+            # Move parametry_etapy references from old to new before deleting
+            old_param = db.execute(
+                "SELECT id FROM parametry_analityczne WHERE kod = ?", (old_kod,)
+            ).fetchone()
+            if old_param:
+                db.execute(
+                    "UPDATE OR IGNORE parametry_etapy SET parametr_id = ? WHERE parametr_id = ?",
+                    (target_exists[0], old_param[0]),
+                )
+                # Delete orphaned parametry_etapy (conflicts handled by OR IGNORE)
+                db.execute(
+                    "DELETE FROM parametry_etapy WHERE parametr_id = ?",
+                    (old_param[0],),
+                )
+                db.execute(
+                    "DELETE FROM parametry_analityczne WHERE id = ?",
+                    (old_param[0],),
+                )
+    db.commit()
+
 
 # ---------------------------------------------------------------------------
 # Auto-numbering — moved to mbr.laborant.models, re-exported for backward compat

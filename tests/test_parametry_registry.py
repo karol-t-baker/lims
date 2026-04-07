@@ -25,9 +25,9 @@ def db():
 
 def test_amidowanie_defaults(db):
     params = get_parametry_for_kontekst(db, "Chegina_K7", "amidowanie")
-    assert len(params) == 4
+    assert len(params) == 5
     kods = [p["kod"] for p in params]
-    assert kods == ["le", "la", "lk", "nd20"]
+    assert kods == ["le", "la", "lk", "nd20", "barwa_fau"]
 
 
 def test_amidowanie_nawazka(db):
@@ -49,7 +49,7 @@ def test_product_override(db):
 def test_fallback_to_defaults(db):
     """Product not in bindings falls back to NULL produkt rows."""
     params = get_parametry_for_kontekst(db, "Chegina_K40GL", "amidowanie")
-    assert len(params) == 4  # Falls back to NULL defaults
+    assert len(params) == 5  # Falls back to NULL defaults
 
 
 def test_empty_kontekst(db):
@@ -72,7 +72,7 @@ def test_etapy_config_k7(db):
     assert "utlenienie" in cfg
     assert "rozjasnianie" not in cfg
     assert cfg["amidowanie"]["korekty"] == ["DMAPA", "Wydłużenie czasu"]
-    assert len(cfg["amidowanie"]["parametry"]) == 4
+    assert len(cfg["amidowanie"]["parametry"]) == 5
 
 
 def test_etapy_config_glol(db):

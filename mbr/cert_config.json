@@ -724,7 +724,7 @@
           "requirement": "1,3800-1,3950"
         },
         {
-          "data_field": "barwa_I2",
+          "data_field": "barwa_fau",
           "format": "0",
           "id": "barwa_jod",
           "method": "L928",
@@ -1160,7 +1160,7 @@
           "name_en": "DEA [%]",
           "requirement": "< 3,00",
           "method": "L910",
-          "data_field": "dea",
+          "data_field": "dietanolamina",
           "format": "2"
         },
         {
