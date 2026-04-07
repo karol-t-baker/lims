@@ -116,6 +116,10 @@
             <div class="form-label">Wielkosc szarzy (nastaw) [kg]</div>
             <input class="form-input" type="number" step="any" name="wielkosc_kg" placeholder="np. 4000">
           </div>
+          <div class="form-row" style="margin-top:12px;">
+            <div class="form-label">Zbiorniki docelowe <span style="font-weight:400;color:var(--text-dim);">(opcjonalne)</span></div>
+            <div class="pm-tank-grid" id="zb-pick-szarza" style="margin-top:4px;"></div>
+          </div>
         </div>
 
         {# Step 2b: Zbiornik form #}
@@ -173,11 +177,10 @@
 
           <div style="height:16px"></div>
           <div class="form-row">
-            <div class="form-label">Nr zbiornika</div>
-            <div style="display:flex;align-items:center;gap:0;">
-              <span style="padding:10px 8px 10px 12px;background:var(--surface-alt);border:1.5px solid var(--border);border-right:none;border-radius:6px 0 0 6px;font-size:13px;font-weight:700;color:var(--text-sec);">M</span>
-              <input class="form-input" type="number" min="1" max="99" name="nr_zbiornika_num" placeholder="nr" style="border-radius:0 6px 6px 0;width:80px;" id="zbiornik-nr-input">
-            </div>
+            <div class="form-label">Zbiornik <span style="color:var(--red);">*</span></div>
+            <div class="pm-tank-grid" id="zb-pick-zbiornik" style="margin-top:4px;"></div>
+            <input type="hidden" id="zbiornik-nr-input" value="">
+            <input type="hidden" id="zbiornik-id-input" value="">
           </div>
         </div>
 
@@ -198,6 +201,89 @@
 
 <script>
 let currentTyp = 'szarza';
+var _modalZbList = [];
+var _modalZbSelected = {}; // for szarza: multi-select; for zbiornik: single-select
+
+async function _loadModalZbiorniki() {
+    if (_modalZbList.length > 0) return;
+    var [zbResp, prResp] = await Promise.all([fetch('/api/zbiorniki'), fetch('/api/produkty')]);
+    _modalZbList = await zbResp.json();
+    window._modalProdukty = await prResp.json();
+}
+
+function _getKodForProdukt(produktName) {
+    var list = window._modalProdukty || [];
+    var p = list.find(function(pr) { return pr.nazwa === produktName; });
+    return p ? p.kod : '';
+}
+
+function _renderZbPills(containerId, produktName, multiSelect) {
+    var container = document.getElementById(containerId);
+    if (!container) return;
+    var kod = _getKodForProdukt(produktName);
+    var matched = kod ? _modalZbList.filter(function(z) { return z.kod_produktu === kod; }) : [];
+    var rest = _modalZbList.filter(function(z) { return !z.kod_produktu || z.kod_produktu !== kod; });
+
+    var html = '';
+    matched.forEach(function(z) {
+        html += '<button type="button" class="pm-tank-pill" data-zid="' + z.id + '" data-nr="' + z.nr_zbiornika + '" onclick="_toggleModalZb(this,' + z.id + ',\'' + z.nr_zbiornika + '\',' + (multiSelect ? 'true' : 'false') + ')">' +
+            '<span class="pm-pill-nr">' + z.nr_zbiornika + '</span>' +
+            '<span class="pm-pill-cap">' + (z.max_pojemnosc || '?') + 't</span>' +
+        '</button>';
+    });
+    if (rest.length > 0 && matched.length > 0) {
+        html += '<details class="pm-other-tanks" style="width:100%;"><summary class="pm-other-label">Inne (' + rest.length + ')</summary><div class="pm-tank-grid" style="margin-top:6px;">';
+        rest.forEach(function(z) {
+            html += '<button type="button" class="pm-tank-pill pm-pill-dim" data-zid="' + z.id + '" data-nr="' + z.nr_zbiornika + '" onclick="_toggleModalZb(this,' + z.id + ',\'' + z.nr_zbiornika + '\',' + (multiSelect ? 'true' : 'false') + ')">' +
+                '<span class="pm-pill-nr">' + z.nr_zbiornika + '</span>' +
+                '<span class="pm-pill-cap">' + (z.produkt || '') + '</span>' +
+            '</button>';
+        });
+        html += '</div></details>';
+    } else if (rest.length > 0) {
+        rest.forEach(function(z) {
+            html += '<button type="button" class="pm-tank-pill pm-pill-dim" data-zid="' + z.id + '" data-nr="' + z.nr_zbiornika + '" onclick="_toggleModalZb(this,' + z.id + ',\'' + z.nr_zbiornika + '\',' + (multiSelect ? 'true' : 'false') + ')">' +
+                '<span class="pm-pill-nr">' + z.nr_zbiornika + '</span>' +
+                '<span class="pm-pill-cap">' + (z.produkt || '') + '</span>' +
+            '</button>';
+        });
+    }
+    container.innerHTML = html || '<span style="font-size:11px;color:var(--text-dim);">Brak zbiorników</span>';
+}
+
+function _toggleModalZb(btn, zid, nr, multiSelect) {
+    if (!multiSelect) {
+        // Single select — deselect others
+        btn.closest('.pm-tank-grid').querySelectorAll('.pm-tank-pill').forEach(function(p) { p.classList.remove('pm-pill-active'); });
+        var details = btn.closest('.form-row');
+        if (details) details.querySelectorAll('.pm-tank-pill').forEach(function(p) { p.classList.remove('pm-pill-active'); });
+        _modalZbSelected = {};
+    }
+    if (_modalZbSelected[zid]) {
+        delete _modalZbSelected[zid];
+        btn.classList.remove('pm-pill-active');
+    } else {
+        _modalZbSelected[zid] = {id: zid, nr: nr};
+        btn.classList.add('pm-pill-active');
+    }
+    // Update hidden inputs for zbiornik type
+    if (currentTyp === 'zbiornik') {
+        var keys = Object.keys(_modalZbSelected);
+        var sel = keys.length > 0 ? _modalZbSelected[keys[0]] : null;
+        document.getElementById('zbiornik-nr-input').value = sel ? sel.nr : '';
+        document.getElementById('zbiornik-id-input').value = sel ? sel.id : '';
+    }
+}
+
+async function _onProductSelected(produktName) {
+    await _loadModalZbiorniki();
+    _modalZbSelected = {};
+    if (currentTyp === 'zbiornik') {
+        _renderZbPills('zb-pick-zbiornik', produktName, false);
+    } else {
+        _renderZbPills('zb-pick-szarza', produktName, true);
+    }
+}
 
 function openNewBatchModal() {
   document.getElementById('reg-modal').classList.add('show');
@@ -259,6 +345,7 @@ function quickPick(btn, product, context) {
   selected.querySelector('.product-selected-name').textContent = shortName;
   selected.querySelector('.sb-full').textContent = product;
   fetchAutoNr(product, context);
+  _onProductSelected(product);
 }
 
 function pickProduct(el) {
@@ -272,6 +359,7 @@ function pickProduct(el) {
   selected.querySelector('.product-selected-name').textContent = shortName;
   selected.querySelector('.sb-full').textContent = product;
   fetchAutoNr(product, currentTyp);
+  _onProductSelected(product);
 }
 
 function fetchAutoNr(product, context) {
@@ -366,11 +454,11 @@ document.getElementById('new-batch-form').addEventListener('submit', function(e)
     }
   }
 
-  // Validate nr zbiornika (zbiornik only)
+  // Validate zbiornik selection (zbiornik only)
   if (currentTyp === 'zbiornik') {
-    var zbInput = document.getElementById('zbiornik-nr-input');
-    if (zbInput && !zbInput.value.trim()) {
-      errors.push({msg: 'Podaj numer zbiornika', el: zbInput});
+    var zbNrVal = document.getElementById('zbiornik-nr-input').value;
+    if (!zbNrVal) {
+      errors.push({msg: 'Wybierz zbiornik', target: '#zb-pick-zbiornik'});
     }
   }
 
@@ -397,7 +485,7 @@ document.getElementById('new-batch-form').addEventListener('submit', function(e)
     }
   }
 
-  // Sync zbiornik nr_partii + save nr_zbiornika as nr_mieszalnika
+  // Sync zbiornik nr_partii + save nr_zbiornika
   if (currentTyp === 'zbiornik') {
     var manualCbZb = document.getElementById('manual-nr-zbiornik');
     if (manualCbZb && manualCbZb.checked) {
@@ -408,14 +496,14 @@ document.getElementById('new-batch-form').addEventListener('submit', function(e)
     document.getElementById('nr-partii-input').value = zbVal;
     document.getElementById('nr-partii-input-zb').removeAttribute('name');
     document.getElementById('nr-partii-input').removeAttribute('readonly');
-    // Compose nr_zbiornika from "M" + number input
-    var zbNrInput = document.getElementById('zbiornik-nr-input');
-    if (zbNrInput && zbNrInput.value.trim()) {
+    // Use selected zbiornik nr from pill
+    var zbNr = document.getElementById('zbiornik-nr-input').value;
+    if (zbNr) {
       var hidden = document.createElement('input');
       hidden.type = 'hidden';
       hidden.name = 'nr_zbiornika';
-      hidden.value = 'M' + zbNrInput.value.trim();
-      zbNrInput.form.appendChild(hidden);
+      hidden.value = zbNr;
+      document.getElementById('new-batch-form').appendChild(hidden);
     }
   }
 });
