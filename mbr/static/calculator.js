@@ -9,10 +9,8 @@
  *   4. "Zatwierdz wynik" writes average to form field + saves complete samples
  */
 
-if (typeof CALC_METHODS !== 'undefined') { /* already loaded */ } else {
-
-// CALC_METHODS loaded from /api/parametry/calc-methods at page load.
-// Legacy tag-based keys (procent_*) are generated as aliases for backward compatibility.
+// Guard: only load CALC_METHODS once (may be loaded from multiple script tags)
+if (typeof CALC_METHODS === 'undefined') {
 var CALC_METHODS = {};
 
 (function loadCalcMethods() {
@@ -41,6 +39,7 @@ var CALC_METHODS = {};
             }
         });
 })();
+} // end CALC_METHODS guard
 
 function _normalizeDecimal(value) {
     return value.replace(',', '.');
@@ -740,4 +739,4 @@ window.onSampleInputFull = onSampleInputFull;
 window.updateResultsFull = updateResultsFull;
 window.onTitrantChange = onTitrantChange;
 
-} // end guard: CALC_METHODS already defined
+// end calculator.js
