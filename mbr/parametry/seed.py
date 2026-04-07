@@ -646,6 +646,6 @@ if __name__ == "__main__":
     db = get_db()
     init_mbr_tables(db)
     seed(db)
-    seed_metody(db)
     seed_from_seed_mbr(db)
+    seed_metody(db)
     db.close()

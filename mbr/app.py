@@ -58,6 +58,20 @@ def create_app():
     with app.app_context():
         with db_session() as db:
             init_mbr_tables(db)
+            # Fix metoda_id links for parameters created after seed_metody ran
+            from mbr.parametry.seed import _PARAM_METHOD_MAP
+            nazwa_to_id = {
+                r[0]: r[1]
+                for r in db.execute("SELECT nazwa, id FROM metody_miareczkowe").fetchall()
+            }
+            for kod, nazwa in _PARAM_METHOD_MAP.items():
+                mid = nazwa_to_id.get(nazwa)
+                if mid:
+                    db.execute(
+                        "UPDATE parametry_analityczne SET metoda_id=? WHERE kod=? AND metoda_id IS NULL",
+                        (mid, kod),
+                    )
+            db.commit()
 
     return app
 
