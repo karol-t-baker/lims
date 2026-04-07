@@ -20,10 +20,15 @@ from mbr.shared.decorators import login_required, role_required
 def api_registry():
     produkt = request.args.get("produkt", "Chegina_K7")
     typ = request.args.get("typ", "")
+    offset = request.args.get("offset", 0, type=int)
+    limit = 50
     with db_session() as db:
-        batches = list_completed_registry(db, produkt=produkt, typ=typ or None)
+        batches = list_completed_registry(db, produkt=produkt, typ=typ or None, limit=limit + 1, offset=offset)
+        has_more = len(batches) > limit
+        if has_more:
+            batches = batches[:limit]
         columns = get_registry_columns(db, produkt)
-    return jsonify({"batches": batches, "columns": columns, "produkt": produkt})
+    return jsonify({"batches": batches, "columns": columns, "produkt": produkt, "has_more": has_more, "offset": offset})
 
 
 @registry_bp.route("/api/registry/<int:ebr_id>/cancel", methods=["POST"])
