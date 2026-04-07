@@ -130,8 +130,8 @@ def get_korekty(db: sqlite3.Connection, ebr_id: int, etap: str = None) -> list[d
 # ---------------------------------------------------------------------------
 
 # Process stages that get tracked (before standaryzacja)
-PROCESS_STAGES_K7 = ["amidowanie", "smca", "czwartorzedowanie", "sulfonowanie", "utlenienie"]
-PROCESS_STAGES_GLOL = ["amidowanie", "smca", "czwartorzedowanie", "sulfonowanie", "utlenienie", "rozjasnianie"]
+PROCESS_STAGES_K7 = ["amidowanie", "namca", "czwartorzedowanie", "sulfonowanie", "utlenienie"]
+PROCESS_STAGES_GLOL = ["amidowanie", "namca", "czwartorzedowanie", "sulfonowanie", "utlenienie", "rozjasnianie"]
 
 ROZJASNIANIE_PRODUCTS = {"Chegina_K40GLOL", "Chegina_K40GLOS", "Chegina_K40GLOL_HQ", "Chegina_K40GLN", "Chegina_GLOL40", "Chegina_K40GLO"}
 
@@ -143,8 +143,24 @@ FULL_PIPELINE_PRODUCTS = {
 
 
 def get_process_stages(produkt: str) -> list[str]:
-    """Return ordered list of process stage names for a product.
-    Returns empty list for products without full pipeline (ETAPY_SIMPLE)."""
+    """Return ordered list of process stage codes for a product.
+    Reads from produkt_etapy table, falls back to hardcoded lists."""
+    from mbr.db import get_db
+    try:
+        db = get_db()
+        rows = db.execute(
+            """SELECT pe.etap_kod FROM produkt_etapy pe
+               JOIN etapy_procesowe ep ON ep.kod = pe.etap_kod
+               WHERE pe.produkt = ? AND ep.aktywny = 1
+               ORDER BY pe.kolejnosc""",
+            (produkt,),
+        ).fetchall()
+        db.close()
+        if rows:
+            return [r["etap_kod"] for r in rows]
+    except Exception:
+        pass
+    # Fallback to hardcoded
     if produkt not in FULL_PIPELINE_PRODUCTS:
         return []
     if produkt in ROZJASNIANIE_PRODUCTS:
@@ -152,7 +168,7 @@ def get_process_stages(produkt: str) -> list[str]:
     return list(PROCESS_STAGES_K7)
 
 
-PARALLEL_STAGES = {"amidowanie", "smca"}
+PARALLEL_STAGES = {"amidowanie", "smca", "namca"}
 
 
 def init_etapy_status(db: sqlite3.Connection, ebr_id: int, produkt: str) -> None:

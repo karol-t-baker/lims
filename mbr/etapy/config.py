@@ -3,14 +3,14 @@
 ETAPY_ANALIZY = {
     "Chegina_K7": {
         "amidowanie":        {"label": "Amidowanie",        "korekty": ["DMAPA", "Wydłużenie czasu"], "korekta_po_fakcie": True},
-        "smca":              {"label": "Wytworzenie SMCA",  "korekty": ["NaOH", "MCA"], "korekta_po_fakcie": True},
+        "namca":             {"label": "NaMCA",             "korekty": ["NaOH", "MCA"], "korekta_po_fakcie": True},
         "czwartorzedowanie": {"label": "Czwartorzędowanie", "korekty": ["NaOH", "MCA", "HCl"]},
         "sulfonowanie":      {"label": "Sulfonowanie",      "korekty": ["Na2SO3"]},
         "utlenienie":        {"label": "Utlenienie",        "korekty": ["Perhydrol"]},
     },
     "Chegina_K40GLOL": {
         "amidowanie":        {"label": "Amidowanie",        "korekty": ["DMAPA", "Wydłużenie czasu"], "korekta_po_fakcie": True},
-        "smca":              {"label": "Wytworzenie SMCA",  "korekty": ["NaOH", "MCA"], "korekta_po_fakcie": True},
+        "namca":             {"label": "NaMCA",             "korekty": ["NaOH", "MCA"], "korekta_po_fakcie": True},
         "czwartorzedowanie": {"label": "Czwartorzędowanie", "korekty": ["NaOH", "MCA", "HCl"]},
         "sulfonowanie":      {"label": "Sulfonowanie",      "korekty": ["Na2SO3"]},
         "utlenienie":        {"label": "Utlenienie",        "korekty": ["Kw. cytrynowy", "Perhydrol"]},
@@ -26,7 +26,7 @@ ETAPY_ANALIZY = {
                 {"nr": 2, "label": "Zakończenie destylacji", "parametry": ["la", "barwa_fau"]},
             ],
         },
-        "smca": {"label": "Wytworzenie SMCA", "korekty": ["NaOH", "MCA"], "korekta_po_fakcie": True},
+        "namca": {"label": "NaMCA", "korekty": ["NaOH", "MCA"], "korekta_po_fakcie": True},
         "czwartorzedowanie": {
             "label": "Czwartorzędowanie",
             "korekty": ["NaOH", "MCA", "HCl"],
@@ -89,7 +89,8 @@ OCR_KOD_MAP = {
 # OCR etap name → LIMS etap name mapping
 OCR_ETAP_MAP = {
     "amid": "amidowanie",
-    "smca": "smca",
+    "smca": "namca",
+    "namca": "namca",
     "czwartorzedowanie": "czwartorzedowanie",
     "sulfonowanie": "sulfonowanie",
     "utlenienie": "utlenienie",
