@@ -336,8 +336,8 @@ async function openCalculatorFull(metoda_id, kod, sekcja, nawazka) {
 }
 
 function calcSample(sample, method) {
-    const m = parseFloat(sample.m);
-    const v = parseFloat(sample.v);
+    const m = parseFloat(String(sample.m).replace(',', '.'));
+    const v = parseFloat(String(sample.v).replace(',', '.'));
     if (isNaN(m) || isNaN(v) || m === 0) return null;
     return (v * method.factor) / m;
 }
@@ -346,13 +346,13 @@ function calcSampleFull(sample, method) {
     if (!sample.on) return null;
     var vars = {};
     if (method.mass_required) {
-        var m = parseFloat(sample.m);
+        var m = parseFloat(String(sample.m).replace(',', '.'));
         if (isNaN(m) || m === 0) return null;
         vars.M = m;
     }
     // Volumes
     for (var i = 0; i < method.volumes.length; i++) {
-        var v = parseFloat(sample.vols[i]);
+        var v = parseFloat(String(sample.vols[i]).replace(',', '.'));
         if (isNaN(v)) return null;
         vars['V' + (i + 1)] = v;
     }
