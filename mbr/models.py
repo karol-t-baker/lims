@@ -135,6 +135,22 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             dt_dodania TEXT,
             UNIQUE(ebr_id, zbiornik_id)
         );
+
+        CREATE TABLE IF NOT EXISTS etapy_procesowe (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            kod TEXT UNIQUE NOT NULL,
+            label TEXT NOT NULL,
+            aktywny INTEGER DEFAULT 1
+        );
+
+        CREATE TABLE IF NOT EXISTS produkt_etapy (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            produkt TEXT NOT NULL,
+            etap_kod TEXT NOT NULL,
+            kolejnosc INTEGER DEFAULT 0,
+            rownolegle INTEGER DEFAULT 0,
+            UNIQUE(produkt, etap_kod)
+        );
     """)
     # Seed zbiorniki (tanks) — INSERT OR IGNORE for idempotency
     _ZBIORNIKI_SEED = [
@@ -200,6 +216,81 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
                 "UPDATE zbiorniki SET kod_produktu = ? WHERE produkt = ? AND (kod_produktu IS NULL OR kod_produktu = '')",
                 (kod, zb_prod),
             )
+
+    db.commit()
+
+    # Migration: add jednostka column to parametry_analityczne
+    pa_cols = [r[1] for r in db.execute("PRAGMA table_info(parametry_analityczne)").fetchall()]
+    if "jednostka" not in pa_cols:
+        db.execute("ALTER TABLE parametry_analityczne ADD COLUMN jednostka TEXT")
+
+    # Migration: add target column to parametry_etapy
+    pe_cols = [r[1] for r in db.execute("PRAGMA table_info(parametry_etapy)").fetchall()]
+    if "target" not in pe_cols:
+        db.execute("ALTER TABLE parametry_etapy ADD COLUMN target REAL")
+
+    # Migration: recreate parametry_analityczne without CHECK constraint on typ
+    # (allows 'binarny' type; SQLite can't ALTER CHECK)
+    try:
+        db.execute("INSERT INTO parametry_analityczne (kod,label,typ) VALUES ('__test_binarny','test','binarny')")
+        db.execute("DELETE FROM parametry_analityczne WHERE kod='__test_binarny'")
+    except Exception:
+        db.executescript("""
+            CREATE TABLE parametry_analityczne_new (
+                id              INTEGER PRIMARY KEY,
+                kod             TEXT NOT NULL UNIQUE,
+                label           TEXT NOT NULL,
+                typ             TEXT NOT NULL,
+                metoda_nazwa    TEXT,
+                metoda_formula  TEXT,
+                metoda_factor   REAL,
+                formula         TEXT,
+                precision       INTEGER DEFAULT 2,
+                aktywny         INTEGER DEFAULT 1,
+                skrot           TEXT,
+                metoda_id       INTEGER,
+                jednostka       TEXT
+            );
+            INSERT INTO parametry_analityczne_new SELECT id, kod, label, typ, metoda_nazwa, metoda_formula, metoda_factor, formula, precision, aktywny, skrot, metoda_id, jednostka FROM parametry_analityczne;
+            DROP TABLE parametry_analityczne;
+            ALTER TABLE parametry_analityczne_new RENAME TO parametry_analityczne;
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_pa_kod ON parametry_analityczne(kod);
+        """)
+
+    # Seed etapy_procesowe
+    _ETAPY_SEED = [
+        ("amidowanie", "Amidowanie"), ("namca", "NaMCA"),
+        ("czwartorzedowanie", "Czwartorzędowanie"), ("sulfonowanie", "Sulfonowanie"),
+        ("utlenienie", "Utlenienie"), ("rozjasnianie", "Rozjaśnianie"),
+        ("standaryzacja", "Standaryzacja"), ("analiza_koncowa", "Analiza końcowa"),
+        ("dodatki", "Dodatki standaryzacyjne"),
+    ]
+    for kod, label in _ETAPY_SEED:
+        db.execute("INSERT OR IGNORE INTO etapy_procesowe (kod, label) VALUES (?, ?)", (kod, label))
+
+    # Seed produkt_etapy (K7 pipeline)
+    _K7_PRODUCTS = ["Chegina_K7", "Chegina_K40GL"]
+    _K7_STAGES = [("amidowanie", 1, 1), ("namca", 2, 1), ("czwartorzedowanie", 3, 0),
+                  ("sulfonowanie", 4, 0), ("utlenienie", 5, 0)]
+    for prod in _K7_PRODUCTS:
+        for etap, kolej, rown in _K7_STAGES:
+            db.execute("INSERT OR IGNORE INTO produkt_etapy (produkt, etap_kod, kolejnosc, rownolegle) VALUES (?,?,?,?)",
+                       (prod, etap, kolej, rown))
+
+    # Seed produkt_etapy (GLOL pipeline — K7 + rozjasnianie)
+    _GLOL_PRODUCTS = ["Chegina_K40GLO", "Chegina_K40GLOL", "Chegina_K40GLOS",
+                      "Chegina_K40GLOL_HQ", "Chegina_K40GLN", "Chegina_GLOL40"]
+    _GLOL_STAGES = _K7_STAGES + [("rozjasnianie", 6, 0)]
+    for prod in _GLOL_PRODUCTS:
+        for etap, kolej, rown in _GLOL_STAGES:
+            db.execute("INSERT OR IGNORE INTO produkt_etapy (produkt, etap_kod, kolejnosc, rownolegle) VALUES (?,?,?,?)",
+                       (prod, etap, kolej, rown))
+
+    # Migration: rename smca → namca in existing data
+    db.execute("UPDATE OR IGNORE parametry_etapy SET kontekst = 'namca' WHERE kontekst = 'smca'")
+    db.execute("UPDATE OR IGNORE ebr_etapy_status SET etap = 'namca' WHERE etap = 'smca'")
+    db.execute("UPDATE OR IGNORE ebr_etapy_analizy SET etap = 'namca' WHERE etap = 'smca'")
+    db.execute("UPDATE OR IGNORE produkt_etapy SET etap_kod = 'namca' WHERE etap_kod = 'smca'")
 
     db.commit()
 
