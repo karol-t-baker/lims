@@ -18,20 +18,22 @@ from pathlib import Path
 # Path resolution — supports PyInstaller frozen mode
 # ---------------------------------------------------------------------------
 
+_FROZEN = getattr(sys, "frozen", False)
+
 _BUNDLE_DIR = os.environ.get("LABCORE_BUNDLE_DIR")
 if _BUNDLE_DIR:
-    # Launched via launcher.py (frozen or dev)
+    # Launched via launcher.py (frozen or dev) — LABCORE_BUNDLE_DIR = repo root
     sys.path.insert(0, _BUNDLE_DIR)
-    APP_DIR = Path(_BUNDLE_DIR) / "coa_app" if not getattr(sys, "frozen", False) else Path(sys._MEIPASS)
 else:
     # Direct python app.py (legacy dev mode)
     sys.path.insert(0, str(Path(__file__).parent.parent))
-    APP_DIR = Path(__file__).parent
+
+APP_DIR = Path(sys._MEIPASS) if _FROZEN else Path(__file__).parent
 
 _DATA_DIR_ENV = os.environ.get("LABCORE_DATA_DIR")
 DATA_DIR = Path(_DATA_DIR_ENV) if _DATA_DIR_ENV else APP_DIR / "data"
 DB_PATH = DATA_DIR / "batch_db.sqlite"
-MBR_DIR = Path(sys._MEIPASS) / "mbr" if getattr(sys, "frozen", False) else APP_DIR.parent / "mbr"
+MBR_DIR = Path(sys._MEIPASS) / "mbr" if _FROZEN else APP_DIR.parent / "mbr"
 
 DEFAULT_SERVER = "http://labcore.local:5001"
 DEFAULT_OUTPUT_DIR = str(Path.home() / "Desktop" / "Swiadectwa")
