@@ -200,7 +200,13 @@ async function openCalculator(tag, kod, sekcja, calcMethod) {
         const resp = await fetch(`/api/ebr/${_calcState.ebrId}/samples/${sekcja}/${kod}`);
         const data = await resp.json();
         if (data.samples && data.samples.length > 0) {
-            _calcState.samples = data.samples;
+            // Normalize comma→dot in loaded values
+            _calcState.samples = data.samples.map(function(s) {
+                return {
+                    m: s.m ? String(s.m).replace(',', '.') : '',
+                    v: s.v ? String(s.v).replace(',', '.') : ''
+                };
+            });
         }
     } catch(e) {
         // use defaults
@@ -324,8 +330,10 @@ async function openCalculatorFull(metoda_id, kod, sekcja, nawazka) {
         if (sData.samples && sData.samples.length > 0) {
             _calcState.samples = sData.samples.map(function(s) {
                 return {
-                    m: s.m || '',
-                    vols: s.vols || new Array(nVols).fill(''),
+                    m: s.m ? String(s.m).replace(',', '.') : '',
+                    vols: (s.vols || new Array(nVols).fill('')).map(function(v) {
+                        return v ? String(v).replace(',', '.') : '';
+                    }),
                     on: true
                 };
             });
