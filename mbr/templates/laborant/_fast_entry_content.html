@@ -811,6 +811,7 @@
 </div>
 
 <script>
+console.log('[fast_entry] script start');
 {# Set globals for this batch — use var so re-loading a different batch doesn't throw const-redeclaration error #}
 window.ebrId = {{ ebr.ebr_id }};
 window._batchProdukt = "{{ ebr.produkt }}";
@@ -1763,9 +1764,11 @@ function _getBatchKod() {
 }
 
 async function openPumpModal() {
+    try {
     await loadZbiornikList();
     _pumpSelected = {};
 
+    var produkt = window._batchProdukt || '';
     var batchKod = _getBatchKod();
     var matched = batchKod
         ? _zbiornikList.filter(function(z) { return z.kod_produktu === batchKod; })
@@ -1836,6 +1839,7 @@ async function openPumpModal() {
     var div = document.createElement('div');
     div.innerHTML = html;
     document.body.appendChild(div.firstChild);
+    } catch(e) { console.error('[openPumpModal] error:', e); alert('Błąd: ' + e.message); }
 }
 
 function closePumpModal() {

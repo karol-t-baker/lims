@@ -32,7 +32,7 @@ def szarze_list():
 
 
 @laborant_bp.route("/laborant/szarze/new", methods=["POST"])
-@role_required("laborant", "laborant_kj")
+@role_required("laborant", "laborant_kj", "admin")
 def szarze_new():
     import sqlite3
     with db_session() as db:
@@ -119,7 +119,7 @@ def fast_entry_partial(ebr_id):
 
 
 @laborant_bp.route("/laborant/ebr/<int:ebr_id>/save", methods=["POST"])
-@role_required("laborant", "laborant_kj")
+@role_required("laborant", "laborant_kj", "admin")
 def save_entry(ebr_id):
     data = request.get_json(silent=True)
     if not data:
@@ -197,7 +197,7 @@ def get_audit_log(ebr_id):
 
 
 @laborant_bp.route("/laborant/ebr/<int:ebr_id>/complete", methods=["POST"])
-@role_required("laborant", "laborant_kj")
+@role_required("laborant", "laborant_kj", "admin")
 def complete_entry(ebr_id):
     data = request.get_json(silent=True) or {}
     zbiorniki = data.get("zbiorniki")
