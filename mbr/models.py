@@ -231,11 +231,20 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
 
     # Migration: recreate parametry_analityczne without CHECK constraint on typ
     # (allows 'binarny' type; SQLite can't ALTER CHECK)
+    # Use separate connection to avoid transaction issues
+    _needs_check_migration = False
     try:
         db.execute("INSERT INTO parametry_analityczne (kod,label,typ) VALUES ('__test_binarny','test','binarny')")
         db.execute("DELETE FROM parametry_analityczne WHERE kod='__test_binarny'")
     except Exception:
-        db.executescript("""
+        _needs_check_migration = True
+        db.rollback()
+
+    if _needs_check_migration:
+        import sqlite3 as _sq
+        _mdb = _sq.connect(str(DB_PATH))
+        _mdb.executescript("""
+            DROP TABLE IF EXISTS parametry_analityczne_new;
             CREATE TABLE parametry_analityczne_new (
                 id              INTEGER PRIMARY KEY,
                 kod             TEXT NOT NULL UNIQUE,
@@ -256,6 +265,7 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             ALTER TABLE parametry_analityczne_new RENAME TO parametry_analityczne;
             CREATE UNIQUE INDEX IF NOT EXISTS idx_pa_kod ON parametry_analityczne(kod);
         """)
+        _mdb.close()
 
     # Seed etapy_procesowe
     _ETAPY_SEED = [
