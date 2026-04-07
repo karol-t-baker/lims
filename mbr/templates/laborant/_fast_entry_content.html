@@ -1693,11 +1693,48 @@ async function loadZbiornikList() {
     _zbiornikList = await resp.json();
 }
 
+function _zbiornikMatchesProduct(zbProdukt, batchProdukt) {
+    if (!zbProdukt || !batchProdukt) return false;
+    // Normalize: "Chegina_K40GLOL" → "cheginak40glol", "Cheginy GLOL" → "cheginyglol"
+    var a = batchProdukt.toLowerCase().replace(/[_ ]/g, '');
+    var b = zbProdukt.toLowerCase().replace(/[_ ]/g, '');
+    // Match if one contains the other, or shared root (drop common suffixes)
+    if (a.indexOf(b) >= 0 || b.indexOf(a) >= 0) return true;
+    // Extract product code: "cheginak40glol" → "glol", "cheginyglol" → "glol"
+    var codeA = a.replace(/^chegin[ay]*/, '').replace(/^k40/, '').replace(/^k7/, '');
+    var codeB = b.replace(/^chegin[ay]*/, '').replace(/^k40/, '').replace(/^k7/, '');
+    if (codeA && codeB && codeA === codeB) return true;
+    // Chelamid, Alkinol etc — direct substring
+    var rootA = a.replace(/[^a-z]/g, '');
+    var rootB = b.replace(/[^a-z]/g, '');
+    if (rootA.length > 4 && rootB.length > 4 && (rootA.indexOf(rootB) >= 0 || rootB.indexOf(rootA) >= 0)) return true;
+    return false;
+}
+
 function _buildZbiornikOptions() {
-    var html = '<option value="">Wybierz...</option>';
+    var produkt = window._batchProdukt || '';
+    var matched = [];
+    var rest = [];
     _zbiornikList.forEach(function(z) {
-        html += '<option value="' + z.id + '">' + z.nr_zbiornika + ' (' + (z.produkt || '') + ', ' + (z.max_pojemnosc || '?') + 't)</option>';
+        var label = z.nr_zbiornika + ' (' + (z.produkt || '') + ', ' + (z.max_pojemnosc || '?') + 't)';
+        var opt = {id: z.id, label: label};
+        if (_zbiornikMatchesProduct(z.produkt, produkt)) {
+            matched.push(opt);
+        } else {
+            rest.push(opt);
+        }
     });
+    var html = '<option value="">Wybierz...</option>';
+    if (matched.length > 0) {
+        html += '<optgroup label="Pasujące">';
+        matched.forEach(function(o) { html += '<option value="' + o.id + '">' + o.label + '</option>'; });
+        html += '</optgroup>';
+    }
+    if (rest.length > 0) {
+        html += '<optgroup label="Pozostałe">';
+        rest.forEach(function(o) { html += '<option value="' + o.id + '">' + o.label + '</option>'; });
+        html += '</optgroup>';
+    }
     return html;
 }
 
