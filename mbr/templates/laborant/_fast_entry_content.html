@@ -138,6 +138,14 @@
   transition: all 0.15s;
 }
 .ped-del:hover { background: var(--red-bg, #fef2f2); color: var(--red); }
+.ped-grip {
+  cursor: grab; color: var(--text-dim); font-size: 14px; user-select: none;
+  width: 20px; flex-shrink: 0; text-align: center; opacity: 0.4;
+  transition: opacity 0.15s;
+}
+.ped-grip:hover { opacity: 1; }
+.ped-row.dragging { opacity: 0.4; background: var(--teal-bg); }
+.ped-row.drag-over { border-top: 2px solid var(--teal); margin-top: -2px; }
 
 /* Add param row */
 .ped-add {
@@ -2849,7 +2857,8 @@ function renderParamEditor() {
   _peBindings.forEach(function(b, i) {
     var typCls = b.typ === 'titracja' ? 'ped-typ-t' : b.typ === 'obliczeniowy' ? 'ped-typ-o' : 'ped-typ-b';
     var typLabel = b.typ === 'titracja' ? 'miarecz.' : b.typ === 'obliczeniowy' ? 'oblicz.' : 'bezpośr.';
-    html += '<div class="ped-row" id="ped-' + i + '">' +
+    html += '<div class="ped-row" id="ped-' + i + '" draggable="true" data-idx="' + i + '">' +
+      '<span class="ped-grip" title="Przeciągnij aby zmienić kolejność">⠿</span>' +
       '<span class="ped-kod">' + esc(b.kod) + '</span>' +
       '<span class="ped-label">' + esc(b.skrot || b.label) + '</span>' +
       '<span class="ped-typ ' + typCls + '">' + typLabel + '</span>' +
@@ -2860,6 +2869,9 @@ function renderParamEditor() {
   });
 
   document.getElementById('pe-list').innerHTML = html || '<div style="color:var(--text-dim);font-size:11px;padding:8px;">Brak parametrów</div>';
+
+  // Setup drag & drop
+  _peSetupDragDrop();
 
   // Update add dropdown
   var sel = document.getElementById('pe-add-select');
@@ -2949,6 +2961,65 @@ function peSaveLimits() {
       // Reload batch to pick up new parametry_lab
       if (typeof loadBatch === 'function') loadBatch(ebrId);
     }
+  });
+}
+
+// ═══ PARAM DRAG & DROP ═══
+
+var _peDragIdx = null;
+
+function _peSetupDragDrop() {
+  var rows = document.querySelectorAll('.ped-row[draggable]');
+  rows.forEach(function(row) {
+    row.addEventListener('dragstart', function(e) {
+      _peDragIdx = parseInt(row.dataset.idx);
+      row.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    row.addEventListener('dragend', function() {
+      row.classList.remove('dragging');
+      document.querySelectorAll('.ped-row').forEach(function(r) { r.classList.remove('drag-over'); });
+    });
+    row.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      document.querySelectorAll('.ped-row').forEach(function(r) { r.classList.remove('drag-over'); });
+      if (parseInt(row.dataset.idx) !== _peDragIdx) row.classList.add('drag-over');
+    });
+    row.addEventListener('dragleave', function() {
+      row.classList.remove('drag-over');
+    });
+    row.addEventListener('drop', function(e) {
+      e.preventDefault();
+      var dropIdx = parseInt(row.dataset.idx);
+      if (_peDragIdx === null || _peDragIdx === dropIdx) return;
+
+      // Reorder array
+      var item = _peBindings.splice(_peDragIdx, 1)[0];
+      _peBindings.splice(dropIdx, 0, item);
+
+      // Save new order via API
+      var bindings = _peBindings.map(function(b, i) {
+        return {id: b.binding_id, kolejnosc: i + 1};
+      });
+      fetch('/api/parametry/etapy/reorder', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({bindings: bindings})
+      }).then(function(r) { return r.json(); }).then(function(d) {
+        if (d.ok) {
+          // Auto rebuild MBR
+          fetch('/api/parametry/rebuild-mbr', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({produkt: window._batchProdukt})
+          });
+        }
+      });
+
+      renderParamEditor();
+      _peDragIdx = null;
+    });
   });
 }
 
