@@ -419,4 +419,72 @@ document.getElementById('new-batch-form').addEventListener('submit', function(e)
     }
   }
 });
+
+// --- Real-time batch number validation ---
+var _batchCheckTimer = null;
+var _batchCheckCtrl = null;
+
+function checkBatchExists(inputEl, produktInputId) {
+    clearTimeout(_batchCheckTimer);
+    if (_batchCheckCtrl) _batchCheckCtrl.abort();
+
+    var nr = inputEl.value.trim();
+    var produkt = document.getElementById(produktInputId || 'produkt-input').value;
+    var hint = inputEl.parentElement.querySelector('.batch-exists-hint');
+
+    if (!nr || !produkt) {
+        if (hint) hint.remove();
+        inputEl.classList.remove('invalid');
+        enableSubmitBtn(true);
+        return;
+    }
+
+    _batchCheckTimer = setTimeout(function() {
+        _batchCheckCtrl = new AbortController();
+        fetch('/api/batch-exists', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({produkt: produkt, nr_partii: nr}),
+            signal: _batchCheckCtrl.signal
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            if (hint) hint.remove();
+            if (d.exists) {
+                inputEl.classList.add('invalid');
+                var h = document.createElement('div');
+                h.className = 'field-error batch-exists-hint';
+                h.textContent = 'Ten numer szarży jest już w systemie';
+                inputEl.parentElement.appendChild(h);
+                enableSubmitBtn(false);
+            } else {
+                inputEl.classList.remove('invalid');
+                enableSubmitBtn(true);
+            }
+        })
+        .catch(function() {});
+    }, 300);
+}
+
+function enableSubmitBtn(enabled) {
+    var btn = document.querySelector('#new-batch-form button[type="submit"]');
+    if (btn) {
+        btn.disabled = !enabled;
+        btn.style.opacity = enabled ? '1' : '0.5';
+    }
+}
+
+// Attach to manual nr input fields
+var manualSzarza = document.getElementById('manual-nr-input-szarza');
+if (manualSzarza) {
+    manualSzarza.addEventListener('input', function() {
+        checkBatchExists(this, 'produkt-input');
+    });
+}
+var manualZbiornik = document.getElementById('manual-nr-input-zbiornik');
+if (manualZbiornik) {
+    manualZbiornik.addEventListener('input', function() {
+        checkBatchExists(this, 'produkt-input');
+    });
+}
 </script>

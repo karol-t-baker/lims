@@ -64,6 +64,22 @@ def api_next_nr(produkt):
     return jsonify({"nr_partii": nr})
 
 
+@registry_bp.route("/api/batch-exists", methods=["POST"])
+@login_required
+def api_batch_exists():
+    data = request.get_json(silent=True) or {}
+    produkt = data.get("produkt", "")
+    nr_partii = data.get("nr_partii", "")
+    if not produkt or not nr_partii:
+        return jsonify({"exists": False})
+    batch_id = f"{produkt}__{nr_partii.replace('/', '_')}"
+    with db_session() as db:
+        row = db.execute(
+            "SELECT 1 FROM ebr_batches WHERE batch_id = ?", (batch_id,)
+        ).fetchone()
+    return jsonify({"exists": bool(row)})
+
+
 @registry_bp.route("/narzedzia")
 @login_required
 def narzedzia():
