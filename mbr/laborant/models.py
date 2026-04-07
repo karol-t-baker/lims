@@ -544,6 +544,17 @@ def complete_ebr(db: sqlite3.Connection, ebr_id: int, zbiorniki: list | None = N
         "UPDATE ebr_batches SET status = 'completed', dt_end = ?, przepompowanie_json = ?, sync_seq = ? WHERE ebr_id = ?",
         (now, zbiorniki_json, next_seq, ebr_id),
     )
+
+    # Save batch→tank links in zbiornik_szarze
+    if zbiorniki:
+        for z in zbiorniki:
+            zbiornik_id = z.get("zbiornik_id")
+            if zbiornik_id:
+                db.execute(
+                    "INSERT OR REPLACE INTO zbiornik_szarze (ebr_id, zbiornik_id, masa_kg, dt_dodania) VALUES (?, ?, ?, ?)",
+                    (ebr_id, zbiornik_id, z.get("kg"), now),
+                )
+
     db.commit()
 
 
