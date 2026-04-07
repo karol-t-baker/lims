@@ -111,11 +111,19 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             UNIQUE(ebr_id, etap)
         );
 
+        CREATE TABLE IF NOT EXISTS produkty (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nazwa TEXT UNIQUE NOT NULL,
+            kod TEXT,
+            aktywny INTEGER DEFAULT 1
+        );
+
         CREATE TABLE IF NOT EXISTS zbiorniki (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nr_zbiornika TEXT UNIQUE NOT NULL,
             max_pojemnosc REAL,
             produkt TEXT,
+            kod_produktu TEXT,
             aktywny INTEGER DEFAULT 1
         );
 
@@ -146,6 +154,59 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             "INSERT OR IGNORE INTO zbiorniki (nr_zbiornika, max_pojemnosc, produkt) VALUES (?, ?, ?)",
             (nr, cap, prod),
         )
+
+    # Seed produkty with auto-derived codes
+    _PRODUKTY_SEED = [
+        # (nazwa, kod)
+        ("Chegina_K40GL", "GL"), ("Chegina_K40GLO", "GLO"), ("Chegina_K40GLOL", "GLOL"),
+        ("Chegina_K7", "K7"), ("Chegina_K40GLOS", "GLOS"), ("Chegina_K40GLOL_HQ", "GLOL_HQ"),
+        ("Chegina_K7GLO", "K7GLO"), ("Chegina_K7B", "K7B"),
+        ("Chegina_KK", "KK"), ("Chegina_CC", "CC"), ("Chegina_CCR", "CCR"),
+        ("Chegina_L9", "L9"), ("Chegina", "CHEGINA"),
+        ("Cheminox_K", "CHX_K"), ("Cheminox_K35", "CHX_K35"), ("Cheminox_LA", "CHX_LA"),
+        ("Chemipol_ML", "CPL_ML"), ("Chemipol_OL", "CPL_OL"),
+        ("Monamid_KO", "MKO"), ("Monamid_KO_Revada", "MKO_R"), ("Monamid_K", "MK"),
+        ("Monamid_L", "ML"), ("Monamid_S", "MS"),
+        ("Dister_E", "DIST_E"), ("Monester_O", "MON_O"), ("Monester_S", "MON_S"),
+        ("Alkinol", "ALK"), ("Alstermid_K", "AST_K"), ("Alstermid", "AST"),
+        ("Chemal_CS3070", "CML_CS"), ("Chemal_EO20", "CML_EO"), ("Chemal_SE12", "CML_SE"), ("Chemal_PC", "CML_PC"),
+        ("Polcet_A", "POL_A"), ("Chelamid_DK", "DK"), ("Glikoster_P", "GLIK"),
+        ("Citrowax", "CWAX"), ("Kwas_stearynowy", "KS"), ("Perlico_45", "PER45"),
+        ("SLES", "SLES"), ("HSH_CS3070", "HSH_CS"),
+    ]
+    for nazwa, kod in _PRODUKTY_SEED:
+        db.execute(
+            "INSERT OR IGNORE INTO produkty (nazwa, kod) VALUES (?, ?)",
+            (nazwa, kod),
+        )
+
+    # Map zbiornik product names → codes
+    _ZB_PRODUKT_TO_KOD = {
+        "Cheginy GLOL": "GLOL", "Cheginy GLO": "GLO", "Cheginy GL": "GL",
+        "Cheginy K7": "K7", "Cheginy KK": "KK", "Cheginy": "CHEGINA",
+        "Chelamid DK": "DK", "Chelamid": "DK",
+        "Alkohole Cetostearylowe": "ALK",
+        "DEA": "DK", "Olej palmowy": None, "Olej kokosowy": None,
+        "Kwasy kokosowe": None, "DMAPA": None,
+    }
+    for zb_prod, kod in _ZB_PRODUKT_TO_KOD.items():
+        if kod:
+            db.execute(
+                "UPDATE zbiorniki SET kod_produktu = ? WHERE produkt = ? AND (kod_produktu IS NULL OR kod_produktu = '')",
+                (kod, zb_prod),
+            )
+
+    # Migration: add kod_produktu column if missing (existing DBs)
+    cols = [r[1] for r in db.execute("PRAGMA table_info(zbiorniki)").fetchall()]
+    if "kod_produktu" not in cols:
+        db.execute("ALTER TABLE zbiorniki ADD COLUMN kod_produktu TEXT")
+
+    # Migration: add produkty table columns check
+    try:
+        db.execute("SELECT id FROM produkty LIMIT 1")
+    except Exception:
+        pass  # table created above
+
     db.commit()
 
     db.execute("""

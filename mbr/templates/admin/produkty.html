@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Produkty{% endblock %}
+{% block nav_admin %}active{% endblock %}
+
+{% block topbar_title %}
+  <span style="font-weight:700;">Produkty</span>
+{% endblock %}
+
+{% block head %}
+<style>
+.pr-wrap { padding: 24px 32px; max-width: 900px; overflow-y: auto; max-height: calc(100vh - 52px); }
+.pr-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.pr-table th { text-align: left; padding: 10px 12px; font-size: 10px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid var(--border); }
+.pr-table td { padding: 8px 12px; border-bottom: 1px solid var(--border-subtle); }
+.pr-table tr:hover { background: var(--surface-alt); }
+.pr-nazwa { font-weight: 600; }
+.pr-kod { font-family: var(--mono); font-weight: 700; font-size: 13px; color: var(--teal); }
+.pr-input { border: 1px solid transparent; background: transparent; padding: 4px 8px; border-radius: 4px; font-size: 12px; width: 100%; font-family: inherit; }
+.pr-input:hover { border-color: var(--border); }
+.pr-input:focus { border-color: var(--teal); outline: none; background: var(--surface); }
+.pr-input.kod { font-family: var(--mono); font-weight: 700; color: var(--teal); }
+.pr-toggle { cursor: pointer; padding: 3px 10px; border-radius: 12px; font-size: 10px; font-weight: 600; border: none; }
+.pr-toggle.on { background: var(--green-bg, #dcfce7); color: var(--green, #16a34a); }
+.pr-toggle.off { background: var(--red-bg, #fef2f2); color: var(--red, #dc2626); }
+.pr-add { margin-top: 16px; display: flex; gap: 8px; align-items: center; }
+.pr-add input { padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 12px; }
+.pr-add button { padding: 8px 16px; background: var(--teal); color: #fff; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.pr-add button:hover { opacity: 0.9; }
+.pr-count { font-size: 11px; color: var(--text-dim); margin-bottom: 16px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pr-wrap">
+  <div class="pr-count" id="pr-count"></div>
+  <table class="pr-table">
+    <thead>
+      <tr>
+        <th>Nazwa</th>
+        <th style="width:120px;">Kod</th>
+        <th style="width:90px;">Status</th>
+      </tr>
+    </thead>
+    <tbody id="pr-body"></tbody>
+  </table>
+
+  <div class="pr-add">
+    <input type="text" id="add-nazwa" placeholder="Nazwa produktu" style="width:200px;">
+    <input type="text" id="add-kod" placeholder="Kod" style="width:100px;font-family:var(--mono);">
+    <button onclick="addProdukt()">Dodaj</button>
+  </div>
+</div>
+
+<script>
+var _prData = [];
+
+async function loadProdukty() {
+  var resp = await fetch('/api/produkty?all=1');
+  _prData = await resp.json();
+  renderTable();
+}
+
+function renderTable() {
+  document.getElementById('pr-count').textContent = _prData.length + ' produktów';
+  var html = '';
+  _prData.forEach(function(p) {
+    html += '<tr data-id="' + p.id + '">' +
+      '<td class="pr-nazwa">' + p.nazwa.replace(/_/g, ' ') + '</td>' +
+      '<td><input class="pr-input kod" type="text" value="' + (p.kod || '') + '" onchange="saveField(' + p.id + ', \'kod\', this.value)"></td>' +
+      '<td><button class="pr-toggle ' + (p.aktywny ? 'on' : 'off') + '" onclick="toggleActive(' + p.id + ', ' + p.aktywny + ')">' + (p.aktywny ? 'Aktywny' : 'Ukryty') + '</button></td>' +
+    '</tr>';
+  });
+  document.getElementById('pr-body').innerHTML = html;
+}
+
+async function saveField(id, field, value) {
+  var body = {};
+  body[field] = value;
+  await fetch('/api/produkty/' + id, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  });
+}
+
+async function toggleActive(id, current) {
+  await saveField(id, 'aktywny', current ? 0 : 1);
+  loadProdukty();
+}
+
+async function addProdukt() {
+  var nazwa = document.getElementById('add-nazwa').value.trim();
+  var kod = document.getElementById('add-kod').value.trim();
+  if (!nazwa) return;
+  var resp = await fetch('/api/produkty', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({nazwa: nazwa, kod: kod})
+  });
+  if (resp.ok) {
+    document.getElementById('add-nazwa').value = '';
+    document.getElementById('add-kod').value = '';
+    loadProdukty();
+  }
+}
+
+loadProdukty();
+</script>
+{% endblock %}

@@ -22,7 +22,7 @@ def create_zbiornik(db: sqlite3.Connection, nr_zbiornika: str, max_pojemnosc: fl
 
 
 def update_zbiornik(db: sqlite3.Connection, zbiornik_id: int, **fields) -> None:
-    allowed = {"max_pojemnosc", "produkt", "aktywny", "nr_zbiornika"}
+    allowed = {"max_pojemnosc", "produkt", "aktywny", "nr_zbiornika", "kod_produktu"}
     updates = {k: v for k, v in fields.items() if k in allowed and v is not None}
     if not updates:
         return

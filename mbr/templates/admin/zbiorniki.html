@@ -35,6 +35,7 @@
         <th>Nr</th>
         <th>Pojemność [t]</th>
         <th>Produkt</th>
+        <th>Kod</th>
         <th>Status</th>
       </tr>
     </thead>
@@ -51,11 +52,25 @@
 
 <script>
 var _zbData = [];
+var _produktyKody = []; // [{kod, nazwa}]
 
 async function loadZbiorniki() {
-  var resp = await fetch('/api/zbiorniki?all=1');
-  _zbData = await resp.json();
+  var [zbResp, prResp] = await Promise.all([
+    fetch('/api/zbiorniki?all=1'),
+    fetch('/api/produkty')
+  ]);
+  _zbData = await zbResp.json();
+  _produktyKody = (await prResp.json()).filter(function(p) { return p.kod; });
   renderTable();
+}
+
+function _kodOptions(current) {
+  var html = '<option value="">—</option>';
+  _produktyKody.forEach(function(p) {
+    var sel = p.kod === current ? ' selected' : '';
+    html += '<option value="' + p.kod + '"' + sel + '>' + p.kod + '</option>';
+  });
+  return html;
 }
 
 function renderTable() {
@@ -65,6 +80,7 @@ function renderTable() {
       '<td class="zb-nr">' + z.nr_zbiornika + '</td>' +
       '<td><input class="zb-input" type="number" value="' + (z.max_pojemnosc || '') + '" onchange="saveField(' + z.id + ', \'max_pojemnosc\', parseFloat(this.value))"></td>' +
       '<td><input class="zb-input" type="text" value="' + (z.produkt || '') + '" onchange="saveField(' + z.id + ', \'produkt\', this.value)"></td>' +
+      '<td><select class="zb-input" style="font-family:var(--mono);font-weight:700;color:var(--teal);" onchange="saveField(' + z.id + ', \'kod_produktu\', this.value)">' + _kodOptions(z.kod_produktu) + '</select></td>' +
       '<td><button class="zb-toggle ' + (z.aktywny ? 'on' : 'off') + '" onclick="toggleActive(' + z.id + ', ' + z.aktywny + ')">' + (z.aktywny ? 'Aktywny' : 'Nieaktywny') + '</button></td>' +
     '</tr>';
   });

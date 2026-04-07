@@ -1743,35 +1743,34 @@ function doSaveField(input, sekcja, kod) {
 // ── Pump Modal: tank selection for batch completion ──────────────
 
 var _zbiornikList = [];
+var _produktyList = [];
 var _pumpSelected = {}; // {zbiornik_id: {id, nr, produkt, pojemnosc}}
 
 async function loadZbiornikList() {
     if (_zbiornikList.length > 0) return;
-    var resp = await fetch('/api/zbiorniki');
-    _zbiornikList = await resp.json();
+    var [zbResp, prResp] = await Promise.all([
+        fetch('/api/zbiorniki'),
+        fetch('/api/produkty')
+    ]);
+    _zbiornikList = await zbResp.json();
+    _produktyList = await prResp.json();
 }
 
-function _zbiornikMatchesProduct(zbProdukt, batchProdukt) {
-    if (!zbProdukt || !batchProdukt) return false;
-    var a = batchProdukt.toLowerCase().replace(/[_ ]/g, '');
-    var b = zbProdukt.toLowerCase().replace(/[_ ]/g, '');
-    if (a.indexOf(b) >= 0 || b.indexOf(a) >= 0) return true;
-    var codeA = a.replace(/^chegin[ay]*/, '').replace(/^k40/, '').replace(/^k7/, '');
-    var codeB = b.replace(/^chegin[ay]*/, '').replace(/^k40/, '').replace(/^k7/, '');
-    if (codeA && codeB && codeA === codeB) return true;
-    var rootA = a.replace(/[^a-z]/g, '');
-    var rootB = b.replace(/[^a-z]/g, '');
-    if (rootA.length > 4 && rootB.length > 4 && (rootA.indexOf(rootB) >= 0 || rootB.indexOf(rootA) >= 0)) return true;
-    return false;
+function _getBatchKod() {
+    var produkt = window._batchProdukt || '';
+    var p = _produktyList.find(function(pr) { return pr.nazwa === produkt; });
+    return p ? p.kod : '';
 }
 
 async function openPumpModal() {
     await loadZbiornikList();
     _pumpSelected = {};
 
-    var produkt = window._batchProdukt || '';
-    var matched = _zbiornikList.filter(function(z) { return _zbiornikMatchesProduct(z.produkt, produkt); });
-    var rest = _zbiornikList.filter(function(z) { return !_zbiornikMatchesProduct(z.produkt, produkt); });
+    var batchKod = _getBatchKod();
+    var matched = batchKod
+        ? _zbiornikList.filter(function(z) { return z.kod_produktu === batchKod; })
+        : [];
+    var rest = _zbiornikList.filter(function(z) { return !z.kod_produktu || z.kod_produktu !== batchKod; });
 
     // Build modal HTML
     var html =

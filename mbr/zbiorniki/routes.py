@@ -77,3 +77,59 @@ def api_unlink(link_id):
 @role_required("admin")
 def admin_zbiorniki():
     return render_template("admin/zbiorniki.html")
+
+
+# ── Produkty API ──
+
+@zbiorniki_bp.route("/api/produkty")
+@login_required
+def api_produkty():
+    include_all = request.args.get("all") == "1"
+    with db_session() as db:
+        sql = "SELECT * FROM produkty"
+        if not include_all:
+            sql += " WHERE aktywny = 1"
+        sql += " ORDER BY nazwa"
+        rows = [dict(r) for r in db.execute(sql).fetchall()]
+    return jsonify(rows)
+
+
+@zbiorniki_bp.route("/api/produkty", methods=["POST"])
+@role_required("admin")
+def api_produkty_create():
+    data = request.get_json(silent=True) or {}
+    nazwa = data.get("nazwa", "").strip()
+    kod = data.get("kod", "").strip()
+    if not nazwa:
+        return jsonify({"error": "nazwa required"}), 400
+    with db_session() as db:
+        try:
+            cur = db.execute(
+                "INSERT INTO produkty (nazwa, kod) VALUES (?, ?)",
+                (nazwa, kod),
+            )
+            db.commit()
+        except Exception:
+            return jsonify({"error": "Produkt already exists"}), 409
+    return jsonify({"ok": True, "id": cur.lastrowid})
+
+
+@zbiorniki_bp.route("/api/produkty/<int:pid>", methods=["PUT"])
+@role_required("admin")
+def api_produkty_update(pid):
+    data = request.get_json(silent=True) or {}
+    allowed = {"nazwa", "kod", "aktywny"}
+    updates = {k: v for k, v in data.items() if k in allowed and v is not None}
+    if not updates:
+        return jsonify({"ok": True})
+    set_clause = ", ".join(f"{k} = ?" for k in updates)
+    with db_session() as db:
+        db.execute(f"UPDATE produkty SET {set_clause} WHERE id = ?", [*updates.values(), pid])
+        db.commit()
+    return jsonify({"ok": True})
+
+
+@zbiorniki_bp.route("/admin/produkty")
+@role_required("admin")
+def admin_produkty():
+    return render_template("admin/produkty.html")
