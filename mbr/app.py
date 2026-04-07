@@ -40,6 +40,7 @@ def create_app():
     from mbr.technolog import technolog_bp
     from mbr.laborant import laborant_bp
     from mbr.admin import admin_bp
+    from mbr.zbiorniki import zbiorniki_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(workers_bp)
@@ -51,6 +52,7 @@ def create_app():
     app.register_blueprint(technolog_bp)
     app.register_blueprint(laborant_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(zbiorniki_bp)
 
     # Initialize database tables
     from mbr.db import db_session
