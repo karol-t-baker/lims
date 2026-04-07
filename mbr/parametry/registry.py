@@ -44,10 +44,12 @@ def get_parametry_for_kontekst(
             pe.max_limit   AS max,
             pa.precision,
             pe.nawazka_g,
+            pe.target,
             pa.formula     AS global_formula,
             pe.formula     AS binding_formula,
             pe.sa_bias,
             pa.metoda_id,
+            pa.jednostka,
             pa.metoda_nazwa,
             pa.metoda_formula,
             pa.metoda_factor,
@@ -112,6 +114,8 @@ def get_parametry_for_kontekst(
             "sa_bias": r["sa_bias"],
             "metoda_id": r["metoda_id"],
             "metoda": metoda,
+            "target": r["target"],
+            "jednostka": r["jednostka"],
         })
 
     return result
@@ -231,6 +235,10 @@ def build_parametry_lab(db: sqlite3.Connection, produkt: str) -> dict:
             }
         if p["typ"] == "obliczeniowy" and p["formula"]:
             pole["formula"] = p["formula"]
+        if p.get("target") is not None:
+            pole["target"] = p["target"]
+        if p.get("jednostka"):
+            pole["jednostka"] = p["jednostka"]
         return pole
 
     if produkt in FULL_PIPELINE_PRODUCTS:
