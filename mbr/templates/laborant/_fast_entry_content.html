@@ -68,8 +68,8 @@
   <div class="ft-pump-form" id="ft-pump-form" style="display:none;">
     <div class="ft-targets" id="ft-targets">
       <div class="ft-target-row">
-        <span class="ft-m">M</span>
-        <input class="ft-nr" type="number" min="1" max="99" placeholder="nr">
+        <select class="ft-zbiornik-select"></select>
+        <input class="ft-masa" type="text" inputmode="decimal" placeholder="kg" style="width:80px;">
       </div>
     </div>
     <button type="button" class="ft-add" onclick="addPumpTarget()" title="Dodaj zbiornik">+</button>
@@ -1687,14 +1687,30 @@ function doSaveField(input, sekcja, kod) {
 }
 
 
-function showPumpInline() {
+var _zbiornikList = [];
+async function loadZbiornikList() {
+    if (_zbiornikList.length > 0) return;
+    var resp = await fetch('/api/zbiorniki');
+    _zbiornikList = await resp.json();
+}
+
+function _buildZbiornikOptions() {
+    var html = '<option value="">Wybierz...</option>';
+    _zbiornikList.forEach(function(z) {
+        html += '<option value="' + z.id + '">' + z.nr_zbiornika + ' (' + (z.produkt || '') + ', ' + (z.max_pojemnosc || '?') + 't)</option>';
+    });
+    return html;
+}
+
+async function showPumpInline() {
+    await loadZbiornikList();
     document.getElementById('ft-pump').style.display = 'none';
     document.getElementById('ft-pump-form').style.display = 'flex';
-    // Reset to single row
+    var opts = _buildZbiornikOptions();
     document.getElementById('ft-targets').innerHTML =
-        '<div class="ft-target-row"><span class="ft-m">M</span><input class="ft-nr" type="number" min="1" max="99" placeholder="nr"></div>';
-    var inp = document.querySelector('#ft-targets .ft-nr');
-    setTimeout(function() { inp.focus(); }, 50);
+        '<div class="ft-target-row"><select class="ft-zbiornik-select">' + opts + '</select><input class="ft-masa" type="text" inputmode="decimal" placeholder="kg" style="width:80px;"></div>';
+    var sel = document.querySelector('#ft-targets .ft-zbiornik-select');
+    setTimeout(function() { sel.focus(); }, 50);
 }
 
 function hidePumpInline() {
@@ -1703,34 +1719,34 @@ function hidePumpInline() {
 }
 
 function addPumpTarget() {
+    var opts = _buildZbiornikOptions();
     var row = document.createElement('div');
     row.className = 'ft-target-row';
-    row.innerHTML = '<span class="ft-m">M</span><input class="ft-nr" type="number" min="1" max="99" placeholder="nr">';
+    row.innerHTML = '<select class="ft-zbiornik-select">' + opts + '</select><input class="ft-masa" type="text" inputmode="decimal" placeholder="kg" style="width:80px;">';
     document.getElementById('ft-targets').appendChild(row);
-    row.querySelector('.ft-nr').focus();
+    row.querySelector('.ft-zbiornik-select').focus();
 }
 
 async function doCompleteFt() {
-    var inputs = document.querySelectorAll('#ft-targets .ft-nr');
+    var rows = document.querySelectorAll('#ft-targets .ft-target-row');
     var targets = [];
     var valid = true;
-    inputs.forEach(function(inp) {
-        var nr = inp.value.trim();
-        if (!nr) {
-            inp.style.borderColor = 'var(--red)';
-            if (valid) inp.focus();
+    rows.forEach(function(row) {
+        var sel = row.querySelector('.ft-zbiornik-select');
+        var masaInput = row.querySelector('.ft-masa');
+        var zbiornikId = sel ? parseInt(sel.value) : 0;
+        if (!zbiornikId) {
+            sel.style.borderColor = 'var(--red)';
+            if (valid) sel.focus();
             valid = false;
         } else {
-            inp.style.borderColor = '';
-            targets.push({nr: 'M' + nr, kg: null});
+            sel.style.borderColor = '';
+            var nr = sel.options[sel.selectedIndex].text.split(' ')[0];
+            var masa = masaInput ? parseFloat(masaInput.value.replace(',', '.')) || null : null;
+            targets.push({nr: nr, zbiornik_id: zbiornikId, kg: masa});
         }
     });
     if (!valid || targets.length === 0) return;
-    // Distribute kg evenly if nastaw known
-    if (ebrNastaw) {
-        var perTarget = Math.round(ebrNastaw / targets.length);
-        targets.forEach(function(t) { t.kg = perTarget; });
-    }
     var btn = document.querySelector('.ft-go');
     btn.textContent = '...';
     btn.disabled = true;
@@ -1740,16 +1756,10 @@ async function doCompleteFt() {
         body: JSON.stringify({zbiorniki: targets})
     });
     if (resp.ok || resp.redirected) {
-        if (typeof showDashboard === 'function') {
-            showDashboard();
-            location.href = '/laborant/szarze';
-        } else {
-            location.href = '/laborant/szarze';
-        }
+        location.href = '/laborant/szarze';
     }
 }
 
-// Keep completePompuj as alias for decision-bar buttons
 function completePompuj() { showPumpInline(); }
 
 function completeSimple() {
