@@ -300,6 +300,12 @@
   .sr-status { font-size: 10px; font-weight: 700; color: var(--green); }
   .sr-item.err .sr-status { color: var(--red); }
   .sr-date { font-size: 10px; color: var(--text-dim); font-family: var(--mono); }
+  .highlight-marker {
+    background: linear-gradient(transparent 40%, rgba(255, 213, 0, 0.35) 40%);
+    padding: 1px 3px;
+    border-radius: 2px;
+    font-weight: 600;
+  }
 </style>
 {% endblock %}
 
@@ -1323,7 +1329,7 @@ function _buildRegistryRow(columns, b) {
   if (_userRola === 'admin') {
     html += '<td class="td-del"><button class="btn-del-batch" onclick="event.stopPropagation();confirmCancelBatch(' + b.ebr_id + ',\'' + b.nr_partii.replace(/'/g, "\\'") + '\')" title="Usuń szarżę">&#x1F5D1;</button></td>';
   }
-  html += '<td class="td-nr">' + b.nr_partii + (b.typ === 'zbiornik' ? ' <span class="td-zbiornik">' + (b.nr_zbiornika ? b.nr_zbiornika : 'ZB') + '</span>' : '') + (b.cert_count > 0 ? ' <span class="td-cert-badge">CoA</span>' : '') + '</td>';
+  html += '<td class="td-nr">' + (b.typ === 'zbiornik' ? '<span class="highlight-marker">' + b.nr_partii + ' ' + (b.nr_zbiornika ? b.nr_zbiornika : 'ZB') + '</span>' : b.nr_partii) + (b.cert_count > 0 ? ' <span class="td-cert-badge">CoA</span>' : '') + '</td>';
   var dtStr = '\u2014';
   if (b.dt_end) {
     var parts = b.dt_end.substring(0, 10).split('-');
