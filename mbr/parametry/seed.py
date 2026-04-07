@@ -105,6 +105,10 @@ PARAMETRY = [
     {"kod": "woda_kg",  "label": "Dodatek wody",        "skrot": "Woda",  "typ": "bezposredni", "precision": 1},
     {"kod": "nacl_kg",  "label": "Dodatek NaCl",        "skrot": "NaCl",  "typ": "bezposredni", "precision": 1},
     {"kod": "nastaw",   "label": "Nastaw",               "skrot": "Nastaw","typ": "bezposredni", "precision": 0},
+
+    # --- binarny (OK / Nie OK) ---
+    {"kod": "klarownosc", "label": "Klarowność", "skrot": "Klar.", "typ": "binarny", "precision": 0},
+    {"kod": "zelowanie",  "label": "Żelowanie",  "skrot": "Żel.",  "typ": "binarny", "precision": 0},
 ]
 
 # ---------------------------------------------------------------------------
@@ -281,6 +285,12 @@ ETAPY_BINDINGS = [
       for prod in ("Chegina_K40GL", "Chegina_K40GLO", "Chegina_K40GLOL", "Chegina_K7")],
     *[_b(prod, "dodatki", "nacl_kg", 3, 0, 9999)
       for prod in ("Chegina_K40GL", "Chegina_K40GLO", "Chegina_K40GLOL", "Chegina_K7")],
+
+    # =========================================================
+    # binarny — global (all products)
+    # =========================================================
+    _b(None, "analiza_koncowa", "klarownosc", 900, None, None),
+    _b(None, "analiza_koncowa", "zelowanie",  901, None, None),
 ]
 
 # ---------------------------------------------------------------------------
