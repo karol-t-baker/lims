@@ -42,6 +42,10 @@ var CALC_METHODS = {};
         });
 })();
 
+function _normalizeDecimal(value) {
+    return value.replace(',', '.');
+}
+
 function calcStats(results) {
     if (results.length < 2) return null;
     var n = results.length;
@@ -455,7 +459,7 @@ function renderCalculatorFull() {
                 });
                 html += '</select>';
             } else {
-                html += '<input type="number" step="any" value="' + val + '" oninput="onTitrantChange(\'' + t.id + '\', parseFloat(this.value))" placeholder="---">';
+                html += '<input type="text" inputmode="decimal" value="' + val + '" oninput="onTitrantChange(\'' + t.id + '\', parseFloat(_normalizeDecimal(this.value)))" placeholder="---">';
             }
             html += '</div>';
         });
@@ -477,13 +481,13 @@ function renderCalculatorFull() {
 
         if (method.mass_required) {
             html += '<div class="cs-field"><label>Nawa\u017cka [g]</label>';
-            html += '<input type="number" step="any" value="' + (s.m || '') + '" oninput="onSampleInputFull(' + i + ', \'m\', this.value)" placeholder="---"></div>';
+            html += '<input type="text" inputmode="decimal" value="' + (s.m || '') + '" oninput="onSampleInputFull(' + i + ', \'m\', _normalizeDecimal(this.value))" placeholder="---"></div>';
         }
 
         method.volumes.forEach(function(vol, vi) {
             var label = vol.label || ('V' + (vi + 1) + ' [ml]');
             html += '<div class="cs-field"><label>' + label + '</label>';
-            html += '<input type="number" step="any" value="' + (s.vols[vi] || '') + '" oninput="onSampleInputFull(' + i + ', ' + vi + ', this.value)" placeholder="---"></div>';
+            html += '<input type="text" inputmode="decimal" value="' + (s.vols[vi] || '') + '" oninput="onSampleInputFull(' + i + ', ' + vi + ', _normalizeDecimal(this.value))" placeholder="---"></div>';
         });
 
         html += '</div></div>';
@@ -584,14 +588,14 @@ function renderCalculator() {
             <div class="cs-fields">
                 <div class="cs-field">
                     <label>Nawazka [g]</label>
-                    <input type="number" step="any" value="${s.m || ''}"
-                        oninput="onSampleInput(${i}, 'm', this.value)"
+                    <input type="text" inputmode="decimal" value="${s.m || ''}"
+                        oninput="onSampleInput(${i}, 'm', _normalizeDecimal(this.value))"
                         placeholder="---">
                 </div>
                 <div class="cs-field">
                     <label>V titranta [ml]</label>
-                    <input type="number" step="any" value="${s.v || ''}"
-                        oninput="onSampleInput(${i}, 'v', this.value)"
+                    <input type="text" inputmode="decimal" value="${s.v || ''}"
+                        oninput="onSampleInput(${i}, 'v', _normalizeDecimal(this.value))"
                         placeholder="---">
                 </div>
             </div>
