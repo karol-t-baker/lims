@@ -168,6 +168,21 @@ def api_parametry_available():
     return jsonify([dict(r) for r in rows])
 
 
+@parametry_bp.route("/api/parametry/etapy/reorder", methods=["POST"])
+@login_required
+def api_parametry_etapy_reorder():
+    """Batch-update kolejnosc for multiple bindings. Body: {bindings: [{id, kolejnosc}, ...]}"""
+    data = request.get_json(silent=True) or {}
+    bindings = data.get("bindings", [])
+    if not bindings:
+        return jsonify({"error": "bindings required"}), 400
+    with db_session() as db:
+        for b in bindings:
+            db.execute("UPDATE parametry_etapy SET kolejnosc=? WHERE id=?", (b["kolejnosc"], b["id"]))
+        db.commit()
+    return jsonify({"ok": True})
+
+
 @parametry_bp.route("/api/parametry/rebuild-mbr", methods=["POST"])
 @login_required
 def api_rebuild_mbr():
