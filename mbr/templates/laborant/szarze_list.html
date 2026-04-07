@@ -152,6 +152,98 @@
   .dz-vals .pv { font-weight: 500; color: var(--text); }
   .dz-vals .kor-text { color: var(--amber); font-weight: 600; }
 
+  /* ═══ ADMIN DELETE BATCH ═══ */
+  .th-del { width: 36px; padding: 0 !important; }
+  .td-del { padding: 2px 4px !important; text-align: center; }
+  .btn-del-batch {
+    background: none; border: none; cursor: pointer;
+    font-size: 14px; padding: 3px 6px; border-radius: 4px;
+    opacity: 0.3; transition: all 0.15s; color: var(--red);
+  }
+  .btn-del-batch:hover { opacity: 1; background: var(--red-bg); }
+
+  /* Cancel modal overlay */
+  .cm-overlay {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(26,26,26,0.45); backdrop-filter: blur(2px);
+    display: flex; align-items: center; justify-content: center;
+    animation: cm-fade-in 0.15s ease-out;
+  }
+  @keyframes cm-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+  .cm-modal {
+    background: var(--surface); border-radius: 12px;
+    width: 400px; max-width: 90vw;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.08);
+    overflow: hidden;
+    animation: cm-slide-up 0.2s ease-out;
+  }
+  @keyframes cm-slide-up { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* Stage 1 — simple confirm */
+  .cm-header {
+    padding: 20px 24px 0; font-size: 15px; font-weight: 700; color: var(--text);
+  }
+  .cm-body { padding: 12px 24px 20px; font-size: 13px; color: var(--text-sec); line-height: 1.5; }
+  .cm-body strong { color: var(--text); font-weight: 700; }
+  .cm-actions {
+    padding: 0 24px 20px; display: flex; gap: 10px; justify-content: flex-end;
+  }
+  .cm-btn {
+    padding: 8px 18px; border-radius: 7px; font-size: 12px; font-weight: 600;
+    font-family: var(--font); cursor: pointer; border: 1.5px solid var(--border);
+    background: var(--surface); color: var(--text-sec); transition: all 0.12s;
+  }
+  .cm-btn:hover { border-color: var(--text-dim); color: var(--text); }
+  .cm-btn-danger {
+    background: var(--red); color: #fff; border-color: var(--red);
+  }
+  .cm-btn-danger:hover { background: #991b1b; border-color: #991b1b; }
+  .cm-btn-danger:disabled {
+    background: var(--border); color: var(--text-dim);
+    border-color: var(--border); cursor: not-allowed; opacity: 0.6;
+  }
+
+  /* Stage 2 — critical warning */
+  .cm-warning-bar {
+    background: repeating-linear-gradient(
+      -45deg, var(--red), var(--red) 8px, #991b1b 8px, #991b1b 16px
+    );
+    height: 5px;
+  }
+  .cm-warning-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--red-bg); color: var(--red);
+    font-size: 18px; font-weight: 800; margin-bottom: 8px;
+  }
+  .cm-warning-title {
+    font-size: 14px; font-weight: 800; color: var(--red);
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;
+  }
+  .cm-warning-text {
+    font-size: 12px; color: var(--text-sec); line-height: 1.5; margin-bottom: 16px;
+  }
+  .cm-confirm-input {
+    width: 100%; padding: 10px 12px; border: 2px solid var(--border);
+    border-radius: 7px; font-family: var(--mono); font-size: 14px;
+    font-weight: 600; color: var(--text); background: var(--bg);
+    text-align: center; letter-spacing: 1px; transition: border-color 0.15s;
+  }
+  .cm-confirm-input:focus { outline: none; border-color: var(--red); }
+  .cm-confirm-input::placeholder { color: var(--text-dim); font-weight: 400; letter-spacing: 0; font-size: 12px; }
+  .cm-confirm-label {
+    font-size: 11px; font-weight: 600; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 6px;
+  }
+  .cm-success {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: var(--green); color: #fff; padding: 10px 24px;
+    border-radius: 8px; font-size: 13px; font-weight: 600; font-family: var(--font);
+    box-shadow: var(--shadow-lg); z-index: 10000;
+    animation: cm-fade-in 0.2s ease-out;
+  }
+
   /* Sidebar registry mode */
   #sb-mode-registry { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
   .sr-filters {
@@ -1160,6 +1252,7 @@ function renderRegistryTable(columns, batches) {
     return;
   }
   var html = '<table><thead><tr>';
+  if (_userRola === 'admin') html += '<th class="th-del"></th>';
   html += '<th class="th-nr">Nr partii</th>';
   html += '<th class="th-date">Data</th>';
   columns.forEach(function(col) {
@@ -1175,7 +1268,10 @@ function renderRegistryTable(columns, batches) {
 
   batches.forEach(function(b) {
     var hasErr = columns.some(function(c) { return b.wyniki[c.kod] && b.wyniki[c.kod].w_limicie === 0; });
-    html += '<tr onclick="loadBatch(' + b.ebr_id + ')">';
+    html += '<tr data-ebr="' + b.ebr_id + '" onclick="loadBatch(' + b.ebr_id + ')">';
+    if (_userRola === 'admin') {
+      html += '<td class="td-del"><button class="btn-del-batch" onclick="event.stopPropagation();confirmCancelBatch(' + b.ebr_id + ',\'' + b.nr_partii.replace(/'/g, "\\'") + '\')" title="Usuń szarżę">&#x1F5D1;</button></td>';
+    }
     html += '<td class="td-nr">' + b.nr_partii + (b.typ === 'zbiornik' ? ' <span class="td-zbiornik">' + (b.nr_zbiornika ? b.nr_zbiornika : 'ZB') + '</span>' : '') + (b.cert_count > 0 ? ' <span class="td-cert-badge">CoA</span>' : '') + '</td>';
     var dtStr = '\u2014';
     if (b.dt_end) {
@@ -1223,5 +1319,92 @@ document.addEventListener('click', function(e) {
 });
 
 // Deep link for ?view=registry now handled in the unified _dm block above
+
+// ═══ Admin: two-stage batch cancel ═══
+function confirmCancelBatch(ebrId, nrPartii) {
+  // Stage 1: simple confirmation
+  var overlay = document.createElement('div');
+  overlay.className = 'cm-overlay';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  overlay.innerHTML =
+    '<div class="cm-modal">' +
+      '<div class="cm-header">Usunięcie szarży</div>' +
+      '<div class="cm-body">Czy na pewno chcesz usunąć szarżę <strong>' + nrPartii + '</strong>?<br>' +
+        'Szarża zostanie oznaczona jako anulowana i zniknie z rejestru.</div>' +
+      '<div class="cm-actions">' +
+        '<button class="cm-btn" onclick="this.closest(\'.cm-overlay\').remove()">Anuluj</button>' +
+        '<button class="cm-btn cm-btn-danger" id="cm-stage2-btn">Tak, usuń</button>' +
+      '</div>' +
+    '</div>';
+
+  document.body.appendChild(overlay);
+
+  document.getElementById('cm-stage2-btn').onclick = function() {
+    showCancelStage2(overlay, ebrId, nrPartii);
+  };
+}
+
+function showCancelStage2(overlay, ebrId, nrPartii) {
+  var modal = overlay.querySelector('.cm-modal');
+  modal.innerHTML =
+    '<div class="cm-warning-bar"></div>' +
+    '<div style="padding: 24px;">' +
+      '<div class="cm-warning-icon">!</div>' +
+      '<div class="cm-warning-title">Uwaga — operacja nieodwracalna</div>' +
+      '<div class="cm-warning-text">' +
+        'Szarża <strong style="color:var(--text)">' + nrPartii + '</strong> zostanie trwale usunięta z rejestru. ' +
+        'Wyniki i świadectwa pozostaną w bazie, ale nie będą widoczne.<br><br>' +
+        'Aby potwierdzić, wpisz numer szarży poniżej.' +
+      '</div>' +
+      '<div class="cm-confirm-label">Wpisz numer szarży</div>' +
+      '<input class="cm-confirm-input" id="cm-confirm-input" placeholder="' + nrPartii + '" autocomplete="off" spellcheck="false">' +
+      '<div class="cm-actions" style="margin-top: 16px;">' +
+        '<button class="cm-btn" onclick="this.closest(\'.cm-overlay\').remove()">Wróć</button>' +
+        '<button class="cm-btn cm-btn-danger" id="cm-final-btn" disabled>Usuń na stałe</button>' +
+      '</div>' +
+    '</div>';
+
+  var input = document.getElementById('cm-confirm-input');
+  var btn = document.getElementById('cm-final-btn');
+
+  input.addEventListener('input', function() {
+    btn.disabled = (input.value.trim() !== nrPartii);
+  });
+  input.focus();
+
+  btn.onclick = function() {
+    btn.disabled = true;
+    btn.textContent = 'Usuwanie...';
+    fetch('/api/registry/' + ebrId + '/cancel', { method: 'POST' })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        overlay.remove();
+        if (data.ok) {
+          // Remove row from table
+          var row = document.querySelector('tr[data-ebr="' + ebrId + '"]');
+          if (row) {
+            row.style.transition = 'opacity 0.3s, transform 0.3s';
+            row.style.opacity = '0';
+            row.style.transform = 'translateX(20px)';
+            setTimeout(function() { row.remove(); }, 300);
+          }
+          // Success toast
+          var toast = document.createElement('div');
+          toast.className = 'cm-success';
+          toast.textContent = 'Szarża ' + nrPartii + ' została usunięta';
+          document.body.appendChild(toast);
+          setTimeout(function() { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; }, 2500);
+          setTimeout(function() { toast.remove(); }, 2800);
+        } else {
+          alert('Błąd: ' + (data.error || 'Nieznany błąd'));
+        }
+      })
+      .catch(function(err) {
+        overlay.remove();
+        alert('Błąd połączenia: ' + err.message);
+      });
+  };
+}
 </script>
 {% endblock %}
