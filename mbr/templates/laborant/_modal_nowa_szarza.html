@@ -17,6 +17,7 @@
         <input type="hidden" name="typ" id="typ-input" value="szarza">
         <input type="hidden" name="produkt" id="produkt-input" required>
         <input type="hidden" name="_back" value="{{ request.url }}">
+        <input type="hidden" name="zbiorniki_ids" id="zbiorniki-ids-input" value="">
 
         {# Step 1: Type selection #}
         <div id="step-1">
@@ -268,13 +269,15 @@ function _toggleModalZb(btn, zid, nr, multiSelect) {
         _modalZbSelected[zid] = {id: zid, nr: nr};
         btn.classList.add('pm-pill-active');
     }
-    // Update hidden inputs for zbiornik type
+    // Update hidden inputs
+    var keys = Object.keys(_modalZbSelected);
     if (currentTyp === 'zbiornik') {
-        var keys = Object.keys(_modalZbSelected);
         var sel = keys.length > 0 ? _modalZbSelected[keys[0]] : null;
         document.getElementById('zbiornik-nr-input').value = sel ? sel.nr : '';
         document.getElementById('zbiornik-id-input').value = sel ? sel.id : '';
     }
+    // Sync selected zbiorniki IDs for szarza (comma-separated)
+    document.getElementById('zbiorniki-ids-input').value = keys.join(',');
 }
 
 async function _onProductSelected(produktName) {

@@ -1701,6 +1701,14 @@ async function openPumpModal() {
     await loadZbiornikList();
     _pumpSelected = {};
 
+    // Load existing zbiornik links for this batch (pre-select)
+    var _preSelected = {};
+    try {
+        var lResp = await fetch('/api/zbiornik-szarze/' + ebrId);
+        var links = await lResp.json();
+        links.forEach(function(l) { _preSelected[l.zbiornik_id] = l; });
+    } catch(e) {}
+
     var produkt = window._batchProdukt || '';
     var batchKod = _getBatchKod();
     var matched = batchKod
@@ -1727,7 +1735,9 @@ async function openPumpModal() {
         html += '<div class="pm-section-label">Zbiorniki dla tego produktu</div>';
         html += '<div class="pm-tank-grid">';
         matched.forEach(function(z) {
-            html += '<button class="pm-tank-pill" data-zid="' + z.id + '" data-nr="' + z.nr_zbiornika + '" onclick="toggleTank(this,' + z.id + ',\'' + z.nr_zbiornika + '\',' + (z.max_pojemnosc || 0) + ')">' +
+            var isPreSel = !!_preSelected[z.id];
+            if (isPreSel) _pumpSelected[z.id] = {id: z.id, nr: z.nr_zbiornika, pojemnosc: z.max_pojemnosc || 0};
+            html += '<button class="pm-tank-pill' + (isPreSel ? ' pm-pill-active' : '') + '" data-zid="' + z.id + '" data-nr="' + z.nr_zbiornika + '" onclick="toggleTank(this,' + z.id + ',\'' + z.nr_zbiornika + '\',' + (z.max_pojemnosc || 0) + ')">' +
                 '<span class="pm-pill-nr">' + z.nr_zbiornika + '</span>' +
                 '<span class="pm-pill-cap">' + (z.max_pojemnosc || '?') + 't</span>' +
             '</button>';
@@ -1761,6 +1771,8 @@ async function openPumpModal() {
     var div = document.createElement('div');
     div.innerHTML = html;
     document.body.appendChild(div.firstChild);
+    // Update button state if pre-selected
+    if (Object.keys(_pumpSelected).length > 0) updatePumpState();
     } catch(e) { console.error('[openPumpModal] error:', e); alert('Błąd: ' + e.message); }
 }
 

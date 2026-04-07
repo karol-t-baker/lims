@@ -59,13 +59,20 @@ def szarze_new():
                 back = url_for("laborant.szarze_list")
             return redirect(back)
 
-        # MVP: skip process stage initialization — only analiza końcowa for now
-        # TODO: re-enable when full batch card (etapy) is implemented
-        # if ebr_id and typ == 'szarza':
-        #     from mbr.etapy_models import init_etapy_status, get_process_stages
-        #     stages = get_process_stages(request.form["produkt"])
-        #     if stages:
-        #         init_etapy_status(db, ebr_id, request.form["produkt"])
+        # Save pre-selected zbiorniki (optional, from modal pill selection)
+        if ebr_id:
+            zbiorniki_ids = request.form.get("zbiorniki_ids", "")
+            if zbiorniki_ids:
+                from datetime import datetime
+                now = datetime.now().isoformat(timespec="seconds")
+                for zid_str in zbiorniki_ids.split(","):
+                    zid = int(zid_str.strip()) if zid_str.strip() else 0
+                    if zid:
+                        db.execute(
+                            "INSERT OR IGNORE INTO zbiornik_szarze (ebr_id, zbiornik_id, masa_kg, dt_dodania) VALUES (?, ?, NULL, ?)",
+                            (ebr_id, zid, now),
+                        )
+                db.commit()
 
     if ebr_id is None:
         flash("Brak aktywnego szablonu MBR dla tego produktu.")
