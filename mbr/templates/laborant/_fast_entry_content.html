@@ -1551,7 +1551,7 @@ function renderOneSection(container, opts) {
             '<div class="ff' + (isTitr ? ' titr' : '') + (isObl ? ' computed' : '') + highlightCls + '" ' +
                 (isTitr && !isReadonly ? 'data-kod="' + esc(pole.kod) + '" data-tag="' + esc(pole.tag) + '" data-sekcja="' + esc(sekcja) + '"' : '') + ' ' + calcMethodAttr + '>' +
                 '<div class="status-dot"></div>' +
-                '<label>' + esc(pole.label) + '</label>' +
+                '<label>' + esc(pole.skrot || pole.label) + '</label>' +
                 '<input type="text" inputmode="decimal"' +
                     ' data-kod="' + esc(pole.kod) + '"' +
                     ' data-sekcja="' + esc(sekcja) + '"' +
