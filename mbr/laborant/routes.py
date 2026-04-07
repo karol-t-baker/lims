@@ -34,21 +34,30 @@ def szarze_list():
 @laborant_bp.route("/laborant/szarze/new", methods=["POST"])
 @role_required("laborant", "laborant_kj")
 def szarze_new():
+    import sqlite3
     with db_session() as db:
         typ = request.form.get("typ", "szarza")
         wielkosc_kg = float(request.form.get("wielkosc_kg", 0) or 0)
-        ebr_id = create_ebr(
-            db,
-            produkt=request.form["produkt"],
-            nr_partii=request.form["nr_partii"],
-            nr_amidatora=request.form.get("nr_amidatora", ""),
-            nr_mieszalnika=request.form.get("nr_mieszalnika", ""),
-            wielkosc_kg=wielkosc_kg,
-            operator=session["user"]["login"],
-            typ=typ,
-            nastaw=int(wielkosc_kg) if wielkosc_kg else None,
-            nr_zbiornika=request.form.get("nr_zbiornika", ""),
-        )
+        try:
+            ebr_id = create_ebr(
+                db,
+                produkt=request.form["produkt"],
+                nr_partii=request.form["nr_partii"],
+                nr_amidatora=request.form.get("nr_amidatora", ""),
+                nr_mieszalnika=request.form.get("nr_mieszalnika", ""),
+                wielkosc_kg=wielkosc_kg,
+                operator=session["user"]["login"],
+                typ=typ,
+                nastaw=int(wielkosc_kg) if wielkosc_kg else None,
+                nr_zbiornika=request.form.get("nr_zbiornika", ""),
+            )
+        except sqlite3.IntegrityError:
+            flash(f"Szarża o numerze {request.form['nr_partii']} już istnieje w systemie.")
+            back = request.form.get("_back") or request.referrer or url_for("laborant.szarze_list")
+            parsed = urlparse(back)
+            if parsed.netloc and parsed.netloc != request.host:
+                back = url_for("laborant.szarze_list")
+            return redirect(back)
 
         # MVP: skip process stage initialization — only analiza końcowa for now
         # TODO: re-enable when full batch card (etapy) is implemented
