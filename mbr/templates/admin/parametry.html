@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Parametry{% endblock %}
+{% block nav_parametry_admin %}active{% endblock %}
+
+{% block topbar_title %}
+  <span style="font-weight:700;">Parametry analityczne</span>
+{% endblock %}
+
+{% block head %}
+<style>
+.pa-wrap { padding: 24px 32px; max-width: 1100px; overflow-y: auto; max-height: calc(100vh - 52px); }
+.pa-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.pa-table th { text-align: left; padding: 10px 12px; font-size: 10px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid var(--border); }
+.pa-table td { padding: 8px 12px; border-bottom: 1px solid var(--border-subtle); }
+.pa-table tr:hover { background: var(--surface-alt); }
+.pa-kod { font-family: var(--mono); font-weight: 700; font-size: 12px; color: var(--teal); }
+.pa-input { border: 1px solid transparent; background: transparent; padding: 4px 8px; border-radius: 4px; font-size: 12px; width: 100%; font-family: inherit; }
+.pa-input:hover { border-color: var(--border); }
+.pa-input:focus { border-color: var(--teal); outline: none; background: var(--surface); }
+.pa-select { border: 1px solid transparent; background: transparent; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-family: inherit; cursor: pointer; }
+.pa-select:hover { border-color: var(--border); }
+.pa-select:focus { border-color: var(--teal); outline: none; background: var(--surface); }
+.pa-toggle { cursor: pointer; padding: 3px 10px; border-radius: 12px; font-size: 10px; font-weight: 600; border: none; }
+.pa-toggle.on { background: var(--green-bg, #dcfce7); color: var(--green, #16a34a); }
+.pa-toggle.off { background: var(--red-bg, #fef2f2); color: var(--red, #dc2626); }
+.pa-add { margin-top: 16px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.pa-add input, .pa-add select { padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 12px; font-family: inherit; }
+.pa-add button { padding: 8px 16px; background: var(--teal); color: #fff; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.pa-add button:hover { opacity: 0.9; }
+.pa-count { font-size: 11px; color: var(--text-dim); margin-bottom: 16px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pa-wrap">
+  <div class="pa-count" id="pa-count"></div>
+  <table class="pa-table">
+    <thead>
+      <tr>
+        <th style="width:100px;">Kod</th>
+        <th>Label</th>
+        <th style="width:80px;">Skrót</th>
+        <th style="width:140px;">Typ</th>
+        <th style="width:80px;">Jednostka</th>
+        <th style="width:70px;">Precyzja</th>
+        <th style="width:90px;">Status</th>
+      </tr>
+    </thead>
+    <tbody id="pa-body"></tbody>
+  </table>
+
+  <div class="pa-add">
+    <input type="text" id="add-kod" placeholder="Kod" style="width:100px;font-family:var(--mono);">
+    <input type="text" id="add-label" placeholder="Label (pełna nazwa)" style="width:220px;">
+    <input type="text" id="add-skrot" placeholder="Skrót" style="width:80px;">
+    <select id="add-typ" style="width:150px;">
+      <option value="bezposredni">bezposredni</option>
+      <option value="titracja">titracja</option>
+      <option value="obliczeniowy">obliczeniowy</option>
+      <option value="binarny">binarny</option>
+    </select>
+    <input type="text" id="add-jednostka" placeholder="Jednostka" style="width:80px;">
+    <input type="number" id="add-precision" placeholder="Precyzja" value="2" style="width:70px;">
+    <button onclick="addParametr()">Dodaj</button>
+  </div>
+</div>
+
+<script>
+var _paData = [];
+
+async function loadParametry() {
+  var resp = await fetch('/api/parametry/all');
+  _paData = await resp.json();
+  renderTable();
+}
+
+function _typOptions(current) {
+  var typy = ['bezposredni', 'titracja', 'obliczeniowy', 'binarny'];
+  return typy.map(function(t) {
+    return '<option value="' + t + '"' + (t === current ? ' selected' : '') + '>' + t + '</option>';
+  }).join('');
+}
+
+function renderTable() {
+  document.getElementById('pa-count').textContent = _paData.length + ' parametrów';
+  var html = '';
+  _paData.forEach(function(p) {
+    html += '<tr data-id="' + p.id + '">' +
+      '<td class="pa-kod">' + (p.kod || '') + '</td>' +
+      '<td><input class="pa-input" type="text" value="' + (p.label || '').replace(/"/g, '&quot;') + '" onchange="saveField(' + p.id + ', \'label\', this.value)"></td>' +
+      '<td><input class="pa-input" type="text" value="' + (p.skrot || '').replace(/"/g, '&quot;') + '" onchange="saveField(' + p.id + ', \'skrot\', this.value)"></td>' +
+      '<td><select class="pa-select" onchange="saveField(' + p.id + ', \'typ\', this.value)">' + _typOptions(p.typ) + '</select></td>' +
+      '<td><input class="pa-input" type="text" value="' + (p.jednostka || '').replace(/"/g, '&quot;') + '" onchange="saveField(' + p.id + ', \'jednostka\', this.value)"></td>' +
+      '<td><input class="pa-input" type="number" value="' + (p.precision != null ? p.precision : 2) + '" style="width:50px;" onchange="saveField(' + p.id + ', \'precision\', parseInt(this.value))"></td>' +
+      '<td><button class="pa-toggle ' + (p.aktywny ? 'on' : 'off') + '" onclick="toggleActive(' + p.id + ', ' + p.aktywny + ')">' + (p.aktywny ? 'Aktywny' : 'Ukryty') + '</button></td>' +
+    '</tr>';
+  });
+  document.getElementById('pa-body').innerHTML = html;
+}
+
+async function saveField(id, field, value) {
+  var body = {};
+  body[field] = value;
+  await fetch('/api/parametry/admin/' + id, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  });
+}
+
+async function toggleActive(id, current) {
+  var body = {aktywny: current ? 0 : 1};
+  await fetch('/api/parametry/admin/' + id, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  });
+  loadParametry();
+}
+
+async function addParametr() {
+  var kod = document.getElementById('add-kod').value.trim();
+  var label = document.getElementById('add-label').value.trim();
+  var skrot = document.getElementById('add-skrot').value.trim();
+  var typ = document.getElementById('add-typ').value;
+  var jednostka = document.getElementById('add-jednostka').value.trim();
+  var precision = parseInt(document.getElementById('add-precision').value) || 2;
+  if (!kod || !label) return;
+  var resp = await fetch('/api/parametry/admin', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({kod: kod, label: label, skrot: skrot, typ: typ, jednostka: jednostka, precision: precision})
+  });
+  if (resp.ok) {
+    document.getElementById('add-kod').value = '';
+    document.getElementById('add-label').value = '';
+    document.getElementById('add-skrot').value = '';
+    document.getElementById('add-jednostka').value = '';
+    document.getElementById('add-precision').value = '2';
+    loadParametry();
+  } else {
+    var err = await resp.json();
+    alert(err.error || 'Błąd');
+  }
+}
+
+loadParametry();
+</script>
+{% endblock %}

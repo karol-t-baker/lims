@@ -170,3 +170,101 @@ def api_normy_update(binding_id):
                    [*updates.values(), binding_id])
         db.commit()
     return jsonify({"ok": True})
+
+
+# ── Parametry Admin ──
+
+@zbiorniki_bp.route("/admin/parametry")
+@role_required("admin")
+def admin_parametry():
+    return render_template("admin/parametry.html")
+
+@zbiorniki_bp.route("/api/parametry/all")
+@role_required("admin")
+def api_parametry_all():
+    with db_session() as db:
+        rows = [dict(r) for r in db.execute(
+            "SELECT * FROM parametry_analityczne ORDER BY kod"
+        ).fetchall()]
+    return jsonify(rows)
+
+@zbiorniki_bp.route("/api/parametry/admin/<int:pid>", methods=["PUT"])
+@role_required("admin")
+def api_parametry_admin_update(pid):
+    data = request.get_json(silent=True) or {}
+    allowed = {"label", "skrot", "typ", "jednostka", "precision", "aktywny"}
+    updates = {k: v for k, v in data.items() if k in allowed and v is not None}
+    if not updates:
+        return jsonify({"ok": True})
+    set_clause = ", ".join(f"{k} = ?" for k in updates)
+    with db_session() as db:
+        db.execute(f"UPDATE parametry_analityczne SET {set_clause} WHERE id = ?",
+                   [*updates.values(), pid])
+        db.commit()
+    return jsonify({"ok": True})
+
+@zbiorniki_bp.route("/api/parametry/admin", methods=["POST"])
+@role_required("admin")
+def api_parametry_admin_create():
+    data = request.get_json(silent=True) or {}
+    kod = data.get("kod", "").strip()
+    label = data.get("label", "").strip()
+    typ = data.get("typ", "bezposredni")
+    if not kod or not label:
+        return jsonify({"error": "kod and label required"}), 400
+    with db_session() as db:
+        try:
+            cur = db.execute(
+                "INSERT INTO parametry_analityczne (kod, label, typ, jednostka, precision) VALUES (?, ?, ?, ?, ?)",
+                (kod, label, typ, data.get("jednostka", ""), data.get("precision", 2)),
+            )
+            db.commit()
+        except Exception:
+            return jsonify({"error": "Parametr already exists"}), 409
+    return jsonify({"ok": True, "id": cur.lastrowid})
+
+
+# ── Etapy Admin ──
+
+@zbiorniki_bp.route("/admin/etapy")
+@role_required("admin")
+def admin_etapy():
+    return render_template("admin/etapy.html")
+
+@zbiorniki_bp.route("/api/etapy-procesowe")
+@role_required("admin")
+def api_etapy_list():
+    with db_session() as db:
+        etapy = [dict(r) for r in db.execute("SELECT * FROM etapy_procesowe ORDER BY kod").fetchall()]
+        bindings = [dict(r) for r in db.execute("SELECT * FROM produkt_etapy ORDER BY produkt, kolejnosc").fetchall()]
+    return jsonify({"etapy": etapy, "bindings": bindings})
+
+@zbiorniki_bp.route("/api/etapy-procesowe/<int:eid>", methods=["PUT"])
+@role_required("admin")
+def api_etapy_update(eid):
+    data = request.get_json(silent=True) or {}
+    allowed = {"label", "aktywny"}
+    updates = {k: v for k, v in data.items() if k in allowed and v is not None}
+    if not updates:
+        return jsonify({"ok": True})
+    set_clause = ", ".join(f"{k} = ?" for k in updates)
+    with db_session() as db:
+        db.execute(f"UPDATE etapy_procesowe SET {set_clause} WHERE id = ?", [*updates.values(), eid])
+        db.commit()
+    return jsonify({"ok": True})
+
+@zbiorniki_bp.route("/api/etapy-procesowe", methods=["POST"])
+@role_required("admin")
+def api_etapy_create():
+    data = request.get_json(silent=True) or {}
+    kod = data.get("kod", "").strip()
+    label = data.get("label", "").strip()
+    if not kod or not label:
+        return jsonify({"error": "kod and label required"}), 400
+    with db_session() as db:
+        try:
+            cur = db.execute("INSERT INTO etapy_procesowe (kod, label) VALUES (?, ?)", (kod, label))
+            db.commit()
+        except Exception:
+            return jsonify({"error": "Etap already exists"}), 409
+    return jsonify({"ok": True, "id": cur.lastrowid})
