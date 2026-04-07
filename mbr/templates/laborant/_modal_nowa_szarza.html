@@ -116,9 +116,14 @@
             <div class="form-label">Wielkosc szarzy (nastaw) [kg]</div>
             <input class="form-input" type="number" step="any" name="wielkosc_kg" placeholder="np. 4000">
           </div>
-          <div class="form-row" style="margin-top:12px;">
-            <div class="form-label">Zbiorniki docelowe <span style="font-weight:400;color:var(--text-dim);">(opcjonalne)</span></div>
-            <div class="pm-tank-grid" id="zb-pick-szarza" style="margin-top:4px;"></div>
+          <div class="form-row" style="margin-top:14px;">
+            <div class="form-label" style="display:flex;align-items:center;gap:6px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0;"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/></svg>
+              Zbiorniki docelowe <span style="font-weight:400;color:var(--text-dim);margin-left:2px;">(opcjonalne)</span>
+            </div>
+            <div id="zb-pick-szarza" class="pm-tank-grid" style="margin-top:6px;">
+              <div class="pm-empty-hint">Wybierz produkt aby zobaczyć zbiorniki</div>
+            </div>
           </div>
         </div>
 
@@ -175,10 +180,15 @@
           </div>
           <input class="form-input" type="hidden" id="nr-partii-input-zb">
 
-          <div style="height:16px"></div>
+          <div style="height:12px"></div>
           <div class="form-row">
-            <div class="form-label">Zbiornik <span style="color:var(--red);">*</span></div>
-            <div class="pm-tank-grid" id="zb-pick-zbiornik" style="margin-top:4px;"></div>
+            <div class="form-label" style="display:flex;align-items:center;gap:6px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0;"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/></svg>
+              Zbiornik <span style="color:var(--red);margin-left:2px;">*</span>
+            </div>
+            <div id="zb-pick-zbiornik" class="pm-tank-grid" style="margin-top:6px;">
+              <div class="pm-empty-hint">Najpierw wybierz produkt</div>
+            </div>
             <input type="hidden" id="zbiornik-nr-input" value="">
             <input type="hidden" id="zbiornik-id-input" value="">
           </div>
