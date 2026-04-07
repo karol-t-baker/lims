@@ -211,6 +211,7 @@ def build_parametry_lab(db: sqlite3.Connection, produkt: str) -> dict:
         pole = {
             "kod": p["kod"],
             "label": p["label"],
+            "skrot": p.get("skrot"),
             "tag": p["kod"],
             "typ": "float",
             "min": p["min"],

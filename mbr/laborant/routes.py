@@ -20,7 +20,7 @@ from mbr.laborant.models import (
 
 
 @laborant_bp.route("/laborant/szarze")
-@role_required("laborant", "laborant_kj", "laborant_coa")
+@role_required("laborant", "laborant_kj", "laborant_coa", "admin")
 def szarze_list():
     from mbr.registry.models import list_completed_products
     with db_session() as db:

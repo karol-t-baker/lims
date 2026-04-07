@@ -903,7 +903,7 @@ function renderCompletedView() {
 
         paramsHtml += '<div class="cv-param">' +
             '<div class="cv-p-dot ' + (ok ? 'cv-dot-ok' : 'cv-dot-err') + '"></div>' +
-            '<span class="cv-p-label">' + esc(pole.label) + '</span>';
+            '<span class="cv-p-label">' + esc(pole.skrot || pole.label) + '</span>';
         if (canEdit) {
             paramsHtml += '<input class="cv-p-input" type="text" inputmode="decimal" value="' + (val !== null && val !== '' ? String(val).replace('.', ',') : '') + '"' +
                 ' data-kod="' + esc(pole.kod) + '" data-sekcja="' + esc(lastSekcja) + '"' +
@@ -978,7 +978,7 @@ function renderCompletedView() {
                     else if (pole.max != null) normText = '< ' + pole.max;
                     html += '<div class="cv-param">' +
                         '<div class="cv-p-dot ' + (ok ? 'cv-dot-ok' : 'cv-dot-err') + '"></div>' +
-                        '<span class="cv-p-label">' + esc(pole.label) + '</span>' +
+                        '<span class="cv-p-label">' + esc(pole.skrot || pole.label) + '</span>' +
                         '<span class="cv-p-val ' + (ok ? '' : 'cv-val-err') + '">' + String(r.wartosc).replace('.', ',') + '</span>' +
                         '<span class="cv-p-norm">' + normText + '</span>' +
                     '</div>';
