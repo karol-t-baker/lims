@@ -33,3 +33,7 @@ data/old_server/
 
 # Claude
 .Claude/
+
+# PyInstaller
+coa_app/build/
+coa_app/dist/
