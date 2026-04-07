@@ -1518,6 +1518,7 @@ function renderOneSection(container, opts) {
         var val = existing ? String(existing.wartosc).replace('.', ',') : '';
         var komentarzVal = existing ? (existing.komentarz || '') : '';
         var isTitr = pole.measurement_type === 'titracja' || TITR_TAGS_LEGACY.includes(pole.kod);
+        var isBinary = pole.measurement_type === 'binarny';
         var isObl = pole.measurement_type === 'obliczeniowy';
         var isHighlighted = prevOutOfLimit.indexOf(pole.kod) !== -1;
 
@@ -1545,6 +1546,18 @@ function renderOneSection(container, opts) {
 
         var highlightCls = isHighlighted ? ' highlight-prev' : '';
 
+        if (isBinary) {
+            var bVal = val || '';
+            fieldsHtml +=
+                '<div class="ff binary' + highlightCls + '">' +
+                    '<div class="status-dot"' + (bVal ? ' style="background:' + (bVal === 'OK' || bVal === '1' ? 'var(--green)' : 'var(--red)') + '"' : '') + '></div>' +
+                    '<label>' + esc(pole.skrot || pole.label) + '</label>' +
+                    '<div class="binary-pills">' +
+                        '<button type="button" class="bp-pill' + (bVal === 'OK' || bVal === '1' ? ' bp-ok' : '') + '" onclick="setBinary(this,\'' + esc(sekcja) + '\',\'' + esc(pole.kod) + '\',\'OK\')">OK</button>' +
+                        '<button type="button" class="bp-pill' + (bVal === 'Nie OK' || bVal === '0' ? ' bp-err' : '') + '" onclick="setBinary(this,\'' + esc(sekcja) + '\',\'' + esc(pole.kod) + '\',\'Nie OK\')">Nie OK</button>' +
+                    '</div>' +
+                '</div>';
+        } else {
         fieldsHtml +=
             '<div class="ff' + (isTitr ? ' titr' : '') + (isObl ? ' computed' : '') + highlightCls + '" ' +
                 (isTitr && !isReadonly ? 'data-kod="' + esc(pole.kod) + '" data-tag="' + esc(pole.tag) + '" data-sekcja="' + esc(sekcja) + '"' : '') + ' ' + calcMethodAttr + '>' +
@@ -1570,7 +1583,9 @@ function renderOneSection(container, opts) {
                     '<span class="norm-range">' + normRange + '</span>' +
                     typeTag +
                 '</div>' +
+                (pole.target != null ? '<div class="target-hint">cel: <strong>' + String(pole.target).replace('.', ',') + '</strong>' + (normRange ? ' (' + normRange + ')' : '') + '</div>' : '') +
             '</div>';
+        } // end else (non-binary)
     });
     fieldsHtml += '</div>';
 
@@ -1670,6 +1685,24 @@ function doSaveField(input, sekcja, kod) {
     }).catch(function() {
         input.style.outline = '2px solid var(--red, #dc2626)';
         setTimeout(function() { input.style.outline = ''; }, 2000);
+    });
+}
+
+
+function setBinary(btn, sekcja, kod, value) {
+    var container = btn.closest('.binary-pills');
+    container.querySelectorAll('.bp-pill').forEach(function(p) {
+        p.classList.remove('bp-ok', 'bp-err');
+    });
+    btn.classList.add(value === 'OK' ? 'bp-ok' : 'bp-err');
+    var dot = btn.closest('.ff').querySelector('.status-dot');
+    if (dot) dot.style.background = value === 'OK' ? 'var(--green)' : 'var(--red)';
+    var values = {};
+    values[kod] = { wartosc: value === 'OK' ? 1 : 0, wartosc_text: value, komentarz: '' };
+    fetch('/laborant/ebr/' + _saveEbrId + '/save', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({sekcja: sekcja, values: values})
     });
 }
 

@@ -1976,3 +1976,28 @@ body {
 .registry-empty {
   padding: 60px; text-align: center; color: var(--text-dim);
 }
+
+/* Binary parameter pills */
+.ff.binary { }
+.binary-pills { display: flex; gap: 4px; }
+.bp-pill {
+  padding: 6px 14px; border-radius: 6px;
+  border: 1.5px solid var(--border);
+  background: var(--surface); cursor: pointer;
+  font-size: 11px; font-weight: 600; font-family: var(--font);
+  transition: all 0.15s;
+}
+.bp-pill:hover { border-color: var(--text-sec); }
+.bp-pill.bp-ok {
+  border-color: var(--green); background: var(--green-bg); color: var(--green);
+}
+.bp-pill.bp-err {
+  border-color: var(--red); background: var(--red-bg); color: var(--red);
+}
+
+/* Target hint */
+.target-hint {
+  font-size: 9px; color: var(--text-dim); margin-top: 2px;
+  font-family: var(--mono);
+}
+.target-hint strong { color: var(--teal); }
