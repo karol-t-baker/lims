@@ -7,7 +7,7 @@ import sqlite3
 
 
 def list_completed_registry(
-    db: sqlite3.Connection, produkt: str | None = None, limit: int = 100, typ: str | None = None
+    db: sqlite3.Connection, produkt: str | None = None, limit: int = 50, typ: str | None = None, offset: int = 0
 ) -> list[dict]:
     """Get completed batches with all wyniki for registry table view."""
     sql = """
@@ -23,8 +23,9 @@ def list_completed_registry(
     if typ:
         sql += " AND eb.typ = ?"
         params.append(typ)
-    sql += " ORDER BY eb.dt_end DESC LIMIT ?"
+    sql += " ORDER BY eb.dt_end DESC LIMIT ? OFFSET ?"
     params.append(limit)
+    params.append(offset)
     rows = db.execute(sql, params).fetchall()
 
     result = []

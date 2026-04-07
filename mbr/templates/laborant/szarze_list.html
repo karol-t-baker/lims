@@ -1217,40 +1217,81 @@ async function showRegistry(produkt, skipHistory) {
   currentEbrId = null;
 }
 
-async function loadRegistry(produkt) {
-  var resp = await fetch('/api/registry?produkt=' + encodeURIComponent(produkt) + (registryTyp ? '&typ=' + registryTyp : ''));
+var _regColumns = [];
+var _regOffset = 0;
+var _regHasMore = false;
+var _regProdukt = '';
+
+async function loadRegistry(produkt, append) {
+  if (!append) _regOffset = 0;
+  var url = '/api/registry?produkt=' + encodeURIComponent(produkt) + (registryTyp ? '&typ=' + registryTyp : '') + '&offset=' + _regOffset;
+  var resp = await fetch(url);
   var data = await resp.json();
 
-  // Update count
-  document.getElementById('reg-count').textContent = data.batches.length + ' szarz';
+  _regColumns = data.columns;
+  _regHasMore = data.has_more;
+  _regProdukt = produkt;
 
-  // Update active tab
-  document.querySelectorAll('#ch-tabs .ch-tab').forEach(function(t) { t.classList.remove('active'); });
-  var found = document.querySelector('#ch-tabs .ch-tab[data-product="' + produkt + '"]');
-  if (found) {
-    found.classList.add('active');
-    document.getElementById('ch-more-label') && (document.getElementById('ch-more-label').textContent = 'Inne');
-  } else {
-    // It's in the "Inne" dropdown
-    var moreBtn = document.getElementById('ch-more-btn');
-    if (moreBtn) { moreBtn.classList.add('active'); }
-    var moreLabel = document.getElementById('ch-more-label');
-    if (moreLabel) { moreLabel.textContent = produkt.replace('Chegina_', '').replace('_', ' '); }
+  if (!append) {
+    // Update count
+    document.getElementById('reg-count').textContent = data.batches.length + (data.has_more ? '+' : '') + ' szarz';
+
+    // Update active tab
+    document.querySelectorAll('#ch-tabs .ch-tab').forEach(function(t) { t.classList.remove('active'); });
+    var found = document.querySelector('#ch-tabs .ch-tab[data-product="' + produkt + '"]');
+    if (found) {
+      found.classList.add('active');
+      document.getElementById('ch-more-label') && (document.getElementById('ch-more-label').textContent = 'Inne');
+    } else {
+      var moreBtn = document.getElementById('ch-more-btn');
+      if (moreBtn) { moreBtn.classList.add('active'); }
+      var moreLabel = document.getElementById('ch-more-label');
+      if (moreLabel) { moreLabel.textContent = produkt.replace('Chegina_', '').replace('_', ' '); }
+    }
+    var dd = document.getElementById('ch-dropdown');
+    if (dd) dd.classList.remove('show');
+
+    history.replaceState({view: 'registry', produkt: produkt}, '', '/laborant/szarze?view=registry&produkt=' + encodeURIComponent(produkt));
   }
-  var dd = document.getElementById('ch-dropdown');
-  if (dd) dd.classList.remove('show');
 
-  // Update history for tab switch (without adding new entry)
-  history.replaceState({view: 'registry', produkt: produkt}, '', '/laborant/szarze?view=registry&produkt=' + encodeURIComponent(produkt));
-
-  renderRegistryTable(data.columns, data.batches);
+  renderRegistryTable(data.columns, data.batches, append);
+  _regOffset += data.batches.length;
 }
 
-function renderRegistryTable(columns, batches) {
-  if (!batches.length) {
+function loadMoreRegistry() {
+  loadRegistry(_regProdukt, true);
+}
+
+function renderRegistryTable(columns, batches, append) {
+  if (!batches.length && !append) {
     document.getElementById('reg-table-wrap').innerHTML = '<div class="registry-empty">Brak ukonczonych szarz dla tego produktu.</div>';
     return;
   }
+
+  // Remove old "load more" button
+  var oldBtn = document.getElementById('reg-load-more');
+  if (oldBtn) oldBtn.remove();
+
+  if (append) {
+    // Append rows to existing tbody
+    var tbody = document.querySelector('#reg-table-wrap table tbody');
+    if (tbody) {
+      var rowsHtml = '';
+      batches.forEach(function(b) {
+        rowsHtml += _buildRegistryRow(columns, b);
+      });
+      tbody.insertAdjacentHTML('beforeend', rowsHtml);
+      // Update count
+      var total = tbody.querySelectorAll('tr').length;
+      document.getElementById('reg-count').textContent = total + (_regHasMore ? '+' : '') + ' szarz';
+      if (_regHasMore) {
+        document.getElementById('reg-table-wrap').insertAdjacentHTML('beforeend',
+          '<div id="reg-load-more" style="text-align:center;padding:12px;"><button class="btn btn-o" onclick="loadMoreRegistry()" style="font-size:12px;">Załaduj więcej</button></div>');
+      }
+      return;
+    }
+  }
+
   var html = '<table><thead><tr>';
   if (_userRola === 'admin') html += '<th class="th-del"></th>';
   html += '<th class="th-nr">Nr partii</th>';
@@ -1267,32 +1308,39 @@ function renderRegistryTable(columns, batches) {
   html += '</tr></thead><tbody>';
 
   batches.forEach(function(b) {
-    var hasErr = columns.some(function(c) { return b.wyniki[c.kod] && b.wyniki[c.kod].w_limicie === 0; });
-    html += '<tr data-ebr="' + b.ebr_id + '" onclick="loadBatch(' + b.ebr_id + ')">';
-    if (_userRola === 'admin') {
-      html += '<td class="td-del"><button class="btn-del-batch" onclick="event.stopPropagation();confirmCancelBatch(' + b.ebr_id + ',\'' + b.nr_partii.replace(/'/g, "\\'") + '\')" title="Usuń szarżę">&#x1F5D1;</button></td>';
-    }
-    html += '<td class="td-nr">' + b.nr_partii + (b.typ === 'zbiornik' ? ' <span class="td-zbiornik">' + (b.nr_zbiornika ? b.nr_zbiornika : 'ZB') + '</span>' : '') + (b.cert_count > 0 ? ' <span class="td-cert-badge">CoA</span>' : '') + '</td>';
-    var dtStr = '\u2014';
-    if (b.dt_end) {
-      var parts = b.dt_end.substring(0, 10).split('-');
-      dtStr = parts[2] + '.' + parts[1] + '.' + parts[0];
-    }
-    html += '<td class="td-date">' + dtStr + '</td>';
-    columns.forEach(function(col) {
-      var w = b.wyniki[col.kod];
-      if (w && w.wartosc != null) {
-        var cls = w.w_limicie ? 'val-ok' : 'val-err';
-        html += '<td class="' + cls + '">' + String(w.wartosc).replace('.', ',') + '</td>';
-      } else {
-        html += '<td style="color:var(--text-dim)">\u2014</td>';
-      }
-    });
-    html += '</tr>';
+    html += _buildRegistryRow(columns, b);
   });
 
   html += '</tbody></table>';
+  if (_regHasMore) {
+    html += '<div id="reg-load-more" style="text-align:center;padding:12px;"><button class="btn btn-o" onclick="loadMoreRegistry()" style="font-size:12px;">Załaduj więcej</button></div>';
+  }
   document.getElementById('reg-table-wrap').innerHTML = html;
+}
+
+function _buildRegistryRow(columns, b) {
+  var html = '<tr data-ebr="' + b.ebr_id + '" onclick="loadBatch(' + b.ebr_id + ')">';
+  if (_userRola === 'admin') {
+    html += '<td class="td-del"><button class="btn-del-batch" onclick="event.stopPropagation();confirmCancelBatch(' + b.ebr_id + ',\'' + b.nr_partii.replace(/'/g, "\\'") + '\')" title="Usuń szarżę">&#x1F5D1;</button></td>';
+  }
+  html += '<td class="td-nr">' + b.nr_partii + (b.typ === 'zbiornik' ? ' <span class="td-zbiornik">' + (b.nr_zbiornika ? b.nr_zbiornika : 'ZB') + '</span>' : '') + (b.cert_count > 0 ? ' <span class="td-cert-badge">CoA</span>' : '') + '</td>';
+  var dtStr = '\u2014';
+  if (b.dt_end) {
+    var parts = b.dt_end.substring(0, 10).split('-');
+    dtStr = parts[2] + '.' + parts[1] + '.' + parts[0];
+  }
+  html += '<td class="td-date">' + dtStr + '</td>';
+  columns.forEach(function(col) {
+    var w = b.wyniki[col.kod];
+    if (w && w.wartosc != null) {
+      var cls = w.w_limicie ? 'val-ok' : 'val-err';
+      html += '<td class="' + cls + '">' + String(w.wartosc).replace('.', ',') + '</td>';
+    } else {
+      html += '<td style="color:var(--text-dim)">\u2014</td>';
+    }
+  });
+  html += '</tr>';
+  return html;
 }
 
 function toggleRegDropdown() {
