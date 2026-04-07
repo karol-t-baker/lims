@@ -133,3 +133,40 @@ def api_produkty_update(pid):
 @role_required("admin")
 def admin_produkty():
     return render_template("admin/produkty.html")
+
+
+# ── Normy Admin ──
+
+@zbiorniki_bp.route("/admin/normy")
+@role_required("admin")
+def admin_normy():
+    return render_template("admin/normy.html")
+
+@zbiorniki_bp.route("/api/normy/<produkt>")
+@role_required("admin")
+def api_normy(produkt):
+    with db_session() as db:
+        rows = db.execute("""
+            SELECT pe.id, pe.parametr_id, pa.kod, pa.label, pa.skrot, pa.typ, pa.jednostka,
+                   pe.min_limit, pe.max_limit, pe.target, pe.nawazka_g, pe.kolejnosc
+            FROM parametry_etapy pe
+            JOIN parametry_analityczne pa ON pa.id = pe.parametr_id
+            WHERE pe.kontekst = 'analiza_koncowa' AND (pe.produkt = ? OR pe.produkt IS NULL)
+            ORDER BY pe.kolejnosc
+        """, (produkt,)).fetchall()
+    return jsonify([dict(r) for r in rows])
+
+@zbiorniki_bp.route("/api/normy/<int:binding_id>", methods=["PUT"])
+@role_required("admin")
+def api_normy_update(binding_id):
+    data = request.get_json(silent=True) or {}
+    allowed = {"min_limit", "max_limit", "target"}
+    updates = {k: v for k, v in data.items() if k in allowed}
+    if not updates:
+        return jsonify({"ok": True})
+    set_clause = ", ".join(f"{k} = ?" for k in updates)
+    with db_session() as db:
+        db.execute(f"UPDATE parametry_etapy SET {set_clause} WHERE id = ?",
+                   [*updates.values(), binding_id])
+        db.commit()
+    return jsonify({"ok": True})
