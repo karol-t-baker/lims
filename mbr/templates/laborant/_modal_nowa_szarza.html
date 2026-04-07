@@ -248,18 +248,7 @@ function _renderZbPills(containerId, produktName, multiSelect) {
         html += '</div>';
     }
 
-    // Other tanks — collapsible (same as pump modal)
-    if (rest.length > 0) {
-        html += '<details class="pm-other-tanks"><summary class="pm-other-label">Pozostałe zbiorniki (' + rest.length + ')</summary>';
-        html += '<div class="pm-tank-grid" style="margin-top:8px;">';
-        rest.forEach(function(z) {
-            html += '<button type="button" class="pm-tank-pill pm-pill-dim" data-zid="' + z.id + '" data-nr="' + z.nr_zbiornika + '" onclick="_toggleModalZb(this,' + z.id + ',\'' + z.nr_zbiornika + '\',' + (multiSelect ? 'true' : 'false') + ')">' +
-                '<span class="pm-pill-nr">' + z.nr_zbiornika + '</span>' +
-                '<span class="pm-pill-cap">' + (z.produkt || '') + '</span>' +
-            '</button>';
-        });
-        html += '</div></details>';
-    }
+    // Other tanks omitted — only matching tanks shown
 
     container.innerHTML = html || '<div class="pm-empty-hint">Brak zbiorników dla tego produktu</div>';
 }
