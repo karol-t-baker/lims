@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}Etapy procesowe{% endblock %}
+{% block nav_etapy %}active{% endblock %}
+
+{% block topbar_title %}
+  <span style="font-weight:700;">Etapy procesowe</span>
+{% endblock %}
+
+{% block head %}
+<style>
+.et-wrap { padding: 24px 32px; max-width: 960px; overflow-y: auto; max-height: calc(100vh - 52px); }
+.et-section { margin-bottom: 40px; }
+.et-section h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); margin: 0 0 12px; }
+.et-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.et-table th { text-align: left; padding: 10px 12px; font-size: 10px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid var(--border); }
+.et-table td { padding: 8px 12px; border-bottom: 1px solid var(--border-subtle); }
+.et-table tr:hover { background: var(--surface-alt); }
+.et-kod { font-family: var(--mono); font-weight: 700; font-size: 13px; color: var(--teal); }
+.et-input { border: 1px solid transparent; background: transparent; padding: 4px 8px; border-radius: 4px; font-size: 12px; width: 100%; font-family: inherit; }
+.et-input:hover { border-color: var(--border); }
+.et-input:focus { border-color: var(--teal); outline: none; background: var(--surface); }
+.et-toggle { cursor: pointer; padding: 3px 10px; border-radius: 12px; font-size: 10px; font-weight: 600; border: none; }
+.et-toggle.on { background: var(--green-bg, #dcfce7); color: var(--green, #16a34a); }
+.et-toggle.off { background: var(--red-bg, #fef2f2); color: var(--red, #dc2626); }
+.et-add { margin-top: 16px; display: flex; gap: 8px; align-items: center; }
+.et-add input { padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 12px; }
+.et-add button { padding: 8px 16px; background: var(--teal); color: #fff; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.et-add button:hover { opacity: 0.9; }
+.et-count { font-size: 11px; color: var(--text-dim); margin-bottom: 16px; }
+.bind-group { margin-bottom: 24px; }
+.bind-group-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); margin-bottom: 8px; }
+.bind-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.bind-pill { padding: 4px 10px; background: var(--surface-alt); border: 1px solid var(--border); border-radius: 12px; font-size: 11px; font-family: var(--mono); color: var(--text); }
+.bind-pill .seq { font-size: 9px; color: var(--text-dim); margin-right: 4px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="et-wrap">
+
+  <div class="et-section">
+    <h2>Etapy procesowe</h2>
+    <div class="et-count" id="et-count"></div>
+    <table class="et-table">
+      <thead>
+        <tr>
+          <th style="width:140px;">Kod</th>
+          <th>Label</th>
+          <th style="width:90px;">Status</th>
+        </tr>
+      </thead>
+      <tbody id="et-body"></tbody>
+    </table>
+
+    <div class="et-add">
+      <input type="text" id="add-kod" placeholder="Kod (np. SULFONOWANIE)" style="width:180px;font-family:var(--mono);">
+      <input type="text" id="add-label" placeholder="Label (pełna nazwa)" style="width:240px;">
+      <button onclick="addEtap()">Dodaj</button>
+    </div>
+  </div>
+
+  <div class="et-section">
+    <h2>Przypisanie do produktów</h2>
+    <div id="bind-body"></div>
+  </div>
+
+</div>
+
+<script>
+var _etapy = [];
+var _bindings = [];
+
+async function loadData() {
+  var resp = await fetch('/api/etapy-procesowe');
+  var data = await resp.json();
+  _etapy = data.etapy;
+  _bindings = data.bindings;
+  renderEtapy();
+  renderBindings();
+}
+
+function renderEtapy() {
+  document.getElementById('et-count').textContent = _etapy.length + ' etapów';
+  var html = '';
+  _etapy.forEach(function(e) {
+    html += '<tr data-id="' + e.id + '">' +
+      '<td class="et-kod">' + e.kod + '</td>' +
+      '<td><input class="et-input" type="text" value="' + (e.label || '').replace(/"/g, '&quot;') + '" onchange="saveField(' + e.id + ', \'label\', this.value)"></td>' +
+      '<td><button class="et-toggle ' + (e.aktywny ? 'on' : 'off') + '" onclick="toggleActive(' + e.id + ', ' + e.aktywny + ')">' + (e.aktywny ? 'Aktywny' : 'Ukryty') + '</button></td>' +
+    '</tr>';
+  });
+  document.getElementById('et-body').innerHTML = html;
+}
+
+function renderBindings() {
+  var grouped = {};
+  _bindings.forEach(function(b) {
+    if (!grouped[b.produkt]) grouped[b.produkt] = [];
+    grouped[b.produkt].push(b);
+  });
+  var html = '';
+  Object.keys(grouped).sort().forEach(function(produkt) {
+    var stages = grouped[produkt];
+    html += '<div class="bind-group">';
+    html += '<div class="bind-group-title">' + produkt + '</div>';
+    html += '<div class="bind-pills">';
+    stages.forEach(function(s) {
+      html += '<div class="bind-pill"><span class="seq">' + s.kolejnosc + '.</span>' + s.etap_kod + '</div>';
+    });
+    html += '</div></div>';
+  });
+  if (!html) html = '<p style="font-size:12px;color:var(--text-dim);">Brak przypisań.</p>';
+  document.getElementById('bind-body').innerHTML = html;
+}
+
+async function saveField(id, field, value) {
+  var body = {};
+  body[field] = value;
+  await fetch('/api/etapy-procesowe/' + id, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  });
+}
+
+async function toggleActive(id, current) {
+  await saveField(id, 'aktywny', current ? 0 : 1);
+  loadData();
+}
+
+async function addEtap() {
+  var kod = document.getElementById('add-kod').value.trim();
+  var label = document.getElementById('add-label').value.trim();
+  if (!kod || !label) return;
+  var resp = await fetch('/api/etapy-procesowe', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({kod: kod, label: label})
+  });
+  if (resp.ok) {
+    document.getElementById('add-kod').value = '';
+    document.getElementById('add-label').value = '';
+    loadData();
+  } else {
+    var err = await resp.json();
+    alert(err.error || 'Błąd');
+  }
+}
+
+loadData();
+</script>
+{% endblock %}
