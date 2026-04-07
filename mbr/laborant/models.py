@@ -23,7 +23,7 @@ PRODUCTS = [
     # Grupa 6: Distery i Monestery
     "Dister_E", "Monester_O", "Monester_S",
     # Grupa 7: Alkinole i Alstermidy
-    "Alkinol", "Alstermid_K", "Alstermid",
+    "Alkinol", "Alkinol_B", "Alstermid_K", "Alstermid",
     # Grupa 8: Chemale
     "Chemal_CS3070", "Chemal_EO20", "Chemal_SE12", "Chemal_PC",
     # Grupa 9: Inne

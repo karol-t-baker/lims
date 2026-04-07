@@ -184,7 +184,7 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
         ("Monamid_KO", "MKO"), ("Monamid_KO_Revada", "MKO_R"), ("Monamid_K", "MK"),
         ("Monamid_L", "ML"), ("Monamid_S", "MS"),
         ("Dister_E", "DIST_E"), ("Monester_O", "MON_O"), ("Monester_S", "MON_S"),
-        ("Alkinol", "ALK"), ("Alstermid_K", "AST_K"), ("Alstermid", "AST"),
+        ("Alkinol", "ALK"), ("Alkinol_B", "ALK_B"), ("Alstermid_K", "AST_K"), ("Alstermid", "AST"),
         ("Chemal_CS3070", "CML_CS"), ("Chemal_EO20", "CML_EO"), ("Chemal_SE12", "CML_SE"), ("Chemal_PC", "CML_PC"),
         ("Polcet_A", "POL_A"), ("Chelamid_DK", "DK"), ("Glikoster_P", "GLIK"),
         ("Citrowax", "CWAX"), ("Kwas_stearynowy", "KS"), ("Perlico_45", "PER45"),
