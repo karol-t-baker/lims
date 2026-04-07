@@ -50,6 +50,8 @@ def api_cert_generate():
         ebr = get_ebr(db, ebr_id)
         if not ebr:
             return jsonify({"ok": False, "error": "EBR not found"}), 404
+        if ebr.get("typ") != "zbiornik":
+            return jsonify({"ok": False, "error": "Świadectwa tylko dla zbiorników"}), 400
 
         wyniki = get_ebr_wyniki(db, ebr_id)
         wyniki_flat = {}

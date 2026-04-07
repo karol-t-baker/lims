@@ -119,7 +119,7 @@
 
 /* Param row in editor */
 .ped-row {
-  display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+  display: flex; align-items: center; gap: 8px; padding: 8px 10px; cursor: grab;
   border: 1px solid var(--border-subtle); border-radius: 8px; margin-bottom: 6px;
   background: #fff; transition: background 0.15s;
 }
@@ -1011,8 +1011,8 @@ function renderCompletedView() {
         }
     }
 
-    // Cert section
-    if (userRola !== 'laborant') {
+    // Cert section — only for zbiornik, hidden from laborant role
+    if (isZbiornik && userRola !== 'laborant') {
         html += '<div class="cv-certs" id="cv-certs"></div>';
     }
     if (userRola === 'laborant_coa' || userRola === 'technolog') {
@@ -1020,9 +1020,10 @@ function renderCompletedView() {
             '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>' +
             'Konfiguracja pól świadectwa</button>';
     }
+    } // end isZbiornik cert section
 
     container.innerHTML = html;
-    loadCompletedCerts();
+    if (isZbiornik) loadCompletedCerts();
 
     // Dynamic topbar — hide when hero visible, show on scroll past hero
     var topbar = document.getElementById('topbar');
@@ -2859,7 +2860,8 @@ function renderParamEditor() {
   _peBindings.forEach(function(b, i) {
     var typCls = b.typ === 'titracja' ? 'ped-typ-t' : b.typ === 'obliczeniowy' ? 'ped-typ-o' : 'ped-typ-b';
     var typLabel = b.typ === 'titracja' ? 'miarecz.' : b.typ === 'obliczeniowy' ? 'oblicz.' : 'bezpośr.';
-    html += '<div class="ped-row" id="ped-' + i + '" draggable="true" data-idx="' + i + '">' +
+    html += '<div class="ped-row" id="ped-' + i + '" draggable="true" data-idx="' + i + '"' +
+      ' ondragstart="peDragStart(event,' + i + ')" ondragover="peDragOver(event)" ondragenter="peDragEnter(event)" ondragleave="peDragLeave(event)" ondrop="peDrop(event,' + i + ')" ondragend="peDragEnd()">' +
       '<span class="ped-grip" title="Przeciągnij aby zmienić kolejność">⠿</span>' +
       '<span class="ped-kod">' + esc(b.kod) + '</span>' +
       '<span class="ped-label">' + esc(b.skrot || b.label) + '</span>' +
@@ -2880,6 +2882,67 @@ function renderParamEditor() {
   sel.innerHTML = '<option value="">— wybierz parametr —</option>';
   _peAvailable.forEach(function(a) {
     sel.innerHTML += '<option value="' + a.id + '">' + a.kod + ' — ' + esc(a.label) + '</option>';
+  });
+}
+
+var _peDragIdx = null;
+
+function peDragStart(e, idx) {
+  _peDragIdx = idx;
+  e.target.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function peDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+
+function peDragEnter(e) {
+  var row = e.target.closest('.ped-row');
+  if (row) row.classList.add('drag-over');
+}
+
+function peDragLeave(e) {
+  var row = e.target.closest('.ped-row');
+  if (row) row.classList.remove('drag-over');
+}
+
+function peDragEnd() {
+  _peDragIdx = null;
+  document.querySelectorAll('.ped-row').forEach(function(r) {
+    r.classList.remove('dragging', 'drag-over');
+  });
+}
+
+function peDrop(e, targetIdx) {
+  e.preventDefault();
+  var row = e.target.closest('.ped-row');
+  if (row) row.classList.remove('drag-over');
+  if (_peDragIdx === null || _peDragIdx === targetIdx) return;
+
+  // Reorder in array
+  var item = _peBindings.splice(_peDragIdx, 1)[0];
+  _peBindings.splice(targetIdx, 0, item);
+  _peDragIdx = null;
+
+  renderParamEditor();
+  peSaveOrder();
+}
+
+function peSaveOrder() {
+  var promises = [];
+  _peBindings.forEach(function(b, i) {
+    if (!b.binding_id) return;
+    promises.push(fetch('/api/parametry/etapy/' + b.binding_id, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({kolejnosc: i + 1})
+    }));
+  });
+  Promise.all(promises).then(function() {
+    return fetch('/api/parametry/rebuild-mbr', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({produkt: window._batchProdukt})
+    });
   });
 }
 

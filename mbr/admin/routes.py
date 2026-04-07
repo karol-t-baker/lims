@@ -211,6 +211,7 @@ def api_db_snapshot():
 @admin_bp.route("/api/completed")
 def api_completed():
     """Return completed batches with sync_seq > since.
+<<<<<<< HEAD
 
     Query params:
         since (int): last known sync_seq (default 0 = return all)
@@ -280,14 +281,88 @@ def api_completed():
 
 @admin_bp.route("/api/admin/sync-delta")
 def api_sync_delta():
+    Query params:
+        since (int): last known sync_seq (default 0 = return all)
+        ref_hash (str): client's reference table hash (optional)
+    """
+    import hashlib
+    since = request.args.get("since", 0, type=int)
+    client_ref_hash = request.args.get("ref_hash", "")
+
+    with db_session() as db:
+        # Reference tables (same hash logic as existing sync)
+        ref_counts = (
+            str(db.execute("SELECT COUNT(*) FROM parametry_analityczne").fetchone()[0]) +
+            str(db.execute("SELECT COUNT(*) FROM metody_miareczkowe").fetchone()[0]) +
+            str(db.execute("SELECT COUNT(*) FROM workers").fetchone()[0]) +
+            str(db.execute("SELECT COUNT(*) FROM mbr_templates").fetchone()[0])
+        )
+        ref_hash = hashlib.md5(ref_counts.encode()).hexdigest()[:8]
+
+        reference = None
+        if client_ref_hash != ref_hash:
+            reference = {
+                "parametry_analityczne": [dict(r) for r in db.execute("SELECT * FROM parametry_analityczne").fetchall()],
+                "metody_miareczkowe": [dict(r) for r in db.execute("SELECT * FROM metody_miareczkowe").fetchall()],
+                "workers": [dict(r) for r in db.execute("SELECT * FROM workers").fetchall()],
+                "mbr_templates": [dict(r) for r in db.execute("SELECT * FROM mbr_templates").fetchall()],
+            }
+
+        # Batches with sync_seq > since
+        batches = [dict(r) for r in db.execute(
+            "SELECT * FROM ebr_batches WHERE status='completed' AND sync_seq > ? ORDER BY sync_seq",
+            (since,),
+        ).fetchall()]
+
+        batch_ids = [b["ebr_id"] for b in batches]
+        wyniki = []
+        swiadectwa = []
+        if batch_ids:
+            placeholders = ",".join("?" * len(batch_ids))
+            wyniki = [dict(r) for r in db.execute(
+                f"SELECT * FROM ebr_wyniki WHERE ebr_id IN ({placeholders})", batch_ids
+            ).fetchall()]
+            swiadectwa = [dict(r) for r in db.execute(
+                f"SELECT * FROM swiadectwa WHERE ebr_id IN ({placeholders})", batch_ids
+            ).fetchall()]
+
+        max_seq = db.execute(
+            "SELECT COALESCE(MAX(sync_seq), 0) FROM ebr_batches WHERE status='completed'"
+        ).fetchone()[0]
+
+        total_completed = db.execute(
+            "SELECT COUNT(*) FROM ebr_batches WHERE status='completed'"
+        ).fetchone()[0]
+
+    return jsonify({
+        "ok": True,
+        "since": since,
+        "max_seq": max_seq,
+        "ref_hash": ref_hash,
+        "reference": reference,
+        "batches": batches,
+        "wyniki": wyniki,
+        "swiadectwa": swiadectwa,
+        "total_completed": total_completed,
+    })
+
+
+@admin_bp.route("/api/admin/sync-delta", methods=["GET", "POST"])
+def api_sync_delta():
     """DEPRECATED: Use GET /api/completed?since=N instead.
 
     Kept for backwards compatibility during transition.
     Return records changed since given timestamp.
     """
     import hashlib
-    since = request.args.get("since", "2000-01-01T00:00:00")
-    client_ref_hash = request.args.get("ref_hash", "")
+    if request.is_json:
+        body = request.get_json(silent=True) or {}
+        since = body.get("since", "2000-01-01T00:00:00")
+    else:
+        body = {}
+        since = request.args.get("since", "2000-01-01T00:00:00")
+    client_ref_hash = body.get("ref_hash") or request.args.get("ref_hash", "")
+    local_ids = set(body.get("local_ids", []))
 
     with db_session() as db:
         # Compute reference hash (cheap — just counts + max ids)
@@ -309,13 +384,46 @@ def api_sync_delta():
                 "mbr_templates": [dict(r) for r in db.execute("SELECT * FROM mbr_templates").fetchall()],
             }
 
-        # Delta: only completed batches since last sync
+        # Delta: completed batches since last sync OR with wyniki/certs changed since
         batches = [dict(r) for r in db.execute(
             "SELECT * FROM ebr_batches WHERE status='completed' AND (dt_end >= ? OR dt_start >= ?)",
             (since, since),
         ).fetchall()]
-        batch_ids = [b["ebr_id"] for b in batches]
+        batch_ids = set(b["ebr_id"] for b in batches)
 
+        # Also include batches with wyniki or swiadectwa changed since last sync
+        changed_wyniki_ids = [r[0] for r in db.execute(
+            "SELECT DISTINCT ebr_id FROM ebr_wyniki WHERE dt_wpisu >= ?", (since,)
+        ).fetchall()]
+        changed_cert_ids = [r[0] for r in db.execute(
+            "SELECT DISTINCT ebr_id FROM swiadectwa WHERE dt_wystawienia >= ?", (since,)
+        ).fetchall()]
+        extra_ids = set(changed_wyniki_ids + changed_cert_ids) - batch_ids
+        if extra_ids:
+            placeholders = ",".join("?" * len(extra_ids))
+            extra_batches = [dict(r) for r in db.execute(
+                f"SELECT * FROM ebr_batches WHERE ebr_id IN ({placeholders}) AND status='completed'",
+                list(extra_ids),
+            ).fetchall()]
+            batches.extend(extra_batches)
+            batch_ids.update(r["ebr_id"] for r in extra_batches)
+
+        # Also include batches that COA is missing entirely
+        if local_ids:
+            all_server_ids = set(r[0] for r in db.execute(
+                "SELECT ebr_id FROM ebr_batches WHERE status='completed'"
+            ).fetchall())
+            missing_ids = all_server_ids - local_ids - batch_ids
+            if missing_ids:
+                placeholders = ",".join("?" * len(missing_ids))
+                missing_batches = [dict(r) for r in db.execute(
+                    f"SELECT * FROM ebr_batches WHERE ebr_id IN ({placeholders})",
+                    list(missing_ids),
+                ).fetchall()]
+                batches.extend(missing_batches)
+                batch_ids.update(missing_ids)
+
+        batch_ids = list(batch_ids)
         wyniki = []
         swiadectwa = []
         if batch_ids:
@@ -329,9 +437,13 @@ def api_sync_delta():
 
         total_completed = db.execute("SELECT COUNT(*) FROM ebr_batches WHERE status='completed'").fetchone()[0]
 
+    from datetime import datetime
+    server_now = datetime.now().isoformat(timespec="seconds")
+
     return jsonify({
         "ok": True,
         "since": since,
+        "server_now": server_now,
         "ref_hash": ref_hash,
         "reference": reference,
         "delta": {

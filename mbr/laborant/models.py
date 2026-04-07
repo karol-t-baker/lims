@@ -302,7 +302,8 @@ def create_ebr(
 
 
 def get_ebr(db: sqlite3.Connection, ebr_id: int) -> dict | None:
-    """Get EBR with joined MBR data (produkt, etapy_json, parametry_lab)."""
+    """Get EBR with joined MBR data (produkt, etapy_json, parametry_lab).
+    Replaces label with skrot from parametry_analityczne where available."""
     row = db.execute("""
         SELECT
             eb.*,
@@ -313,7 +314,32 @@ def get_ebr(db: sqlite3.Connection, ebr_id: int) -> dict | None:
         JOIN mbr_templates mt ON mt.mbr_id = eb.mbr_id
         WHERE eb.ebr_id = ?
     """, (ebr_id,)).fetchone()
-    return dict(row) if row else None
+    if row is None:
+        return None
+    d = dict(row)
+    d["parametry_lab"] = _apply_skroty(db, d.get("parametry_lab"))
+    return d
+
+
+def _apply_skroty(db: sqlite3.Connection, parametry_raw) -> str:
+    """Replace label with skrot from parametry_analityczne in parametry_lab JSON."""
+    parametry = json.loads(parametry_raw) if isinstance(parametry_raw, str) else parametry_raw
+    if not isinstance(parametry, dict):
+        return parametry_raw
+    skroty = {}
+    try:
+        rows = db.execute("SELECT kod, skrot FROM parametry_analityczne WHERE aktywny=1 AND skrot IS NOT NULL AND skrot != ''").fetchall()
+        skroty = {r["kod"]: r["skrot"] for r in rows}
+    except Exception:
+        pass
+    for sek_def in parametry.values():
+        pola = sek_def.get("pola", sek_def) if isinstance(sek_def, dict) else sek_def
+        if not isinstance(pola, list):
+            continue
+        for pole in pola:
+            if isinstance(pole, dict) and pole.get("kod") in skroty:
+                pole["label"] = skroty[pole["kod"]]
+    return json.dumps(parametry, ensure_ascii=False)
 
 
 def get_ebr_wyniki(db: sqlite3.Connection, ebr_id: int) -> dict:
