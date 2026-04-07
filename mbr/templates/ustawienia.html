@@ -80,6 +80,12 @@
       <input type="text" id="coa_backup_dir" placeholder="np. D:\Backupy_LIMS">
       <div class="ust-hint">Przy każdej synchronizacji kopia bazy zapisywana jest do tego folderu z datą.</div>
     </div>
+    <div class="ust-field" style="margin-top:18px; padding-top:14px; border-top:1px solid var(--border-subtle);">
+      <label>Pełna synchronizacja</label>
+      <div class="ust-hint" style="margin-bottom:8px;">Pobierz całą bazę danych z serwera od nowa. Użyj jeśli dane są niespójne lub po reinstalacji.</div>
+      <button class="ust-save" id="coa-full-sync-btn" onclick="coaFullSync()" style="background:var(--amber);">Pobierz całą bazę</button>
+      <span class="ust-status" id="coa-full-sync-status"></span>
+    </div>
   </div>
   {% endif %}
 
@@ -288,6 +294,36 @@ function saveSettings() {
       })
     });
   }
+}
+
+// Full sync (download entire DB)
+function coaFullSync() {
+  var btn = document.getElementById('coa-full-sync-btn');
+  var status = document.getElementById('coa-full-sync-status');
+  if (!confirm('Pobrać całą bazę z serwera? Nadpisze lokalne dane.')) return;
+  btn.disabled = true;
+  btn.textContent = 'Pobieranie...';
+  status.textContent = '';
+  status.classList.remove('show');
+  fetch('/api/coa/sync-full', {method: 'POST'}).then(function(r) { return r.json(); }).then(function(d) {
+    btn.disabled = false;
+    btn.textContent = 'Pobierz całą bazę';
+    if (d.ok) {
+      status.textContent = 'Pobrano (' + (d.size_kb || '?') + ' KB) ✓';
+      status.style.color = 'var(--green)';
+    } else {
+      status.textContent = 'Błąd: ' + (d.error || 'nieznany');
+      status.style.color = 'var(--red)';
+    }
+    status.classList.add('show');
+    setTimeout(function() { status.classList.remove('show'); }, 5000);
+  }).catch(function(e) {
+    btn.disabled = false;
+    btn.textContent = 'Pobierz całą bazę';
+    status.textContent = 'Błąd połączenia';
+    status.style.color = 'var(--red)';
+    status.classList.add('show');
+  });
 }
 
 // Load COA settings on page load
