@@ -306,6 +306,17 @@
     border-radius: 2px;
     font-weight: 600;
   }
+  .td-zb-sticker {
+    display: inline-block;
+    padding: 1px 5px;
+    font-size: 9px;
+    font-weight: 600;
+    font-family: var(--mono);
+    background: var(--blue-bg, #e8f0fe);
+    color: var(--blue, #1a73e8);
+    border-radius: 3px;
+    margin-left: 3px;
+  }
 </style>
 {% endblock %}
 
@@ -1329,7 +1340,7 @@ function _buildRegistryRow(columns, b) {
   if (_userRola === 'admin') {
     html += '<td class="td-del"><button class="btn-del-batch" onclick="event.stopPropagation();confirmCancelBatch(' + b.ebr_id + ',\'' + b.nr_partii.replace(/'/g, "\\'") + '\')" title="Usuń szarżę">&#x1F5D1;</button></td>';
   }
-  html += '<td class="td-nr">' + (b.typ === 'zbiornik' ? '<span class="highlight-marker">' + b.nr_partii + ' ' + (b.nr_zbiornika ? b.nr_zbiornika : 'ZB') + '</span>' : b.nr_partii) + (b.cert_count > 0 ? ' <span class="td-cert-badge">CoA</span>' : '') + '</td>';
+  html += '<td class="td-nr">' + (b.typ === 'zbiornik' ? '<span class="highlight-marker">' + b.nr_partii + ' ' + (b.nr_zbiornika ? b.nr_zbiornika : 'ZB') + '</span>' : b.nr_partii) + (b.cert_count > 0 ? ' <span class="td-cert-badge">CoA</span>' : '') + (b.zbiorniki && b.zbiorniki.length > 0 ? b.zbiorniki.map(function(nr) { return ' <span class="td-zb-sticker">' + nr + '</span>'; }).join('') : '') + '</td>';
   var dtStr = '\u2014';
   if (b.dt_end) {
     var parts = b.dt_end.substring(0, 10).split('-');

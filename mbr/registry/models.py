@@ -42,6 +42,15 @@ def list_completed_registry(
         ).fetchone()
         d["cert_count"] = cert["cnt"] if cert else 0
         result.append(d)
+
+    # Attach zbiorniki links
+    if result:
+        from mbr.zbiorniki.models import get_zbiorniki_for_batch_ids
+        ebr_ids = [r["ebr_id"] for r in result]
+        zb_map = get_zbiorniki_for_batch_ids(db, ebr_ids)
+        for r in result:
+            r["zbiorniki"] = zb_map.get(r["ebr_id"], [])
+
     return result
 
 
