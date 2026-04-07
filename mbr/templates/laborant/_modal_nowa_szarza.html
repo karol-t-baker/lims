@@ -236,9 +236,8 @@ function _renderZbPills(containerId, produktName, multiSelect) {
 
     var html = '';
 
-    // Matched section with label (same as pump modal)
+    // Matched tanks — pills directly, no label in compact modal context
     if (matched.length > 0) {
-        html += '<div class="pm-section-label">Zbiorniki dla tego produktu</div>';
         html += '<div class="pm-tank-grid">';
         matched.forEach(function(z) {
             html += '<button type="button" class="pm-tank-pill" data-zid="' + z.id + '" data-nr="' + z.nr_zbiornika + '" onclick="_toggleModalZb(this,' + z.id + ',\'' + z.nr_zbiornika + '\',' + (multiSelect ? 'true' : 'false') + ')">' +
