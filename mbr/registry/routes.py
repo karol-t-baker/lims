@@ -26,6 +26,31 @@ def api_registry():
     return jsonify({"batches": batches, "columns": columns, "produkt": produkt})
 
 
+@registry_bp.route("/api/registry/<int:ebr_id>/cancel", methods=["POST"])
+@role_required("admin")
+def api_cancel_batch(ebr_id):
+    """Soft-delete a completed batch (set status='cancelled'). Admin only."""
+    with db_session() as db:
+        row = db.execute(
+            "SELECT ebr_id, batch_id, status FROM ebr_batches WHERE ebr_id = ?",
+            (ebr_id,),
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "Batch not found"}), 404
+        if row["status"] != "completed":
+            return jsonify({"error": "Only completed batches can be cancelled"}), 400
+
+        next_seq = db.execute(
+            "SELECT COALESCE(MAX(sync_seq), 0) + 1 FROM ebr_batches"
+        ).fetchone()[0]
+        db.execute(
+            "UPDATE ebr_batches SET status = 'cancelled', sync_seq = ? WHERE ebr_id = ?",
+            (next_seq, ebr_id),
+        )
+        db.commit()
+    return jsonify({"ok": True, "ebr_id": ebr_id, "batch_id": row["batch_id"]})
+
+
 @registry_bp.route("/api/next-nr/<produkt>")
 @login_required
 def api_next_nr(produkt):
