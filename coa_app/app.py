@@ -14,24 +14,32 @@ import sys
 from datetime import date, datetime
 from pathlib import Path
 
-# Add parent dir so we can import mbr package
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-import requests as http_requests
-from flask import Flask, jsonify, request, session, redirect, url_for
-
 # ---------------------------------------------------------------------------
-# Config
+# Path resolution — supports PyInstaller frozen mode
 # ---------------------------------------------------------------------------
 
-APP_DIR = Path(__file__).parent
-DATA_DIR = APP_DIR / "data"
+_BUNDLE_DIR = os.environ.get("LABCORE_BUNDLE_DIR")
+if _BUNDLE_DIR:
+    # Launched via launcher.py (frozen or dev)
+    sys.path.insert(0, _BUNDLE_DIR)
+    APP_DIR = Path(_BUNDLE_DIR) / "coa_app" if not getattr(sys, "frozen", False) else Path(sys._MEIPASS)
+else:
+    # Direct python app.py (legacy dev mode)
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+    APP_DIR = Path(__file__).parent
+
+_DATA_DIR_ENV = os.environ.get("LABCORE_DATA_DIR")
+DATA_DIR = Path(_DATA_DIR_ENV) if _DATA_DIR_ENV else APP_DIR / "data"
 DB_PATH = DATA_DIR / "batch_db.sqlite"
-MBR_DIR = APP_DIR.parent / "mbr"
+MBR_DIR = Path(sys._MEIPASS) / "mbr" if getattr(sys, "frozen", False) else APP_DIR.parent / "mbr"
 
 DEFAULT_SERVER = "http://labcore.local:5001"
 DEFAULT_OUTPUT_DIR = str(Path.home() / "Desktop" / "Swiadectwa")
 DEFAULT_BACKUP_DIR = str(Path.home() / "Desktop" / "Backupy_LIMS")
+
+import requests as http_requests
+from flask import Flask, jsonify, request, session, redirect, url_for
+
 
 def _find_soffice() -> str:
     """Find LibreOffice soffice binary."""
@@ -465,11 +473,9 @@ app.view_functions["certs.api_cert_generate"] = coa_cert_generate
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    import webbrowser
     import urllib3
     urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-    # Ensure local DB exists (empty init)
     if not DB_PATH.exists():
         from mbr.models import init_mbr_tables
         with _mbr_db.db_session() as db:
@@ -477,11 +483,10 @@ if __name__ == "__main__":
 
     print("=" * 50)
     print("  LabCore COA — http://localhost:5050")
-    print("  Kliknij 'Synchronizuj' aby pobrać dane z serwera")
     print("=" * 50)
 
-    # Open browser only if not launched from START.bat (which handles app mode)
-    import os
     if os.environ.get("LABCORE_NO_BROWSER") != "1":
+        import webbrowser
         webbrowser.open("http://localhost:5050")
+
     app.run(host="127.0.0.1", port=5050, debug=False)
