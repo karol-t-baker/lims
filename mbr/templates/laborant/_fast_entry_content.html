@@ -62,20 +62,7 @@
   {% if ebr.typ == 'zbiornik' %}
   <button type="button" class="btn btn-p" onclick="completeSimple()">Zatwierdz karte</button>
   {% else %}
-  <div class="ft-pump" id="ft-pump">
-    <button type="button" class="btn btn-p" onclick="showPumpInline()">Zatwierdz karte</button>
-  </div>
-  <div class="ft-pump-form" id="ft-pump-form" style="display:none;">
-    <div class="ft-targets" id="ft-targets">
-      <div class="ft-target-row">
-        <select class="ft-zbiornik-select"></select>
-        <input class="ft-masa" type="text" inputmode="decimal" placeholder="kg" style="width:80px;">
-      </div>
-    </div>
-    <button type="button" class="ft-add" onclick="addPumpTarget()" title="Dodaj zbiornik">+</button>
-    <button class="btn btn-p ft-go" onclick="doCompleteFt()">Przepompuj</button>
-    <button class="ft-cancel" onclick="hidePumpInline()" title="Anuluj">&times;</button>
-  </div>
+  <button type="button" class="btn btn-p" onclick="openPumpModal()">Zatwierdz karte</button>
   {% endif %}
 </div>
 {% else %}
@@ -83,6 +70,73 @@
 {% endif %}
 
 <style>
+/* ── Pump Modal: tank selection pills ── */
+.pm-section-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.5px; color: var(--text-dim); margin-bottom: 10px;
+}
+.pm-tank-grid {
+  display: flex; flex-wrap: wrap; gap: 8px;
+}
+.pm-tank-pill {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  width: 72px; height: 64px;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+}
+.pm-tank-pill:hover {
+  border-color: var(--teal); background: var(--teal-bg);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(13,115,119,0.12);
+}
+.pm-tank-pill.pm-pill-active {
+  border-color: var(--teal); background: var(--teal);
+  color: white;
+  box-shadow: 0 2px 12px rgba(13,115,119,0.25);
+  transform: translateY(-1px);
+}
+.pm-tank-pill.pm-pill-active .pm-pill-cap { color: rgba(255,255,255,0.7); }
+.pm-tank-pill.pm-pill-dim { opacity: 0.6; }
+.pm-tank-pill.pm-pill-dim:hover { opacity: 1; }
+.pm-tank-pill.pm-pill-dim.pm-pill-active { opacity: 1; }
+.pm-pill-nr {
+  font-family: var(--mono); font-size: 16px; font-weight: 800;
+  letter-spacing: -0.5px;
+}
+.pm-pill-cap {
+  font-size: 9px; color: var(--text-dim); margin-top: 2px;
+}
+.pm-other-tanks { margin-top: 14px; }
+.pm-other-label {
+  font-size: 11px; color: var(--text-dim); cursor: pointer;
+  padding: 4px 0; user-select: none;
+}
+.pm-other-label:hover { color: var(--text-sec); }
+.pm-mass-row {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 8px;
+}
+.pm-mass-nr {
+  font-family: var(--mono); font-weight: 700; font-size: 14px;
+  width: 40px; text-align: right; color: var(--teal);
+}
+.pm-mass-input {
+  flex: 1; padding: 8px 12px;
+  border: 1.5px solid var(--border); border-radius: 8px;
+  font-size: 13px; font-family: var(--mono);
+  background: var(--surface);
+  transition: border-color 0.15s;
+}
+.pm-mass-input:focus { outline: none; border-color: var(--teal); }
+.pm-mass-total {
+  text-align: right; font-size: 11px; color: var(--text-dim);
+  margin-top: 4px; padding-right: 4px;
+}
+
 /* Edit params button */
 .sec-edit-btn {
   background: none; border: 1px solid var(--border-subtle); border-radius: 5px;
@@ -1686,7 +1740,11 @@ function doSaveField(input, sekcja, kod) {
 }
 
 
+// ── Pump Modal: tank selection for batch completion ──────────────
+
 var _zbiornikList = [];
+var _pumpSelected = {}; // {zbiornik_id: {id, nr, produkt, pojemnosc}}
+
 async function loadZbiornikList() {
     if (_zbiornikList.length > 0) return;
     var resp = await fetch('/api/zbiorniki');
@@ -1695,97 +1753,188 @@ async function loadZbiornikList() {
 
 function _zbiornikMatchesProduct(zbProdukt, batchProdukt) {
     if (!zbProdukt || !batchProdukt) return false;
-    // Normalize: "Chegina_K40GLOL" → "cheginak40glol", "Cheginy GLOL" → "cheginyglol"
     var a = batchProdukt.toLowerCase().replace(/[_ ]/g, '');
     var b = zbProdukt.toLowerCase().replace(/[_ ]/g, '');
-    // Match if one contains the other, or shared root (drop common suffixes)
     if (a.indexOf(b) >= 0 || b.indexOf(a) >= 0) return true;
-    // Extract product code: "cheginak40glol" → "glol", "cheginyglol" → "glol"
     var codeA = a.replace(/^chegin[ay]*/, '').replace(/^k40/, '').replace(/^k7/, '');
     var codeB = b.replace(/^chegin[ay]*/, '').replace(/^k40/, '').replace(/^k7/, '');
     if (codeA && codeB && codeA === codeB) return true;
-    // Chelamid, Alkinol etc — direct substring
     var rootA = a.replace(/[^a-z]/g, '');
     var rootB = b.replace(/[^a-z]/g, '');
     if (rootA.length > 4 && rootB.length > 4 && (rootA.indexOf(rootB) >= 0 || rootB.indexOf(rootA) >= 0)) return true;
     return false;
 }
 
-function _buildZbiornikOptions() {
-    var produkt = window._batchProdukt || '';
-    var matched = [];
-    var rest = [];
-    _zbiornikList.forEach(function(z) {
-        var label = z.nr_zbiornika + ' (' + (z.produkt || '') + ', ' + (z.max_pojemnosc || '?') + 't)';
-        var opt = {id: z.id, label: label};
-        if (_zbiornikMatchesProduct(z.produkt, produkt)) {
-            matched.push(opt);
-        } else {
-            rest.push(opt);
-        }
-    });
-    var html = '<option value="">Wybierz...</option>';
-    if (matched.length > 0) {
-        html += '<optgroup label="Pasujące">';
-        matched.forEach(function(o) { html += '<option value="' + o.id + '">' + o.label + '</option>'; });
-        html += '</optgroup>';
-    }
-    if (rest.length > 0) {
-        html += '<optgroup label="Pozostałe">';
-        rest.forEach(function(o) { html += '<option value="' + o.id + '">' + o.label + '</option>'; });
-        html += '</optgroup>';
-    }
-    return html;
-}
-
-async function showPumpInline() {
+async function openPumpModal() {
     await loadZbiornikList();
-    document.getElementById('ft-pump').style.display = 'none';
-    document.getElementById('ft-pump-form').style.display = 'flex';
-    var opts = _buildZbiornikOptions();
-    document.getElementById('ft-targets').innerHTML =
-        '<div class="ft-target-row"><select class="ft-zbiornik-select">' + opts + '</select><input class="ft-masa" type="text" inputmode="decimal" placeholder="kg" style="width:80px;"></div>';
-    var sel = document.querySelector('#ft-targets .ft-zbiornik-select');
-    setTimeout(function() { sel.focus(); }, 50);
+    _pumpSelected = {};
+
+    var produkt = window._batchProdukt || '';
+    var matched = _zbiornikList.filter(function(z) { return _zbiornikMatchesProduct(z.produkt, produkt); });
+    var rest = _zbiornikList.filter(function(z) { return !_zbiornikMatchesProduct(z.produkt, produkt); });
+
+    // Build modal HTML
+    var html =
+        '<div class="modal-overlay show" id="pump-modal" onclick="if(event.target===this)closePumpModal()">' +
+        '<div class="modal" style="width:480px;">' +
+            '<div class="modal-head">' +
+                '<div class="modal-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"/></svg></div>' +
+                '<div class="modal-titles">' +
+                    '<div class="modal-title">Przepompowanie na zbiorniki</div>' +
+                    '<div class="modal-subtitle">' + produkt.replace(/_/g, ' ') + (ebrNastaw ? ' \u00b7 ' + ebrNastaw + ' kg' : '') + '</div>' +
+                '</div>' +
+                '<button class="modal-close" onclick="closePumpModal()">&times;</button>' +
+            '</div>' +
+            '<div class="modal-body" style="padding:20px 24px;">';
+
+    // Matched tanks — big pill buttons
+    if (matched.length > 0) {
+        html += '<div class="pm-section-label">Zbiorniki dla tego produktu</div>';
+        html += '<div class="pm-tank-grid">';
+        matched.forEach(function(z) {
+            html += '<button class="pm-tank-pill" data-zid="' + z.id + '" data-nr="' + z.nr_zbiornika + '" onclick="toggleTank(this,' + z.id + ',\'' + z.nr_zbiornika + '\',' + (z.max_pojemnosc || 0) + ')">' +
+                '<span class="pm-pill-nr">' + z.nr_zbiornika + '</span>' +
+                '<span class="pm-pill-cap">' + (z.max_pojemnosc || '?') + 't</span>' +
+            '</button>';
+        });
+        html += '</div>';
+    }
+
+    // Other tanks — collapsible
+    if (rest.length > 0) {
+        html += '<details class="pm-other-tanks"><summary class="pm-other-label">Pozostałe zbiorniki (' + rest.length + ')</summary>';
+        html += '<div class="pm-tank-grid" style="margin-top:8px;">';
+        rest.forEach(function(z) {
+            html += '<button class="pm-tank-pill pm-pill-dim" data-zid="' + z.id + '" data-nr="' + z.nr_zbiornika + '" onclick="toggleTank(this,' + z.id + ',\'' + z.nr_zbiornika + '\',' + (z.max_pojemnosc || 0) + ')">' +
+                '<span class="pm-pill-nr">' + z.nr_zbiornika + '</span>' +
+                '<span class="pm-pill-cap">' + (z.produkt || '') + '</span>' +
+            '</button>';
+        });
+        html += '</div></details>';
+    }
+
+    // Mass inputs area — hidden until 2+ selected
+    html += '<div id="pm-mass-section" style="display:none;">' +
+        '<div class="pm-section-label" style="margin-top:16px;">Rozkład masy</div>' +
+        '<div id="pm-mass-rows"></div>' +
+    '</div>';
+
+    html += '</div>'; // end modal-body
+
+    // Footer
+    html += '<div class="modal-footer">' +
+        '<div class="m-sp"></div>' +
+        '<button class="m-btn m-btn-o" onclick="closePumpModal()">Anuluj</button>' +
+        '<button class="m-btn m-btn-p" id="pm-confirm-btn" onclick="confirmPump()" disabled style="opacity:0.5;">Zatwierdź</button>' +
+    '</div>';
+
+    html += '</div></div>'; // end modal, overlay
+
+    // Remove old if exists
+    var old = document.getElementById('pump-modal');
+    if (old) old.remove();
+
+    var div = document.createElement('div');
+    div.innerHTML = html;
+    document.body.appendChild(div.firstChild);
 }
 
-function hidePumpInline() {
-    document.getElementById('ft-pump').style.display = '';
-    document.getElementById('ft-pump-form').style.display = 'none';
+function closePumpModal() {
+    var m = document.getElementById('pump-modal');
+    if (m) m.remove();
 }
 
-function addPumpTarget() {
-    var opts = _buildZbiornikOptions();
-    var row = document.createElement('div');
-    row.className = 'ft-target-row';
-    row.innerHTML = '<select class="ft-zbiornik-select">' + opts + '</select><input class="ft-masa" type="text" inputmode="decimal" placeholder="kg" style="width:80px;">';
-    document.getElementById('ft-targets').appendChild(row);
-    row.querySelector('.ft-zbiornik-select').focus();
+function toggleTank(btn, zid, nr, cap) {
+    if (_pumpSelected[zid]) {
+        delete _pumpSelected[zid];
+        btn.classList.remove('pm-pill-active');
+    } else {
+        _pumpSelected[zid] = {id: zid, nr: nr, pojemnosc: cap};
+        btn.classList.add('pm-pill-active');
+    }
+    updatePumpState();
 }
 
-async function doCompleteFt() {
-    var rows = document.querySelectorAll('#ft-targets .ft-target-row');
-    var targets = [];
-    var valid = true;
-    rows.forEach(function(row) {
-        var sel = row.querySelector('.ft-zbiornik-select');
-        var masaInput = row.querySelector('.ft-masa');
-        var zbiornikId = sel ? parseInt(sel.value) : 0;
-        if (!zbiornikId) {
-            sel.style.borderColor = 'var(--red)';
-            if (valid) sel.focus();
-            valid = false;
-        } else {
-            sel.style.borderColor = '';
-            var nr = sel.options[sel.selectedIndex].text.split(' ')[0];
-            var masa = masaInput ? parseFloat(masaInput.value.replace(',', '.')) || null : null;
-            targets.push({nr: nr, zbiornik_id: zbiornikId, kg: masa});
+function updatePumpState() {
+    var keys = Object.keys(_pumpSelected);
+    var count = keys.length;
+
+    // Enable/disable confirm
+    var btn = document.getElementById('pm-confirm-btn');
+    if (btn) {
+        btn.disabled = count === 0;
+        btn.style.opacity = count === 0 ? '0.5' : '1';
+    }
+
+    // Show mass section if 2+
+    var massSection = document.getElementById('pm-mass-section');
+    var massRows = document.getElementById('pm-mass-rows');
+    if (count >= 2 && massSection && massRows) {
+        massSection.style.display = '';
+        var html = '';
+        var total = ebrNastaw || 0;
+        keys.forEach(function(zid, i) {
+            var z = _pumpSelected[zid];
+            var isLast = (i === keys.length - 1);
+            html += '<div class="pm-mass-row">' +
+                '<span class="pm-mass-nr">' + z.nr + '</span>' +
+                '<input class="pm-mass-input" type="text" inputmode="decimal" ' +
+                    'placeholder="' + (isLast && total ? 'auto' : 'kg') + '" ' +
+                    'data-zid="' + zid + '" ' +
+                    (isLast ? 'id="pm-mass-last" readonly style="color:var(--teal);font-weight:700;"' : 'oninput="recalcLastMass()"') +
+                '>' +
+            '</div>';
+        });
+        if (total) {
+            html += '<div class="pm-mass-total">Razem: <strong>' + total.toLocaleString('pl') + ' kg</strong></div>';
         }
+        massRows.innerHTML = html;
+        if (total) recalcLastMass();
+    } else if (massSection) {
+        massSection.style.display = 'none';
+    }
+}
+
+function recalcLastMass() {
+    var total = ebrNastaw || 0;
+    if (!total) return;
+    var inputs = document.querySelectorAll('.pm-mass-input:not(#pm-mass-last)');
+    var sum = 0;
+    inputs.forEach(function(inp) {
+        sum += parseFloat(inp.value.replace(',', '.')) || 0;
     });
-    if (!valid || targets.length === 0) return;
-    var btn = document.querySelector('.ft-go');
-    btn.textContent = '...';
-    btn.disabled = true;
+    var last = document.getElementById('pm-mass-last');
+    if (last) {
+        var remaining = Math.max(0, total - sum);
+        last.value = remaining ? remaining.toLocaleString('pl') + ' kg' : '';
+        last.dataset.val = remaining;
+    }
+}
+
+async function confirmPump() {
+    var keys = Object.keys(_pumpSelected);
+    if (keys.length === 0) return;
+
+    var targets = [];
+    keys.forEach(function(zid) {
+        var z = _pumpSelected[zid];
+        var masa = null;
+        if (keys.length >= 2) {
+            var inp = document.querySelector('.pm-mass-input[data-zid="' + zid + '"]');
+            if (inp) {
+                masa = inp.id === 'pm-mass-last'
+                    ? parseFloat(inp.dataset.val) || null
+                    : parseFloat(inp.value.replace(',', '.')) || null;
+            }
+        } else if (ebrNastaw) {
+            masa = ebrNastaw;
+        }
+        targets.push({nr: z.nr, zbiornik_id: parseInt(zid), kg: masa});
+    });
+
+    var btn = document.getElementById('pm-confirm-btn');
+    if (btn) { btn.textContent = 'Zatwierdzanie...'; btn.disabled = true; }
+
     var resp = await fetch('/laborant/ebr/' + ebrId + '/complete', {
         method: "POST",
         headers: {"Content-Type": "application/json"},
@@ -1796,7 +1945,7 @@ async function doCompleteFt() {
     }
 }
 
-function completePompuj() { showPumpInline(); }
+function completePompuj() { openPumpModal(); }
 
 function completeSimple() {
     // Simple confirm for zbiornik — no tank selection needed
