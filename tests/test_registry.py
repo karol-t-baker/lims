@@ -3,6 +3,7 @@
 import json
 import sqlite3
 import pytest
+from unittest.mock import patch
 from mbr.models import init_mbr_tables
 from mbr.registry.models import (
     list_completed_products,
@@ -229,3 +230,84 @@ def test_export_wyniki_csv_excludes_open_batches(db, seeded):
     _insert_wynik(db, open_ebr, "analiza", "ph", "pH", 7.0)
     rows = export_wyniki_csv(db)
     assert all(r["batch_id"] != "B2026-OPEN" for r in rows)
+
+
+# ---------------------------------------------------------------------------
+# Cancel endpoint
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def cancel_app(tmp_path):
+    db_path = tmp_path / "test.sqlite"
+    with patch("mbr.db.DB_PATH", db_path):
+        from mbr.app import create_app
+        from mbr.db import get_db
+        from mbr.models import init_mbr_tables
+        application = create_app()
+        application.config["TESTING"] = True
+        application.config["SECRET_KEY"] = "test"
+        conn = get_db()
+        init_mbr_tables(conn)
+        conn.execute(
+            "INSERT INTO mbr_templates (mbr_id, produkt, wersja, status, parametry_lab, dt_utworzenia) "
+            "VALUES (1, 'Test', '1.0', 'active', '{}', datetime('now'))"
+        )
+        conn.execute(
+            "INSERT INTO ebr_batches (ebr_id, mbr_id, batch_id, nr_partii, dt_start, status, sync_seq) "
+            "VALUES (1, 1, 'T__1', '1/2026', datetime('now'), 'completed', 1)"
+        )
+        conn.execute(
+            "INSERT INTO ebr_batches (ebr_id, mbr_id, batch_id, nr_partii, dt_start, status) "
+            "VALUES (2, 1, 'T__2', '2/2026', datetime('now'), 'open')"
+        )
+        conn.commit()
+        conn.close()
+        yield application
+
+
+@pytest.fixture
+def admin_client(cancel_app):
+    client = cancel_app.test_client()
+    with client.session_transaction() as sess:
+        sess["user"] = {"login": "admin", "rola": "admin", "imie_nazwisko": "Admin"}
+    return client
+
+
+@pytest.fixture
+def laborant_client(cancel_app):
+    client = cancel_app.test_client()
+    with client.session_transaction() as sess:
+        sess["user"] = {"login": "lab1", "rola": "laborant", "imie_nazwisko": "Lab"}
+    return client
+
+
+def test_cancel_completed_batch(admin_client, tmp_path):
+    with patch("mbr.db.DB_PATH", tmp_path / "test.sqlite"):
+        resp = admin_client.post("/api/registry/1/cancel")
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["ok"] is True
+
+        from mbr.db import get_db
+        conn = get_db()
+        row = conn.execute("SELECT status FROM ebr_batches WHERE ebr_id=1").fetchone()
+        conn.close()
+        assert row["status"] == "cancelled"
+
+
+def test_cancel_requires_admin(laborant_client, tmp_path):
+    with patch("mbr.db.DB_PATH", tmp_path / "test.sqlite"):
+        resp = laborant_client.post("/api/registry/1/cancel")
+        assert resp.status_code == 403
+
+
+def test_cancel_nonexistent_batch(admin_client, tmp_path):
+    with patch("mbr.db.DB_PATH", tmp_path / "test.sqlite"):
+        resp = admin_client.post("/api/registry/999/cancel")
+        assert resp.status_code == 404
+
+
+def test_cancel_non_completed_batch(admin_client, tmp_path):
+    with patch("mbr.db.DB_PATH", tmp_path / "test.sqlite"):
+        resp = admin_client.post("/api/registry/2/cancel")
+        assert resp.status_code == 400
