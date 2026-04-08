@@ -205,7 +205,7 @@ def build_context(
     # Calculate dates
     dt_produkcji = ""
     dt_waznosci = ""
-    dt_wystawienia = date.today().strftime("%Y-%m-%d")
+    dt_wystawienia = date.today().strftime("%d.%m.%Y")
 
     if dt_start:
         if isinstance(dt_start, datetime):
@@ -219,13 +219,13 @@ def build_context(
                 dt_obj = None
 
         if dt_obj:
-            dt_produkcji = dt_obj.strftime("%Y-%m-%d")
+            dt_produkcji = dt_obj.strftime("%d.%m.%Y")
             expiry_months = product_cfg.get("expiry_months", 12)
             # Add expiry_months
             year = dt_obj.year + (dt_obj.month - 1 + expiry_months) // 12
             month = (dt_obj.month - 1 + expiry_months) % 12 + 1
             day = min(dt_obj.day, _days_in_month(year, month))
-            dt_waznosci = date(year, month, day).strftime("%Y-%m-%d")
+            dt_waznosci = date(year, month, day).strftime("%d.%m.%Y")
 
     # Optional fields from flags + extra_fields
     extra = extra_fields or {}

@@ -382,17 +382,17 @@ def coa_cert_generate():
 
     # Dates
     dt_start = ebr.get("dt_start")
-    dt_wystawienia = date.today().strftime("%Y-%m-%d")
+    dt_wystawienia = date.today().strftime("%d.%m.%Y")
     dt_produkcji = dt_waznosci = ""
     if dt_start:
         try:
             dt_obj = datetime.fromisoformat(str(dt_start)).date() if "T" in str(dt_start) else datetime.strptime(str(dt_start)[:10], "%Y-%m-%d").date()
-            dt_produkcji = dt_obj.strftime("%Y-%m-%d")
+            dt_produkcji = dt_obj.strftime("%d.%m.%Y")
             em = product_cfg.get("expiry_months", 12)
             year = dt_obj.year + (dt_obj.month - 1 + em) // 12
             month = (dt_obj.month - 1 + em) % 12 + 1
             day = min(dt_obj.day, _days_in_month(year, month))
-            dt_waznosci = date(year, month, day).strftime("%Y-%m-%d")
+            dt_waznosci = date(year, month, day).strftime("%d.%m.%Y")
         except Exception:
             pass
 
