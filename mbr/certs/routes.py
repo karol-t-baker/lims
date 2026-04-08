@@ -104,7 +104,7 @@ def api_cert_generate():
         }
         save_certificate_data(ebr["produkt"], variant_label, ebr["nr_partii"], generation_data)
 
-        cert_id = create_swiadectwo(db, ebr_id, variant_label, ebr["nr_partii"], "", wystawil, data_json=_json.dumps(generation_data, ensure_ascii=False))
+        cert_id = create_swiadectwo(db, ebr_id, variant_label, ebr["nr_partii"], "regenerate", wystawil, data_json=_json.dumps(generation_data, ensure_ascii=False))
 
     # Return PDF as download to user's browser
     nr_only = ebr['nr_partii'].split('/')[0].strip()
@@ -151,13 +151,28 @@ def api_cert_pdf(cert_id):
         ).fetchone()
     if row is None:
         return "Nie znaleziono świadectwa", 404
+
+    # Try regenerating from saved data_json (no file on disk)
+    if row.get("data_json"):
+        import json as _json
+        try:
+            gen = _json.loads(row["data_json"])
+            pdf_bytes = generate_certificate_pdf(
+                gen["produkt"], gen["variant_id"], gen["nr_partii"],
+                gen.get("dt_start"), gen.get("wyniki_flat", {}),
+                gen.get("extra_fields", {}), wystawil=gen.get("wystawil", ""),
+            )
+            return Response(pdf_bytes, mimetype="application/pdf")
+        except Exception as e:
+            return f"Błąd regeneracji PDF: {e}", 500
+
+    # Fallback: try reading from disk (legacy)
     pdf_path = Path(row["pdf_path"])
-    # Support both absolute paths (new) and relative paths (legacy)
     if not pdf_path.is_absolute():
         project_root = Path(__file__).parent.parent.parent
         pdf_path = (project_root / pdf_path).resolve()
-    if not pdf_path.exists():
-        return "Plik PDF nie istnieje. Sprawdź ścieżkę w Ustawieniach.", 404
+    if not pdf_path.exists() or pdf_path.is_dir():
+        return "Plik PDF nie istnieje i brak danych do regeneracji.", 404
     return send_file(str(pdf_path), mimetype="application/pdf")
 
 

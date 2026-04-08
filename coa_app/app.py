@@ -65,12 +65,17 @@ def _find_soffice() -> str:
 def _word_convert(docx_path: str, pdf_path: str):
     """Convert docx to pdf using LibreOffice headless."""
     import subprocess
+    import tempfile
     soffice = _find_soffice()
-    result = subprocess.run([
-        soffice, "--headless", "--convert-to", "pdf",
-        "--outdir", str(Path(pdf_path).parent),
-        docx_path,
-    ], capture_output=True, text=True, timeout=30)
+    # Use unique user profile to avoid lock conflicts on concurrent/sequential calls
+    with tempfile.TemporaryDirectory(prefix="lo_") as tmpdir:
+        result = subprocess.run([
+            soffice, "--headless",
+            f"--env:UserInstallation=file:///{tmpdir.replace(os.sep, '/')}",
+            "--convert-to", "pdf",
+            "--outdir", str(Path(pdf_path).parent),
+            docx_path,
+        ], capture_output=True, text=True, timeout=60)
     if result.returncode != 0:
         raise RuntimeError(result.stderr or "LibreOffice conversion failed")
     # soffice names output by input filename — rename if needed
