@@ -38,6 +38,7 @@
       <tr>
         <th>Nazwa</th>
         <th style="width:120px;">Kod</th>
+        <th style="width:200px;">Typy</th>
         <th style="width:90px;">Status</th>
       </tr>
     </thead>
@@ -64,9 +65,17 @@ function renderTable() {
   document.getElementById('pr-count').textContent = _prData.length + ' produktów';
   var html = '';
   _prData.forEach(function(p) {
+    var typy = [];
+    try { typy = JSON.parse(p.typy || '["szarza"]'); } catch(e) { typy = ['szarza']; }
+    var typyHtml = ['szarza', 'zbiornik', 'platkowanie'].map(function(t) {
+      var checked = typy.includes(t) ? ' checked' : '';
+      var label = t === 'platkowanie' ? 'płatk.' : t === 'zbiornik' ? 'zbior.' : 'szarża';
+      return '<label style="display:inline-flex;align-items:center;gap:3px;font-size:11px;cursor:pointer;"><input type="checkbox" data-pid="' + p.id + '" data-typ="' + t + '"' + checked + ' onchange="toggleTyp(' + p.id + ')"> ' + label + '</label>';
+    }).join(' ');
     html += '<tr data-id="' + p.id + '">' +
       '<td class="pr-nazwa">' + p.nazwa.replace(/_/g, ' ') + '</td>' +
       '<td><input class="pr-input kod" type="text" value="' + (p.kod || '') + '" onchange="saveField(' + p.id + ', \'kod\', this.value)"></td>' +
+      '<td>' + typyHtml + '</td>' +
       '<td><button class="pr-toggle ' + (p.aktywny ? 'on' : 'off') + '" onclick="toggleActive(' + p.id + ', ' + p.aktywny + ')">' + (p.aktywny ? 'Aktywny' : 'Ukryty') + '</button></td>' +
     '</tr>';
   });
@@ -102,6 +111,20 @@ async function addProdukt() {
     document.getElementById('add-kod').value = '';
     loadProdukty();
   }
+}
+
+async function toggleTyp(pid) {
+  var checkboxes = document.querySelectorAll('input[data-pid="' + pid + '"][data-typ]');
+  var typy = [];
+  checkboxes.forEach(function(cb) {
+    if (cb.checked) typy.push(cb.dataset.typ);
+  });
+  if (typy.length === 0) typy = ['szarza'];
+  await fetch('/api/produkty/' + pid, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({typy: JSON.stringify(typy)})
+  });
 }
 
 loadProdukty();
