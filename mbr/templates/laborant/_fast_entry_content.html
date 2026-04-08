@@ -1833,6 +1833,23 @@ function doSaveField(input, sekcja, kod) {
         if (resp.ok) {
             input.style.outline = '2px solid var(--green, #16a34a)';
             setTimeout(function() { input.style.outline = ''; }, 800);
+            // Update local wyniki so repeatAnaliza sees current values
+            if (!wyniki[sekcja]) wyniki[sekcja] = {};
+            var numVal = parseFloat(values[kod].wartosc);
+            var minVal = parseFloat(input.dataset.min);
+            var maxVal = parseFloat(input.dataset.max);
+            var inLimit = 1;
+            if (!isNaN(numVal)) {
+                if (!isNaN(minVal) && numVal < minVal) inLimit = 0;
+                if (!isNaN(maxVal) && numVal > maxVal) inLimit = 0;
+            }
+            wyniki[sekcja][kod] = {
+                wartosc: isNaN(numVal) ? null : numVal,
+                wartosc_text: values[kod].wartosc,
+                komentarz: values[kod].komentarz || '',
+                w_limicie: inLimit,
+                tag: kod
+            };
         } else {
             input.style.outline = '2px solid var(--red, #dc2626)';
             setTimeout(function() { input.style.outline = ''; }, 2000);
@@ -1854,6 +1871,9 @@ function setBinary(btn, sekcja, kod, value) {
     if (dot) dot.style.background = value === 'OK' ? 'var(--green)' : 'var(--red)';
     var values = {};
     values[kod] = { wartosc: value === 'OK' ? 1 : 0, wartosc_text: value, komentarz: '' };
+    // Update local wyniki
+    if (!wyniki[sekcja]) wyniki[sekcja] = {};
+    wyniki[sekcja][kod] = { wartosc: value === 'OK' ? 1 : 0, wartosc_text: value, w_limicie: value === 'OK' ? 1 : 0, tag: kod };
     fetch('/laborant/ebr/' + _saveEbrId + '/save', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
