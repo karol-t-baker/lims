@@ -1259,7 +1259,7 @@ function confirmCertPopup() {
 
 var _certGenerating = false;
 async function doGenerateCert(btn, variantId, extraFields) {
-    if (_certGenerating) return; // prevent double-click
+    if (_certGenerating) return;
     _certGenerating = true;
     btn.disabled = true;
     btn.style.opacity = '0.5';
@@ -1276,13 +1276,22 @@ async function doGenerateCert(btn, variantId, extraFields) {
             var cd = resp.headers.get('Content-Disposition') || '';
             var match = cd.match(/filename="(.+)"/);
             var filename = match ? match[1] : 'swiadectwo.pdf';
-            var a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = filename;
-            a.click();
-            URL.revokeObjectURL(a.href);
+            // Use multiple download strategies for browser compatibility
+            var url = URL.createObjectURL(blob);
+            try {
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.style.display = 'none';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            } catch(dlErr) {
+                // Fallback: open in new tab
+                window.open(url, '_blank');
+            }
+            setTimeout(function() { URL.revokeObjectURL(url); }, 5000);
         } else if (resp.ok) {
-            // Response OK but not PDF — try to read error
             try { var d = await resp.json(); alert('Błąd: ' + (d.error || 'Brak PDF w odpowiedzi')); } catch(e2) { alert('Odpowiedź nie jest PDF'); }
         } else {
             try { var data = await resp.json(); alert('Błąd: ' + (data.error || resp.status)); } catch(e3) { alert('Błąd serwera: ' + resp.status); }
@@ -1291,7 +1300,6 @@ async function doGenerateCert(btn, variantId, extraFields) {
         alert('Błąd połączenia: ' + e.message);
     }
     _certGenerating = false;
-    // Reload certs list to show new cert
     loadCompletedCerts();
 }
 
