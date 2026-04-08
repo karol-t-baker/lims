@@ -716,14 +716,16 @@ body {
 
 /* Right side: norm + type tag */
 .ff-right {
-  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+  display: flex; align-items: center; gap: 6px;
+  flex-shrink: 0;
+  width: 100px;
+  justify-content: flex-end;
 }
 .ff .norm-range {
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text-dim);
   text-align: right;
-  min-width: 60px;
 }
 .ff .type-tag {
   width: 16px; height: 16px; border-radius: 3px;
@@ -781,6 +783,29 @@ body {
 .rr-v { font-family: var(--mono); font-weight: 500; }
 .ref.norms { background: var(--teal-bg); border-color: transparent; }
 .ref.norms .ref-t { color: var(--teal); }
+
+.rr-v.ok { color: var(--green); }
+.rr-v.err { color: var(--red); }
+.rr-v.dim { color: var(--text-dim); }
+
+/* Editable ref values */
+.rr-input {
+  border: none; border-bottom: 1px solid transparent;
+  background: transparent;
+  font-family: var(--mono); font-size: 12px; font-weight: 500;
+  color: var(--text); text-align: right;
+  padding: 2px 4px; width: 80px;
+  border-radius: 0;
+  transition: all 0.15s;
+}
+.rr-input:hover { border-bottom-color: var(--border); }
+.rr-input:focus {
+  outline: none;
+  border-bottom-color: var(--teal);
+  color: var(--teal);
+  background: var(--teal-bg);
+}
+.rr-input::placeholder { color: var(--border); font-weight: 400; }
 
 
 /* ═══ CALCULATOR ═══ */
@@ -991,6 +1016,34 @@ body {
 .btn-p.blue { background: var(--blue); }
 .btn-o { background: white; border: 1px solid var(--border); color: var(--text-sec); }
 .btn-o:hover { background: var(--surface-alt); }
+
+
+/* ═══ STEP NUM (reusable numbered circle) ═══ */
+
+.step-num {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700;
+  position: relative; z-index: 1;
+  border: 2px solid;
+  transition: all 0.2s;
+}
+.step-num.done { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+.step-num.active { background: var(--teal-bg); border-color: var(--teal); color: var(--teal); animation: stepPulse 1.8s ease-in-out infinite; }
+.step-num.pending { background: var(--surface); border-color: var(--border); color: var(--text-dim); }
+.step-num.err { background: var(--red-bg); border-color: var(--red); color: var(--red); }
+.step-num.skipped { background: var(--surface); border-color: var(--text-dim); color: var(--text-dim); opacity: 0.5; }
+.step-num.add { background: var(--surface); border-color: var(--border); color: var(--text-dim); border-style: dashed; }
+/* Stage-specific colors */
+.step-num.stand { background: var(--stage-stand-bg); border-color: var(--stage-stand); color: var(--stage-stand); }
+.step-num.koncowa { background: var(--stage-koncowa-bg); border-color: var(--stage-koncowa); color: var(--stage-koncowa); }
+
+@keyframes stepPulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(13,115,119,.3); }
+  50% { box-shadow: 0 0 0 4px rgba(13,115,119,0); }
+}
 
 
 /* ═══ LOGIN PAGE ═══ */
@@ -1485,7 +1538,7 @@ body {
 }
 
 /* Type selection cards (Step 1) */
-.type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.type-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .type-card {
   padding: 24px 20px; border: 2px solid var(--border);
   border-radius: 12px; cursor: pointer;
@@ -1978,22 +2031,16 @@ body {
 }
 
 /* Binary parameter pills */
-.ff.binary { }
-.binary-pills { display: flex; gap: 4px; }
-.bp-pill {
-  padding: 6px 14px; border-radius: 6px;
-  border: 1.5px solid var(--border);
-  background: var(--surface); cursor: pointer;
-  font-size: 11px; font-weight: 600; font-family: var(--font);
-  transition: all 0.15s;
+/* Binary fields (Tak / Nie dropdown) */
+.ff select.binary-select {
+  text-align: center;
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--text-dim);
+  cursor: pointer;
 }
-.bp-pill:hover { border-color: var(--text-sec); }
-.bp-pill.bp-ok {
-  border-color: var(--green); background: var(--green-bg); color: var(--green);
-}
-.bp-pill.bp-err {
-  border-color: var(--red); background: var(--red-bg); color: var(--red);
-}
+.ff select.binary-select.ok { color: var(--green); }
+.ff select.binary-select.err { color: var(--red); }
 
 /* Target hint */
 .target-hint {
@@ -2004,17 +2051,23 @@ body {
 
 /* Repeat analysis bar */
 .repeat-bar {
-  display: flex; justify-content: center; padding: 16px; margin-top: 8px;
+  padding: 4px 0; margin-top: 0;
 }
-.repeat-bar .btn-secondary {
-  padding: 10px 20px; border-radius: 8px;
-  border: 1.5px solid var(--border); background: var(--surface);
-  font-size: 12px; font-weight: 600; font-family: var(--font);
-  color: var(--text-sec); cursor: pointer; transition: all 0.15s;
+.repeat-add-bar {
+  background: var(--surface);
+  border: 1.5px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  display: flex; align-items: center; gap: 10px;
+  cursor: pointer; transition: all 0.15s;
+  color: var(--text-dim);
+  font-size: 12px; font-weight: 500;
+  font-family: var(--font);
 }
-.repeat-bar .btn-secondary:hover {
+.repeat-add-bar:hover {
   border-color: var(--teal); color: var(--teal); background: var(--teal-bg);
 }
+.repeat-add-bar svg { flex-shrink: 0; }
 
 /* AK round summary */
 .ak-summary {
@@ -2030,3 +2083,46 @@ body {
 .ak-sum-item.val-err { background: var(--red-bg); border-color: var(--red); color: var(--red); }
 .ak-sum-label { font-weight: 600; }
 .ak-sum-val { font-family: var(--mono); }
+
+
+/* ═══ AK FLOWCHART (oznaczenia timeline) ═══ */
+
+.ak-flow {
+  position: relative;
+  padding: 12px 0 4px;
+}
+.ak-flow::before {
+  content: '';
+  position: absolute;
+  left: 31px;
+  top: 24px;
+  bottom: 24px;
+  border-left: 1.5px dotted var(--border);
+}
+
+.ak-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 4px 16px;
+  position: relative;
+}
+
+.ak-step-content {
+  flex: 1;
+  min-width: 0;
+  padding-top: 2px;
+}
+
+/* Override ps-accordion inside ak-flow */
+.ak-flow .ps-accordion { border-bottom: none; }
+.ak-flow .ps-acc-toggle { padding: 3px 10px; border-radius: 6px; background: transparent; }
+.ak-flow .ps-acc-toggle:hover { background: var(--surface-alt); }
+
+/* Override repeat-bar inside ak-flow */
+.ak-flow .repeat-bar { justify-content: flex-start; padding: 2px 0; margin-top: 0; }
+.ak-step:last-child { align-items: center; }
+
+/* Override section inside ak-flow (editable round) */
+.ak-flow .section { margin-bottom: 0; }
+.ak-flow .sec-icon { display: none; }
