@@ -109,11 +109,14 @@ def api_cert_generate():
     # Return PDF as download to user's browser
     nr_only = ebr['nr_partii'].split('/')[0].strip()
     filename = f"{variant_label} {nr_only}.pdf"
+    # HTTP headers must be ASCII-safe — replace em dash and encode
+    filename_ascii = filename.replace('\u2014', '-').replace('\u2013', '-')
+    from urllib.parse import quote
     return Response(
         pdf_bytes,
         mimetype="application/pdf",
         headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Disposition": f"attachment; filename=\"{filename_ascii}\"; filename*=UTF-8''{quote(filename)}",
             "X-Cert-Id": str(cert_id),
         },
     )
