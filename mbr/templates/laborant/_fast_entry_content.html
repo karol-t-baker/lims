@@ -1414,13 +1414,58 @@ function _buildAkSummary(pola, sekWyniki) {
 
 function repeatAnaliza() {
     var maxRunda = 0;
+    var lastKey = null;
     Object.keys(wyniki).forEach(function(key) {
-        if (key === 'analiza_koncowa') maxRunda = Math.max(maxRunda, 1);
+        if (key === 'analiza_koncowa') {
+            if (1 > maxRunda) { maxRunda = 1; lastKey = key; }
+        }
         var m = key.match(/^analiza_koncowa__(\d+)$/);
-        if (m) maxRunda = Math.max(maxRunda, parseInt(m[1]));
+        if (m) {
+            var n = parseInt(m[1]);
+            if (n > maxRunda) { maxRunda = n; lastKey = key; }
+        }
     });
     var nextRunda = maxRunda + 1;
-    wyniki['analiza_koncowa__' + nextRunda] = {};
+    var nextSekcja = 'analiza_koncowa__' + nextRunda;
+
+    // Copy results that are in-limit from last round, leave out-of-limit empty
+    var newWyniki = {};
+    if (lastKey && wyniki[lastKey]) {
+        Object.keys(wyniki[lastKey]).forEach(function(kod) {
+            var w = wyniki[lastKey][kod];
+            if (w.w_limicie === 1) {
+                // Copy good result — will be pre-filled and editable
+                newWyniki[kod] = {
+                    wartosc: w.wartosc,
+                    wartosc_text: w.wartosc_text || '',
+                    komentarz: '',
+                    w_limicie: w.w_limicie,
+                    tag: w.tag || kod
+                };
+            }
+            // Out-of-limit or unknown → leave empty (not in newWyniki)
+        });
+    }
+
+    wyniki[nextSekcja] = newWyniki;
+
+    // Auto-save copied values to server
+    if (Object.keys(newWyniki).length > 0) {
+        var saveValues = {};
+        Object.keys(newWyniki).forEach(function(kod) {
+            var w = newWyniki[kod];
+            saveValues[kod] = {
+                wartosc: w.wartosc != null ? String(w.wartosc) : '',
+                komentarz: w.komentarz || ''
+            };
+        });
+        fetch('/laborant/ebr/' + ebrId + '/save', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({sekcja: nextSekcja, values: saveValues})
+        });
+    }
+
     renderSections();
     setTimeout(function() {
         var sections = document.querySelectorAll('.section.current');
@@ -2146,9 +2191,46 @@ function startKorekta() {
 
 
 function repeatAnalizaCyclic() {
-    var nextN = roundState.last_analiza + 1;
+    var lastN = roundState.last_analiza;
+    var nextN = lastN + 1;
     var nextSekcja = 'analiza__' + nextN;
-    wyniki[nextSekcja] = {};
+    var lastSekcja = 'analiza__' + lastN;
+
+    // Copy in-limit results from last analiza round
+    var newWyniki = {};
+    if (wyniki[lastSekcja]) {
+        Object.keys(wyniki[lastSekcja]).forEach(function(kod) {
+            var w = wyniki[lastSekcja][kod];
+            if (w.w_limicie === 1) {
+                newWyniki[kod] = {
+                    wartosc: w.wartosc,
+                    wartosc_text: w.wartosc_text || '',
+                    komentarz: '',
+                    w_limicie: w.w_limicie,
+                    tag: w.tag || kod
+                };
+            }
+        });
+    }
+
+    wyniki[nextSekcja] = newWyniki;
+
+    // Auto-save copied values
+    if (Object.keys(newWyniki).length > 0) {
+        var saveValues = {};
+        Object.keys(newWyniki).forEach(function(kod) {
+            saveValues[kod] = {
+                wartosc: newWyniki[kod].wartosc != null ? String(newWyniki[kod].wartosc) : '',
+                komentarz: ''
+            };
+        });
+        fetch('/laborant/ebr/' + ebrId + '/save', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({sekcja: nextSekcja, values: saveValues})
+        });
+    }
+
     roundState.next_sekcja = nextSekcja;
     roundState.next_step = 'analiza';
     roundState.is_decision = false;
