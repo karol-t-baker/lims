@@ -18,16 +18,17 @@
         <input type="hidden" name="produkt" id="produkt-input" required>
         <input type="hidden" name="_back" value="{{ request.url }}">
         <input type="hidden" name="zbiorniki_ids" id="zbiorniki-ids-input" value="">
+        <input type="hidden" name="substraty_json" id="substraty-json-input" value="[]">
 
         {# Step 1: Type selection #}
         <div id="step-1">
           <div class="type-grid">
             <div class="type-card" onclick="selectTyp('szarza')">
               <div class="tc-icon">
-                <!-- Erlenmeyer flask with liquid + bubbles -->
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M9 3h6"/><path d="M10 3v5.2L4.5 18.4A1.5 1.5 0 005.7 21h12.6a1.5 1.5 0 001.2-2.6L14 8.2V3"/>
-                  <path d="M7 15h10"/><circle cx="9" cy="18" r="0.5"/><circle cx="13" cy="17" r="0.5"/><circle cx="11" cy="19" r="0.5"/>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2" />
+                  <path d="M6.453 15h11.094" />
+                  <path d="M8.5 2h7" />
                 </svg>
               </div>
               <div class="tc-name">Szarza produkcyjna</div>
@@ -35,16 +36,37 @@
             </div>
             <div class="type-card" onclick="selectTyp('zbiornik')">
               <div class="tc-icon">
-                <!-- Storage tank with level indicator -->
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                  <ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/>
-                  <path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"/>
-                  <path d="M20 16.5c0 1.38-3.58 2.5-8 2.5s-8-1.12-8-2.5"/>
-                  <line x1="2" y1="12" x2="4" y2="12"/><line x1="2" y1="15" x2="4" y2="15"/>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+                  <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+                  <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+                  <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="m16 16-1.9-1.9" />
                 </svg>
               </div>
               <div class="tc-name">Analiza zbiornika</div>
               <div class="tc-desc">Analiza mieszaniny w zbiorniku magazynowym</div>
+            </div>
+            <div class="type-card" onclick="selectTyp('platkowanie')">
+              <div class="tc-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m10 20-1.25-2.5L6 18" />
+                  <path d="M10 4 8.75 6.5 6 6" />
+                  <path d="m14 20 1.25-2.5L18 18" />
+                  <path d="m14 4 1.25 2.5L18 6" />
+                  <path d="m17 21-3-6h-4" />
+                  <path d="m17 3-3 6 1.5 3" />
+                  <path d="M2 12h6.5L10 9" />
+                  <path d="m20 10-1.5 2 1.5 2" />
+                  <path d="M22 12h-6.5L14 15" />
+                  <path d="m4 10 1.5 2L4 14" />
+                  <path d="m7 21 3-6-1.5-3" />
+                  <path d="m7 3 3 6h4" />
+                </svg>
+              </div>
+              <div class="tc-name">Platkowanie</div>
+              <div class="tc-desc">Produkcja platkow z analiza koncowa</div>
             </div>
           </div>
         </div>
@@ -195,6 +217,58 @@
           </div>
         </div>
 
+        {# Step 2c: Platkowanie form #}
+        <div id="step-2c" style="display:none;">
+          <div class="step-indicator">
+            <div class="step-dot done"></div>
+            <div class="step-line done"></div>
+            <div class="step-dot active"></div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-label">Produkt</div>
+            <div class="quick-picks" id="quick-pick-platkowanie"></div>
+            <div class="search-wrap product-search-wrap" id="search-wrap-platkowanie">
+              <span class="search-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+              <input class="search-input form-input product-search" type="text"
+                     placeholder="Szukaj produktu..."
+                     oninput="filterProducts(this)"
+                     autocomplete="off">
+              <div class="product-dropdown" id="platkowanie-product-dropdown"></div>
+            </div>
+            <div class="selected-badge product-selected" id="selected-product-platkowanie" style="display:none;">
+              <div class="sb-check"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+              <div>
+                <div class="sb-name product-selected-name"></div>
+                <div class="sb-full"></div>
+              </div>
+              <button type="button" class="sb-clear product-selected-clear" onclick="clearProduct('platkowanie')">&times;</button>
+            </div>
+          </div>
+
+          <div class="auto-nr" id="auto-nr-platkowanie" style="display:none;">
+            <span class="nr-label">Nr partii</span>
+            <span class="nr-value" id="nr-value-platkowanie"></span>
+            <label style="margin-left:auto;display:flex;align-items:center;gap:5px;cursor:pointer;font-size:10px;color:var(--text-dim);">
+              <input type="checkbox" id="manual-nr-platkowanie" onchange="toggleManualNr('platkowanie')"> Podaj recznie
+            </label>
+          </div>
+          <div id="manual-nr-wrap-platkowanie" style="display:none;margin-top:6px;">
+            <input class="form-input" type="text" id="manual-nr-input-platkowanie" placeholder="np. 15_2026" style="font-family:var(--mono);font-weight:600;">
+          </div>
+          <input class="form-input" type="hidden" id="nr-partii-input-pl">
+
+          <div style="height:12px"></div>
+          <div class="form-row" id="substraty-section" style="display:none;">
+            <div class="form-label" style="display:flex;align-items:center;gap:6px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--text-dim)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;flex-shrink:0;"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+              Substraty <span style="font-weight:400;color:var(--text-dim);margin-left:2px;">(opcjonalne)</span>
+            </div>
+            <div id="substraty-rows"></div>
+            <button type="button" id="add-substrat-btn" onclick="_addSubstratRow()" style="margin-top:6px;font-size:11px;color:var(--teal);background:none;border:none;cursor:pointer;font-weight:600;">+ Dodaj substrat</button>
+          </div>
+        </div>
+
         {# Footer #}
         <div class="modal-footer" id="modal-footer" style="display:none;">
           <button type="button" class="m-btn-back" onclick="backToStep1()">
@@ -214,6 +288,8 @@
 let currentTyp = 'szarza';
 var _modalZbList = [];
 var _modalZbSelected = {}; // for szarza: multi-select; for zbiornik: single-select
+var _modalSubstratyList = [];
+var _platkowanieProducts = [];
 
 async function _loadModalZbiorniki() {
     if (_modalZbList.length > 0) return;
@@ -280,13 +356,77 @@ function _toggleModalZb(btn, zid, nr, multiSelect) {
     document.getElementById('zbiorniki-ids-input').value = keys.join(',');
 }
 
+async function _loadSubstraty(produkt) {
+    var resp = await fetch('/api/substraty?produkt=' + encodeURIComponent(produkt));
+    _modalSubstratyList = await resp.json();
+    document.getElementById('substraty-section').style.display = 'block';
+    document.getElementById('substraty-rows').innerHTML = '';
+}
+
+function _addSubstratRow() {
+    var container = document.getElementById('substraty-rows');
+    var idx = container.children.length;
+    var options = '<option value="">— wybierz substrat —</option>';
+    _modalSubstratyList.forEach(function(s) {
+        options += '<option value="' + s.id + '">' + s.nazwa + '</option>';
+    });
+    var row = document.createElement('div');
+    row.className = 'substrat-row';
+    row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px;';
+    row.innerHTML =
+        '<select class="form-input sub-select" style="flex:1;font-size:12px;" data-idx="' + idx + '">' + options + '</select>' +
+        '<input class="form-input sub-nr" type="text" placeholder="Nr partii" style="width:120px;font-size:12px;font-family:var(--mono);" data-idx="' + idx + '">' +
+        '<button type="button" onclick="this.parentElement.remove();_syncSubstratyJson()" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px;padding:0 4px;">&times;</button>';
+    row.querySelector('.sub-select').addEventListener('change', _syncSubstratyJson);
+    row.querySelector('.sub-nr').addEventListener('input', _syncSubstratyJson);
+    container.appendChild(row);
+}
+
+function _syncSubstratyJson() {
+    var rows = document.querySelectorAll('#substraty-rows .substrat-row');
+    var arr = [];
+    rows.forEach(function(row) {
+        var sel = row.querySelector('.sub-select');
+        var nr = row.querySelector('.sub-nr');
+        if (sel.value) {
+            arr.push({substrat_id: parseInt(sel.value), nr_partii: nr.value.trim()});
+        }
+    });
+    document.getElementById('substraty-json-input').value = JSON.stringify(arr);
+}
+
+async function _loadProductsForType(typ) {
+    var resp = await fetch('/api/produkty?typ=' + encodeURIComponent(typ));
+    var products = await resp.json();
+    if (typ === 'platkowanie') {
+        _platkowanieProducts = products;
+        var qpHtml = '';
+        products.slice(0, 4).forEach(function(p) {
+            var short = p.nazwa.replace(/^Chegina_/, '').replace(/_/g, ' ');
+            qpHtml += '<button type="button" class="qp-btn" onclick="quickPick(this,\'' + p.nazwa + '\',\'platkowanie\')">' + short + '</button>';
+        });
+        document.getElementById('quick-pick-platkowanie').innerHTML = qpHtml;
+        var ddHtml = '';
+        products.forEach(function(p) {
+            var short = p.nazwa.replace(/^[A-Za-z]+_/, '').replace(/_/g, ' ');
+            ddHtml += '<div class="product-item" data-product="' + p.nazwa + '" onclick="pickProduct(this)">' +
+                '<span class="product-item-name">' + short + '</span>' +
+                '<span class="product-item-full">' + p.nazwa + '</span>' +
+            '</div>';
+        });
+        document.getElementById('platkowanie-product-dropdown').innerHTML = ddHtml;
+    }
+}
+
 async function _onProductSelected(produktName) {
     await _loadModalZbiorniki();
     _modalZbSelected = {};
     if (currentTyp === 'zbiornik') {
         _renderZbPills('zb-pick-zbiornik', produktName, false);
-    } else {
+    } else if (currentTyp === 'szarza') {
         _renderZbPills('zb-pick-szarza', produktName, true);
+    } else if (currentTyp === 'platkowanie') {
+        await _loadSubstraty(produktName);
     }
 }
 
@@ -304,14 +444,19 @@ function selectTyp(typ) {
   document.getElementById('typ-input').value = typ;
   document.getElementById('step-1').style.display = 'none';
   document.getElementById('modal-footer').style.display = 'flex';
+  document.getElementById('step-2a').style.display = 'none';
+  document.getElementById('step-2b').style.display = 'none';
+  document.getElementById('step-2c').style.display = 'none';
   if (typ === 'szarza') {
     document.getElementById('step-2a').style.display = 'block';
-    document.getElementById('step-2b').style.display = 'none';
     document.getElementById('modal-subtitle').textContent = 'Nowa szarza produkcyjna';
-  } else {
-    document.getElementById('step-2a').style.display = 'none';
+  } else if (typ === 'zbiornik') {
     document.getElementById('step-2b').style.display = 'block';
     document.getElementById('modal-subtitle').textContent = 'Analiza zbiornika magazynowego';
+  } else if (typ === 'platkowanie') {
+    document.getElementById('step-2c').style.display = 'block';
+    document.getElementById('modal-subtitle').textContent = 'Nowe platkowanie';
+    _loadProductsForType('platkowanie');
   }
 }
 
@@ -319,10 +464,12 @@ function backToStep1() {
   document.getElementById('step-1').style.display = 'block';
   document.getElementById('step-2a').style.display = 'none';
   document.getElementById('step-2b').style.display = 'none';
+  document.getElementById('step-2c').style.display = 'none';
   document.getElementById('modal-footer').style.display = 'none';
   document.getElementById('modal-subtitle').textContent = 'Wybierz typ rejestracji';
   clearProduct('szarza');
   clearProduct('zbiornik');
+  clearProduct('platkowanie');
 }
 
 function filterProducts(input) {
@@ -341,7 +488,8 @@ function quickPick(btn, product, context) {
   container.querySelectorAll('.qp-btn').forEach(function(p) { p.classList.remove('active'); });
   btn.classList.add('active');
   document.getElementById('produkt-input').value = product;
-  var step = context === 'szarza' ? document.getElementById('step-2a') : document.getElementById('step-2b');
+  var stepMap = {szarza: 'step-2a', zbiornik: 'step-2b', platkowanie: 'step-2c'};
+  var step = document.getElementById(stepMap[context]);
   var wrap = step.querySelector('.product-search-wrap');
   var selected = step.querySelector('.product-selected');
   wrap.style.display = 'none';
@@ -375,10 +523,14 @@ function fetchAutoNr(product, context) {
         document.getElementById('nr-partii-input').value = data.nr_partii;
         document.getElementById('nr-value-szarza').textContent = data.nr_partii;
         document.getElementById('auto-nr-szarza').style.display = 'flex';
-      } else {
+      } else if (context === 'zbiornik') {
         document.getElementById('nr-partii-input-zb').value = data.nr_partii;
         document.getElementById('nr-value-zbiornik').textContent = data.nr_partii;
         document.getElementById('auto-nr-zbiornik').style.display = 'flex';
+      } else if (context === 'platkowanie') {
+        document.getElementById('nr-partii-input-pl').value = data.nr_partii;
+        document.getElementById('nr-value-platkowanie').textContent = data.nr_partii;
+        document.getElementById('auto-nr-platkowanie').style.display = 'flex';
       }
     });
 }
@@ -399,7 +551,8 @@ function toggleManualNr(context) {
 
 function clearProduct(context) {
   document.getElementById('produkt-input').value = '';
-  var step = context === 'szarza' ? document.getElementById('step-2a') : document.getElementById('step-2b');
+  var stepMap = {szarza: 'step-2a', zbiornik: 'step-2b', platkowanie: 'step-2c'};
+  var step = document.getElementById(stepMap[context]);
   if (!step) return;
   var wrap = step.querySelector('.product-search-wrap');
   var selected = step.querySelector('.product-selected');
@@ -418,12 +571,21 @@ function clearProduct(context) {
     document.getElementById('auto-nr-szarza').style.display = 'none';
     document.getElementById('manual-nr-wrap-szarza').style.display = 'none';
     document.getElementById('manual-nr-szarza').checked = false;
-  } else {
+  } else if (context === 'zbiornik') {
     var zb = document.getElementById('nr-partii-input-zb');
     if (zb) zb.value = '';
     document.getElementById('auto-nr-zbiornik').style.display = 'none';
     document.getElementById('manual-nr-wrap-zbiornik').style.display = 'none';
     document.getElementById('manual-nr-zbiornik').checked = false;
+  } else if (context === 'platkowanie') {
+    var pl = document.getElementById('nr-partii-input-pl');
+    if (pl) pl.value = '';
+    document.getElementById('auto-nr-platkowanie').style.display = 'none';
+    document.getElementById('manual-nr-wrap-platkowanie').style.display = 'none';
+    document.getElementById('manual-nr-platkowanie').checked = false;
+    document.getElementById('substraty-section').style.display = 'none';
+    document.getElementById('substraty-rows').innerHTML = '';
+    document.getElementById('substraty-json-input').value = '[]';
   }
 }
 
@@ -448,7 +610,8 @@ document.getElementById('new-batch-form').addEventListener('submit', function(e)
   // Validate produkt
   var produkt = document.getElementById('produkt-input').value;
   if (!produkt) {
-    errors.push({msg: 'Wybierz produkt', target: currentTyp === 'szarza' ? '#quick-pick-szarza' : '#quick-pick-zbiornik'});
+    var targetMap = {szarza: '#quick-pick-szarza', zbiornik: '#quick-pick-zbiornik', platkowanie: '#quick-pick-platkowanie'};
+    errors.push({msg: 'Wybierz produkt', target: targetMap[currentTyp]});
   }
 
   // Validate wielkosc (szarza only)
@@ -510,6 +673,20 @@ document.getElementById('new-batch-form').addEventListener('submit', function(e)
       hidden.value = zbNr;
       document.getElementById('new-batch-form').appendChild(hidden);
     }
+  }
+
+  // Sync platkowanie nr_partii
+  if (currentTyp === 'platkowanie') {
+    var manualCbPl = document.getElementById('manual-nr-platkowanie');
+    if (manualCbPl && manualCbPl.checked) {
+      var manualValPl = document.getElementById('manual-nr-input-platkowanie').value.trim();
+      if (manualValPl) document.getElementById('nr-partii-input-pl').value = manualValPl;
+    }
+    var plVal = document.getElementById('nr-partii-input-pl').value;
+    document.getElementById('nr-partii-input').value = plVal;
+    document.getElementById('nr-partii-input-pl').removeAttribute('name');
+    document.getElementById('nr-partii-input').removeAttribute('readonly');
+    _syncSubstratyJson();
   }
 });
 
@@ -577,6 +754,12 @@ if (manualSzarza) {
 var manualZbiornik = document.getElementById('manual-nr-input-zbiornik');
 if (manualZbiornik) {
     manualZbiornik.addEventListener('input', function() {
+        checkBatchExists(this, 'produkt-input');
+    });
+}
+var manualPlatkowanie = document.getElementById('manual-nr-input-platkowanie');
+if (manualPlatkowanie) {
+    manualPlatkowanie.addEventListener('input', function() {
         checkBatchExists(this, 'produkt-input');
     });
 }
