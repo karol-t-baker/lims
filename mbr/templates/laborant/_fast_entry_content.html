@@ -1257,10 +1257,12 @@ function confirmCertPopup() {
     doGenerateCert(btn, variantId, extra);
 }
 
+var _certGenerating = false;
 async function doGenerateCert(btn, variantId, extraFields) {
+    if (_certGenerating) return; // prevent double-click
+    _certGenerating = true;
     btn.disabled = true;
     btn.style.opacity = '0.5';
-    var origText = btn.innerHTML;
     btn.innerHTML = '<span>Generowanie...</span>';
     try {
         var resp = await fetch('/api/cert/generate', {
@@ -1268,8 +1270,8 @@ async function doGenerateCert(btn, variantId, extraFields) {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ebr_id: ebrId, variant_id: variantId, extra_fields: extraFields, wystawil: (document.getElementById('cv-issuer-select') || {}).value || ''})
         });
-        if (resp.ok && (resp.headers.get('Content-Type') || '').includes('application/pdf')) {
-            // Download PDF to user's computer
+        var ct = resp.headers.get('Content-Type') || '';
+        if (resp.ok && ct.includes('application/pdf')) {
             var blob = await resp.blob();
             var cd = resp.headers.get('Content-Disposition') || '';
             var match = cd.match(/filename="(.+)"/);
@@ -1279,18 +1281,18 @@ async function doGenerateCert(btn, variantId, extraFields) {
             a.download = filename;
             a.click();
             URL.revokeObjectURL(a.href);
-            loadCompletedCerts();
+        } else if (resp.ok) {
+            // Response OK but not PDF — try to read error
+            try { var d = await resp.json(); alert('Błąd: ' + (d.error || 'Brak PDF w odpowiedzi')); } catch(e2) { alert('Odpowiedź nie jest PDF'); }
         } else {
-            var data = await resp.json();
-            alert('Błąd: ' + (data.error || 'Nieznany błąd'));
+            try { var data = await resp.json(); alert('Błąd: ' + (data.error || resp.status)); } catch(e3) { alert('Błąd serwera: ' + resp.status); }
         }
     } catch(e) {
         alert('Błąd połączenia: ' + e.message);
-    } finally {
-        btn.disabled = false;
-        btn.style.opacity = '1';
-        btn.innerHTML = origText;
     }
+    _certGenerating = false;
+    // Reload certs list to show new cert
+    loadCompletedCerts();
 }
 
 // --- Linear rendering (zbiornik, simple products) — original logic ---
