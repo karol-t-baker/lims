@@ -993,20 +993,7 @@ function renderCompletedView() {
             });
         }
 
-        // Przepompowanie
-        var pump = {% if ebr.przepompowanie_json %}{{ ebr.przepompowanie_json | safe }}{% else %}null{% endif %};
-        if (pump && pump.length > 0) {
-            html += '<div class="cv-pump">';
-            pump.forEach(function(p) {
-                if (!p.nr) return;
-                html += '<div class="cv-pump-card">' +
-                    '<div class="cv-pump-arrow">→</div>' +
-                    '<div class="cv-pump-nr">' + esc(p.nr) + '</div>' +
-                    (p.kg ? '<div class="cv-pump-kg">' + p.kg + ' <span>kg</span></div>' : '') +
-                '</div>';
-            });
-            html += '</div>';
-        }
+        // Przepompowanie — legacy cv-pump removed, zbiorniki section below handles this
     }
 
     // Cert section — only for zbiornik, hidden from laborant role
