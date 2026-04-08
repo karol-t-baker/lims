@@ -416,10 +416,20 @@
     line-height: 1; letter-spacing: -.03em; margin-bottom: 10px; color: var(--text);
 }
 [class*="cv-prod-"] .cv-h2-nr { color: var(--pc); }
-.cv-h2-zbiornik {
-    font-size: 28px; font-weight: 700; opacity: 0.4; margin-left: 16px;
+.cv-zb-badge {
+    display: inline-block;
+    padding: 2px 8px; margin-left: 6px;
+    font-size: 14px; font-weight: 700;
+    font-family: var(--mono);
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 6px;
+    vertical-align: middle;
     letter-spacing: 0;
+    opacity: 0.7;
 }
+.cv-h2-nr .cv-zb-badge { font-size: 18px; padding: 2px 10px; }
+.cv-tb-meta .cv-zb-badge { font-size: 10px; padding: 1px 6px; }
 
 .cv-h2-divider { height: 1px; margin: 10px 0; background: rgba(0,0,0,.1); }
 [class*="cv-prod-"] .cv-h2-divider { background: color-mix(in srgb, var(--pc) 20%, transparent); }
@@ -864,7 +874,7 @@ function renderCompletedView() {
             '<div class="cv-h2-badge"><span>▶</span> {{ ebr.produkt | replace("_", " ") }}</div>' +
             statusChip +
         '</div>' +
-        '<div class="cv-h2-nr">{{ ebr.nr_partii }}{% if ebr.nr_zbiornika and ebr.typ == "zbiornik" %}<span class="cv-h2-zbiornik">{{ ebr.nr_zbiornika }}</span>{% endif %}</div>' +
+        '<div class="cv-h2-nr">{{ ebr.nr_partii }}<span class="cv-h2-zbiorniki" id="cv-h2-zbiorniki"></span></div>' +
         '<div class="cv-h2-divider"></div>' +
         '<div class="cv-h2-info">' +
             '<div class="cv-h2-item"><div class="cv-h2-key">Typ</div><div class="cv-h2-val">' + (isZbiornik ? 'Zbiornik' : 'Szarża') + '</div></div>' +
@@ -1031,7 +1041,7 @@ function renderCompletedView() {
         topbar.innerHTML = '<div class="cv-tb-inner ' + prodCls + '">' +
             '<span class="cv-tb-badge"><span>▶</span> {{ ebr.produkt | replace("_", " ") }}</span>' +
             '<span class="cv-tb-nr">{{ ebr.nr_partii }}</span>' +
-            '<span class="cv-tb-meta">' + (isZbiornik ? 'Zbiornik{% if ebr.nr_zbiornika and ebr.typ == "zbiornik" %} {{ ebr.nr_zbiornika }}{% endif %}' : 'Szarża') + ' · {{ ebr.dt_end | pl_date if ebr.dt_end else ebr.dt_start | pl_date }}</span>' +
+            '<span class="cv-tb-meta">' + (isZbiornik ? 'Zbiornik' : 'Szarża') + '<span id="cv-tb-zbiorniki"></span> · {{ ebr.dt_end | pl_date if ebr.dt_end else ebr.dt_start | pl_date }}</span>' +
             statusChip +
         '</div>';
 
@@ -2140,23 +2150,51 @@ async function confirmPump() {
     }
 }
 
-async function loadCompletedZbiorniki() {
-    var container = document.getElementById('cv-zb-list');
-    if (!container) return;
+window._batchZbiorniki = [];
+
+async function loadBatchZbiorniki() {
     try {
         var resp = await fetch('/api/zbiornik-szarze/' + ebrId);
-        var links = await resp.json();
+        window._batchZbiorniki = await resp.json();
+    } catch(e) {
+        window._batchZbiorniki = [];
+    }
+    _renderZbiornikiBadges();
+}
+
+function _renderZbiornikiBadges() {
+    var links = window._batchZbiorniki;
+    var badges = '';
+    if (links.length > 0) {
+        badges = links.map(function(l) {
+            return '<span class="cv-zb-badge">' + l.nr_zbiornika + '</span>';
+        }).join('');
+    }
+
+    // Hero badge
+    var heroEl = document.getElementById('cv-h2-zbiorniki');
+    if (heroEl) heroEl.innerHTML = badges;
+
+    // Topbar badge
+    var tbEl = document.getElementById('cv-tb-zbiorniki');
+    if (tbEl) tbEl.innerHTML = badges ? ' ' + badges : '';
+
+    // Completed view list (with mass + edit)
+    var listEl = document.getElementById('cv-zb-list');
+    if (listEl) {
         if (links.length === 0) {
-            container.innerHTML = '<span style="font-size:11px;color:var(--text-dim);">Brak przypisanych zbiorników</span>';
-            return;
+            listEl.innerHTML = '<span style="font-size:11px;color:var(--text-dim);">Brak przypisanych zbiorników</span>';
+        } else {
+            listEl.innerHTML = links.map(function(l) {
+                return '<span class="td-zb-sticker" style="font-size:11px;padding:4px 10px;">' + l.nr_zbiornika +
+                    (l.masa_kg ? ' \u00b7 ' + Number(l.masa_kg).toLocaleString('pl') + ' kg' : '') + '</span>';
+            }).join('');
         }
-        var html = '';
-        links.forEach(function(l) {
-            html += '<span class="td-zb-sticker" style="font-size:11px;padding:4px 10px;">' + l.nr_zbiornika +
-                (l.masa_kg ? ' \u00b7 ' + Number(l.masa_kg).toLocaleString('pl') + ' kg' : '') + '</span>';
-        });
-        container.innerHTML = html;
-    } catch(e) {}
+    }
+}
+
+async function loadCompletedZbiorniki() {
+    await loadBatchZbiorniki();
 }
 
 function editCompletedZbiorniki() {
@@ -3675,6 +3713,7 @@ function cmSave() {
 // ═══ INIT (must be after all function definitions) ═══
 renderSections();
 setupComputedFields();
+loadBatchZbiorniki();
 </script>
 
 {# ═══ CERT MAPPING MODAL ═══ #}
