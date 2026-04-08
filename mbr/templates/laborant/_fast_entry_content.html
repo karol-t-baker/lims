@@ -1268,7 +1268,7 @@ async function doGenerateCert(btn, variantId, extraFields) {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ebr_id: ebrId, variant_id: variantId, extra_fields: extraFields, wystawil: (document.getElementById('cv-issuer-select') || {}).value || ''})
         });
-        if (resp.ok && resp.headers.get('Content-Type') === 'application/pdf') {
+        if (resp.ok && (resp.headers.get('Content-Type') || '').includes('application/pdf')) {
             // Download PDF to user's computer
             var blob = await resp.blob();
             var cd = resp.headers.get('Content-Disposition') || '';
@@ -1286,10 +1286,11 @@ async function doGenerateCert(btn, variantId, extraFields) {
         }
     } catch(e) {
         alert('Błąd połączenia: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.innerHTML = origText;
     }
-    btn.disabled = false;
-    btn.style.opacity = '1';
-    btn.innerHTML = origText;
 }
 
 // --- Linear rendering (zbiornik, simple products) — original logic ---
