@@ -2001,3 +2001,32 @@ body {
   font-family: var(--mono);
 }
 .target-hint strong { color: var(--teal); }
+
+/* Repeat analysis bar */
+.repeat-bar {
+  display: flex; justify-content: center; padding: 16px; margin-top: 8px;
+}
+.repeat-bar .btn-secondary {
+  padding: 10px 20px; border-radius: 8px;
+  border: 1.5px solid var(--border); background: var(--surface);
+  font-size: 12px; font-weight: 600; font-family: var(--font);
+  color: var(--text-sec); cursor: pointer; transition: all 0.15s;
+}
+.repeat-bar .btn-secondary:hover {
+  border-color: var(--teal); color: var(--teal); background: var(--teal-bg);
+}
+
+/* AK round summary */
+.ak-summary {
+  display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 16px;
+}
+.ak-sum-item {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px; border-radius: 4px;
+  font-size: 11px; background: var(--surface-alt);
+  border: 1px solid var(--border-subtle);
+}
+.ak-sum-item.val-ok { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+.ak-sum-item.val-err { background: var(--red-bg); border-color: var(--red); color: var(--red); }
+.ak-sum-label { font-weight: 600; }
+.ak-sum-val { font-family: var(--mono); }
