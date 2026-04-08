@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}Substraty{% endblock %}
+{% block nav_admin %}active{% endblock %}
+
+{% block topbar_title %}
+  <span style="font-weight:700;">Substraty</span>
+{% endblock %}
+
+{% block head %}
+<style>
+.sub-wrap { padding: 24px 32px; max-width: 900px; overflow-y: auto; max-height: calc(100vh - 52px); }
+.sub-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.sub-table th { text-align: left; padding: 10px 12px; font-size: 10px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid var(--border); }
+.sub-table td { padding: 8px 12px; border-bottom: 1px solid var(--border-subtle); }
+.sub-table tr:hover { background: var(--surface-alt); }
+.sub-nazwa { font-weight: 600; }
+.sub-input { border: 1px solid transparent; background: transparent; padding: 4px 8px; border-radius: 4px; font-size: 12px; width: 100%; font-family: inherit; }
+.sub-input:hover { border-color: var(--border); }
+.sub-input:focus { border-color: var(--teal); outline: none; background: var(--surface); }
+.sub-toggle { cursor: pointer; padding: 3px 10px; border-radius: 12px; font-size: 10px; font-weight: 600; border: none; }
+.sub-toggle.on { background: var(--green-bg, #dcfce7); color: var(--green, #16a34a); }
+.sub-toggle.off { background: var(--red-bg, #fef2f2); color: var(--red, #dc2626); }
+.sub-add { margin-top: 16px; display: flex; gap: 8px; align-items: center; }
+.sub-add input { padding: 8px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 12px; }
+.sub-add button { padding: 8px 16px; background: var(--teal); color: #fff; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.sub-add button:hover { opacity: 0.9; }
+.sub-produkty { display: flex; flex-wrap: wrap; gap: 4px; }
+.sub-prod-tag { font-size: 10px; padding: 2px 8px; border-radius: 10px; background: var(--teal-bg, #e0f7f7); color: var(--teal); font-weight: 600; }
+.sub-prod-edit { font-size: 10px; color: var(--teal); cursor: pointer; border: none; background: none; text-decoration: underline; }
+.sub-picker-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 999; display: flex; align-items: center; justify-content: center; }
+.sub-picker { background: var(--surface); border-radius: 12px; padding: 20px; max-width: 400px; width: 90%; max-height: 60vh; overflow-y: auto; box-shadow: 0 8px 30px rgba(0,0,0,0.15); }
+.sub-picker h3 { margin: 0 0 12px; font-size: 14px; }
+.sub-picker label { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 4px 0; cursor: pointer; }
+.sub-picker-btns { margin-top: 12px; display: flex; gap: 8px; justify-content: flex-end; }
+.sub-picker-btns button { padding: 6px 16px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sub-wrap">
+  <table class="sub-table">
+    <thead>
+      <tr>
+        <th>Nazwa</th>
+        <th>Powiązane produkty</th>
+        <th style="width:90px;">Status</th>
+      </tr>
+    </thead>
+    <tbody id="sub-body"></tbody>
+  </table>
+
+  <div class="sub-add">
+    <input type="text" id="add-nazwa" placeholder="Nazwa substratu" style="width:250px;">
+    <button onclick="addSubstrat()">Dodaj</button>
+  </div>
+</div>
+
+<script>
+var _subData = [];
+var _allProdukty = [];
+
+async function loadData() {
+  var [subResp, prResp] = await Promise.all([
+    fetch('/api/substraty?all=1'),
+    fetch('/api/produkty?all=1')
+  ]);
+  _subData = await subResp.json();
+  _allProdukty = await prResp.json();
+  renderTable();
+}
+
+function renderTable() {
+  var html = '';
+  _subData.forEach(function(s) {
+    var prodTags = (s.produkty || []).map(function(p) {
+      return '<span class="sub-prod-tag">' + p.replace(/_/g, ' ') + '</span>';
+    }).join('');
+    if (!prodTags) prodTags = '<span style="font-size:10px;color:var(--text-dim);font-style:italic;">Uniwersalny</span>';
+    html += '<tr data-id="' + s.id + '">' +
+      '<td class="sub-nazwa"><input class="sub-input" value="' + s.nazwa + '" onchange="saveField(' + s.id + ', \'nazwa\', this.value)"></td>' +
+      '<td><div class="sub-produkty">' + prodTags + ' <button class="sub-prod-edit" onclick="editProdukty(' + s.id + ')">edytuj</button></div></td>' +
+      '<td><button class="sub-toggle ' + (s.aktywny ? 'on' : 'off') + '" onclick="toggleActive(' + s.id + ', ' + s.aktywny + ')">' + (s.aktywny ? 'Aktywny' : 'Ukryty') + '</button></td>' +
+    '</tr>';
+  });
+  document.getElementById('sub-body').innerHTML = html;
+}
+
+async function saveField(id, field, value) {
+  var body = {};
+  body[field] = value;
+  await fetch('/api/substraty/' + id, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  });
+}
+
+async function toggleActive(id, current) {
+  await fetch('/api/substraty/' + id, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({aktywny: current ? 0 : 1})
+  });
+  loadData();
+}
+
+async function addSubstrat() {
+  var nazwa = document.getElementById('add-nazwa').value.trim();
+  if (!nazwa) return;
+  var resp = await fetch('/api/substraty', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({nazwa: nazwa})
+  });
+  if (resp.ok) {
+    document.getElementById('add-nazwa').value = '';
+    loadData();
+  } else {
+    var d = await resp.json();
+    alert(d.error || 'Błąd');
+  }
+}
+
+function editProdukty(subId) {
+  var sub = _subData.find(function(s) { return s.id === subId; });
+  var linked = sub ? (sub.produkty || []) : [];
+
+  var overlay = document.createElement('div');
+  overlay.className = 'sub-picker-overlay';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  var html = '<div class="sub-picker"><h3>Produkty dla: ' + sub.nazwa + '</h3>';
+  _allProdukty.forEach(function(p) {
+    var checked = linked.includes(p.nazwa) ? ' checked' : '';
+    html += '<label><input type="checkbox" value="' + p.nazwa + '"' + checked + '> ' + p.nazwa.replace(/_/g, ' ') + '</label>';
+  });
+  html += '<div class="sub-picker-btns">' +
+    '<button onclick="this.closest(\'.sub-picker-overlay\').remove()" style="background:var(--surface-alt);border:1px solid var(--border);color:var(--text);">Anuluj</button>' +
+    '<button onclick="_saveProdukty(' + subId + ', this)" style="background:var(--teal);border:none;color:#fff;">Zapisz</button>' +
+  '</div></div>';
+
+  overlay.innerHTML = html;
+  document.body.appendChild(overlay);
+}
+
+async function _saveProdukty(subId, btn) {
+  var overlay = btn.closest('.sub-picker-overlay');
+  var checked = overlay.querySelectorAll('input[type="checkbox"]:checked');
+  var produkty = Array.from(checked).map(function(cb) { return cb.value; });
+  await fetch('/api/substraty/' + subId + '/produkty', {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({produkty: produkty})
+  });
+  overlay.remove();
+  loadData();
+}
+
+loadData();
+</script>
+{% endblock %}
