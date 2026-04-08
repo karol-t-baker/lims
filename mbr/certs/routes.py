@@ -153,7 +153,7 @@ def api_cert_pdf(cert_id):
         return "Nie znaleziono świadectwa", 404
 
     # Try regenerating from saved data_json (no file on disk)
-    if row.get("data_json"):
+    if row["data_json"]:
         import json as _json
         try:
             gen = _json.loads(row["data_json"])
