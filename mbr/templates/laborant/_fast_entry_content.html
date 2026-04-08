@@ -1557,9 +1557,10 @@ function renderDecisionButtons(container) {
     var bar = document.createElement('div');
     bar.className = 'decision-bar';
     bar.innerHTML =
-        '<span class="decision-label">Analiza zakonczona. Co dalej?</span>' +
+        '<span class="decision-label">Analiza zakończona. Co dalej?</span>' +
         '<button class="btn-success" onclick="completePompuj()">Przepompuj na zbiornik</button>' +
-        '<button class="btn-secondary" onclick="startKorekta()">Korekta</button>';
+        '<button class="btn-secondary" onclick="repeatAnalizaCyclic()">Powtórz analizę</button>' +
+        '<button class="btn-secondary" onclick="startKorekta()">Korekta (standaryzacja)</button>';
     container.appendChild(bar);
 }
 
@@ -2072,6 +2073,17 @@ function startKorekta() {
     } else {
         location.reload();
     }
+}
+
+
+function repeatAnalizaCyclic() {
+    var nextN = roundState.last_analiza + 1;
+    var nextSekcja = 'analiza__' + nextN;
+    wyniki[nextSekcja] = {};
+    roundState.next_sekcja = nextSekcja;
+    roundState.next_step = 'analiza';
+    roundState.is_decision = false;
+    renderSections();
 }
 
 
