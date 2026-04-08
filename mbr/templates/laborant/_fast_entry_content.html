@@ -1383,19 +1383,16 @@ function renderLinearSections() {
         });
     }
 
-    // "Powtórz analizę" button
-    if (!isReadonly && lastRunda > 0) {
-        var lastWyniki = wyniki[akRounds[akRounds.length - 1].sekcja] || {};
-        if (Object.keys(lastWyniki).length > 0) {
-            var repeatBar = document.createElement('div');
-            repeatBar.className = 'repeat-bar';
-            repeatBar.innerHTML =
-                '<button class="btn-secondary" onclick="repeatAnaliza()" style="display:flex;align-items:center;gap:6px;">' +
-                    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/></svg>' +
-                    'Powtórz analizę' +
-                '</button>';
-            container.appendChild(repeatBar);
-        }
+    // "Powtórz analizę" button — always visible when AK section exists
+    if (!isReadonly) {
+        var repeatBar = document.createElement('div');
+        repeatBar.className = 'repeat-bar';
+        repeatBar.innerHTML =
+            '<button class="btn-secondary" onclick="repeatAnaliza()" style="display:flex;align-items:center;gap:6px;">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/></svg>' +
+                'Powtórz analizę' +
+            '</button>';
+        container.appendChild(repeatBar);
     }
 }
 
