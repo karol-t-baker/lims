@@ -266,13 +266,16 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     # Migration: recreate parametry_analityczne without CHECK constraint on typ
     # (allows 'binarny' type; SQLite can't ALTER CHECK)
     # Use separate connection to avoid transaction issues
+    # Skip on fresh DB where parametry_analityczne doesn't exist yet
+    _pa_exists = db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='parametry_analityczne'").fetchone()
     _needs_check_migration = False
-    try:
-        db.execute("INSERT INTO parametry_analityczne (kod,label,typ) VALUES ('__test_binarny','test','binarny')")
-        db.execute("DELETE FROM parametry_analityczne WHERE kod='__test_binarny'")
-    except Exception:
-        _needs_check_migration = True
-        db.rollback()
+    if _pa_exists:
+        try:
+            db.execute("INSERT INTO parametry_analityczne (kod,label,typ) VALUES ('__test_binarny','test','binarny')")
+            db.execute("DELETE FROM parametry_analityczne WHERE kod='__test_binarny'")
+        except Exception:
+            _needs_check_migration = True
+            db.rollback()
 
     if _needs_check_migration:
         import sqlite3 as _sq
