@@ -53,7 +53,7 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
                                 CHECK(status IN ('open', 'completed', 'cancelled')),
             operator            TEXT,
             typ                 TEXT NOT NULL DEFAULT 'szarza'
-                                CHECK(typ IN ('szarza', 'zbiornik')),
+                                CHECK(typ IN ('szarza', 'zbiornik', 'platkowanie')),
             nastaw              INTEGER,
             przepompowanie_json TEXT
         );
@@ -115,7 +115,8 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nazwa TEXT UNIQUE NOT NULL,
             kod TEXT,
-            aktywny INTEGER DEFAULT 1
+            aktywny INTEGER DEFAULT 1,
+            typy TEXT DEFAULT '["szarza"]'
         );
 
         CREATE TABLE IF NOT EXISTS zbiorniki (
@@ -150,6 +151,25 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             kolejnosc INTEGER DEFAULT 0,
             rownolegle INTEGER DEFAULT 0,
             UNIQUE(produkt, etap_kod)
+        );
+
+        CREATE TABLE IF NOT EXISTS substraty (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nazwa TEXT UNIQUE NOT NULL,
+            aktywny INTEGER DEFAULT 1
+        );
+
+        CREATE TABLE IF NOT EXISTS substrat_produkty (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            substrat_id INTEGER NOT NULL REFERENCES substraty(id),
+            produkt TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS platkowanie_substraty (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ebr_id INTEGER NOT NULL REFERENCES ebr_batches(ebr_id),
+            substrat_id INTEGER NOT NULL REFERENCES substraty(id),
+            nr_partii_substratu TEXT
         );
     """)
     # Seed zbiorniki (tanks) — INSERT OR IGNORE for idempotency
@@ -196,6 +216,15 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             (nazwa, kod),
         )
 
+    # Set typy for Cheginy products (szarza + zbiornik + platkowanie)
+    _CHEGINY_ALL_TYPY = '["szarza","zbiornik","platkowanie"]'
+    for nazwa, _ in _PRODUKTY_SEED:
+        if nazwa.startswith("Chegina_"):
+            db.execute(
+                "UPDATE produkty SET typy = ? WHERE nazwa = ? AND typy = '[\"szarza\"]'",
+                (_CHEGINY_ALL_TYPY, nazwa),
+            )
+
     # Migration: add kod_produktu column if missing (existing DBs)
     cols = [r[1] for r in db.execute("PRAGMA table_info(zbiorniki)").fetchall()]
     if "kod_produktu" not in cols:
@@ -216,6 +245,11 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
                 "UPDATE zbiorniki SET kod_produktu = ? WHERE produkt = ? AND (kod_produktu IS NULL OR kod_produktu = '')",
                 (kod, zb_prod),
             )
+
+    # Migration: add typy column to produkty if missing
+    pr_cols = [r[1] for r in db.execute("PRAGMA table_info(produkty)").fetchall()]
+    if "typy" not in pr_cols:
+        db.execute("ALTER TABLE produkty ADD COLUMN typy TEXT DEFAULT '[\"szarza\"]'")
 
     db.commit()
 
@@ -600,6 +634,20 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
                     "DELETE FROM parametry_analityczne WHERE id = ?",
                     (old_param[0],),
                 )
+    db.commit()
+
+    # Migration: product_ref_values — per-product reference values for analiza_koncowa
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS product_ref_values (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            produkt       TEXT NOT NULL,
+            kontekst      TEXT NOT NULL DEFAULT 'analiza_koncowa',
+            parametr_kod  TEXT NOT NULL,
+            wartosc       REAL,
+            wartosc_text  TEXT,
+            UNIQUE(produkt, kontekst, parametr_kod)
+        )
+    """)
     db.commit()
 
 # ---------------------------------------------------------------------------
