@@ -1,6 +1,6 @@
 """zbiorniki/routes.py — API endpoints for tank management."""
 
-from flask import jsonify, request, render_template
+from flask import jsonify, request, render_template, redirect, url_for
 
 from mbr.db import db_session
 from mbr.shared.decorators import login_required, role_required
@@ -85,12 +85,20 @@ def admin_zbiorniki():
 @login_required
 def api_produkty():
     include_all = request.args.get("all") == "1"
+    typ_filter = request.args.get("typ", "")
     with db_session() as db:
         sql = "SELECT * FROM produkty"
+        params = []
+        conditions = []
         if not include_all:
-            sql += " WHERE aktywny = 1"
+            conditions.append("aktywny = 1")
+        if typ_filter:
+            conditions.append("typy LIKE ?")
+            params.append(f'%"{typ_filter}"%')
+        if conditions:
+            sql += " WHERE " + " AND ".join(conditions)
         sql += " ORDER BY nazwa"
-        rows = [dict(r) for r in db.execute(sql).fetchall()]
+        rows = [dict(r) for r in db.execute(sql, params).fetchall()]
     return jsonify(rows)
 
 
@@ -118,7 +126,7 @@ def api_produkty_create():
 @role_required("admin")
 def api_produkty_update(pid):
     data = request.get_json(silent=True) or {}
-    allowed = {"nazwa", "kod", "aktywny"}
+    allowed = {"nazwa", "kod", "aktywny", "typy"}
     updates = {k: v for k, v in data.items() if k in allowed and v is not None}
     if not updates:
         return jsonify({"ok": True})
@@ -133,6 +141,90 @@ def api_produkty_update(pid):
 @role_required("admin")
 def admin_produkty():
     return render_template("admin/produkty.html")
+
+
+# ── Substraty API ──
+
+@zbiorniki_bp.route("/api/substraty")
+@login_required
+def api_substraty():
+    produkt = request.args.get("produkt", "")
+    include_all = request.args.get("all") == "1"
+    with db_session() as db:
+        if produkt:
+            rows = db.execute("""
+                SELECT s.* FROM substraty s
+                WHERE s.aktywny = 1 AND (
+                    s.id IN (SELECT substrat_id FROM substrat_produkty WHERE produkt = ?)
+                    OR s.id NOT IN (SELECT substrat_id FROM substrat_produkty)
+                )
+                ORDER BY s.nazwa
+            """, (produkt,)).fetchall()
+        else:
+            sql = "SELECT * FROM substraty"
+            if not include_all:
+                sql += " WHERE aktywny = 1"
+            sql += " ORDER BY nazwa"
+            rows = db.execute(sql).fetchall()
+        result = [dict(r) for r in rows]
+        if include_all:
+            for sub in result:
+                links = db.execute(
+                    "SELECT produkt FROM substrat_produkty WHERE substrat_id = ?",
+                    (sub["id"],)
+                ).fetchall()
+                sub["produkty"] = [r["produkt"] for r in links]
+    return jsonify(result)
+
+
+@zbiorniki_bp.route("/api/substraty", methods=["POST"])
+@role_required("admin")
+def api_substraty_create():
+    data = request.get_json(silent=True) or {}
+    nazwa = data.get("nazwa", "").strip()
+    if not nazwa:
+        return jsonify({"error": "nazwa required"}), 400
+    with db_session() as db:
+        try:
+            cur = db.execute("INSERT INTO substraty (nazwa) VALUES (?)", (nazwa,))
+            db.commit()
+        except Exception:
+            return jsonify({"error": "Substrat already exists"}), 409
+    return jsonify({"ok": True, "id": cur.lastrowid})
+
+
+@zbiorniki_bp.route("/api/substraty/<int:sid>", methods=["PUT"])
+@role_required("admin")
+def api_substraty_update(sid):
+    data = request.get_json(silent=True) or {}
+    allowed = {"nazwa", "aktywny"}
+    updates = {k: v for k, v in data.items() if k in allowed and v is not None}
+    if not updates:
+        return jsonify({"ok": True})
+    set_clause = ", ".join(f"{k} = ?" for k in updates)
+    with db_session() as db:
+        db.execute(f"UPDATE substraty SET {set_clause} WHERE id = ?", [*updates.values(), sid])
+        db.commit()
+    return jsonify({"ok": True})
+
+
+@zbiorniki_bp.route("/api/substraty/<int:sid>/produkty", methods=["PUT"])
+@role_required("admin")
+def api_substraty_produkty(sid):
+    data = request.get_json(silent=True) or {}
+    produkty = data.get("produkty", [])
+    with db_session() as db:
+        db.execute("DELETE FROM substrat_produkty WHERE substrat_id = ?", (sid,))
+        for p in produkty:
+            db.execute("INSERT INTO substrat_produkty (substrat_id, produkt) VALUES (?, ?)", (sid, p))
+        db.commit()
+    return jsonify({"ok": True})
+
+
+@zbiorniki_bp.route("/admin/substraty")
+@role_required("admin")
+def admin_substraty():
+    return render_template("admin/substraty.html")
 
 
 # ── Normy Admin ──
@@ -177,7 +269,7 @@ def api_normy_update(binding_id):
 @zbiorniki_bp.route("/admin/parametry")
 @role_required("admin")
 def admin_parametry():
-    return render_template("admin/parametry.html")
+    return redirect(url_for("parametry.parametry_editor"))
 
 @zbiorniki_bp.route("/api/parametry/all")
 @role_required("admin")
