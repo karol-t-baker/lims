@@ -644,12 +644,39 @@
 .cv-stage-body.active { display: block; }
 
 /* Pump cards */
-.cv-pump { display: flex; gap: 10px; margin-top: 12px; }
-.cv-pump-card { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; text-align: center; }
-.cv-pump-arrow { font-size: 20px; color: var(--teal); margin-bottom: 4px; }
-.cv-pump-nr { font-size: 18px; font-weight: 800; }
-.cv-pump-kg { font-family: var(--mono); font-size: 22px; font-weight: 900; margin-top: 4px; }
-.cv-pump-kg span { font-size: 12px; font-weight: 400; color: var(--text-sec); }
+/* Zbiorniki cards in completed view */
+.cv-zb-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.cv-zb-item {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-width: 80px; padding: 10px 14px;
+  background: linear-gradient(135deg, var(--teal-bg), #d4efef);
+  border: 1.5px solid rgba(13,115,119,0.15);
+  border-radius: 10px;
+  transition: all 0.15s;
+}
+.cv-zb-item:hover {
+  border-color: var(--teal);
+  box-shadow: 0 2px 8px rgba(13,115,119,0.1);
+  transform: translateY(-1px);
+}
+.cv-zb-nr {
+  font-family: var(--mono); font-size: 16px; font-weight: 800;
+  color: var(--teal-dark); letter-spacing: -0.5px;
+}
+.cv-zb-prod {
+  font-size: 9px; color: var(--text-dim); margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 100px;
+}
+.cv-zb-kg {
+  font-family: var(--mono); font-size: 13px; font-weight: 700;
+  color: var(--teal); margin-top: 4px;
+}
+.cv-zb-kg span { font-size: 10px; font-weight: 400; color: var(--text-dim); }
+.cv-zb-empty {
+  font-size: 11px; color: var(--text-dim); padding: 8px 0;
+  font-style: italic;
+}
 
 .cv-certs { margin-top: 12px; }
 .cv-list-empty { padding: 14px; font-size: 12px; color: var(--text-dim); text-align: center; }
@@ -1007,13 +1034,18 @@ function renderCompletedView() {
     }
 
     // Zbiorniki section for completed batch
-    html += '<div class="cv-zbiorniki" id="cv-zbiorniki">';
-    html += '<div style="display:flex;align-items:center;gap:8px;margin-top:20px;margin-bottom:8px;">' +
-        '<span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-dim);">Zbiorniki</span>' +
-        '<button onclick="editCompletedZbiorniki()" style="font-size:10px;padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface);cursor:pointer;color:var(--text-dim);font-family:var(--font);">Edytuj</button>' +
+    html += '<div class="cv-params cv-zbiorniki-card" id="cv-zbiorniki">' +
+        '<div class="cv-params-head" style="display:flex;align-items:center;justify-content:space-between;">' +
+            '<span style="display:flex;align-items:center;gap:6px;">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;opacity:0.5;"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"/></svg>' +
+                'Zbiorniki docelowe' +
+            '</span>' +
+            '<button class="cv-edit-btn" onclick="editCompletedZbiorniki()" style="font-size:10px;">edytuj</button>' +
+        '</div>' +
+        '<div style="padding:12px 16px;">' +
+            '<div id="cv-zb-list" class="cv-zb-grid"></div>' +
+        '</div>' +
     '</div>';
-    html += '<div id="cv-zb-list" style="display:flex;flex-wrap:wrap;gap:6px;"></div>';
-    html += '</div>';
 
     container.innerHTML = html;
     setTimeout(loadCompletedZbiorniki, 100);
@@ -2166,15 +2198,18 @@ function _renderZbiornikiBadges() {
     var tbEl = document.getElementById('cv-tb-zbiorniki');
     if (tbEl) tbEl.innerHTML = badges ? ' ' + badges : '';
 
-    // Completed view list (with mass + edit)
+    // Completed view list (cards with mass)
     var listEl = document.getElementById('cv-zb-list');
     if (listEl) {
         if (links.length === 0) {
-            listEl.innerHTML = '<span style="font-size:11px;color:var(--text-dim);">Brak przypisanych zbiorników</span>';
+            listEl.innerHTML = '<div class="cv-zb-empty">Brak przypisanych zbiorników</div>';
         } else {
             listEl.innerHTML = links.map(function(l) {
-                return '<span class="td-zb-sticker" style="font-size:11px;padding:4px 10px;">' + l.nr_zbiornika +
-                    (l.masa_kg ? ' \u00b7 ' + Number(l.masa_kg).toLocaleString('pl') + ' kg' : '') + '</span>';
+                return '<div class="cv-zb-item">' +
+                    '<div class="cv-zb-nr">' + l.nr_zbiornika + '</div>' +
+                    (l.produkt ? '<div class="cv-zb-prod">' + l.produkt + '</div>' : '') +
+                    (l.masa_kg ? '<div class="cv-zb-kg">' + Number(l.masa_kg).toLocaleString('pl') + ' <span>kg</span></div>' : '') +
+                '</div>';
             }).join('');
         }
     }
