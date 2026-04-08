@@ -216,6 +216,16 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             (nazwa, kod),
         )
 
+    # Migration: add kod_produktu column if missing (existing DBs)
+    cols = [r[1] for r in db.execute("PRAGMA table_info(zbiorniki)").fetchall()]
+    if "kod_produktu" not in cols:
+        db.execute("ALTER TABLE zbiorniki ADD COLUMN kod_produktu TEXT")
+
+    # Migration: add typy column to produkty if missing
+    pr_cols = [r[1] for r in db.execute("PRAGMA table_info(produkty)").fetchall()]
+    if "typy" not in pr_cols:
+        db.execute("ALTER TABLE produkty ADD COLUMN typy TEXT DEFAULT '[\"szarza\"]'")
+
     # Set typy for Cheginy products (szarza + zbiornik + platkowanie)
     _CHEGINY_ALL_TYPY = '["szarza","zbiornik","platkowanie"]'
     for nazwa, _ in _PRODUKTY_SEED:
@@ -224,11 +234,6 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
                 "UPDATE produkty SET typy = ? WHERE nazwa = ? AND typy = '[\"szarza\"]'",
                 (_CHEGINY_ALL_TYPY, nazwa),
             )
-
-    # Migration: add kod_produktu column if missing (existing DBs)
-    cols = [r[1] for r in db.execute("PRAGMA table_info(zbiorniki)").fetchall()]
-    if "kod_produktu" not in cols:
-        db.execute("ALTER TABLE zbiorniki ADD COLUMN kod_produktu TEXT")
 
     # Map zbiornik product names → codes
     _ZB_PRODUKT_TO_KOD = {
@@ -245,11 +250,6 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
                 "UPDATE zbiorniki SET kod_produktu = ? WHERE produkt = ? AND (kod_produktu IS NULL OR kod_produktu = '')",
                 (kod, zb_prod),
             )
-
-    # Migration: add typy column to produkty if missing
-    pr_cols = [r[1] for r in db.execute("PRAGMA table_info(produkty)").fetchall()]
-    if "typy" not in pr_cols:
-        db.execute("ALTER TABLE produkty ADD COLUMN typy TEXT DEFAULT '[\"szarza\"]'")
 
     db.commit()
 
