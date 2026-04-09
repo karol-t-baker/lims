@@ -6,7 +6,7 @@ from pathlib import Path
 from flask import Response, abort, jsonify, render_template, request, send_file, session
 
 from mbr.certs import certs_bp
-from mbr.certs.generator import generate_certificate_pdf, get_required_fields, get_variants, save_certificate_data, load_config, _CONFIG_PATH, build_preview_context, _docxtpl_render, _gotenberg_convert
+from mbr.certs.generator import generate_certificate_pdf, get_required_fields, get_variants, save_certificate_data, load_config, build_preview_context, _docxtpl_render, _gotenberg_convert
 from mbr.certs.models import create_swiadectwo, list_swiadectwa
 from mbr.db import db_session
 from mbr.models import get_ebr, get_ebr_wyniki, get_mbr
@@ -195,24 +195,8 @@ def api_cert_list():
 
 
 # ---------------------------------------------------------------------------
-# Product CRUD for cert config editor
+# Product CRUD for cert config editor (DB-backed)
 # ---------------------------------------------------------------------------
-
-def _read_config():
-    """Read cert_config.json (fresh, no cache)."""
-    with open(_CONFIG_PATH, encoding="utf-8") as f:
-        return _json.load(f)
-
-
-def _write_config(cfg):
-    """Write cert_config.json atomically."""
-    tmp = str(_CONFIG_PATH) + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        _json.dump(cfg, f, ensure_ascii=False, indent=2)
-    import os
-    os.replace(tmp, str(_CONFIG_PATH))
-    # Invalidate generator cache
-    load_config(reload=True)
 
 
 @certs_bp.route("/admin/wzory-cert")
@@ -224,46 +208,154 @@ def admin_wzory_cert():
 @certs_bp.route("/api/cert/config/products")
 @role_required("admin")
 def api_cert_config_products():
-    """List all products with summary info."""
-    cfg = _read_config()
-    products = cfg.get("products", {})
-    result = []
-    for key, prod in products.items():
-        result.append({
-            "key": key,
-            "display_name": prod.get("display_name", key),
-            "params_count": len(prod.get("parameters", [])),
-            "variants_count": len(prod.get("variants", [])),
-        })
-    return jsonify({"ok": True, "products": result})
+    """List all products that have cert variants defined (from DB)."""
+    with db_session() as db:
+        rows = db.execute("""
+            SELECT p.nazwa as key, p.display_name,
+                   (SELECT COUNT(*) FROM parametry_cert pc WHERE pc.produkt=p.nazwa AND pc.variant_id IS NULL) as params_count,
+                   (SELECT COUNT(*) FROM cert_variants cv WHERE cv.produkt=p.nazwa) as variants_count
+            FROM produkty p
+            WHERE EXISTS (SELECT 1 FROM cert_variants cv WHERE cv.produkt=p.nazwa)
+            ORDER BY p.display_name
+        """).fetchall()
+    return jsonify({"ok": True, "products": [dict(r) for r in rows]})
 
 
 @certs_bp.route("/api/cert/config/product/<key>")
 @role_required("admin")
 def api_cert_config_product_get(key):
-    """Full product data + optional DB metadata."""
-    cfg = _read_config()
-    products = cfg.get("products", {})
-    if key not in products:
-        return jsonify({"error": "Product not found"}), 404
-    product = products[key]
-
-    db_meta = None
+    """Full product data from DB, same JSON shape as the old JSON-based endpoint."""
     with db_session() as db:
-        row = db.execute(
-            "SELECT id, display_name, spec_number, cas_number, expiry_months, opinion_pl, opinion_en FROM produkty WHERE nazwa = ?",
+        prod_row = db.execute(
+            "SELECT id, nazwa, display_name, spec_number, cas_number, expiry_months, opinion_pl, opinion_en "
+            "FROM produkty WHERE nazwa = ?",
             (key,),
         ).fetchone()
-        if row:
-            db_meta = {
-                "id": row["id"],
-                "display_name": row["display_name"],
-                "spec_number": row["spec_number"],
-                "cas_number": row["cas_number"],
-                "expiry_months": row["expiry_months"],
-                "opinion_pl": row["opinion_pl"],
-                "opinion_en": row["opinion_en"],
+        if not prod_row:
+            return jsonify({"error": "Product not found"}), 404
+
+        # Check that cert_variants exist for this product
+        has_variants = db.execute(
+            "SELECT 1 FROM cert_variants WHERE produkt = ? LIMIT 1", (key,)
+        ).fetchone()
+        if not has_variants:
+            return jsonify({"error": "Product not found"}), 404
+
+        # Build product object matching old JSON shape
+        product = {
+            "display_name": prod_row["display_name"] or key,
+            "spec_number": prod_row["spec_number"] or "",
+            "cas_number": prod_row["cas_number"] or "",
+            "expiry_months": prod_row["expiry_months"] or 12,
+            "opinion_pl": prod_row["opinion_pl"] or "",
+            "opinion_en": prod_row["opinion_en"] or "",
+        }
+
+        # Base parameters (variant_id IS NULL)
+        base_params = db.execute(
+            "SELECT pc.parametr_id, pc.kolejnosc, pc.requirement, pc.format, "
+            "pc.qualitative_result, pc.name_pl, pc.name_en, pc.method, "
+            "pa.kod, pa.label AS pa_label, pa.name_en AS pa_name_en, "
+            "pa.method_code AS pa_method_code "
+            "FROM parametry_cert pc "
+            "JOIN parametry_analityczne pa ON pa.id = pc.parametr_id "
+            "WHERE pc.produkt = ? AND pc.variant_id IS NULL "
+            "ORDER BY pc.kolejnosc",
+            (key,),
+        ).fetchall()
+
+        parameters = []
+        for bp in base_params:
+            param = {
+                "id": bp["kod"] or f"param_{bp['parametr_id']}",
+                "name_pl": bp["name_pl"] or bp["pa_label"] or "",
+                "name_en": bp["name_en"] or bp["pa_name_en"] or "",
+                "requirement": bp["requirement"] or "",
+                "method": bp["method"] or bp["pa_method_code"] or "",
+                "format": bp["format"] or "1",
+                "data_field": bp["kod"] or "",
             }
+            if bp["qualitative_result"]:
+                param["qualitative_result"] = bp["qualitative_result"]
+            parameters.append(param)
+        product["parameters"] = parameters
+
+        # Variants
+        variants_db = db.execute(
+            "SELECT * FROM cert_variants WHERE produkt=? ORDER BY kolejnosc",
+            (key,),
+        ).fetchall()
+
+        variants = []
+        for vr in variants_db:
+            variant_obj = {
+                "id": vr["variant_id"],
+                "label": vr["label"],
+                "flags": _json.loads(vr["flags"] or "[]"),
+            }
+            overrides = {}
+            if vr["spec_number"]:
+                overrides["spec_number"] = vr["spec_number"]
+            if vr["opinion_pl"]:
+                overrides["opinion_pl"] = vr["opinion_pl"]
+            if vr["opinion_en"]:
+                overrides["opinion_en"] = vr["opinion_en"]
+            if vr["avon_code"]:
+                overrides["avon_code"] = vr["avon_code"]
+            if vr["avon_name"]:
+                overrides["avon_name"] = vr["avon_name"]
+
+            remove_params_ids = _json.loads(vr["remove_params"] or "[]")
+            if remove_params_ids:
+                remove_kods = []
+                for pid in remove_params_ids:
+                    r = db.execute("SELECT kod FROM parametry_analityczne WHERE id=?", (pid,)).fetchone()
+                    remove_kods.append(r["kod"] if r and r["kod"] else f"param_{pid}")
+                overrides["remove_parameters"] = remove_kods
+
+            # Variant-specific add_parameters
+            add_params_db = db.execute(
+                "SELECT pc.*, pa.kod, pa.label AS pa_label, pa.name_en AS pa_name_en, "
+                "pa.method_code AS pa_method_code "
+                "FROM parametry_cert pc "
+                "JOIN parametry_analityczne pa ON pa.id = pc.parametr_id "
+                "WHERE pc.variant_id = ? "
+                "ORDER BY pc.kolejnosc",
+                (vr["id"],),
+            ).fetchall()
+
+            if add_params_db:
+                add_parameters = []
+                for ap in add_params_db:
+                    param = {
+                        "id": ap["kod"] or f"param_{ap['parametr_id']}",
+                        "name_pl": ap["name_pl"] or ap["pa_label"] or "",
+                        "name_en": ap["name_en"] or ap["pa_name_en"] or "",
+                        "requirement": ap["requirement"] or "",
+                        "method": ap["method"] or ap["pa_method_code"] or "",
+                        "format": ap["format"] or "1",
+                        "data_field": ap["kod"] or "",
+                    }
+                    if ap["qualitative_result"]:
+                        param["qualitative_result"] = ap["qualitative_result"]
+                    add_parameters.append(param)
+                overrides["add_parameters"] = add_parameters
+
+            if overrides:
+                variant_obj["overrides"] = overrides
+            variants.append(variant_obj)
+
+        product["variants"] = variants
+
+        db_meta = {
+            "id": prod_row["id"],
+            "display_name": prod_row["display_name"],
+            "spec_number": prod_row["spec_number"],
+            "cas_number": prod_row["cas_number"],
+            "expiry_months": prod_row["expiry_months"],
+            "opinion_pl": prod_row["opinion_pl"],
+            "opinion_en": prod_row["opinion_en"],
+        }
 
     return jsonify({"ok": True, "product": product, "db_meta": db_meta})
 
@@ -271,104 +363,181 @@ def api_cert_config_product_get(key):
 @certs_bp.route("/api/cert/config/product/<key>", methods=["PUT"])
 @role_required("admin")
 def api_cert_config_product_put(key):
-    """Save product parameters + variants to cert_config.json."""
-    cfg = _read_config()
-    products = cfg.get("products", {})
-    if key not in products:
-        return jsonify({"error": "Product not found"}), 404
+    """Save product parameters + variants to DB, regenerate JSON export."""
+    from mbr.certs.generator import save_cert_config_export
 
     data = request.get_json(silent=True) or {}
     parameters = data.get("parameters")
     variants = data.get("variants")
 
-    # Validate parameters
-    if parameters is not None:
-        param_ids = set()
-        for p in parameters:
-            pid = p.get("id", "").strip()
-            if not pid:
-                return jsonify({"error": "Parameter missing id"}), 400
-            if pid in param_ids:
-                return jsonify({"error": f"Duplicate parameter id: {pid}"}), 400
-            param_ids.add(pid)
-            if not p.get("name_pl") or not p.get("requirement"):
-                return jsonify({"error": f"Parameter '{pid}' missing name_pl or requirement"}), 400
-        products[key]["parameters"] = parameters
+    with db_session() as db:
+        # Check product exists and has cert config
+        prod_row = db.execute("SELECT id FROM produkty WHERE nazwa = ?", (key,)).fetchone()
+        if not prod_row:
+            return jsonify({"error": "Product not found"}), 404
+        has_variants = db.execute("SELECT 1 FROM cert_variants WHERE produkt = ? LIMIT 1", (key,)).fetchone()
+        if not has_variants:
+            return jsonify({"error": "Product not found"}), 404
 
-    # Validate variants
-    if variants is not None:
-        variant_ids = set()
-        base_param_ids = {p["id"] for p in products[key].get("parameters", [])}
-        for v in variants:
-            vid = v.get("id", "").strip()
-            if not vid:
-                return jsonify({"error": "Variant missing id"}), 400
-            if vid in variant_ids:
-                return jsonify({"error": f"Duplicate variant id: {vid}"}), 400
-            variant_ids.add(vid)
-            if not v.get("label"):
-                return jsonify({"error": f"Variant '{vid}' missing label"}), 400
-            # Validate remove_parameters references
-            overrides = v.get("overrides") or {}
-            remove_params = overrides.get("remove_parameters", [])
-            for rp in remove_params:
-                if rp not in base_param_ids:
-                    return jsonify({"error": f"Variant '{vid}' remove_parameters references unknown param: {rp}"}), 400
-        products[key]["variants"] = variants
+        # Build kod_to_id lookup from parametry_analityczne
+        pa_rows = db.execute("SELECT id, kod FROM parametry_analityczne").fetchall()
+        kod_to_id = {r["kod"]: r["id"] for r in pa_rows if r["kod"]}
 
-    # Sync display_name and meta fields if provided
-    for field in ("display_name", "spec_number", "cas_number", "expiry_months", "opinion_pl", "opinion_en"):
-        if field in data:
-            products[key][field] = data[field]
+        # Validate parameters
+        if parameters is not None:
+            param_ids = set()
+            for p in parameters:
+                pid = p.get("id", "").strip()
+                if not pid:
+                    return jsonify({"error": "Parameter missing id"}), 400
+                if pid in param_ids:
+                    return jsonify({"error": f"Duplicate parameter id: {pid}"}), 400
+                param_ids.add(pid)
+                if not p.get("name_pl") or not p.get("requirement"):
+                    return jsonify({"error": f"Parameter '{pid}' missing name_pl or requirement"}), 400
+                df = (p.get("data_field") or "").strip()
+                if df and df not in kod_to_id:
+                    return jsonify({"error": f"Parameter '{pid}': data_field '{df}' not found in parametry_analityczne"}), 400
 
-    cfg["products"] = products
-    _write_config(cfg)
+        # Validate variants
+        if variants is not None:
+            base_param_ids = {p.get("id", "").strip() for p in (parameters or [])} if parameters is not None else set()
+            if not base_param_ids and parameters is None:
+                # Load existing base param ids from DB
+                existing_base = db.execute(
+                    "SELECT pa.kod FROM parametry_cert pc JOIN parametry_analityczne pa ON pa.id=pc.parametr_id "
+                    "WHERE pc.produkt=? AND pc.variant_id IS NULL", (key,)
+                ).fetchall()
+                base_param_ids = {r["kod"] for r in existing_base if r["kod"]}
+
+            variant_ids = set()
+            for v in variants:
+                vid = v.get("id", "").strip()
+                if not vid:
+                    return jsonify({"error": "Variant missing id"}), 400
+                if vid in variant_ids:
+                    return jsonify({"error": f"Duplicate variant id: {vid}"}), 400
+                variant_ids.add(vid)
+                if not v.get("label"):
+                    return jsonify({"error": f"Variant '{vid}' missing label"}), 400
+                overrides = v.get("overrides") or {}
+                remove_params = overrides.get("remove_parameters", [])
+                for rp in remove_params:
+                    if rp not in base_param_ids:
+                        return jsonify({"error": f"Variant '{vid}' remove_parameters references unknown param: {rp}"}), 400
+
+        # Update produkty metadata
+        for field in ("display_name", "spec_number", "cas_number", "expiry_months", "opinion_pl", "opinion_en"):
+            if field in data:
+                db.execute(f"UPDATE produkty SET {field} = ? WHERE nazwa = ?", (data[field], key))
+
+        # Replace base parameters (variant_id IS NULL)
+        if parameters is not None:
+            db.execute("DELETE FROM parametry_cert WHERE produkt = ? AND variant_id IS NULL", (key,))
+            for idx, p in enumerate(parameters):
+                df = (p.get("data_field") or p.get("id", "")).strip()
+                parametr_id = kod_to_id.get(df)
+                if not parametr_id:
+                    continue  # skip params without valid analityczne mapping
+                db.execute(
+                    "INSERT INTO parametry_cert (produkt, parametr_id, kolejnosc, requirement, format, qualitative_result, name_pl, name_en, method, variant_id) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)",
+                    (key, parametr_id, idx, p.get("requirement", ""), p.get("format", "1"),
+                     p.get("qualitative_result") or None,
+                     p.get("name_pl") or None, p.get("name_en") or None, p.get("method") or None),
+                )
+
+        # Replace variants
+        if variants is not None:
+            # Delete old variant add_params first (foreign key)
+            old_variant_rows = db.execute("SELECT id FROM cert_variants WHERE produkt=?", (key,)).fetchall()
+            for ovr in old_variant_rows:
+                db.execute("DELETE FROM parametry_cert WHERE variant_id = ?", (ovr["id"],))
+            db.execute("DELETE FROM cert_variants WHERE produkt = ?", (key,))
+
+            for idx, v in enumerate(variants):
+                overrides = v.get("overrides") or {}
+                # Convert remove_parameters (string kod array) to integer parametr_id array
+                remove_kods = overrides.get("remove_parameters", [])
+                remove_ids = [kod_to_id[k] for k in remove_kods if k in kod_to_id]
+
+                cur = db.execute(
+                    "INSERT INTO cert_variants (produkt, variant_id, label, flags, spec_number, opinion_pl, opinion_en, avon_code, avon_name, remove_params, kolejnosc) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (key, v.get("id", ""), v.get("label", ""),
+                     _json.dumps(v.get("flags", []), ensure_ascii=False),
+                     overrides.get("spec_number") or None,
+                     overrides.get("opinion_pl") or None,
+                     overrides.get("opinion_en") or None,
+                     overrides.get("avon_code") or None,
+                     overrides.get("avon_name") or None,
+                     _json.dumps(remove_ids), idx),
+                )
+                new_cv_id = cur.lastrowid
+
+                # Insert variant add_parameters
+                add_params = overrides.get("add_parameters", [])
+                for ap_idx, ap in enumerate(add_params):
+                    ap_df = (ap.get("data_field") or ap.get("id", "")).strip()
+                    ap_parametr_id = kod_to_id.get(ap_df)
+                    if not ap_parametr_id:
+                        continue
+                    db.execute(
+                        "INSERT INTO parametry_cert (produkt, parametr_id, kolejnosc, requirement, format, qualitative_result, name_pl, name_en, method, variant_id) "
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        (key, ap_parametr_id, ap_idx, ap.get("requirement", ""), ap.get("format", "1"),
+                         ap.get("qualitative_result") or None,
+                         ap.get("name_pl") or None, ap.get("name_en") or None, ap.get("method") or None,
+                         new_cv_id),
+                    )
+
+        db.commit()
+        save_cert_config_export(db)
+
     return jsonify({"ok": True})
 
 
 @certs_bp.route("/api/cert/config/product", methods=["POST"])
 @role_required("admin")
 def api_cert_config_product_create():
-    """Create a new product in cert_config.json and optionally in DB."""
+    """Create a new product with cert config in DB."""
+    import re
+    from mbr.certs.generator import save_cert_config_export
+
     data = request.get_json(silent=True) or {}
     display_name = (data.get("display_name") or "").strip()
     if not display_name:
         return jsonify({"error": "display_name is required"}), 400
 
-    import re
     key = display_name.replace(" ", "_")
     if not re.match(r'^[A-Za-z0-9_\-]+$', key):
         return jsonify({"error": "Nazwa zawiera niedozwolone znaki (dozwolone: litery, cyfry, _, -)"}), 400
 
-    cfg = _read_config()
-    products = cfg.get("products", {})
-    if key in products:
-        return jsonify({"error": f"Product '{key}' already exists"}), 409
-
-    products[key] = {
-        "display_name": display_name,
-        "spec_number": data.get("spec_number", ""),
-        "cas_number": data.get("cas_number", ""),
-        "expiry_months": data.get("expiry_months", 12),
-        "opinion_pl": data.get("opinion_pl", ""),
-        "opinion_en": data.get("opinion_en", ""),
-        "parameters": [],
-        "variants": [
-            {"id": "base", "label": display_name, "flags": []}
-        ],
-    }
-    cfg["products"] = products
-    _write_config(cfg)
-
-    # Insert into produkty DB table if not exists
     with db_session() as db:
-        existing = db.execute("SELECT id FROM produkty WHERE nazwa = ?", (key,)).fetchone()
-        if not existing:
+        # Check if cert config already exists
+        existing_cv = db.execute("SELECT 1 FROM cert_variants WHERE produkt = ? LIMIT 1", (key,)).fetchone()
+        if existing_cv:
+            return jsonify({"error": f"Product '{key}' already exists"}), 409
+
+        # Insert into produkty if not exists
+        existing_prod = db.execute("SELECT id FROM produkty WHERE nazwa = ?", (key,)).fetchone()
+        if not existing_prod:
             db.execute(
-                "INSERT INTO produkty (nazwa, display_name, spec_number, cas_number, expiry_months, opinion_pl, opinion_en) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (key, display_name, data.get("spec_number", ""), data.get("cas_number", ""), data.get("expiry_months", 12), data.get("opinion_pl", ""), data.get("opinion_en", "")),
+                "INSERT INTO produkty (nazwa, display_name, spec_number, cas_number, expiry_months, opinion_pl, opinion_en) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (key, display_name, data.get("spec_number", ""), data.get("cas_number", ""),
+                 data.get("expiry_months", 12), data.get("opinion_pl", ""), data.get("opinion_en", "")),
             )
-            db.commit()
+
+        # Insert default "base" variant
+        db.execute(
+            "INSERT INTO cert_variants (produkt, variant_id, label, flags, kolejnosc) "
+            "VALUES (?, 'base', ?, '[]', 0)",
+            (key, display_name),
+        )
+
+        db.commit()
+        save_cert_config_export(db)
 
     return jsonify({"ok": True, "key": key})
 
@@ -376,16 +545,18 @@ def api_cert_config_product_create():
 @certs_bp.route("/api/cert/config/product/<key>", methods=["DELETE"])
 @role_required("admin")
 def api_cert_config_product_delete(key):
-    """Delete a product from cert_config.json."""
-    cfg = _read_config()
-    products = cfg.get("products", {})
-    if key not in products:
-        return jsonify({"error": "Product not found"}), 404
+    """Delete a product's cert config from DB."""
+    from mbr.certs.generator import save_cert_config_export
 
-    # Check for issued certificates (template_name stores variant_label which contains display_name)
-    warning = None
-    display_name = products[key].get("display_name", key)
     with db_session() as db:
+        has_variants = db.execute("SELECT 1 FROM cert_variants WHERE produkt = ? LIMIT 1", (key,)).fetchone()
+        if not has_variants:
+            return jsonify({"error": "Product not found"}), 404
+
+        # Check for issued certificates
+        warning = None
+        prod_row = db.execute("SELECT display_name FROM produkty WHERE nazwa = ?", (key,)).fetchone()
+        display_name = prod_row["display_name"] if prod_row else key
         row = db.execute(
             "SELECT COUNT(*) as cnt FROM swiadectwa WHERE template_name LIKE ?",
             (f"{display_name}%",),
@@ -393,14 +564,31 @@ def api_cert_config_product_delete(key):
         if row and row["cnt"] > 0:
             warning = f"Istnieje {row['cnt']} wydanych świadectw dla tego produktu. Dane archiwalne pozostają nienaruszone."
 
-    del products[key]
-    cfg["products"] = products
-    _write_config(cfg)
+        # Delete: variant add_params → cert_variants → base parametry_cert
+        variant_rows = db.execute("SELECT id FROM cert_variants WHERE produkt=?", (key,)).fetchall()
+        for vr in variant_rows:
+            db.execute("DELETE FROM parametry_cert WHERE variant_id = ?", (vr["id"],))
+        db.execute("DELETE FROM cert_variants WHERE produkt = ?", (key,))
+        db.execute("DELETE FROM parametry_cert WHERE produkt = ? AND variant_id IS NULL", (key,))
+
+        db.commit()
+        save_cert_config_export(db)
 
     result = {"ok": True}
     if warning:
         result["warning"] = warning
     return jsonify(result)
+
+
+@certs_bp.route("/api/cert/config/export")
+@role_required("admin")
+def api_cert_config_export():
+    """Export cert config from DB, regenerate JSON file, and return it."""
+    with db_session() as db:
+        from mbr.certs.generator import save_cert_config_export, export_cert_config
+        save_cert_config_export(db)
+        cfg = export_cert_config(db)
+    return jsonify(cfg)
 
 
 @certs_bp.route("/api/cert/config/preview", methods=["POST"])
