@@ -116,7 +116,13 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             nazwa TEXT UNIQUE NOT NULL,
             kod TEXT,
             aktywny INTEGER DEFAULT 1,
-            typy TEXT DEFAULT '["szarza"]'
+            typy TEXT DEFAULT '["szarza"]',
+            display_name TEXT,
+            spec_number TEXT,
+            cas_number TEXT,
+            expiry_months INTEGER DEFAULT 12,
+            opinion_pl TEXT,
+            opinion_en TEXT
         );
 
         CREATE TABLE IF NOT EXISTS zbiorniki (
@@ -234,6 +240,37 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
                 "UPDATE produkty SET typy = ? WHERE nazwa = ? AND typy = '[\"szarza\"]'",
                 (_CHEGINY_ALL_TYPY, nazwa),
             )
+
+    # Migration: add certificate metadata columns to produkty
+    for col, coldef in [
+        ("display_name", "TEXT"),
+        ("spec_number", "TEXT"),
+        ("cas_number", "TEXT"),
+        ("expiry_months", "INTEGER DEFAULT 12"),
+        ("opinion_pl", "TEXT"),
+        ("opinion_en", "TEXT"),
+    ]:
+        try:
+            db.execute(f"ALTER TABLE produkty ADD COLUMN {col} {coldef}")
+            db.commit()
+        except Exception:
+            pass
+
+    # Auto-generate display_name from nazwa where missing
+    db.execute("""
+        UPDATE produkty SET display_name = REPLACE(nazwa, '_', ' ')
+        WHERE display_name IS NULL OR display_name = ''
+    """)
+    db.commit()
+
+    # Auto-sync: products in mbr_templates but not in produkty
+    db.execute("""
+        INSERT OR IGNORE INTO produkty (nazwa, display_name)
+        SELECT DISTINCT produkt, REPLACE(produkt, '_', ' ')
+        FROM mbr_templates
+        WHERE produkt NOT IN (SELECT nazwa FROM produkty)
+    """)
+    db.commit()
 
     # Map zbiornik product names → codes
     _ZB_PRODUKT_TO_KOD = {
