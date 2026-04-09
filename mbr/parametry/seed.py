@@ -332,11 +332,21 @@ def seed(db):
                 p.get("method_code", ""),
             ),
         )
-        # Update skrot + label on existing rows (INSERT OR IGNORE skips them)
+        # Update skrot + label + name_en + method_code on existing rows (INSERT OR IGNORE skips them)
         if p.get("skrot"):
             db.execute(
                 "UPDATE parametry_analityczne SET skrot=?, label=? WHERE kod=? AND (skrot IS NULL OR skrot != ?)",
                 (p["skrot"], p["label"], p["kod"], p["skrot"]),
+            )
+        if p.get("name_en"):
+            db.execute(
+                "UPDATE parametry_analityczne SET name_en=COALESCE(NULLIF(name_en,''), ?) WHERE kod=?",
+                (p["name_en"], p["kod"]),
+            )
+        if p.get("method_code"):
+            db.execute(
+                "UPDATE parametry_analityczne SET method_code=COALESCE(NULLIF(method_code,''), ?) WHERE kod=?",
+                (p["method_code"], p["kod"]),
             )
         if db.execute("SELECT changes()").fetchone()[0]:
             pa_rows += 1

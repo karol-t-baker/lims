@@ -258,7 +258,9 @@ def build_context(
 
                 # Strip internal _kod field
                 rows = [{k: v for k, v in r.items() if k != "_kod"} for r in db_rows]
-    except Exception:
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("parametry_cert DB read failed, falling back to config: %s", e)
         use_db = False
 
     if not use_db:
