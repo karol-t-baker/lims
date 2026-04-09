@@ -33,23 +33,23 @@
           "data_field": "barwa_fau"
         },
         {
-          "id": "cert_qual_odour",
+          "id": "cert_qual_cert_qual_odour",
           "name_pl": "Zapach",
           "name_en": "Odour",
           "requirement": "charakterystyczny\n/characteristic",
           "method": "organoleptycznie\n/organoleptic",
           "format": "1",
-          "data_field": "cert_qual_odour",
+          "data_field": "cert_qual_cert_qual_odour",
           "qualitative_result": "zgodny\n/right"
         },
         {
-          "id": "cert_qual_appearance",
+          "id": "cert_qual_cert_qual_appearance",
           "name_pl": "Wygląd",
           "name_en": "Appearance",
           "requirement": "wosk\n/wax",
           "method": "P801",
           "format": "1",
-          "data_field": "cert_qual_appearance",
+          "data_field": "cert_qual_cert_qual_appearance",
           "qualitative_result": "zgodny\n/right"
         },
         {
@@ -116,23 +116,23 @@
           "data_field": "barwa_fau"
         },
         {
-          "id": "cert_qual_odour",
+          "id": "cert_qual_cert_qual_odour",
           "name_pl": "Zapach",
           "name_en": "Odour",
           "requirement": "charakterystyczny\n/characteristic",
           "method": "organoleptycznie\n/organoleptic",
           "format": "1",
-          "data_field": "cert_qual_odour",
+          "data_field": "cert_qual_cert_qual_odour",
           "qualitative_result": "zgodny\n/right"
         },
         {
-          "id": "cert_qual_appearance",
+          "id": "cert_qual_cert_qual_appearance",
           "name_pl": "Wygląd",
           "name_en": "Appearance",
           "requirement": "substancja woskowa\n/waxy substance",
           "method": "P801",
           "format": "1",
-          "data_field": "cert_qual_appearance",
+          "data_field": "cert_qual_cert_qual_appearance",
           "qualitative_result": "zgodny\n/right"
         },
         {
@@ -210,6 +210,71 @@
         }
       ]
     },
+    "Alstermid": {
+      "display_name": "Alstermid",
+      "spec_number": "P806",
+      "cas_number": "",
+      "expiry_months": 12,
+      "opinion_pl": "",
+      "opinion_en": "",
+      "parameters": [
+        {
+          "id": "barwa_fau",
+          "name_pl": "Barwa jodowa ",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "barwa_fau"
+        },
+        {
+          "id": "lk",
+          "name_pl": "Liczba kwasowa końcowa",
+          "name_en": "",
+          "requirement": "max 15",
+          "method": "",
+          "format": "1",
+          "data_field": "lk"
+        },
+        {
+          "id": "la",
+          "name_pl": "Liczba aminowa",
+          "name_en": "",
+          "requirement": "130-160",
+          "method": "",
+          "format": "1",
+          "data_field": "la"
+        },
+        {
+          "id": "wkt",
+          "name_pl": "%WKT",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "wkt"
+        },
+        {
+          "id": "t_kropl",
+          "name_pl": "T.kroplenia",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "t_kropl"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Alstermid",
+          "flags": [],
+          "overrides": {
+            "spec_number": "P806"
+          }
+        }
+      ]
+    },
     "Alstermid_K": {
       "display_name": "Alstermid K",
       "spec_number": "P806",
@@ -263,6 +328,80 @@
         }
       ]
     },
+    "Chegina": {
+      "display_name": "Chegina",
+      "spec_number": "P810",
+      "cas_number": "",
+      "expiry_months": 12,
+      "opinion_pl": "",
+      "opinion_en": "",
+      "parameters": [
+        {
+          "id": "sm",
+          "name_pl": "Sucha masa",
+          "name_en": "",
+          "requirement": "min 35,5",
+          "method": "",
+          "format": "1",
+          "data_field": "sm"
+        },
+        {
+          "id": "nacl",
+          "name_pl": "Chlorek sodu",
+          "name_en": "",
+          "requirement": "max 5,5",
+          "method": "",
+          "format": "1",
+          "data_field": "nacl"
+        },
+        {
+          "id": "nd20",
+          "name_pl": "Współczynnik załamania nD20",
+          "name_en": "",
+          "requirement": "1,3800-1,3950",
+          "method": "",
+          "format": "1",
+          "data_field": "nd20"
+        },
+        {
+          "id": "ph_10proc",
+          "name_pl": "pH roztworu 10%",
+          "name_en": "",
+          "requirement": "4,5-7,5",
+          "method": "",
+          "format": "1",
+          "data_field": "ph_10proc"
+        },
+        {
+          "id": "barwa_fau",
+          "name_pl": "Barwa jodowa ",
+          "name_en": "",
+          "requirement": "max 3",
+          "method": "",
+          "format": "1",
+          "data_field": "barwa_fau"
+        },
+        {
+          "id": "sa",
+          "name_pl": "Substancja aktywna",
+          "name_en": "",
+          "requirement": "30-32",
+          "method": "",
+          "format": "1",
+          "data_field": "sa"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Chegina",
+          "flags": [],
+          "overrides": {
+            "spec_number": "P810"
+          }
+        }
+      ]
+    },
     "Chegina_CC": {
       "display_name": "Chegina CC",
       "spec_number": "P828",
@@ -272,13 +411,13 @@
       "opinion_en": "The product complies with P828",
       "parameters": [
         {
-          "id": "cert_qual_appearance",
+          "id": "cert_qual_cert_qual_appearance",
           "name_pl": "Wygląd",
           "name_en": "Appearance",
           "requirement": "klarowna ciecz\n/clear liquid",
           "method": "organoleptycznie\n/organoleptic",
           "format": "1",
-          "data_field": "cert_qual_appearance",
+          "data_field": "cert_qual_cert_qual_appearance",
           "qualitative_result": "zgodny /right"
         },
         {
@@ -291,13 +430,13 @@
           "data_field": "barwa_hz"
         },
         {
-          "id": "cert_qual_odour",
+          "id": "cert_qual_cert_qual_odour",
           "name_pl": "Zapach",
           "name_en": "Odour",
           "requirement": "charakterystyczny, słaby\n/faint, characteristic",
           "method": "organoleptycznie\n/organoleptic",
           "format": "1",
-          "data_field": "cert_qual_odour",
+          "data_field": "cert_qual_cert_qual_odour",
           "qualitative_result": "zgodny /right"
         },
         {
@@ -344,6 +483,51 @@
           "method": "L921",
           "format": "2",
           "data_field": "alkalicznosc"
+        },
+        {
+          "id": "sm",
+          "name_pl": "Sucha masa",
+          "name_en": "",
+          "requirement": "36,0-40",
+          "method": "",
+          "format": "1",
+          "data_field": "sm"
+        },
+        {
+          "id": "wolna_amina",
+          "name_pl": "Wolna amina",
+          "name_en": "",
+          "requirement": "max 0,4",
+          "method": "",
+          "format": "1",
+          "data_field": "wolna_amina"
+        },
+        {
+          "id": "la",
+          "name_pl": "Liczba aminowa",
+          "name_en": "",
+          "requirement": "max 1",
+          "method": "",
+          "format": "1",
+          "data_field": "la"
+        },
+        {
+          "id": "lk",
+          "name_pl": "Liczba kwasowa końcowa",
+          "name_en": "",
+          "requirement": "max 1",
+          "method": "",
+          "format": "1",
+          "data_field": "lk"
+        },
+        {
+          "id": "nd20",
+          "name_pl": "Współczynnik załamania nD20",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "nd20"
         }
       ],
       "variants": [
@@ -363,13 +547,13 @@
       "opinion_en": "The product complies with P829",
       "parameters": [
         {
-          "id": "cert_qual_appearance",
+          "id": "cert_qual_cert_qual_appearance",
           "name_pl": "Wygląd",
           "name_en": "Appearance",
           "requirement": "klarowna ciecz\n/clear liquid",
           "method": "organoleptycznie\n/organoleptic",
           "format": "1",
-          "data_field": "cert_qual_appearance",
+          "data_field": "cert_qual_cert_qual_appearance",
           "qualitative_result": "zgodny\n/right"
         },
         {
@@ -382,13 +566,13 @@
           "data_field": "barwa_hz"
         },
         {
-          "id": "cert_qual_odour",
+          "id": "cert_qual_cert_qual_odour",
           "name_pl": "Zapach",
           "name_en": "Odour",
           "requirement": "charakterystyczny słaby\n/faint characteristic",
           "method": "organoleptycznie\n/organoleptic",
           "format": "1",
-          "data_field": "cert_qual_odour",
+          "data_field": "cert_qual_cert_qual_odour",
           "qualitative_result": "zgodny\n/right"
         },
         {
@@ -417,6 +601,24 @@
           "method": "L932",
           "format": "1",
           "data_field": "sa"
+        },
+        {
+          "id": "sm",
+          "name_pl": "Sucha masa",
+          "name_en": "",
+          "requirement": "36,0-40,0",
+          "method": "",
+          "format": "1",
+          "data_field": "sm"
+        },
+        {
+          "id": "wolna_amina",
+          "name_pl": "Wolna amina",
+          "name_en": "",
+          "requirement": "max 1,0",
+          "method": "",
+          "format": "1",
+          "data_field": "wolna_amina"
         }
       ],
       "variants": [
@@ -446,23 +648,23 @@
           "qualitative_result": "zgodny\n/right"
         },
         {
-          "id": "cert_qual_odour",
+          "id": "cert_qual_cert_qual_odour",
           "name_pl": "Zapach",
           "name_en": "Odour",
           "requirement": "charakterystycznysłaby\n/characteristic faint",
           "method": "organoleptycznie\n/organoleptic",
           "format": "1",
-          "data_field": "cert_qual_odour",
+          "data_field": "cert_qual_cert_qual_odour",
           "qualitative_result": "zgodny\n/right"
         },
         {
-          "id": "cert_qual_appearance",
+          "id": "cert_qual_cert_qual_appearance",
           "name_pl": "Wygląd",
           "name_en": "Appearance",
           "requirement": "klarowna ciecz\n/clear liquid",
           "method": "organoleptycznie\n/organoleptic",
           "format": "1",
-          "data_field": "cert_qual_appearance",
+          "data_field": "cert_qual_cert_qual_appearance",
           "qualitative_result": "zgodny\n/right"
         },
         {
@@ -624,6 +826,33 @@
           "method": "L928",
           "format": "0",
           "data_field": "barwa_hz"
+        },
+        {
+          "id": "aa",
+          "name_pl": "Amina aminowa",
+          "name_en": "",
+          "requirement": "max 0,3",
+          "method": "",
+          "format": "1",
+          "data_field": "aa"
+        },
+        {
+          "id": "nd20",
+          "name_pl": "Współczynnik załamania nD20",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "nd20"
+        },
+        {
+          "id": "so3",
+          "name_pl": "Siarczyny",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "so3"
         }
       ],
       "variants": [
@@ -686,23 +915,23 @@
           "data_field": "barwa_hz"
         },
         {
-          "id": "cert_qual_odour",
+          "id": "cert_qual_cert_qual_odour",
           "name_pl": "Zapach",
           "name_en": "Odour",
           "requirement": "słaby\n/faint",
           "method": "organoleptycznie\n/organoleptic",
           "format": "1",
-          "data_field": "cert_qual_odour",
+          "data_field": "cert_qual_cert_qual_odour",
           "qualitative_result": "zgodny\n/right"
         },
         {
-          "id": "cert_qual_appearance",
+          "id": "cert_qual_cert_qual_appearance",
           "name_pl": "Wygląd",
           "name_en": "Appearance",
           "requirement": "klarowna ciecz /clear liquid,",
           "method": "organoleptycznie\n/organoleptic",
           "format": "1",
-          "data_field": "cert_qual_appearance",
+          "data_field": "cert_qual_cert_qual_appearance",
           "qualitative_result": "zgodny\n/right"
         },
         {
@@ -836,6 +1065,33 @@
           "method": "L917",
           "format": "2",
           "data_field": "gestosc"
+        },
+        {
+          "id": "aa",
+          "name_pl": "Amina aminowa",
+          "name_en": "",
+          "requirement": "max 0,3",
+          "method": "",
+          "format": "1",
+          "data_field": "aa"
+        },
+        {
+          "id": "nd20",
+          "name_pl": "Współczynnik załamania nD20",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "nd20"
+        },
+        {
+          "id": "so3",
+          "name_pl": "Siarczyny",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "so3"
         }
       ],
       "variants": [
@@ -887,23 +1143,23 @@
           "data_field": "barwa_hz"
         },
         {
-          "id": "cert_qual_odour",
+          "id": "cert_qual_cert_qual_odour",
           "name_pl": "Zapach",
           "name_en": "Odour",
           "requirement": "słaby\n/faint",
           "method": "organoleptycznie\n/organoleptic",
           "format": "1",
-          "data_field": "cert_qual_odour",
+          "data_field": "cert_qual_cert_qual_odour",
           "qualitative_result": "zgodny\n/right"
         },
         {
-          "id": "cert_qual_appearance",
+          "id": "cert_qual_cert_qual_appearance",
           "name_pl": "Wygląd",
           "name_en": "Appearance",
           "requirement": "klarowna ciecz\n/clear liquid",
           "method": "organoleptycznie\n/organoleptic",
           "format": "1",
-          "data_field": "cert_qual_appearance",
+          "data_field": "cert_qual_cert_qual_appearance",
           "qualitative_result": "zgodny\n/right"
         },
         {
@@ -969,6 +1225,78 @@
           "method": "L905",
           "format": "2",
           "data_field": "ph_10proc"
+        },
+        {
+          "id": "aa",
+          "name_pl": "Amina aminowa",
+          "name_en": "",
+          "requirement": "<0,3",
+          "method": "",
+          "format": "1",
+          "data_field": "aa"
+        },
+        {
+          "id": "mca",
+          "name_pl": "MCA [ppm]",
+          "name_en": "",
+          "requirement": "<100 ppm",
+          "method": "",
+          "format": "1",
+          "data_field": "mca"
+        },
+        {
+          "id": "dca",
+          "name_pl": "DCA [ppm]",
+          "name_en": "",
+          "requirement": "< 100 ppm",
+          "method": "",
+          "format": "1",
+          "data_field": "dca"
+        },
+        {
+          "id": "dmapa",
+          "name_pl": "DMAPA [ppm]",
+          "name_en": "",
+          "requirement": "< 10 ppm",
+          "method": "",
+          "format": "1",
+          "data_field": "dmapa"
+        },
+        {
+          "id": "wkt",
+          "name_pl": "%WKT",
+          "name_en": "",
+          "requirement": "1,8-2,2",
+          "method": "",
+          "format": "1",
+          "data_field": "wkt"
+        },
+        {
+          "id": "nd20",
+          "name_pl": "Współczynnik załamania nD20",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "nd20"
+        },
+        {
+          "id": "h2o2",
+          "name_pl": "Nadtlenek wodoru",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "h2o2"
+        },
+        {
+          "id": "so3",
+          "name_pl": "Siarczyny",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "so3"
         }
       ],
       "variants": [
@@ -1060,6 +1388,107 @@
         }
       ]
     },
+    "Chegina_K40GLOL_HQ": {
+      "display_name": "Chegina K40GLOL HQ",
+      "spec_number": "P833",
+      "cas_number": "",
+      "expiry_months": 12,
+      "opinion_pl": "",
+      "opinion_en": "",
+      "parameters": [
+        {
+          "id": "ph_10proc",
+          "name_pl": "pH roztworu 10%",
+          "name_en": "",
+          "requirement": "w Cheginie",
+          "method": "",
+          "format": "1",
+          "data_field": "ph_10proc"
+        },
+        {
+          "id": "sa",
+          "name_pl": "Substancja aktywna",
+          "name_en": "",
+          "requirement": "37-42",
+          "method": "",
+          "format": "1",
+          "data_field": "sa"
+        },
+        {
+          "id": "nacl",
+          "name_pl": "Chlorek sodu",
+          "name_en": "",
+          "requirement": "5,8-7,3",
+          "method": "",
+          "format": "1",
+          "data_field": "nacl"
+        },
+        {
+          "id": "aa",
+          "name_pl": "Amina aminowa",
+          "name_en": "",
+          "requirement": "max 0,3",
+          "method": "",
+          "format": "1",
+          "data_field": "aa"
+        },
+        {
+          "id": "barwa_hz",
+          "name_pl": "Barwa wg Hazen",
+          "name_en": "",
+          "requirement": "max 150 HZ",
+          "method": "",
+          "format": "1",
+          "data_field": "barwa_hz"
+        },
+        {
+          "id": "nd20",
+          "name_pl": "Współczynnik załamania nD20",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "nd20"
+        },
+        {
+          "id": "sm",
+          "name_pl": "Sucha masa",
+          "name_en": "",
+          "requirement": "min 44,0",
+          "method": "",
+          "format": "1",
+          "data_field": "sm"
+        },
+        {
+          "id": "h2o",
+          "name_pl": "Zawartość wody",
+          "name_en": "",
+          "requirement": "52-56",
+          "method": "",
+          "format": "1",
+          "data_field": "h2o"
+        },
+        {
+          "id": "so3",
+          "name_pl": "Siarczyny",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "so3"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Chegina K40GLOL HQ",
+          "flags": [],
+          "overrides": {
+            "spec_number": "P833"
+          }
+        }
+      ]
+    },
     "Chegina_K40GLOS": {
       "display_name": "Chegina K40GLOS",
       "spec_number": "P834",
@@ -1078,23 +1507,23 @@
           "data_field": "barwa_hz"
         },
         {
-          "id": "cert_qual_odour",
+          "id": "cert_qual_cert_qual_odour",
           "name_pl": "Zapach",
           "name_en": "Odour",
           "requirement": "słaby\n/faint",
           "method": "organoleptycznie\n/organoleptic",
           "format": "1",
-          "data_field": "cert_qual_odour",
+          "data_field": "cert_qual_cert_qual_odour",
           "qualitative_result": "zgodny\n/right"
         },
         {
-          "id": "cert_qual_appearance",
+          "id": "cert_qual_cert_qual_appearance",
           "name_pl": "Wygląd",
           "name_en": "Appearance",
           "requirement": "klarowna ciecz\n/clear liquid",
           "method": "organoleptycznie\n/organoleptic",
           "format": "1",
-          "data_field": "cert_qual_appearance",
+          "data_field": "cert_qual_cert_qual_appearance",
           "qualitative_result": "zgodny\n/right"
         },
         {
@@ -1150,6 +1579,24 @@
           "method": "L904",
           "format": "2",
           "data_field": "wolna_amina"
+        },
+        {
+          "id": "aa",
+          "name_pl": "Amina aminowa",
+          "name_en": "",
+          "requirement": "max 0,3",
+          "method": "",
+          "format": "1",
+          "data_field": "aa"
+        },
+        {
+          "id": "nd20",
+          "name_pl": "Współczynnik załamania nD20",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "nd20"
         }
       ],
       "variants": [
@@ -1238,6 +1685,15 @@
           "format": "2",
           "data_field": "h2o2",
           "qualitative_result": "<0,00"
+        },
+        {
+          "id": "barwa_hz",
+          "name_pl": "Barwa wg Hazen",
+          "name_en": "",
+          "requirement": "max 1; 160 HZ",
+          "method": "",
+          "format": "1",
+          "data_field": "barwa_hz"
         }
       ],
       "variants": [
@@ -1333,6 +1789,33 @@
           "method": "L932",
           "format": "1",
           "data_field": "sa"
+        },
+        {
+          "id": "h2o",
+          "name_pl": "Zawartość wody",
+          "name_en": "",
+          "requirement": "62,0-64,0",
+          "method": "",
+          "format": "1",
+          "data_field": "h2o"
+        },
+        {
+          "id": "nacl",
+          "name_pl": "Chlorek sodu",
+          "name_en": "",
+          "requirement": "5,5 max",
+          "method": "",
+          "format": "1",
+          "data_field": "nacl"
+        },
+        {
+          "id": "nd20",
+          "name_pl": "Współczynnik załamania nD20",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "nd20"
         }
       ],
       "variants": [
@@ -1354,6 +1837,89 @@
           "flags": [
             "has_order_number"
           ]
+        }
+      ]
+    },
+    "Chegina_K7GLO": {
+      "display_name": "Chegina K7GLO",
+      "spec_number": "ZN-2011/PPU-Ch-74A",
+      "cas_number": "",
+      "expiry_months": 12,
+      "opinion_pl": "",
+      "opinion_en": "",
+      "parameters": [
+        {
+          "id": "sm",
+          "name_pl": "Sucha masa",
+          "name_en": "",
+          "requirement": "35-37",
+          "method": "",
+          "format": "1",
+          "data_field": "sm"
+        },
+        {
+          "id": "nacl",
+          "name_pl": "Chlorek sodu",
+          "name_en": "",
+          "requirement": "4,5-5,5",
+          "method": "",
+          "format": "1",
+          "data_field": "nacl"
+        },
+        {
+          "id": "barwa_hz",
+          "name_pl": "Barwa wg Hazen",
+          "name_en": "",
+          "requirement": "max 120 HZ",
+          "method": "",
+          "format": "1",
+          "data_field": "barwa_hz"
+        },
+        {
+          "id": "ph_10proc",
+          "name_pl": "pH roztworu 10%",
+          "name_en": "",
+          "requirement": "5,0-7,0",
+          "method": "",
+          "format": "1",
+          "data_field": "ph_10proc"
+        },
+        {
+          "id": "sa",
+          "name_pl": "Substancja aktywna",
+          "name_en": "",
+          "requirement": "29,5-32,5",
+          "method": "",
+          "format": "1",
+          "data_field": "sa"
+        },
+        {
+          "id": "aa",
+          "name_pl": "Amina aminowa",
+          "name_en": "",
+          "requirement": "max 0,5",
+          "method": "",
+          "format": "1",
+          "data_field": "aa"
+        },
+        {
+          "id": "nd20",
+          "name_pl": "Współczynnik załamania nD20",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "nd20"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Chegina K7GLO",
+          "flags": [],
+          "overrides": {
+            "spec_number": "ZN-2011/PPU-Ch-74A"
+          }
         }
       ]
     },
@@ -1432,23 +1998,23 @@
           "qualitative_result": "< 100"
         },
         {
-          "id": "cert_qual_odour",
+          "id": "cert_qual_cert_qual_odour",
           "name_pl": "Zapach",
           "name_en": "Odour",
           "requirement": "charakterystyczny, słaby „tłuszczowo-amidowy”\n/ characteristic,\nweak soapy",
           "method": "organoleptycznie\n/organoleptic",
           "format": "1",
-          "data_field": "cert_qual_odour",
+          "data_field": "cert_qual_cert_qual_odour",
           "qualitative_result": "zgodny\n/right"
         },
         {
-          "id": "cert_qual_appearance",
+          "id": "cert_qual_cert_qual_appearance",
           "name_pl": "Wygląd",
           "name_en": "Appearance",
           "requirement": "klarowna ciecz\n/clear liquid",
           "method": "organoleptycznie\n/organoleptic",
           "format": "1",
-          "data_field": "cert_qual_appearance",
+          "data_field": "cert_qual_cert_qual_appearance",
           "qualitative_result": "Z zgodny\n/right"
         },
         {
@@ -1477,6 +2043,33 @@
           "method": "L905",
           "format": "2",
           "data_field": "ph_10proc"
+        },
+        {
+          "id": "aa",
+          "name_pl": "Amina aminowa",
+          "name_en": "",
+          "requirement": "<0,5",
+          "method": "",
+          "format": "1",
+          "data_field": "aa"
+        },
+        {
+          "id": "barwa_hz",
+          "name_pl": "Barwa wg Hazen",
+          "name_en": "",
+          "requirement": "max 1; 160 HZ",
+          "method": "",
+          "format": "1",
+          "data_field": "barwa_hz"
+        },
+        {
+          "id": "h2o",
+          "name_pl": "Zawartość wody",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "h2o"
         }
       ],
       "variants": [
@@ -1531,6 +2124,89 @@
         }
       ]
     },
+    "Chegina_L9": {
+      "display_name": "Chegina L9",
+      "spec_number": "P817",
+      "cas_number": "",
+      "expiry_months": 12,
+      "opinion_pl": "",
+      "opinion_en": "",
+      "parameters": [
+        {
+          "id": "barwa_fau",
+          "name_pl": "Barwa jodowa ",
+          "name_en": "",
+          "requirement": "max 3",
+          "method": "",
+          "format": "1",
+          "data_field": "barwa_fau"
+        },
+        {
+          "id": "lk",
+          "name_pl": "Liczba kwasowa końcowa",
+          "name_en": "",
+          "requirement": "max 1,5",
+          "method": "",
+          "format": "1",
+          "data_field": "lk"
+        },
+        {
+          "id": "ph_10proc",
+          "name_pl": "pH roztworu 10%",
+          "name_en": "",
+          "requirement": "7,8-9,0",
+          "method": "",
+          "format": "1",
+          "data_field": "ph_10proc"
+        },
+        {
+          "id": "sm",
+          "name_pl": "Sucha masa",
+          "name_en": "",
+          "requirement": "34-39",
+          "method": "",
+          "format": "1",
+          "data_field": "sm"
+        },
+        {
+          "id": "nacl",
+          "name_pl": "Chlorek sodu",
+          "name_en": "",
+          "requirement": "4,8-5,5",
+          "method": "",
+          "format": "1",
+          "data_field": "nacl"
+        },
+        {
+          "id": "nd20",
+          "name_pl": "Współczynnik załamania nD20",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "nd20"
+        },
+        {
+          "id": "sa",
+          "name_pl": "Substancja aktywna",
+          "name_en": "",
+          "requirement": "min 28,0-31,0",
+          "method": "",
+          "format": "1",
+          "data_field": "sa"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Chegina L9",
+          "flags": [],
+          "overrides": {
+            "spec_number": "P817"
+          }
+        }
+      ]
+    },
     "Chelamid_DK": {
       "display_name": "Chelamid DK",
       "spec_number": "P816",
@@ -1558,22 +2234,22 @@
           "data_field": "ph_10proc"
         },
         {
-          "id": "glicerol",
+          "id": "cert_qual_glicerol",
           "name_pl": "Glicerol [%]",
           "name_en": "Glycerol [%]",
           "requirement": "max 9,50",
           "method": "L911",
           "format": "2",
-          "data_field": "glicerol"
+          "data_field": "cert_qual_glicerol"
         },
         {
-          "id": "cert_qual_form",
+          "id": "cert_qual_cert_qual_form",
           "name_pl": "Postać",
           "name_en": "Form",
           "requirement": "klarowna żółta ciecz  /clear yellow liquid",
           "method": "organoleptycznie /organoleptic",
           "format": "1",
-          "data_field": "cert_qual_form",
+          "data_field": "cert_qual_cert_qual_form",
           "qualitative_result": "zgodny /right"
         },
         {
@@ -1584,6 +2260,24 @@
           "method": "L910",
           "format": "2",
           "data_field": "dietanolamina"
+        },
+        {
+          "id": "ph",
+          "name_pl": "pH roztworu",
+          "name_en": "",
+          "requirement": "max 11",
+          "method": "",
+          "format": "1",
+          "data_field": "ph"
+        },
+        {
+          "id": "gliceryny",
+          "name_pl": "%gliceryny",
+          "name_en": "",
+          "requirement": "max9,5",
+          "method": "",
+          "format": "1",
+          "data_field": "gliceryny"
         }
       ],
       "variants": [
@@ -1631,13 +2325,13 @@
                 "data_field": "dietanolamina"
               },
               {
-                "id": "cert_qual_form",
+                "id": "cert_qual_cert_qual_form",
                 "name_pl": "Postać",
                 "name_en": "Form",
                 "requirement": "klarowna żółta ciecz /clear yellow liquid",
                 "method": "organoleptycznie /organoleptic",
                 "format": "1",
-                "data_field": "cert_qual_form",
+                "data_field": "cert_qual_cert_qual_form",
                 "qualitative_result": "zgodny /right"
               }
             ]
@@ -1661,13 +2355,13 @@
                 "data_field": "dietanolamina"
               },
               {
-                "id": "cert_qual_form",
+                "id": "cert_qual_cert_qual_form",
                 "name_pl": "Postać",
                 "name_en": "Form",
                 "requirement": "klarowna żółta ciecz /clear yellow liquid",
                 "method": "organoleptycznie /organoleptic",
                 "format": "1",
-                "data_field": "cert_qual_form",
+                "data_field": "cert_qual_cert_qual_form",
                 "qualitative_result": "zgodny /right"
               }
             ]
@@ -1693,13 +2387,13 @@
                 "data_field": "dietanolamina"
               },
               {
-                "id": "cert_qual_form",
+                "id": "cert_qual_cert_qual_form",
                 "name_pl": "Postać",
                 "name_en": "Form",
                 "requirement": "klarowna żółta ciecz /clear yellow liquid",
                 "method": "organoleptycznie /organoleptic",
                 "format": "1",
-                "data_field": "cert_qual_form",
+                "data_field": "cert_qual_cert_qual_form",
                 "qualitative_result": "zgodny /right"
               }
             ]
@@ -1709,7 +2403,7 @@
     },
     "Chemal_CS_3070": {
       "display_name": "Chemal CS 30/70",
-      "spec_number": "",
+      "spec_number": "P601",
       "cas_number": "67762-27-0",
       "expiry_months": 12,
       "opinion_pl": "Produkt odpowiada wymaganiom",
@@ -1754,22 +2448,40 @@
           "qualitative_result": "<0,1"
         },
         {
-          "id": "cert_qual_c16",
+          "id": "cert_qual_cert_qual_c16",
           "name_pl": "%C16",
           "name_en": "%C16",
           "requirement": "25 – 35",
           "method": "zgodnie z świadectwem dostawcy/according to supplier’s CoA",
           "format": "1",
-          "data_field": "cert_qual_c16"
+          "data_field": "cert_qual_cert_qual_c16"
         },
         {
-          "id": "cert_qual_c18",
+          "id": "cert_qual_cert_qual_c18",
           "name_pl": "%C18",
           "name_en": "%C18",
           "requirement": "60 - 75",
           "method": "zgodnie z świadectwem dostawcy/according to supplier’s CoA",
           "format": "1",
-          "data_field": "cert_qual_c18"
+          "data_field": "cert_qual_cert_qual_c18"
+        },
+        {
+          "id": "barwa_hz",
+          "name_pl": "Barwa wg Hazen",
+          "name_en": "",
+          "requirement": "max 10 Hz",
+          "method": "",
+          "format": "1",
+          "data_field": "barwa_hz"
+        },
+        {
+          "id": "nd20",
+          "name_pl": "Współczynnik załamania nD20",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "nd20"
         }
       ],
       "variants": [
@@ -1841,22 +2553,22 @@
           "qualitative_result": "<0,1"
         },
         {
-          "id": "cert_qual_c16",
+          "id": "cert_qual_cert_qual_c16",
           "name_pl": "%C16",
           "name_en": "%C16",
           "requirement": "45 – 55",
           "method": "zgodnie z świadectwem dostawcy/according to supplier’s CoA",
           "format": "1",
-          "data_field": "cert_qual_c16"
+          "data_field": "cert_qual_cert_qual_c16"
         },
         {
-          "id": "cert_qual_c18",
+          "id": "cert_qual_cert_qual_c18",
           "name_pl": "%C18",
           "name_en": "%C18",
           "requirement": "45 - 55",
           "method": "zgodnie z świadectwem dostawcy/according to supplier’s CoA",
           "format": "1",
-          "data_field": "cert_qual_c18"
+          "data_field": "cert_qual_cert_qual_c18"
         }
       ],
       "variants": [
@@ -1866,6 +2578,183 @@
           "flags": [
             "has_rspo"
           ]
+        }
+      ]
+    },
+    "Chemal_EO20": {
+      "display_name": "Chemal EO20",
+      "spec_number": "P602",
+      "cas_number": "",
+      "expiry_months": 12,
+      "opinion_pl": "",
+      "opinion_en": "",
+      "parameters": [
+        {
+          "id": "lh",
+          "name_pl": "L.hydroksylowa",
+          "name_en": "",
+          "requirement": "45-55",
+          "method": "",
+          "format": "1",
+          "data_field": "lh"
+        },
+        {
+          "id": "h2o",
+          "name_pl": "Zawartość wody",
+          "name_en": "",
+          "requirement": "max 1,0",
+          "method": "",
+          "format": "1",
+          "data_field": "h2o"
+        },
+        {
+          "id": "ph",
+          "name_pl": "pH roztworu",
+          "name_en": "",
+          "requirement": "5-7",
+          "method": "",
+          "format": "1",
+          "data_field": "ph"
+        },
+        {
+          "id": "nd20",
+          "name_pl": "Współczynnik załamania nD20",
+          "name_en": "",
+          "requirement": "1,4507-1,4519",
+          "method": "",
+          "format": "1",
+          "data_field": "nd20"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Chemal EO20",
+          "flags": [],
+          "overrides": {
+            "spec_number": "P602"
+          }
+        }
+      ]
+    },
+    "Chemal_PC": {
+      "display_name": "Chemal PC",
+      "spec_number": "ZN-2006/PPU-Ch-71",
+      "cas_number": "",
+      "expiry_months": 12,
+      "opinion_pl": "",
+      "opinion_en": "",
+      "parameters": [
+        {
+          "id": "lk",
+          "name_pl": "Liczba kwasowa końcowa",
+          "name_en": "",
+          "requirement": "max 4",
+          "method": "",
+          "format": "1",
+          "data_field": "lk"
+        },
+        {
+          "id": "lz",
+          "name_pl": "L.zmydlenia",
+          "name_en": "",
+          "requirement": "90-120",
+          "method": "",
+          "format": "1",
+          "data_field": "lz"
+        },
+        {
+          "id": "t_kropl",
+          "name_pl": "T.kroplenia",
+          "name_en": "",
+          "requirement": "48-53oC",
+          "method": "",
+          "format": "1",
+          "data_field": "t_kropl"
+        },
+        {
+          "id": "barwa_fau",
+          "name_pl": "Barwa jodowa ",
+          "name_en": "",
+          "requirement": "max 3",
+          "method": "",
+          "format": "1",
+          "data_field": "barwa_fau"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Chemal PC",
+          "flags": [],
+          "overrides": {
+            "spec_number": "ZN-2006/PPU-Ch-71"
+          }
+        }
+      ]
+    },
+    "Chemal_SE12": {
+      "display_name": "Chemal SE12",
+      "spec_number": "ZN-2006/PPU-Ch-69",
+      "cas_number": "",
+      "expiry_months": 12,
+      "opinion_pl": "",
+      "opinion_en": "",
+      "parameters": [
+        {
+          "id": "lk",
+          "name_pl": "Liczba kwasowa końcowa",
+          "name_en": "",
+          "requirement": "0-20",
+          "method": "",
+          "format": "1",
+          "data_field": "lk"
+        },
+        {
+          "id": "lz",
+          "name_pl": "L.zmydlenia",
+          "name_en": "",
+          "requirement": "90-100",
+          "method": "",
+          "format": "1",
+          "data_field": "lz"
+        },
+        {
+          "id": "lh",
+          "name_pl": "L.hydroksylowa",
+          "name_en": "",
+          "requirement": "145-160",
+          "method": "",
+          "format": "1",
+          "data_field": "lh"
+        },
+        {
+          "id": "ph",
+          "name_pl": "pH roztworu",
+          "name_en": "",
+          "requirement": "5,5-7,0",
+          "method": "",
+          "format": "1",
+          "data_field": "ph"
+        },
+        {
+          "id": "t_topn",
+          "name_pl": "T.topnienia",
+          "name_en": "",
+          "requirement": "49-52OC",
+          "method": "",
+          "format": "1",
+          "data_field": "t_topn"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Chemal SE12",
+          "flags": [],
+          "overrides": {
+            "spec_number": "ZN-2006/PPU-Ch-69"
+          }
         }
       ]
     },
@@ -1931,6 +2820,15 @@
           "method": "L903",
           "format": "1",
           "data_field": "sa"
+        },
+        {
+          "id": "nd20",
+          "name_pl": "Współczynnik załamania nD20",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "nd20"
         }
       ],
       "variants": [
@@ -2008,6 +2906,24 @@
           "method": "L928",
           "format": "0",
           "data_field": "barwa_fau"
+        },
+        {
+          "id": "nd20",
+          "name_pl": "Współczynnik załamania nD20",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "nd20"
+        },
+        {
+          "id": "gestosc",
+          "name_pl": "Gęstość",
+          "name_en": "",
+          "requirement": "0,99-1,00 g/cm3",
+          "method": "",
+          "format": "1",
+          "data_field": "gestosc"
         }
       ],
       "variants": [
@@ -2022,6 +2938,237 @@
           "flags": [
             "has_order_number"
           ]
+        }
+      ]
+    },
+    "Cheminox_LA": {
+      "display_name": "Cheminox LA",
+      "spec_number": "P823",
+      "cas_number": "",
+      "expiry_months": 12,
+      "opinion_pl": "",
+      "opinion_en": "",
+      "parameters": [
+        {
+          "id": "tlenek_aminowy",
+          "name_pl": "zaw.tlenku aminowego",
+          "name_en": "",
+          "requirement": "30-32",
+          "method": "",
+          "format": "1",
+          "data_field": "tlenek_aminowy"
+        },
+        {
+          "id": "ph_10proc",
+          "name_pl": "pH roztworu 10%",
+          "name_en": "",
+          "requirement": "6-8",
+          "method": "",
+          "format": "1",
+          "data_field": "ph_10proc"
+        },
+        {
+          "id": "h2o2",
+          "name_pl": "Nadtlenek wodoru",
+          "name_en": "",
+          "requirement": "max 0,09",
+          "method": "",
+          "format": "1",
+          "data_field": "h2o2"
+        },
+        {
+          "id": "barwa_fau",
+          "name_pl": "Barwa jodowa ",
+          "name_en": "",
+          "requirement": "max 1",
+          "method": "",
+          "format": "1",
+          "data_field": "barwa_fau"
+        },
+        {
+          "id": "wolna_amina",
+          "name_pl": "Wolna amina",
+          "name_en": "",
+          "requirement": "max 0,7",
+          "method": "",
+          "format": "1",
+          "data_field": "wolna_amina"
+        },
+        {
+          "id": "nd20",
+          "name_pl": "Współczynnik załamania nD20",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "nd20"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Cheminox LA",
+          "flags": [],
+          "overrides": {
+            "spec_number": "P823"
+          }
+        }
+      ]
+    },
+    "Chemipol_ML": {
+      "display_name": "Chemipol ML",
+      "spec_number": "ZN-1993/PPU-Ch-29",
+      "cas_number": "",
+      "expiry_months": 12,
+      "opinion_pl": "",
+      "opinion_en": "",
+      "parameters": [
+        {
+          "id": "sm",
+          "name_pl": "Sucha masa",
+          "name_en": "",
+          "requirement": "min 40",
+          "method": "",
+          "format": "1",
+          "data_field": "sm"
+        },
+        {
+          "id": "lk",
+          "name_pl": "Liczba kwasowa końcowa",
+          "name_en": "",
+          "requirement": "max 6",
+          "method": "",
+          "format": "1",
+          "data_field": "lk"
+        },
+        {
+          "id": "so3",
+          "name_pl": "Siarczyny",
+          "name_en": "",
+          "requirement": "<0,1",
+          "method": "",
+          "format": "1",
+          "data_field": "so3"
+        },
+        {
+          "id": "h2o2",
+          "name_pl": "Nadtlenek wodoru",
+          "name_en": "",
+          "requirement": "max 0,15",
+          "method": "",
+          "format": "1",
+          "data_field": "h2o2"
+        },
+        {
+          "id": "sa",
+          "name_pl": "Substancja aktywna",
+          "name_en": "",
+          "requirement": "min 26",
+          "method": "",
+          "format": "1",
+          "data_field": "sa"
+        },
+        {
+          "id": "barwa_fau",
+          "name_pl": "Barwa jodowa ",
+          "name_en": "",
+          "requirement": "max 10",
+          "method": "",
+          "format": "1",
+          "data_field": "barwa_fau"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Chemipol ML",
+          "flags": [],
+          "overrides": {
+            "spec_number": "ZN-1993/PPU-Ch-29"
+          }
+        }
+      ]
+    },
+    "Chemipol_OL": {
+      "display_name": "Chemipol OL",
+      "spec_number": "P812",
+      "cas_number": "",
+      "expiry_months": 12,
+      "opinion_pl": "",
+      "opinion_en": "",
+      "parameters": [
+        {
+          "id": "sm",
+          "name_pl": "Sucha masa",
+          "name_en": "",
+          "requirement": "38-42",
+          "method": "",
+          "format": "1",
+          "data_field": "sm"
+        },
+        {
+          "id": "so3",
+          "name_pl": "Siarczyny",
+          "name_en": "",
+          "requirement": "<0,1",
+          "method": "",
+          "format": "1",
+          "data_field": "so3"
+        },
+        {
+          "id": "ph_10proc",
+          "name_pl": "pH roztworu 10%",
+          "name_en": "",
+          "requirement": "5,5-7",
+          "method": "",
+          "format": "1",
+          "data_field": "ph_10proc"
+        },
+        {
+          "id": "sa",
+          "name_pl": "Substancja aktywna",
+          "name_en": "",
+          "requirement": "min 31",
+          "method": "",
+          "format": "1",
+          "data_field": "sa"
+        },
+        {
+          "id": "barwa_fau",
+          "name_pl": "Barwa jodowa ",
+          "name_en": "",
+          "requirement": "max 5",
+          "method": "",
+          "format": "1",
+          "data_field": "barwa_fau"
+        },
+        {
+          "id": "lk",
+          "name_pl": "Liczba kwasowa końcowa",
+          "name_en": "",
+          "requirement": "max 8",
+          "method": "",
+          "format": "1",
+          "data_field": "lk"
+        },
+        {
+          "id": "nd20",
+          "name_pl": "Współczynnik załamania nD20",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "nd20"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Chemipol OL",
+          "flags": [],
+          "overrides": {
+            "spec_number": "P812"
+          }
         }
       ]
     },
@@ -2050,6 +3197,15 @@
           "method": "L934",
           "format": "1",
           "data_field": "t_kropl"
+        },
+        {
+          "id": "barwa_fau",
+          "name_pl": "Barwa jodowa ",
+          "name_en": "",
+          "requirement": "max 3",
+          "method": "",
+          "format": "1",
+          "data_field": "barwa_fau"
         }
       ],
       "variants": [
@@ -2112,6 +3268,33 @@
           "method": "L934",
           "format": "1",
           "data_field": "t_topn"
+        },
+        {
+          "id": "wge",
+          "name_pl": "WGE",
+          "name_en": "",
+          "requirement": "< 1",
+          "method": "",
+          "format": "1",
+          "data_field": "wge"
+        },
+        {
+          "id": "t_kropl",
+          "name_pl": "T.kroplenia",
+          "name_en": "",
+          "requirement": "58-64Oc",
+          "method": "",
+          "format": "1",
+          "data_field": "t_kropl"
+        },
+        {
+          "id": "wkt",
+          "name_pl": "%WKT",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "wkt"
         }
       ],
       "variants": [
@@ -2140,23 +3323,23 @@
           "data_field": "barwa_fau"
         },
         {
-          "id": "cert_qual_odour",
+          "id": "cert_qual_cert_qual_odour",
           "name_pl": "Zapach",
           "name_en": "Odour",
           "requirement": "charakterystyczny\n/characteristic",
           "method": "organoleptycznie\n/organoleptic",
           "format": "1",
-          "data_field": "cert_qual_odour",
+          "data_field": "cert_qual_cert_qual_odour",
           "qualitative_result": "zgodny\n/right"
         },
         {
-          "id": "cert_qual_appearance",
+          "id": "cert_qual_cert_qual_appearance",
           "name_pl": "Wygląd",
           "name_en": "Appearance",
           "requirement": "substancja woskowa\n/wax",
           "method": "P804",
           "format": "1",
-          "data_field": "cert_qual_appearance",
+          "data_field": "cert_qual_cert_qual_appearance",
           "qualitative_result": "zgodny\n/right"
         },
         {
@@ -2196,13 +3379,13 @@
           "data_field": "monoestry"
         },
         {
-          "id": "cert_qual_c14",
+          "id": "cert_qual_cert_qual_c14",
           "name_pl": "%C14:0",
           "name_en": "%C16:0 %C18:0&C18:1",
           "requirement": "max 5 47-55 41-51",
           "method": "metoda dostawcy surowca /according to supplier’s CoA",
           "format": "0",
-          "data_field": "cert_qual_c14"
+          "data_field": "cert_qual_cert_qual_c14"
         }
       ],
       "variants": [
@@ -2226,7 +3409,7 @@
     },
     "HSH_CS_3070": {
       "display_name": "HSH CS 30/70",
-      "spec_number": "",
+      "spec_number": "P601",
       "cas_number": "67762-27-0",
       "expiry_months": 12,
       "opinion_pl": "Produkt odpowiada wymaganiom",
@@ -2270,22 +3453,31 @@
           "qualitative_result": "<0,1"
         },
         {
-          "id": "cert_qual_c16",
+          "id": "cert_qual_cert_qual_c16",
           "name_pl": "%C16",
           "name_en": "%C16",
           "requirement": "25 – 32",
           "method": "60065138*",
           "format": "1",
-          "data_field": "cert_qual_c16"
+          "data_field": "cert_qual_cert_qual_c16"
         },
         {
-          "id": "cert_qual_c18",
+          "id": "cert_qual_cert_qual_c18",
           "name_pl": "%C18",
           "name_en": "%C18",
           "requirement": "65 - 75",
           "method": "60065138*",
           "format": "1",
-          "data_field": "cert_qual_c18"
+          "data_field": "cert_qual_cert_qual_c18"
+        },
+        {
+          "id": "nd20",
+          "name_pl": "Współczynnik załamania nD20",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "nd20"
         }
       ],
       "variants": [
@@ -2337,6 +3529,15 @@
           "method": "metoda dostawcy surowca",
           "format": "2",
           "data_field": "li"
+        },
+        {
+          "id": "t_krzep",
+          "name_pl": "T.krzepnięcia",
+          "name_en": "",
+          "requirement": "54-56OC",
+          "method": "",
+          "format": "1",
+          "data_field": "t_krzep"
         }
       ],
       "variants": [
@@ -2392,6 +3593,24 @@
           "format": "1",
           "data_field": "estry",
           "qualitative_result": "<1,0"
+        },
+        {
+          "id": "lz",
+          "name_pl": "L.zmydlenia",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "lz"
+        },
+        {
+          "id": "t_kropl",
+          "name_pl": "T.kroplenia",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "t_kropl"
         }
       ],
       "variants": [
@@ -2420,23 +3639,23 @@
           "data_field": "barwa_fau"
         },
         {
-          "id": "cert_qual_odour",
+          "id": "cert_qual_cert_qual_odour",
           "name_pl": "Zapach",
           "name_en": "Odour",
           "requirement": "charakterystyczny aminowy\n/characteristic, amine-like",
           "method": "organoleptycznie /organoleptic",
           "format": "1",
-          "data_field": "cert_qual_odour",
+          "data_field": "cert_qual_cert_qual_odour",
           "qualitative_result": "zgodny\n/right"
         },
         {
-          "id": "cert_qual_appearance",
+          "id": "cert_qual_cert_qual_appearance",
           "name_pl": "Wygląd",
           "name_en": "Appearance",
           "requirement": "substancja stała, woskowa\n/flakes, waxy",
           "method": "organoleptycznie /organoleptic",
           "format": "1",
-          "data_field": "cert_qual_appearance",
+          "data_field": "cert_qual_cert_qual_appearance",
           "qualitative_result": "zgodny\n/right"
         },
         {
@@ -2478,14 +3697,23 @@
           "data_field": "mea"
         },
         {
-          "id": "rozklad_kwasow",
+          "id": "cert_qual_rozklad_kwasow",
           "name_pl": "Rozkład kwasów tłuszczowych [%]",
           "name_en": "Fatty acid distribution [%] ≤C6:0 C8:0 C10:0 C12:0 C14:0 C16:0 C18:0 C18:1 C18:2",
           "requirement": "max 1,0 max 11,0 max 9,0 43,0-54,0 15,0-22,0 max 12,0 max 5,0 max 10,0 max 3,0",
           "method": "metoda dostawcy surowca/ according to supplier’s CoA",
           "format": "1",
-          "data_field": "rozklad_kwasow",
+          "data_field": "cert_qual_rozklad_kwasow",
           "qualitative_result": "≤1,0"
+        },
+        {
+          "id": "gliceryny",
+          "name_pl": "%gliceryny",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "gliceryny"
         }
       ],
       "variants": [
@@ -2548,6 +3776,201 @@
         }
       ]
     },
+    "Monamid_KO_Revada": {
+      "display_name": "Monamid KO Revada",
+      "spec_number": "P833",
+      "cas_number": "",
+      "expiry_months": 12,
+      "opinion_pl": "",
+      "opinion_en": "",
+      "parameters": [
+        {
+          "id": "barwa_fau",
+          "name_pl": "Barwa jodowa ",
+          "name_en": "",
+          "requirement": "max 8",
+          "method": "",
+          "format": "1",
+          "data_field": "barwa_fau"
+        },
+        {
+          "id": "wkt",
+          "name_pl": "%WKT",
+          "name_en": "",
+          "requirement": "max 10",
+          "method": "",
+          "format": "1",
+          "data_field": "wkt"
+        },
+        {
+          "id": "mea",
+          "name_pl": "%MEA",
+          "name_en": "",
+          "requirement": "max 5",
+          "method": "",
+          "format": "1",
+          "data_field": "mea"
+        },
+        {
+          "id": "estry",
+          "name_pl": "%estry",
+          "name_en": "",
+          "requirement": "max 10",
+          "method": "",
+          "format": "1",
+          "data_field": "estry"
+        },
+        {
+          "id": "gliceryny",
+          "name_pl": "%gliceryny",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "gliceryny"
+        },
+        {
+          "id": "t_topn",
+          "name_pl": "T.topnienia",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "t_topn"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Monamid KO Revada",
+          "flags": [],
+          "overrides": {
+            "spec_number": "P833"
+          }
+        }
+      ]
+    },
+    "Monamid_L": {
+      "display_name": "Monamid L",
+      "spec_number": "P814",
+      "cas_number": "",
+      "expiry_months": 12,
+      "opinion_pl": "",
+      "opinion_en": "",
+      "parameters": [
+        {
+          "id": "lk",
+          "name_pl": "Liczba kwasowa końcowa",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "lk"
+        },
+        {
+          "id": "la",
+          "name_pl": "Liczba aminowa",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "la"
+        },
+        {
+          "id": "wkt",
+          "name_pl": "%WKT",
+          "name_en": "",
+          "requirement": "max 2,0",
+          "method": "",
+          "format": "1",
+          "data_field": "wkt"
+        },
+        {
+          "id": "mea",
+          "name_pl": "%MEA",
+          "name_en": "",
+          "requirement": "max 2,0",
+          "method": "",
+          "format": "1",
+          "data_field": "mea"
+        },
+        {
+          "id": "t_kropl",
+          "name_pl": "T.kroplenia",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "t_kropl"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Monamid L",
+          "flags": [],
+          "overrides": {
+            "spec_number": "P814"
+          }
+        }
+      ]
+    },
+    "Monamid_S": {
+      "display_name": "Monamid S",
+      "spec_number": "P813",
+      "cas_number": "",
+      "expiry_months": 12,
+      "opinion_pl": "",
+      "opinion_en": "",
+      "parameters": [
+        {
+          "id": "lk",
+          "name_pl": "Liczba kwasowa końcowa",
+          "name_en": "",
+          "requirement": "max 5",
+          "method": "",
+          "format": "1",
+          "data_field": "lk"
+        },
+        {
+          "id": "wolna_amina",
+          "name_pl": "Wolna amina",
+          "name_en": "",
+          "requirement": "max 3",
+          "method": "",
+          "format": "1",
+          "data_field": "wolna_amina"
+        },
+        {
+          "id": "t_kropl",
+          "name_pl": "T.kroplenia",
+          "name_en": "",
+          "requirement": "85-92oC",
+          "method": "",
+          "format": "1",
+          "data_field": "t_kropl"
+        },
+        {
+          "id": "barwa_fau",
+          "name_pl": "Barwa jodowa ",
+          "name_en": "",
+          "requirement": "max 5",
+          "method": "",
+          "format": "1",
+          "data_field": "barwa_fau"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Monamid S",
+          "flags": [],
+          "overrides": {
+            "spec_number": "P813"
+          }
+        }
+      ]
+    },
     "Monester_O": {
       "display_name": "Monester O",
       "spec_number": "P802",
@@ -2591,6 +4014,24 @@
           "method": "PN-EN ISO 3961:2018-09",
           "format": "1",
           "data_field": "li"
+        },
+        {
+          "id": "monoestry",
+          "name_pl": "zaw.monoestrów",
+          "name_en": "",
+          "requirement": "min 30,0",
+          "method": "",
+          "format": "1",
+          "data_field": "monoestry"
+        },
+        {
+          "id": "barwa_fau",
+          "name_pl": "Barwa jodowa ",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "barwa_fau"
         }
       ],
       "variants": [
@@ -2644,6 +4085,33 @@
           "method": "PN-EN ISO 3961:2018-09",
           "format": "2",
           "data_field": "li"
+        },
+        {
+          "id": "gliceryny",
+          "name_pl": "%gliceryny",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "gliceryny"
+        },
+        {
+          "id": "monoglicerydy",
+          "name_pl": "%monoglicerydów",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "monoglicerydy"
+        },
+        {
+          "id": "barwa_fau",
+          "name_pl": "Barwa jodowa ",
+          "name_en": "",
+          "requirement": "",
+          "method": "",
+          "format": "1",
+          "data_field": "barwa_fau"
         }
       ],
       "variants": [
@@ -2701,6 +4169,80 @@
         }
       ]
     },
+    "Polcet_A": {
+      "display_name": "Polcet A",
+      "spec_number": "ZN-1990/PPU-Ch-9",
+      "cas_number": "",
+      "expiry_months": 12,
+      "opinion_pl": "",
+      "opinion_en": "",
+      "parameters": [
+        {
+          "id": "lk",
+          "name_pl": "Liczba kwasowa końcowa",
+          "name_en": "",
+          "requirement": "max 2",
+          "method": "",
+          "format": "1",
+          "data_field": "lk"
+        },
+        {
+          "id": "gestosc",
+          "name_pl": "Gęstość",
+          "name_en": "",
+          "requirement": "0,960-0,970",
+          "method": "",
+          "format": "1",
+          "data_field": "gestosc"
+        },
+        {
+          "id": "barwa_fau",
+          "name_pl": "Barwa jodowa ",
+          "name_en": "",
+          "requirement": "max 2",
+          "method": "",
+          "format": "1",
+          "data_field": "barwa_fau"
+        },
+        {
+          "id": "lz",
+          "name_pl": "L.zmydlenia",
+          "name_en": "",
+          "requirement": "410-450",
+          "method": "",
+          "format": "1",
+          "data_field": "lz"
+        },
+        {
+          "id": "nd20",
+          "name_pl": "Współczynnik załamania nD20",
+          "name_en": "",
+          "requirement": "1,432-1,439",
+          "method": "",
+          "format": "1",
+          "data_field": "nd20"
+        },
+        {
+          "id": "sa",
+          "name_pl": "Substancja aktywna",
+          "name_en": "",
+          "requirement": "29,5-32,5",
+          "method": "",
+          "format": "1",
+          "data_field": "sa"
+        }
+      ],
+      "variants": [
+        {
+          "id": "base",
+          "label": "Polcet A",
+          "flags": [],
+          "overrides": {
+            "spec_number": "ZN-1990/PPU-Ch-9"
+          }
+        }
+      ]
+    },
     "SLES": {
       "display_name": "SLES",
       "spec_number": "P834",
@@ -2720,13 +4262,13 @@
           "qualitative_result": "zgodny\n/right"
         },
         {
-          "id": "cert_qual_odour",
+          "id": "cert_qual_cert_qual_odour",
           "name_pl": "Barwa",
           "name_en": "Colour",
           "requirement": "bezbarwna-jasnożółta/\nclear to light yellow",
           "method": "organoleptycznie\n/organoleptic",
           "format": "1",
-          "data_field": "cert_qual_odour",
+          "data_field": "cert_qual_cert_qual_odour",
           "qualitative_result": "zgodny\n/right"
         },
         {
