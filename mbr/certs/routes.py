@@ -212,8 +212,7 @@ def _write_config(cfg):
     import os
     os.replace(tmp, str(_CONFIG_PATH))
     # Invalidate generator cache
-    from mbr.certs import generator
-    generator._cached_config = None
+    load_config(reload=True)
 
 
 @certs_bp.route("/admin/wzory-cert")
@@ -336,7 +335,10 @@ def api_cert_config_product_create():
     if not display_name:
         return jsonify({"error": "display_name is required"}), 400
 
+    import re
     key = display_name.replace(" ", "_")
+    if not re.match(r'^[A-Za-z0-9_\-]+$', key):
+        return jsonify({"error": "Nazwa zawiera niedozwolone znaki (dozwolone: litery, cyfry, _, -)"}), 400
 
     cfg = _read_config()
     products = cfg.get("products", {})
@@ -380,15 +382,16 @@ def api_cert_config_product_delete(key):
     if key not in products:
         return jsonify({"error": "Product not found"}), 404
 
-    # Check for issued certificates
+    # Check for issued certificates (template_name stores variant_label which contains display_name)
     warning = None
+    display_name = products[key].get("display_name", key)
     with db_session() as db:
         row = db.execute(
-            "SELECT COUNT(*) as cnt FROM swiadectwa WHERE nr_partii LIKE ?",
-            (f"%{products[key].get('display_name', key)}%",),
+            "SELECT COUNT(*) as cnt FROM swiadectwa WHERE template_name LIKE ?",
+            (f"{display_name}%",),
         ).fetchone()
         if row and row["cnt"] > 0:
-            warning = f"Found {row['cnt']} issued certificate(s) referencing this product."
+            warning = f"Istnieje {row['cnt']} wydanych świadectw dla tego produktu. Dane archiwalne pozostają nienaruszone."
 
     del products[key]
     cfg["products"] = products
