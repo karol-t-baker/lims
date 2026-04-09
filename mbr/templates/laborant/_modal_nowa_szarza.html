@@ -323,6 +323,14 @@ async function _loadSubstraty(produkt) {
     _modalSubstratyList = await resp.json();
     document.getElementById('substraty-section').style.display = 'block';
     document.getElementById('substraty-rows').innerHTML = '';
+    // Auto-add all substraty for this product (user just fills nr partii)
+    _modalSubstratyList.forEach(function() { _addSubstratRow(); });
+    // Pre-select each substrat
+    var selects = document.querySelectorAll('#substraty-rows .sub-select');
+    _modalSubstratyList.forEach(function(s, i) {
+        if (selects[i]) { selects[i].value = s.id; }
+    });
+    _syncSubstratyJson();
 }
 
 function _addSubstratRow() {
