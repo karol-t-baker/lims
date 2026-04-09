@@ -61,6 +61,8 @@
   <div class="f-sp"></div>
   {% if ebr.typ == 'zbiornik' %}
   <button type="button" class="btn btn-p" onclick="completeSimple()">Zatwierdz karte</button>
+  {% elif ebr.typ == 'platkowanie' %}
+  <button type="button" class="btn btn-p" onclick="completePlatkowanie()">Zatwierdz karte</button>
   {% else %}
   <button type="button" class="btn btn-p" onclick="openPumpModal()">Zatwierdz karte</button>
   {% endif %}
@@ -1664,8 +1666,10 @@ function renderDecisionButtons(container) {
 function renderPostStandButtons(container) {
     var bar = document.createElement('div');
     bar.className = 'post-stand-bar';
-    bar.innerHTML =
-        '<button class="btn-warn" onclick="completePompuj()" title="Dla malych korekt — pomin powtorna analize">Przepompuj bez analizy</button>';
+    var isPlat = ('{{ ebr.typ }}' === 'platkowanie');
+    bar.innerHTML = isPlat
+        ? '<button class="btn-warn" onclick="completePlatkowanie()" title="Zakończ bez powtórnej analizy">Zakończ bez analizy</button>'
+        : '<button class="btn-warn" onclick="completePompuj()" title="Dla malych korekt — pomin powtorna analize">Przepompuj bez analizy</button>';
     container.appendChild(bar);
 }
 
