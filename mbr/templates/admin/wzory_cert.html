@@ -100,7 +100,7 @@
 .wc-preview-bar{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--surface);}
 .wc-preview-bar select{padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;flex:1;}
 .wc-preview-placeholder{flex:1;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:13px;}
-.wc-preview-iframe{flex:1;border:none;width:100%;display:none;}
+.wc-preview-iframe{flex:1;border:none;width:100%;}
 
 /* Save bar */
 .wc-save-bar{display:flex;gap:10px;align-items:center;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
@@ -220,7 +220,7 @@
       <button class="wc-btn wc-btn-secondary wc-btn-sm" onclick="refreshPreview()">Odśwież podgląd</button>
     </div>
     <div class="wc-preview-placeholder" id="wc-preview-placeholder">Kliknij Odśwież aby wygenerować podgląd</div>
-    <iframe class="wc-preview-iframe" id="wc-preview-iframe"></iframe>
+    <iframe class="wc-preview-iframe" id="wc-preview-iframe" style="display:none;"></iframe>
   </div>
 </div>
 
@@ -875,7 +875,7 @@ function refreshPreview() {
     if (_prevBlobUrl) URL.revokeObjectURL(_prevBlobUrl);
     _prevBlobUrl = URL.createObjectURL(blob);
     iframe.src = _prevBlobUrl;
-    iframe.style.display = '';
+    iframe.style.display = 'block';
     placeholder.style.display = 'none';
   }).catch(function(e) {
     placeholder.textContent = 'Błąd podglądu: ' + e.message;
