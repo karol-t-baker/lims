@@ -379,15 +379,23 @@ async function _loadProductsForType(typ) {
     var ddIdMap = {szarza: 'szarza-product-dropdown', zbiornik: 'zbiornik-product-dropdown', platkowanie: 'platkowanie-product-dropdown'};
     var qpId = 'quick-pick-' + typ;
 
-    // Update quick-pick buttons (first 4 products)
+    // Update quick-pick buttons
     var qpEl = document.getElementById(qpId);
     if (qpEl) {
         var qpHtml = '';
-        products.slice(0, 4).forEach(function(p) {
+        // Platkowanie: show ALL products as buttons (few products, no search needed)
+        var qpList = (typ === 'platkowanie') ? products : products.slice(0, 4);
+        qpList.forEach(function(p) {
             var short = p.nazwa.replace(/^Chegina_/, '').replace(/^[A-Za-z]+_/, '').replace(/_/g, ' ');
             qpHtml += '<button type="button" class="qp-btn" onclick="quickPick(this,\'' + p.nazwa + '\',\'' + typ + '\')">' + short + '</button>';
         });
         qpEl.innerHTML = qpHtml;
+    }
+
+    // Hide search bar for platkowanie (all products shown as buttons)
+    var searchWrap = document.getElementById('search-wrap-' + typ);
+    if (searchWrap) {
+        searchWrap.style.display = (typ === 'platkowanie') ? 'none' : '';
     }
 
     // Update dropdown
