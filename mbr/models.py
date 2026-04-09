@@ -532,6 +532,39 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     except Exception:
         pass
 
+    # Migration: fix ebr_wyniki FK reference (may point to _ebr_batches_old after ebr_batches rebuild)
+    try:
+        wy_sql = db.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='ebr_wyniki'"
+        ).fetchone()
+        if wy_sql and "_ebr_batches_old" in (wy_sql["sql"] or ""):
+            db.execute("ALTER TABLE ebr_wyniki RENAME TO _ebr_wyniki_old")
+            db.execute("""
+                CREATE TABLE ebr_wyniki (
+                    wynik_id        INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ebr_id          INTEGER NOT NULL REFERENCES ebr_batches(ebr_id),
+                    sekcja          TEXT NOT NULL,
+                    kod_parametru   TEXT NOT NULL,
+                    tag             TEXT NOT NULL,
+                    wartosc         REAL,
+                    min_limit       REAL,
+                    max_limit       REAL,
+                    w_limicie       INTEGER,
+                    komentarz       TEXT,
+                    is_manual       INTEGER NOT NULL DEFAULT 1,
+                    dt_wpisu        TEXT NOT NULL,
+                    wpisal          TEXT NOT NULL,
+                    samples_json    TEXT,
+                    wartosc_text    TEXT,
+                    UNIQUE(ebr_id, sekcja, kod_parametru)
+                )
+            """)
+            db.execute("INSERT INTO ebr_wyniki SELECT * FROM _ebr_wyniki_old")
+            db.execute("DROP TABLE _ebr_wyniki_old")
+            db.commit()
+    except Exception:
+        pass
+
     # Migration: add samples_json column for titration persistence
     try:
         db.execute("ALTER TABLE ebr_wyniki ADD COLUMN samples_json TEXT")
