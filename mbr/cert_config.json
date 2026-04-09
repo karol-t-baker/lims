@@ -146,6 +146,16 @@
           "qualitative_result": "<0,01"
         },
         {
+          "id": "li",
+          "name_pl": "Liczba jodowa [g I2/100 g]",
+          "name_en": "Iodine value [g I2/100 g]",
+          "requirement": "max 2,00",
+          "method": "PN-EN ISO 3961:2018-09",
+          "format": "2",
+          "data_field": "li",
+          "qualitative_result": "<0,20"
+        },
+        {
           "id": "lz",
           "name_pl": "Liczba zmydlania [mg KOH/g]",
           "name_en": "Saponification value\n[mg KOH/g]",
@@ -172,16 +182,6 @@
           "method": "L929",
           "format": "0",
           "data_field": "lh"
-        },
-        {
-          "id": "li",
-          "name_pl": "Liczba jodowa [g I2/100 g]",
-          "name_en": "Iodine value [g I2/100 g]",
-          "requirement": "max 2,00",
-          "method": "PN-EN ISO 3961:2018-09",
-          "format": "2",
-          "data_field": "li",
-          "qualitative_result": "<0,20"
         }
       ],
       "variants": [
@@ -235,6 +235,24 @@
           "method": "L914",
           "format": "0",
           "data_field": "la"
+        },
+        {
+          "id": "wkt",
+          "name_pl": "Wolne kwasy tłuszczowe  (kwasy kokosowe, MW=220) [%]",
+          "name_en": "Free fatty acids  (Coconut fatty acids, MW=220) [%]",
+          "requirement": "max 1,60",
+          "method": "L925",
+          "format": "1",
+          "data_field": "wkt"
+        },
+        {
+          "id": "barwa_fau",
+          "name_pl": "Barwa w skali jodowej",
+          "name_en": "Colour (Iodine scale)",
+          "requirement": "max 4",
+          "method": "L928",
+          "format": "0",
+          "data_field": "barwa_fau"
         }
       ],
       "variants": [
@@ -290,6 +308,24 @@
           "method": "L905",
           "format": "2",
           "data_field": "ph_10proc"
+        },
+        {
+          "id": "h2o",
+          "name_pl": "H2O [%]",
+          "name_en": "H2O [%]",
+          "requirement": "60,0 - 64,0",
+          "method": "L903",
+          "format": "1",
+          "data_field": "h2o"
+        },
+        {
+          "id": "nacl",
+          "name_pl": "NaCl [%]",
+          "name_en": "NaCl [%]",
+          "requirement": "6,5 - 7,5",
+          "method": "L941",
+          "format": "1",
+          "data_field": "nacl"
         },
         {
           "id": "sa",
@@ -365,6 +401,15 @@
           "data_field": "ph_10proc"
         },
         {
+          "id": "nacl",
+          "name_pl": "NaCl [%]",
+          "name_en": "NaCl [%]",
+          "requirement": "6,2-7,2",
+          "method": "L941",
+          "format": "1",
+          "data_field": "nacl"
+        },
+        {
           "id": "sa",
           "name_pl": "Substancja aktywna [%]",
           "name_en": "Active matter [%]",
@@ -437,6 +482,24 @@
           "method": "L932",
           "format": "1",
           "data_field": "sa"
+        },
+        {
+          "id": "nacl",
+          "name_pl": "NaCl [%]",
+          "name_en": "NaCl [%]",
+          "requirement": "5,8–7,3",
+          "method": "L941",
+          "format": "1",
+          "data_field": "nacl"
+        },
+        {
+          "id": "h2o",
+          "name_pl": "H2O [%]",
+          "name_en": "H2O [%]",
+          "requirement": "52,0-56,0",
+          "method": "L903",
+          "format": "1",
+          "data_field": "h2o"
         },
         {
           "id": "wolna_amina",
@@ -526,15 +589,6 @@
           "data_field": "nacl"
         },
         {
-          "id": "barwa_hz",
-          "name_pl": "Barwa w skali Hazena",
-          "name_en": "Colour (Hazen scale)",
-          "requirement": "max 150",
-          "method": "L928",
-          "format": "0",
-          "data_field": "barwa_hz"
-        },
-        {
           "id": "ph_10proc",
           "name_pl": "pH (10%, aq)",
           "name_en": "pH (10%, aq)",
@@ -551,6 +605,25 @@
           "method": "L932",
           "format": "1",
           "data_field": "sa"
+        },
+        {
+          "id": "h2o2",
+          "name_pl": "Nadtlenki w przeliczeniu na H2O2 [%]",
+          "name_en": "Peroxides as H2O2 [%]",
+          "requirement": "max 0,00",
+          "method": "L901",
+          "format": "2",
+          "data_field": "h2o2",
+          "qualitative_result": "0,00"
+        },
+        {
+          "id": "barwa_hz",
+          "name_pl": "Barwa w skali Hazena",
+          "name_en": "Colour (Hazen scale)",
+          "requirement": "max 150",
+          "method": "L928",
+          "format": "0",
+          "data_field": "barwa_hz"
         }
       ],
       "variants": [
@@ -834,15 +907,6 @@
           "qualitative_result": "zgodny\n/right"
         },
         {
-          "id": "ph_10proc",
-          "name_pl": "pH (20°C)",
-          "name_en": "pH (20°C)",
-          "requirement": "4,50-5,50",
-          "method": "L905",
-          "format": "2",
-          "data_field": "ph_10proc"
-        },
-        {
           "id": "sa",
           "name_pl": "Substancja aktywna [%]",
           "name_en": "Active matter [%]",
@@ -886,6 +950,25 @@
           "method": "L904",
           "format": "2",
           "data_field": "wolna_amina"
+        },
+        {
+          "id": "barwa_opis",
+          "name_pl": "Barwa",
+          "name_en": "Colour",
+          "requirement": "jasnożółty /pale yellow",
+          "method": "organoleptycznie /organoleptic",
+          "format": "1",
+          "data_field": "barwa_opis",
+          "qualitative_result": "zgodny /right"
+        },
+        {
+          "id": "ph_10proc",
+          "name_pl": "pH (20°C)",
+          "name_en": "pH (20°C)",
+          "requirement": "4,50-5,50",
+          "method": "L905",
+          "format": "2",
+          "data_field": "ph_10proc"
         }
       ],
       "variants": [
@@ -1102,6 +1185,15 @@
           "data_field": "sm"
         },
         {
+          "id": "nacl",
+          "name_pl": "NaCl [%]",
+          "name_en": "NaCl [%]",
+          "requirement": "max 5,5",
+          "method": "L941",
+          "format": "1",
+          "data_field": "nacl"
+        },
+        {
           "id": "nd20",
           "name_pl": "Wsp. załamania światła (nD20)",
           "name_en": "Refraction (nD20)",
@@ -1120,6 +1212,15 @@
           "data_field": "barwa_fau"
         },
         {
+          "id": "ph_10proc",
+          "name_pl": "pH (10%, aq)",
+          "name_en": "pH",
+          "requirement": "4,50-7,50",
+          "method": "L905",
+          "format": "2",
+          "data_field": "ph_10proc"
+        },
+        {
           "id": "sa",
           "name_pl": "Substancja aktywna [%]",
           "name_en": "Active matter [%]",
@@ -1129,13 +1230,14 @@
           "data_field": "sa"
         },
         {
-          "id": "ph_10proc",
-          "name_pl": "pH (10%, aq)",
-          "name_en": "pH",
-          "requirement": "4,50-7,50",
-          "method": "L905",
+          "id": "h2o2",
+          "name_pl": "Nadtlenki w przeliczeniu na H2O2 [%]",
+          "name_en": "Peroxides as H2O2 [%]",
+          "requirement": "max 0,00",
+          "method": "L901",
           "format": "2",
-          "data_field": "ph_10proc"
+          "data_field": "h2o2",
+          "qualitative_result": "<0,00"
         }
       ],
       "variants": [
@@ -1215,6 +1317,15 @@
           "data_field": "barwa_fau"
         },
         {
+          "id": "ph_10proc",
+          "name_pl": "pH (10%, aq)",
+          "name_en": "pH (10%, aq, 20°C)",
+          "requirement": "4,20-5,20",
+          "method": "L905",
+          "format": "2",
+          "data_field": "ph_10proc"
+        },
+        {
           "id": "sa",
           "name_pl": "Substancja aktywna [%]",
           "name_en": "Active matter [%]",
@@ -1254,35 +1365,6 @@
       "opinion_pl": "Produkt odpowiada wymaganiom P818",
       "opinion_en": "The product complies with P818",
       "parameters": [
-        {
-          "id": "cert_qual_odour",
-          "name_pl": "Zapach",
-          "name_en": "Odour",
-          "requirement": "charakterystyczny, słaby „tłuszczowo-amidowy”\n/ characteristic,\nweak soapy",
-          "method": "organoleptycznie\n/organoleptic",
-          "format": "1",
-          "data_field": "cert_qual_odour",
-          "qualitative_result": "zgodny\n/right"
-        },
-        {
-          "id": "cert_qual_appearance",
-          "name_pl": "Wygląd",
-          "name_en": "Appearance",
-          "requirement": "klarowna ciecz\n/clear liquid",
-          "method": "organoleptycznie\n/organoleptic",
-          "format": "1",
-          "data_field": "cert_qual_appearance",
-          "qualitative_result": "Z zgodny\n/right"
-        },
-        {
-          "id": "ph_10proc",
-          "name_pl": "pH (10%, 25°C)",
-          "name_en": "pH (10%, 25°C)",
-          "requirement": "5,00-7,00",
-          "method": "L905",
-          "format": "2",
-          "data_field": "ph_10proc"
-        },
         {
           "id": "nacl",
           "name_pl": "NaCl [%]",
@@ -1348,6 +1430,53 @@
           "format": "0",
           "data_field": "dmapa",
           "qualitative_result": "< 100"
+        },
+        {
+          "id": "cert_qual_odour",
+          "name_pl": "Zapach",
+          "name_en": "Odour",
+          "requirement": "charakterystyczny, słaby „tłuszczowo-amidowy”\n/ characteristic,\nweak soapy",
+          "method": "organoleptycznie\n/organoleptic",
+          "format": "1",
+          "data_field": "cert_qual_odour",
+          "qualitative_result": "zgodny\n/right"
+        },
+        {
+          "id": "cert_qual_appearance",
+          "name_pl": "Wygląd",
+          "name_en": "Appearance",
+          "requirement": "klarowna ciecz\n/clear liquid",
+          "method": "organoleptycznie\n/organoleptic",
+          "format": "1",
+          "data_field": "cert_qual_appearance",
+          "qualitative_result": "Z zgodny\n/right"
+        },
+        {
+          "id": "sm",
+          "name_pl": "Sucha masa [%]",
+          "name_en": "Dry matter [%]",
+          "requirement": "min 35,5",
+          "method": "L903",
+          "format": "1",
+          "data_field": "sm"
+        },
+        {
+          "id": "nd20",
+          "name_pl": "Wsp. załamania światła (nD20)",
+          "name_en": "Refraction (nD20)",
+          "requirement": "1,3800-1,3950",
+          "method": "PN-EN ISO 6320:2017-04",
+          "format": "1",
+          "data_field": "nd20"
+        },
+        {
+          "id": "ph_10proc",
+          "name_pl": "pH (10%, 25°C)",
+          "name_en": "pH (10%, 25°C)",
+          "requirement": "5,00-7,00",
+          "method": "L905",
+          "format": "2",
+          "data_field": "ph_10proc"
         }
       ],
       "variants": [
@@ -1411,15 +1540,6 @@
       "opinion_en": "The product complies with P816",
       "parameters": [
         {
-          "id": "dietanolamina",
-          "name_pl": "DEA [%]",
-          "name_en": "DEA [%]",
-          "requirement": "< 3,00",
-          "method": "L910",
-          "format": "2",
-          "data_field": "dietanolamina"
-        },
-        {
           "id": "barwa_fau",
           "name_pl": "Barwa w skali jodowej",
           "name_en": "Colour (Iodine scale)",
@@ -1436,6 +1556,34 @@
           "method": "L905",
           "format": "2",
           "data_field": "ph_10proc"
+        },
+        {
+          "id": "glicerol",
+          "name_pl": "Glicerol [%]",
+          "name_en": "Glycerol [%]",
+          "requirement": "max 9,50",
+          "method": "L911",
+          "format": "2",
+          "data_field": "glicerol"
+        },
+        {
+          "id": "cert_qual_form",
+          "name_pl": "Postać",
+          "name_en": "Form",
+          "requirement": "klarowna żółta ciecz  /clear yellow liquid",
+          "method": "organoleptycznie /organoleptic",
+          "format": "1",
+          "data_field": "cert_qual_form",
+          "qualitative_result": "zgodny /right"
+        },
+        {
+          "id": "dietanolamina",
+          "name_pl": "DEA [%]",
+          "name_en": "DEA [%]",
+          "requirement": "< 3,00",
+          "method": "L910",
+          "format": "2",
+          "data_field": "dietanolamina"
         }
       ],
       "variants": [
@@ -1739,13 +1887,23 @@
           "data_field": "sm"
         },
         {
-          "id": "sa",
-          "name_pl": "Substancja aktywna [%]",
-          "name_en": "Active matter [%]",
-          "requirement": "30,0-35,0",
-          "method": "L903",
-          "format": "1",
-          "data_field": "sa"
+          "id": "ph_10proc",
+          "name_pl": "pH (10%, aq)",
+          "name_en": "pH (10%, aq, 20°C)",
+          "requirement": "5,00-8,00",
+          "method": "L905",
+          "format": "2",
+          "data_field": "ph_10proc"
+        },
+        {
+          "id": "h2o2",
+          "name_pl": "H2O2 [%]",
+          "name_en": "Peroxides as H2O2 [%]",
+          "requirement": "max 0,2",
+          "method": "L901",
+          "format": "2",
+          "data_field": "h2o2",
+          "qualitative_result": "≤ 0,2"
         },
         {
           "id": "barwa_fau",
@@ -1755,6 +1913,24 @@
           "method": "L928",
           "format": "0",
           "data_field": "barwa_fau"
+        },
+        {
+          "id": "gestosc",
+          "name_pl": "Gęstość (20°C) [g/cm3]",
+          "name_en": "Density (20°C) [g/cm3]",
+          "requirement": "0,990-1,000",
+          "method": "L917",
+          "format": "2",
+          "data_field": "gestosc"
+        },
+        {
+          "id": "sa",
+          "name_pl": "Substancja aktywna [%]",
+          "name_en": "Active matter [%]",
+          "requirement": "30,0-35,0",
+          "method": "L903",
+          "format": "1",
+          "data_field": "sa"
         }
       ],
       "variants": [
@@ -1804,6 +1980,25 @@
           "method": "L903",
           "format": "1",
           "data_field": "sa"
+        },
+        {
+          "id": "ph_10proc",
+          "name_pl": "pH (10%, aq)",
+          "name_en": "pH (10%, aq, 20°C)",
+          "requirement": "5,00-8,00",
+          "method": "L905",
+          "format": "2",
+          "data_field": "ph_10proc"
+        },
+        {
+          "id": "h2o2",
+          "name_pl": "H2O2 [%]",
+          "name_en": "Peroxides as H2O2 [%]",
+          "requirement": "max 0,2",
+          "method": "L901",
+          "format": "2",
+          "data_field": "h2o2",
+          "qualitative_result": "≤ 0,2"
         },
         {
           "id": "barwa_fau",
@@ -1999,6 +2194,15 @@
           "method": "L930",
           "format": "1",
           "data_field": "monoestry"
+        },
+        {
+          "id": "cert_qual_c14",
+          "name_pl": "%C14:0",
+          "name_en": "%C16:0 %C18:0&C18:1",
+          "requirement": "max 5 47-55 41-51",
+          "method": "metoda dostawcy surowca /according to supplier’s CoA",
+          "format": "0",
+          "data_field": "cert_qual_c14"
         }
       ],
       "variants": [
@@ -2029,15 +2233,6 @@
       "opinion_en": "The product complies with requirements",
       "parameters": [
         {
-          "id": "lh",
-          "name_pl": "Liczba hydroksylowa [mg KOH/g]",
-          "name_en": "Hydroxyl number [mg KOH/g]",
-          "requirement": "210-220",
-          "method": "L955",
-          "format": "0",
-          "data_field": "lh"
-        },
-        {
           "id": "lk",
           "name_pl": "Liczba kwasowa [mg KOH/g]",
           "name_en": "Acid value [mg KOH/g]",
@@ -2045,6 +2240,15 @@
           "method": "60065250*",
           "format": "1",
           "data_field": "lk"
+        },
+        {
+          "id": "lh",
+          "name_pl": "Liczba hydroksylowa [mg KOH/g]",
+          "name_en": "Hydroxyl number [mg KOH/g]",
+          "requirement": "210-220",
+          "method": "L955",
+          "format": "0",
+          "data_field": "lh"
         },
         {
           "id": "lz",
@@ -2246,6 +2450,25 @@
           "qualitative_result": "<0,1"
         },
         {
+          "id": "estry",
+          "name_pl": "Estry [%]",
+          "name_en": "Esters [%]",
+          "requirement": "max 6,0",
+          "method": "L952",
+          "format": "1",
+          "data_field": "estry",
+          "qualitative_result": "<1,0"
+        },
+        {
+          "id": "wolny_glikol",
+          "name_pl": "Gliceryna [%]",
+          "name_en": "Glycerine [%]",
+          "requirement": "max 11,0",
+          "method": "L954",
+          "format": "1",
+          "data_field": "wolny_glikol"
+        },
+        {
           "id": "mea",
           "name_pl": "MEA [%] (M=61,1 g/mol)",
           "name_en": "MEA [%]",
@@ -2255,14 +2478,14 @@
           "data_field": "mea"
         },
         {
-          "id": "estry",
-          "name_pl": "Estry [%]",
-          "name_en": "Esters [%]",
-          "requirement": "max 6,0",
-          "method": "L952",
+          "id": "rozklad_kwasow",
+          "name_pl": "Rozkład kwasów tłuszczowych [%]",
+          "name_en": "Fatty acid distribution [%] ≤C6:0 C8:0 C10:0 C12:0 C14:0 C16:0 C18:0 C18:1 C18:2",
+          "requirement": "max 1,0 max 11,0 max 9,0 43,0-54,0 15,0-22,0 max 12,0 max 5,0 max 10,0 max 3,0",
+          "method": "metoda dostawcy surowca/ according to supplier’s CoA",
           "format": "1",
-          "data_field": "estry",
-          "qualitative_result": "<1,0"
+          "data_field": "rozklad_kwasow",
+          "qualitative_result": "≤1,0"
         }
       ],
       "variants": [
