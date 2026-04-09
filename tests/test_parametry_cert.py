@@ -82,6 +82,22 @@ def test_parametry_cert_unique_constraint(db):
         db.commit()
 
 
+def test_seed_has_name_en(db):
+    """Verify seed populates name_en for key parameters."""
+    from mbr.parametry.seed import seed
+    seed(db)
+    row = db.execute("SELECT name_en, method_code FROM parametry_analityczne WHERE kod='sm'").fetchone()
+    assert row["name_en"] == "Dry matter [%]"
+    assert row["method_code"] == "L903"
+
+
+def test_seed_has_name_en_ph(db):
+    from mbr.parametry.seed import seed
+    seed(db)
+    row = db.execute("SELECT name_en FROM parametry_analityczne WHERE kod='ph_10proc'").fetchone()
+    assert row["name_en"] == "pH (20°C)"
+
+
 def test_jakosciowy_typ_allowed(db):
     """INSERT with typ='jakosciowy', verify it works."""
     db.execute(
