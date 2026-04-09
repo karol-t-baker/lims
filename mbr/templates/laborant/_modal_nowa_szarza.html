@@ -81,26 +81,14 @@
 
           <div class="form-row">
             <div class="form-label">Produkt</div>
-            <div class="quick-picks" id="quick-pick-szarza">
-              <button type="button" class="qp-btn" onclick="quickPick(this,'Chegina_K7','szarza')">K7</button>
-              <button type="button" class="qp-btn" onclick="quickPick(this,'Chegina_K40GL','szarza')">K40GL</button>
-              <button type="button" class="qp-btn" onclick="quickPick(this,'Chegina_K40GLO','szarza')">K40GLO</button>
-              <button type="button" class="qp-btn" onclick="quickPick(this,'Chegina_K40GLOL','szarza')">K40GLOL</button>
-            </div>
+            <div class="quick-picks" id="quick-pick-szarza"></div>
             <div class="search-wrap product-search-wrap" id="search-wrap-szarza">
               <span class="search-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
               <input class="search-input form-input product-search" type="text"
                      placeholder="Inny produkt — szukaj..."
                      oninput="filterProducts(this)"
                      autocomplete="off">
-              <div class="product-dropdown">
-                {% for p in products %}
-                <div class="product-item" data-product="{{ p }}" onclick="pickProduct(this)">
-                  <span class="product-item-name">{{ p|short_product }}</span>
-                  <span class="product-item-full">{{ p }}</span>
-                </div>
-                {% endfor %}
-              </div>
+              <div class="product-dropdown" id="szarza-product-dropdown"></div>
             </div>
             <div class="selected-badge product-selected" id="selected-product-szarza" style="display:none;">
               <div class="sb-check"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
@@ -160,26 +148,14 @@
 
           <div class="form-row">
             <div class="form-label">Produkt</div>
-            <div class="quick-picks" id="quick-pick-zbiornik">
-              <button type="button" class="qp-btn" onclick="quickPick(this,'Chegina_K7','zbiornik')">K7</button>
-              <button type="button" class="qp-btn" onclick="quickPick(this,'Chegina_K40GL','zbiornik')">K40GL</button>
-              <button type="button" class="qp-btn" onclick="quickPick(this,'Chegina_K40GLO','zbiornik')">K40GLO</button>
-              <button type="button" class="qp-btn" onclick="quickPick(this,'Chegina_K40GLOL','zbiornik')">K40GLOL</button>
-            </div>
+            <div class="quick-picks" id="quick-pick-zbiornik"></div>
             <div class="search-wrap product-search-wrap" id="search-wrap-zbiornik">
               <span class="search-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
               <input class="search-input form-input product-search" type="text"
                      placeholder="Inny produkt — szukaj..."
                      oninput="filterProducts(this)"
                      autocomplete="off">
-              <div class="product-dropdown">
-                {% for p in products %}
-                <div class="product-item" data-product="{{ p }}" onclick="pickProduct(this)">
-                  <span class="product-item-name">{{ p|short_product }}</span>
-                  <span class="product-item-full">{{ p }}</span>
-                </div>
-                {% endfor %}
-              </div>
+              <div class="product-dropdown" id="zbiornik-product-dropdown"></div>
             </div>
             <div class="selected-badge product-selected" id="selected-product-zbiornik" style="display:none;">
               <div class="sb-check"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
@@ -398,14 +374,25 @@ function _syncSubstratyJson() {
 async function _loadProductsForType(typ) {
     var resp = await fetch('/api/produkty?typ=' + encodeURIComponent(typ));
     var products = await resp.json();
-    if (typ === 'platkowanie') {
-        _platkowanieProducts = products;
+
+    // Map typ → DOM ids
+    var ddIdMap = {szarza: 'szarza-product-dropdown', zbiornik: 'zbiornik-product-dropdown', platkowanie: 'platkowanie-product-dropdown'};
+    var qpId = 'quick-pick-' + typ;
+
+    // Update quick-pick buttons (first 4 products)
+    var qpEl = document.getElementById(qpId);
+    if (qpEl) {
         var qpHtml = '';
         products.slice(0, 4).forEach(function(p) {
-            var short = p.nazwa.replace(/^Chegina_/, '').replace(/_/g, ' ');
-            qpHtml += '<button type="button" class="qp-btn" onclick="quickPick(this,\'' + p.nazwa + '\',\'platkowanie\')">' + short + '</button>';
+            var short = p.nazwa.replace(/^Chegina_/, '').replace(/^[A-Za-z]+_/, '').replace(/_/g, ' ');
+            qpHtml += '<button type="button" class="qp-btn" onclick="quickPick(this,\'' + p.nazwa + '\',\'' + typ + '\')">' + short + '</button>';
         });
-        document.getElementById('quick-pick-platkowanie').innerHTML = qpHtml;
+        qpEl.innerHTML = qpHtml;
+    }
+
+    // Update dropdown
+    var ddEl = document.getElementById(ddIdMap[typ]);
+    if (ddEl) {
         var ddHtml = '';
         products.forEach(function(p) {
             var short = p.nazwa.replace(/^[A-Za-z]+_/, '').replace(/_/g, ' ');
@@ -414,7 +401,11 @@ async function _loadProductsForType(typ) {
                 '<span class="product-item-full">' + p.nazwa + '</span>' +
             '</div>';
         });
-        document.getElementById('platkowanie-product-dropdown').innerHTML = ddHtml;
+        ddEl.innerHTML = ddHtml;
+    }
+
+    if (typ === 'platkowanie') {
+        _platkowanieProducts = products;
     }
 }
 
@@ -450,9 +441,11 @@ function selectTyp(typ) {
   if (typ === 'szarza') {
     document.getElementById('step-2a').style.display = 'block';
     document.getElementById('modal-subtitle').textContent = 'Nowa szarza produkcyjna';
+    _loadProductsForType('szarza');
   } else if (typ === 'zbiornik') {
     document.getElementById('step-2b').style.display = 'block';
     document.getElementById('modal-subtitle').textContent = 'Analiza zbiornika magazynowego';
+    _loadProductsForType('zbiornik');
   } else if (typ === 'platkowanie') {
     document.getElementById('step-2c').style.display = 'block';
     document.getElementById('modal-subtitle').textContent = 'Nowe platkowanie';
