@@ -862,6 +862,8 @@ function renderCompletedView() {
     var container = document.getElementById('sections-container');
     container.innerHTML = '';
     var isZbiornik = ebrTyp === 'zbiornik';
+    var isPlatkowanie = ebrTyp === 'platkowanie';
+    var hasSingleAnaliza = isZbiornik || isPlatkowanie;
 
     // Find last analiza round's wyniki (final results)
     var lastAnaliza = null;
@@ -876,7 +878,7 @@ function renderCompletedView() {
         }
     }
 
-    var fallbackSekcja = isZbiornik ? 'analiza_koncowa' : 'analiza__1';
+    var fallbackSekcja = hasSingleAnaliza ? 'analiza_koncowa' : 'analiza__1';
     var pola = getPola(lastAnaliza || fallbackSekcja);
     if (!pola.length && lastAnaliza) pola = getPola(fallbackSekcja);
     var finalWyniki = wyniki[lastAnaliza] || {};
@@ -904,7 +906,7 @@ function renderCompletedView() {
         '<div class="cv-h2-nr">{{ ebr.nr_partii }}<span class="cv-h2-zbiorniki" id="cv-h2-zbiorniki"></span></div>' +
         '<div class="cv-h2-divider"></div>' +
         '<div class="cv-h2-info">' +
-            '<div class="cv-h2-item"><div class="cv-h2-key">Typ</div><div class="cv-h2-val">' + (isZbiornik ? 'Zbiornik' : 'Szarża') + '</div></div>' +
+            '<div class="cv-h2-item"><div class="cv-h2-key">Typ</div><div class="cv-h2-val">' + (isZbiornik ? 'Zbiornik' : isPlatkowanie ? 'Płatkowanie' : 'Szarża') + '</div></div>' +
             '<div class="cv-h2-item"><div class="cv-h2-key">Data</div><div class="cv-h2-val">{{ ebr.dt_end | pl_date if ebr.dt_end else ebr.dt_start | pl_date }}</div></div>' +
             (ebrNastaw ? '<div class="cv-h2-item"><div class="cv-h2-key">Nastaw</div><div class="cv-h2-val">' + Math.round(ebrNastaw) + ' kg</div></div>' : '') +
             {% if ebr.nr_amidatora %}(!isZbiornik ? '<div class="cv-h2-item"><div class="cv-h2-key">Amider</div><div class="cv-h2-val">A-{{ ebr.nr_amidatora }}</div></div>' : '') +{% endif %}
@@ -1033,7 +1035,8 @@ function renderCompletedView() {
             'Konfiguracja pól świadectwa</button>';
     }
 
-    // Zbiorniki section for completed batch
+    // Zbiorniki section for completed batch (not for platkowanie — no tanks)
+    if (!isPlatkowanie) {
     html += '<div class="cv-params" id="cv-zbiorniki">' +
         '<div class="cv-params-head" style="display:flex;align-items:center;justify-content:space-between;">' +
             '<span style="display:flex;align-items:center;gap:6px;">' +
@@ -1044,6 +1047,7 @@ function renderCompletedView() {
         '</div>' +
         '<div class="cv-zb-grid" id="cv-zb-list" style="padding:14px 16px;"></div>' +
     '</div>';
+    }
 
     container.innerHTML = html;
     setTimeout(loadCompletedZbiorniki, 100);
