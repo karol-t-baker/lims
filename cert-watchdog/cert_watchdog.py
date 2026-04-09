@@ -45,11 +45,8 @@ def move_certificate(filepath: Path, dest_dir: Path):
     if target_path.exists():
         archive_dir = target_dir / "_archiwum"
         archive_dir.mkdir(exist_ok=True)
-        archive_path = archive_dir / filepath.name
-        # If archive also has this file, add timestamp
-        if archive_path.exists():
-            ts = datetime.now().strftime("%Y-%m-%d %H-%M")
-            archive_path = archive_dir / f"{filepath.stem} ({ts}).pdf"
+        ts = datetime.now().strftime("%Y-%m-%d %H-%M")
+        archive_path = archive_dir / f"{filepath.stem} ({ts}).pdf"
         shutil.move(str(target_path), str(archive_path))
 
     shutil.move(str(filepath), str(target_path))
