@@ -402,6 +402,124 @@ def build_context(
     }
 
 
+def build_preview_context(product_json: dict, variant_id: str) -> dict:
+    """Build template context directly from editor JSON payload (no DB).
+
+    Used for live PDF preview while editing cert config.
+
+    Args:
+        product_json: Full product object from the editor UI.
+        variant_id: Which variant to preview.
+
+    Returns:
+        Context dict matching the structure of build_context().
+    """
+    cfg = load_config()
+
+    # 1. Global settings from cert_config.json
+    company = cfg.get("company", {})
+    footer = cfg.get("footer", {})
+    rspo_number = cfg.get("rspo_number", "CU-RSPO SCC-857488")
+
+    # 2. Product meta from product_json
+    display_name = product_json.get("display_name", "Produkt")
+    spec_number = product_json.get("spec_number", "")
+    cas_number = product_json.get("cas_number", "")
+    expiry_months = product_json.get("expiry_months", 12)
+    opinion_pl = product_json.get("opinion_pl", "")
+    opinion_en = product_json.get("opinion_en", "")
+
+    # 3. Find requested variant
+    variant = None
+    for v in product_json.get("variants", []):
+        if v["id"] == variant_id:
+            variant = v
+            break
+    if variant is None:
+        # Fallback to first variant
+        variants_list = product_json.get("variants", [])
+        variant = variants_list[0] if variants_list else {
+            "id": "base", "label": display_name, "flags": [], "overrides": {}
+        }
+
+    # 4. Apply variant overrides
+    overrides = variant.get("overrides", {})
+    spec_number = overrides.get("spec_number", spec_number)
+    opinion_pl = overrides.get("opinion_pl", opinion_pl)
+    opinion_en = overrides.get("opinion_en", opinion_en)
+
+    # 5. Apply remove_parameters and add_parameters
+    parameters = copy.deepcopy(product_json.get("parameters", []))
+    remove_ids = set(overrides.get("remove_parameters", []))
+    if remove_ids:
+        parameters = [p for p in parameters if p["id"] not in remove_ids]
+    add_params = overrides.get("add_parameters", [])
+    if add_params:
+        parameters.extend(copy.deepcopy(add_params))
+
+    # 6. Build rows with test data
+    rows = []
+    for param in parameters:
+        result = ""
+        if param.get("qualitative_result"):
+            result = param["qualitative_result"]
+        elif param.get("data_field"):
+            fmt = param.get("format", "1")
+            result = _format_value(12.34, fmt)
+        rows.append({
+            "name_pl": param.get("name_pl", ""),
+            "name_en": param.get("name_en", ""),
+            "requirement": param.get("requirement", ""),
+            "method": param.get("method", ""),
+            "result": result,
+        })
+
+    # 7. Generate test dates
+    today = date.today()
+    dt_produkcji = today.strftime("%d.%m.%Y")
+    year = today.year + (today.month - 1 + expiry_months) // 12
+    month = (today.month - 1 + expiry_months) % 12 + 1
+    day = min(today.day, _days_in_month(year, month))
+    dt_waznosci = date(year, month, day).strftime("%d.%m.%Y")
+    dt_wystawienia = dt_produkcji
+
+    # 8. Handle flags
+    flags = set(variant.get("flags", []))
+    has_rspo = "has_rspo" in flags
+    rspo_text = rspo_number if has_rspo else ""
+    order_number = "TEST-ORDER-001" if "has_order_number" in flags else ""
+    certificate_number = ""
+    if "has_certificate_number" in flags:
+        certificate_number = "CERT-001"
+    if has_rspo and "has_certificate_number" not in flags:
+        certificate_number = rspo_text
+        rspo_text = ""
+    avon_code = overrides.get("avon_code") or ("AVON-CODE" if "has_avon_code" in flags else "")
+    avon_name = overrides.get("avon_name") or ("Avon Product Name" if "has_avon_name" in flags else "")
+
+    # 9. Return context
+    return {
+        "company": company,
+        "footer": footer,
+        "display_name": display_name + (" MB" if has_rspo else ""),
+        "spec_number": spec_number,
+        "cas_number": cas_number,
+        "nr_partii": "1/2026",
+        "dt_produkcji": dt_produkcji,
+        "dt_waznosci": dt_waznosci,
+        "dt_wystawienia": dt_wystawienia,
+        "opinion_pl": opinion_pl,
+        "opinion_en": opinion_en,
+        "rows": rows,
+        "order_number": order_number,
+        "certificate_number": certificate_number,
+        "rspo_text": rspo_text,
+        "avon_code": avon_code,
+        "avon_name": avon_name,
+        "wystawil": "Podgląd",
+    }
+
+
 def _days_in_month(year: int, month: int) -> int:
     """Return number of days in a given month."""
     import calendar

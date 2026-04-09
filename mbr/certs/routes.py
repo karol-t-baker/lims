@@ -6,7 +6,7 @@ from pathlib import Path
 from flask import Response, abort, jsonify, render_template, request, send_file, session
 
 from mbr.certs import certs_bp
-from mbr.certs.generator import generate_certificate_pdf, get_required_fields, get_variants, save_certificate_data, load_config, _CONFIG_PATH
+from mbr.certs.generator import generate_certificate_pdf, get_required_fields, get_variants, save_certificate_data, load_config, _CONFIG_PATH, build_preview_context, _docxtpl_render, _gotenberg_convert
 from mbr.certs.models import create_swiadectwo, list_swiadectwa
 from mbr.db import db_session
 from mbr.models import get_ebr, get_ebr_wyniki, get_mbr
@@ -401,6 +401,26 @@ def api_cert_config_product_delete(key):
     if warning:
         result["warning"] = warning
     return jsonify(result)
+
+
+@certs_bp.route("/api/cert/config/preview", methods=["POST"])
+@role_required("admin")
+def api_cert_config_preview():
+    """Generate a live PDF preview from editor JSON payload (no DB)."""
+    data = request.get_json(silent=True) or {}
+    product = data.get("product")
+    variant_id = data.get("variant_id", "base")
+
+    if not product:
+        return jsonify({"error": "Missing 'product' in request body"}), 400
+
+    try:
+        ctx = build_preview_context(product, variant_id)
+        docx_bytes = _docxtpl_render(ctx)
+        pdf_bytes = _gotenberg_convert(docx_bytes)
+        return Response(pdf_bytes, mimetype="application/pdf")
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # ---------------------------------------------------------------------------
