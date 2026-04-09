@@ -372,7 +372,9 @@ async function _loadProductsForType(typ) {
         // Platkowanie: show ALL products as buttons (few products, no search needed)
         var qpList = (typ === 'platkowanie') ? products : products.slice(0, 4);
         qpList.forEach(function(p) {
-            var short = p.nazwa.replace(/^Chegina_/, '').replace(/^[A-Za-z]+_/, '').replace(/_/g, ' ');
+            var short = (typ === 'platkowanie')
+                ? (p.display_name || p.nazwa.replace(/_/g, ' '))
+                : p.nazwa.replace(/^Chegina_/, '').replace(/^[A-Za-z]+_/, '').replace(/_/g, ' ');
             qpHtml += '<button type="button" class="qp-btn" onclick="quickPick(this,\'' + p.nazwa + '\',\'' + typ + '\')">' + short + '</button>';
         });
         qpEl.innerHTML = qpHtml;
@@ -389,7 +391,7 @@ async function _loadProductsForType(typ) {
     if (ddEl) {
         var ddHtml = '';
         products.forEach(function(p) {
-            var short = p.nazwa.replace(/^[A-Za-z]+_/, '').replace(/_/g, ' ');
+            var short = p.display_name || p.nazwa.replace(/^[A-Za-z]+_/, '').replace(/_/g, ' ');
             ddHtml += '<div class="product-item" data-product="' + p.nazwa + '" onclick="pickProduct(this)">' +
                 '<span class="product-item-name">' + short + '</span>' +
                 '<span class="product-item-full">' + p.nazwa + '</span>' +
