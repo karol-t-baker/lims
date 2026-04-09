@@ -1062,7 +1062,7 @@ function renderCompletedView() {
         topbar.innerHTML = '<div class="cv-tb-inner ' + prodCls + '">' +
             '<span class="cv-tb-badge"><span>▶</span> {{ ebr.produkt | replace("_", " ") }}</span>' +
             '<span class="cv-tb-nr">{{ ebr.nr_partii }}</span>' +
-            '<span class="cv-tb-meta">' + (isZbiornik ? 'Zbiornik' : 'Szarża') + '<span id="cv-tb-zbiorniki"></span> · {{ ebr.dt_end | pl_date if ebr.dt_end else ebr.dt_start | pl_date }}</span>' +
+            '<span class="cv-tb-meta">' + (isZbiornik ? 'Zbiornik' : isPlatkowanie ? 'Płatkowanie' : 'Szarża') + '<span id="cv-tb-zbiorniki"></span> · {{ ebr.dt_end | pl_date if ebr.dt_end else ebr.dt_start | pl_date }}</span>' +
             statusChip +
         '</div>';
 

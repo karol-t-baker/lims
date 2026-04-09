@@ -23,7 +23,7 @@
           {% else %}Oczekuje na analizę{% endif %}
         </div>
       </div>
-      {% if b.typ != 'zbiornik' %}
+      {% if b.typ not in ('zbiornik', 'platkowanie') %}
       <div class="sb-dots">
         <div class="sd done"></div><div class="sd done"></div>
         {% if b.last_entry %}<div class="sd done"></div><div class="sd curr"></div><div class="sd"></div><div class="sd"></div><div class="sd"></div>
@@ -64,6 +64,7 @@
       <option value="">Wszystkie</option>
       <option value="szarza" {% if filter_typ == 'szarza' %}selected{% endif %}>Szarze</option>
       <option value="zbiornik" {% if filter_typ == 'zbiornik' %}selected{% endif %}>Zbiorniki</option>
+      <option value="platkowanie" {% if filter_typ == 'platkowanie' %}selected{% endif %}>Płatkowanie</option>
     </select>
   </form>
 
@@ -114,7 +115,7 @@
         <td><span class="q-product">{{ b.produkt|short_product }}</span></td>
         <td>
           <span class="typ-badge {{ b.typ or 'szarza' }}">
-            {{ 'Zbiornik' if b.typ == 'zbiornik' else 'Szarza' }}
+            {{ 'Zbiornik' if b.typ == 'zbiornik' else 'Płatkowanie' if b.typ == 'platkowanie' else 'Szarza' }}
           </span>
         </td>
         <td class="q-time">{{ b.nr_amidatora or '---' }}</td>
@@ -166,7 +167,7 @@
         <td>{{ b.produkt|short_product }}</td>
         <td>
           <span class="typ-badge {{ b.typ or 'szarza' }}">
-            {{ 'Zbiornik' if b.typ == 'zbiornik' else 'Szarza' }}
+            {{ 'Zbiornik' if b.typ == 'zbiornik' else 'Płatkowanie' if b.typ == 'platkowanie' else 'Szarza' }}
           </span>
         </td>
         <td class="q-time">{{ b.dt_end | pl_date if b.dt_end else '---' }}</td>

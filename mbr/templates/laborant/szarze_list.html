@@ -792,6 +792,7 @@ function switchSidebarTab(tab, btn) {
     document.querySelectorAll('#sidebar-batch-list .batch-card').forEach(function(c) {
       if (tab === 'szarze') c.style.display = c.dataset.typ === 'szarza' ? '' : 'none';
       else if (tab === 'zbiorniki') c.style.display = c.dataset.typ === 'zbiornik' ? '' : 'none';
+      else if (tab === 'platkowanie') c.style.display = c.dataset.typ === 'platkowanie' ? '' : 'none';
     });
   }
 }
