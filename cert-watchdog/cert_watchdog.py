@@ -13,51 +13,7 @@ from pathlib import Path
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
-# Known products sorted longest-first (so Chegina K40GLOL matches before Chegina K40GL)
-PRODUCTS = [
-    "Chegina K40GLOL HQ",
-    "Chegina K40GLOL",
-    "Chegina K40GLOS",
-    "Chegina K40GLO",
-    "Chegina K40GL",
-    "Chegina K7GLO",
-    "Chegina K7B",
-    "Chegina K7",
-    "Chegina KK",
-    "Chegina CCR",
-    "Chegina CC",
-    "Chegina L9",
-    "Chegina",
-    "Cheminox K35",
-    "Cheminox LA",
-    "Cheminox K",
-    "Chemipol ML",
-    "Chemipol OL",
-    "Monamid KO Revada",
-    "Monamid KO",
-    "Monamid K",
-    "Monamid L",
-    "Monamid S",
-    "Dister E",
-    "Monester O",
-    "Monester S",
-    "Alkinol B",
-    "Alkinol",
-    "Alstermid K",
-    "Alstermid",
-    "Chemal CS3070",
-    "Chemal EO20",
-    "Chemal SE12",
-    "Chemal PC",
-    "Polcet A",
-    "Chelamid DK",
-    "Glikoster P",
-    "Citrowax",
-    "Kwas stearynowy",
-    "Perlico 45",
-    "SLES",
-    "HSH CS3070",
-]
+PRODUCTS = []  # loaded from config
 
 
 def match_product(filename: str) -> str | None:
@@ -121,6 +77,10 @@ def main():
     config = json.loads(config_path.read_text())
     watch_dir = Path(config["watch_dir"])
     dest_dir = Path(config["dest_dir"])
+
+    # Load products sorted longest-first
+    global PRODUCTS
+    PRODUCTS = sorted(config.get("products", []), key=len, reverse=True)
 
     if not watch_dir.exists():
         print(f"Watch directory not found: {watch_dir}")
