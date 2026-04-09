@@ -444,9 +444,9 @@ def build_preview_context(product_json: dict, variant_id: str) -> dict:
 
     # 4. Apply variant overrides
     overrides = variant.get("overrides", {})
-    spec_number = overrides.get("spec_number", spec_number)
-    opinion_pl = overrides.get("opinion_pl", opinion_pl)
-    opinion_en = overrides.get("opinion_en", opinion_en)
+    spec_number = overrides.get("spec_number") or spec_number
+    opinion_pl = overrides.get("opinion_pl") or opinion_pl
+    opinion_en = overrides.get("opinion_en") or opinion_en
 
     # 5. Apply remove_parameters and add_parameters
     parameters = copy.deepcopy(product_json.get("parameters", []))
@@ -464,7 +464,7 @@ def build_preview_context(product_json: dict, variant_id: str) -> dict:
         if param.get("qualitative_result"):
             result = param["qualitative_result"]
         elif param.get("data_field"):
-            fmt = param.get("format", "1")
+            fmt = param.get("format") or "1"
             result = _format_value(12.34, fmt)
         rows.append({
             "name_pl": param.get("name_pl", ""),
