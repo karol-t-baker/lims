@@ -483,7 +483,7 @@ function _paramRow(p, idx) {
   return '<tr draggable="true" data-idx="' + idx + '">' +
     '<td><span class="wc-drag">&#10303;</span></td>' +
     '<td class="wc-id-cell"><input data-field="id" value="' + _esc(p.id || '') + '" readonly style="color:var(--text-dim);font-family:var(--mono);font-size:10px;background:transparent;cursor:default;" tabindex="-1"></td>' +
-    '<td><input data-field="name_pl" value="' + _esc(p.name_pl || '') + '"></td>' +
+    '<td><input data-field="name_pl" value="' + _esc(p.name_pl || '') + '" oninput="autoId(this)"></td>' +
     '<td><input data-field="name_en" value="' + _esc(p.name_en || '') + '" oninput="autoId(this)"></td>' +
     '<td><input data-field="requirement" value="' + _esc(p.requirement || '') + '"></td>' +
     '<td><input data-field="method" value="' + _esc(p.method || '') + '"></td>' +
@@ -518,7 +518,11 @@ function autoId(input) {
   var idInput = tr.querySelector('[data-field="id"]');
   // Only auto-generate if id is empty or was auto-generated
   if (idInput.dataset.manual === '1') return;
-  var val = input.value.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  // Prefer name_en for id, fallback to name_pl
+  var enVal = (tr.querySelector('[data-field="name_en"]').value || '').trim();
+  var plVal = (tr.querySelector('[data-field="name_pl"]').value || '').trim();
+  var src = enVal || plVal;
+  var val = src.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
   // Check uniqueness
   var allIds = [];
   document.querySelectorAll('#wc-params-body tr').forEach(function(r) {
