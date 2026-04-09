@@ -291,8 +291,8 @@ def api_cert_config_product_put(key):
             if pid in param_ids:
                 return jsonify({"error": f"Duplicate parameter id: {pid}"}), 400
             param_ids.add(pid)
-            if not p.get("name_pl") or not p.get("name_en") or not p.get("requirement"):
-                return jsonify({"error": f"Parameter '{pid}' missing name_pl, name_en, or requirement"}), 400
+            if not p.get("name_pl") or not p.get("requirement"):
+                return jsonify({"error": f"Parameter '{pid}' missing name_pl or requirement"}), 400
         products[key]["parameters"] = parameters
 
     # Validate variants
