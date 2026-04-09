@@ -1646,9 +1646,12 @@ function renderCyclicSections() {
 function renderDecisionButtons(container) {
     var bar = document.createElement('div');
     bar.className = 'decision-bar';
+    var isPlatkowanie = ('{{ ebr.typ }}' === 'platkowanie');
     bar.innerHTML =
         '<span class="decision-label">Analiza zakończona. Co dalej?</span>' +
-        '<button class="btn-success" onclick="completePompuj()">Przepompuj na zbiornik</button>' +
+        (isPlatkowanie
+            ? '<button class="btn-success" onclick="completePlatkowanie()">Zakończ płatkowanie</button>'
+            : '<button class="btn-success" onclick="completePompuj()">Przepompuj na zbiornik</button>') +
         '<button class="btn-secondary" onclick="repeatAnalizaCyclic()">Powtórz analizę</button>' +
         '<button class="btn-secondary" onclick="startKorekta()">Korekta (standaryzacja)</button>';
     container.appendChild(bar);
@@ -2222,6 +2225,20 @@ function editCompletedZbiorniki() {
 }
 
 function completePompuj() { openPumpModal(); }
+
+async function completePlatkowanie() {
+    if (!confirm('Zakończyć płatkowanie?')) return;
+    var resp = await fetch('/laborant/ebr/' + ebrId + '/complete', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({zbiorniki: []})
+    });
+    if (resp.ok || resp.redirected) {
+        location.href = '/laborant/szarze';
+    } else {
+        alert('Błąd kończenia: ' + resp.statusText);
+    }
+}
 
 function completeSimple() {
     // Simple confirm for zbiornik — no tank selection needed
