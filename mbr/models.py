@@ -721,6 +721,41 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     """)
     db.commit()
 
+    # Migration: create cert_variants table
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS cert_variants (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            produkt       TEXT NOT NULL,
+            variant_id    TEXT NOT NULL,
+            label         TEXT NOT NULL,
+            flags         TEXT DEFAULT '[]',
+            spec_number   TEXT,
+            opinion_pl    TEXT,
+            opinion_en    TEXT,
+            avon_code     TEXT,
+            avon_name     TEXT,
+            remove_params TEXT DEFAULT '[]',
+            kolejnosc     INTEGER DEFAULT 0,
+            UNIQUE(produkt, variant_id)
+        )
+    """)
+    db.commit()
+
+    # Migration: add variant_id to parametry_cert (NULL = base product param, NOT NULL = add_parameter for variant)
+    try:
+        db.execute("ALTER TABLE parametry_cert ADD COLUMN variant_id INTEGER REFERENCES cert_variants(id)")
+        db.commit()
+    except Exception:
+        pass
+
+    # Migration: add name override columns to parametry_cert
+    for col in ("name_pl", "name_en", "method"):
+        try:
+            db.execute(f"ALTER TABLE parametry_cert ADD COLUMN {col} TEXT")
+            db.commit()
+        except Exception:
+            pass
+
     # Migration: product_ref_values — per-product reference values for analiza_koncowa
     db.execute("""
         CREATE TABLE IF NOT EXISTS product_ref_values (
