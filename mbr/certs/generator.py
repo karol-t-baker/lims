@@ -155,6 +155,25 @@ def _build_rows_from_db(db, produkt: str, wyniki_flat: dict) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
+# 4c. _get_product_meta
+# ---------------------------------------------------------------------------
+def _get_product_meta(db, produkt: str) -> dict | None:
+    """Read product metadata from produkty table.
+
+    Returns dict with display_name, spec_number, cas_number, expiry_months,
+    opinion_pl, opinion_en — or None if not found.
+    """
+    row = db.execute(
+        "SELECT display_name, spec_number, cas_number, expiry_months, "
+        "opinion_pl, opinion_en FROM produkty WHERE nazwa = ?",
+        (produkt,),
+    ).fetchone()
+    if row is None:
+        return None
+    return dict(row)
+
+
+# ---------------------------------------------------------------------------
 # 5. build_context
 # ---------------------------------------------------------------------------
 def build_context(
@@ -197,29 +216,47 @@ def build_context(
     if variant is None:
         raise ValueError(f"Unknown variant '{variant_id}' for product '{produkt}'")
 
-    # Apply variant overrides
-    spec_number = product_cfg["spec_number"]
-    opinion_pl = product_cfg["opinion_pl"]
-    opinion_en = product_cfg["opinion_en"]
     parameters = copy.deepcopy(product_cfg["parameters"])
 
     overrides = variant.get("overrides", {})
-    if "spec_number" in overrides:
-        spec_number = overrides["spec_number"]
-    if "opinion_pl" in overrides:
-        opinion_pl = overrides["opinion_pl"]
-    if "opinion_en" in overrides:
-        opinion_en = overrides["opinion_en"]
+
+    # Product metadata — DB-first, fallback to cert_config.json
+    from mbr.db import db_session as _db_session
+    product_meta = None
+    try:
+        with _db_session() as _pdb:
+            product_meta = _get_product_meta(_pdb, key)
+    except Exception:
+        pass
+
+    if product_meta and product_meta.get("display_name"):
+        _display_name = product_meta["display_name"]
+        _spec_number = product_meta["spec_number"] or product_cfg.get("spec_number", "")
+        _cas_number = product_meta["cas_number"] or product_cfg.get("cas_number", "")
+        _expiry_months = product_meta["expiry_months"] or product_cfg.get("expiry_months", 12)
+        _opinion_pl = product_meta["opinion_pl"] or product_cfg.get("opinion_pl", "")
+        _opinion_en = product_meta["opinion_en"] or product_cfg.get("opinion_en", "")
+    else:
+        _display_name = product_cfg.get("display_name", key)
+        _spec_number = product_cfg.get("spec_number", "")
+        _cas_number = product_cfg.get("cas_number", "")
+        _expiry_months = product_cfg.get("expiry_months", 12)
+        _opinion_pl = product_cfg.get("opinion_pl", "")
+        _opinion_en = product_cfg.get("opinion_en", "")
+
+    # Apply variant overrides on top of base values
+    spec_number = overrides.get("spec_number", _spec_number)
+    opinion_pl = overrides.get("opinion_pl", _opinion_pl)
+    opinion_en = overrides.get("opinion_en", _opinion_en)
 
     # Remove parameters (for config fallback)
     remove_ids = set(overrides.get("remove_parameters", []))
 
     # Build rows — DB-first with config fallback
-    from mbr.db import db_session
     rows = []
     use_db = False
     try:
-        with db_session() as db:
+        with _db_session() as db:
             cert_count = db.execute(
                 "SELECT COUNT(*) as c FROM parametry_cert WHERE produkt=?", (key,)
             ).fetchone()["c"]
@@ -318,7 +355,7 @@ def build_context(
 
         if dt_obj:
             dt_produkcji = dt_obj.strftime("%d.%m.%Y")
-            expiry_months = product_cfg.get("expiry_months", 12)
+            expiry_months = _expiry_months
             # Add expiry_months
             year = dt_obj.year + (dt_obj.month - 1 + expiry_months) // 12
             month = (dt_obj.month - 1 + expiry_months) % 12 + 1
@@ -346,9 +383,9 @@ def build_context(
     return {
         "company": cfg["company"],
         "footer": cfg["footer"],
-        "display_name": product_cfg["display_name"] + (" MB" if has_rspo else ""),
+        "display_name": _display_name + (" MB" if has_rspo else ""),
         "spec_number": spec_number,
-        "cas_number": product_cfg.get("cas_number", ""),
+        "cas_number": _cas_number,
         "nr_partii": nr_partii,
         "dt_produkcji": dt_produkcji,
         "dt_waznosci": dt_waznosci,

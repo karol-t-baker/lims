@@ -331,6 +331,78 @@ def api_parametry_cert_reorder():
     return jsonify({"ok": True})
 
 
+# ═══ PRODUKTY ═══
+
+@parametry_bp.route("/api/produkty")
+@login_required
+def api_produkty():
+    include_all = request.args.get("all") == "1"
+    typ_filter = request.args.get("typ", "")
+    with db_session() as db:
+        sql = "SELECT * FROM produkty"
+        params = []
+        conditions = []
+        if not include_all:
+            conditions.append("aktywny = 1")
+        if typ_filter:
+            conditions.append("typy LIKE ?")
+            params.append(f'%"{typ_filter}"%')
+        if conditions:
+            sql += " WHERE " + " AND ".join(conditions)
+        sql += " ORDER BY nazwa"
+        rows = [dict(r) for r in db.execute(sql, params).fetchall()]
+    return jsonify(rows)
+
+@parametry_bp.route("/api/produkty", methods=["POST"])
+@role_required("admin")
+def api_produkty_create():
+    data = request.get_json(silent=True) or {}
+    nazwa = (data.get("nazwa") or "").strip()
+    if not nazwa:
+        return jsonify({"error": "nazwa required"}), 400
+    display_name = data.get("display_name") or nazwa.replace("_", " ")
+    with db_session() as db:
+        try:
+            cur = db.execute(
+                "INSERT INTO produkty (nazwa, kod, display_name, typy, spec_number, "
+                "cas_number, expiry_months, opinion_pl, opinion_en) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (nazwa, data.get("kod", ""), display_name,
+                 data.get("typy", '["szarza"]'),
+                 data.get("spec_number", ""), data.get("cas_number", ""),
+                 data.get("expiry_months", 12),
+                 data.get("opinion_pl", ""), data.get("opinion_en", "")),
+            )
+            db.commit()
+        except Exception:
+            return jsonify({"error": "Produkt already exists"}), 409
+    return jsonify({"ok": True, "id": cur.lastrowid})
+
+@parametry_bp.route("/api/produkty/<int:pid>", methods=["PUT"])
+@role_required("admin")
+def api_produkty_update(pid):
+    data = request.get_json(silent=True) or {}
+    allowed = {"kod", "display_name", "aktywny", "typy", "spec_number",
+               "cas_number", "expiry_months", "opinion_pl", "opinion_en"}
+    updates = {k: v for k, v in data.items() if k in allowed and v is not None}
+    if not updates:
+        return jsonify({"ok": True})
+    set_clause = ", ".join(f"{k} = ?" for k in updates)
+    with db_session() as db:
+        db.execute(f"UPDATE produkty SET {set_clause} WHERE id = ?",
+                   [*updates.values(), pid])
+        db.commit()
+    return jsonify({"ok": True})
+
+@parametry_bp.route("/api/produkty/<int:pid>", methods=["DELETE"])
+@role_required("admin")
+def api_produkty_delete(pid):
+    with db_session() as db:
+        db.execute("UPDATE produkty SET aktywny = 0 WHERE id = ?", (pid,))
+        db.commit()
+    return jsonify({"ok": True})
+
+
 @parametry_bp.route("/parametry")
 @login_required
 def parametry_editor():

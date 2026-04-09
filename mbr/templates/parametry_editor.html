@@ -130,6 +130,9 @@
     {% if is_admin %}
     <button class="pe-tab" id="tab-cert" onclick="switchTab('cert')">Świadectwa</button>
     {% endif %}
+    {% if is_admin %}
+    <button class="pe-tab" id="tab-prod" onclick="switchTab('prod')">Produkty</button>
+    {% endif %}
   </div>
 
   <!-- Panel: Etapy (bindings editor) -->
@@ -262,6 +265,37 @@
       </select>
       <input type="text" id="cert-add-qual" placeholder="Qual. result (opcjonalne)" style="width:160px;">
       <button onclick="addCertBinding()">+ Dodaj</button>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if is_admin %}
+  <div id="panel-prod" style="display:none;">
+    <table class="pa-table" id="prod-table">
+      <thead>
+        <tr>
+          <th>Nazwa</th>
+          <th>Display name</th>
+          <th style="width:60px;">Kod</th>
+          <th style="width:80px;">Spec</th>
+          <th style="width:90px;">CAS</th>
+          <th style="width:50px;">Ważn.</th>
+          <th style="width:40px;">Sz</th>
+          <th style="width:40px;">Zb</th>
+          <th style="width:40px;">Pł</th>
+          <th style="width:60px;">Status</th>
+        </tr>
+      </thead>
+      <tbody id="prod-body"></tbody>
+    </table>
+    <div class="pa-add" id="prod-add">
+      <input type="text" id="prod-add-nazwa" placeholder="Nazwa (klucz)" style="width:150px;">
+      <input type="text" id="prod-add-display" placeholder="Display name" style="width:150px;">
+      <input type="text" id="prod-add-kod" placeholder="Kod" style="width:60px;">
+      <label style="font-size:10px;"><input type="checkbox" id="prod-add-sz" checked> Sz</label>
+      <label style="font-size:10px;"><input type="checkbox" id="prod-add-zb"> Zb</label>
+      <label style="font-size:10px;"><input type="checkbox" id="prod-add-pl"> Pł</label>
+      <button onclick="addProdukt()">+ Dodaj</button>
     </div>
   </div>
   {% endif %}
@@ -421,7 +455,7 @@ function etapDrop(e) {
 // ═══ TAB SWITCHING ═══
 
 function switchTab(which) {
-  ['bind', 'def', 'cert'].forEach(function(t) {
+  ['bind', 'def', 'cert', 'prod'].forEach(function(t) {
     var tab = document.getElementById('tab-' + t);
     var panel = document.getElementById('panel-' + t);
     if (tab) tab.classList.toggle('pe-tab-active', t === which);
@@ -429,6 +463,7 @@ function switchTab(which) {
   });
   if (which === 'def' && !_paLoaded) loadDefinicje();
   if (which === 'cert' && !_certLoaded) loadCertAvailable();
+  if (which === 'prod' && !_prodLoaded) loadProdukty();
 }
 
 // ═══ REJESTR TAB (admin) ═══
@@ -641,6 +676,92 @@ function certDrop(e) {
     body: JSON.stringify({bindings: reorderData})
   });
   renderCertTable(_certBindings);
+}
+
+// ═══ PRODUKTY TAB ═══
+
+var _prodLoaded = false;
+var _prodData = [];
+
+function loadProdukty() {
+  fetch('/api/produkty?all=1').then(function(r){return r.json();}).then(function(data) {
+    _prodData = data;
+    _prodLoaded = true;
+    renderProdTable(data);
+  });
+}
+
+function renderProdTable(data) {
+  var html = '';
+  data.forEach(function(p) {
+    var typy = [];
+    try { typy = JSON.parse(p.typy || '[]'); } catch(e) {}
+    var hasSz = typy.indexOf('szarza') >= 0;
+    var hasZb = typy.indexOf('zbiornik') >= 0;
+    var hasPl = typy.indexOf('platkowanie') >= 0;
+    html += '<tr>' +
+      '<td style="font-weight:600;font-size:11px;">' + esc(p.nazwa) + '</td>' +
+      '<td><input class="pa-input" value="' + esc(p.display_name || '') + '" onblur="saveProdField(' + p.id + ',\'display_name\',this.value)"></td>' +
+      '<td><input class="pa-input" value="' + esc(p.kod || '') + '" onblur="saveProdField(' + p.id + ',\'kod\',this.value)" style="font-family:var(--mono);font-weight:700;color:var(--teal);"></td>' +
+      '<td><input class="pa-input" value="' + esc(p.spec_number || '') + '" onblur="saveProdField(' + p.id + ',\'spec_number\',this.value)"></td>' +
+      '<td><input class="pa-input" value="' + esc(p.cas_number || '') + '" onblur="saveProdField(' + p.id + ',\'cas_number\',this.value)"></td>' +
+      '<td><input class="pa-input" type="number" value="' + (p.expiry_months || 12) + '" onblur="saveProdField(' + p.id + ',\'expiry_months\',parseInt(this.value))" style="width:45px;text-align:center;"></td>' +
+      '<td style="text-align:center;"><input type="checkbox" ' + (hasSz ? 'checked' : '') + ' onchange="saveProdTypy(' + p.id + ',this.parentNode.parentNode)"></td>' +
+      '<td style="text-align:center;"><input type="checkbox" ' + (hasZb ? 'checked' : '') + ' onchange="saveProdTypy(' + p.id + ',this.parentNode.parentNode)"></td>' +
+      '<td style="text-align:center;"><input type="checkbox" ' + (hasPl ? 'checked' : '') + ' onchange="saveProdTypy(' + p.id + ',this.parentNode.parentNode)"></td>' +
+      '<td><button class="pa-toggle ' + (p.aktywny ? 'on' : 'off') + '" onclick="toggleProdActive(' + p.id + ',' + p.aktywny + ')">' + (p.aktywny ? 'Aktywny' : 'Ukryty') + '</button></td>' +
+    '</tr>';
+  });
+  document.getElementById('prod-body').innerHTML = html || '<tr><td colspan="10" style="text-align:center;color:var(--text-dim);padding:20px;">Brak produktów</td></tr>';
+}
+
+function saveProdField(id, field, value) {
+  var body = {}; body[field] = value;
+  fetch('/api/produkty/' + id, {
+    method: 'PUT', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  });
+}
+
+function saveProdTypy(id, row) {
+  var checks = row.querySelectorAll('input[type=checkbox]');
+  var typy = [];
+  if (checks[0].checked) typy.push('szarza');
+  if (checks[1].checked) typy.push('zbiornik');
+  if (checks[2].checked) typy.push('platkowanie');
+  saveProdField(id, 'typy', JSON.stringify(typy));
+}
+
+function toggleProdActive(id, current) {
+  fetch('/api/produkty/' + id, {
+    method: 'PUT', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({aktywny: current ? 0 : 1})
+  }).then(function(r) { if (r.ok) loadProdukty(); });
+}
+
+function addProdukt() {
+  var nazwa = document.getElementById('prod-add-nazwa').value.trim();
+  if (!nazwa) return;
+  var typy = [];
+  if (document.getElementById('prod-add-sz').checked) typy.push('szarza');
+  if (document.getElementById('prod-add-zb').checked) typy.push('zbiornik');
+  if (document.getElementById('prod-add-pl').checked) typy.push('platkowanie');
+  fetch('/api/produkty', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      nazwa: nazwa,
+      display_name: document.getElementById('prod-add-display').value.trim() || nazwa.replace(/_/g, ' '),
+      kod: document.getElementById('prod-add-kod').value.trim(),
+      typy: JSON.stringify(typy),
+    })
+  }).then(function(r){return r.json();}).then(function(d) {
+    if (d.ok) {
+      document.getElementById('prod-add-nazwa').value = '';
+      document.getElementById('prod-add-display').value = '';
+      document.getElementById('prod-add-kod').value = '';
+      loadProdukty();
+    } else { alert(d.error || 'Błąd'); }
+  });
 }
 
 // Init — no eager loading needed; tabs load on demand
