@@ -190,53 +190,8 @@ def api_cert_list():
     return jsonify({"certs": certs})
 
 
-# ---------------------------------------------------------------------------
-# Cert config — parameter mapping editor
-# ---------------------------------------------------------------------------
-
-@certs_bp.route("/api/cert/config/parameters")
-@login_required
-def api_cert_config_params():
-    """Get cert parameters for a product. Returns list of param defs from cert_config.json."""
-    produkt = request.args.get("produkt", "")
-    cfg = load_config(reload=True)
-    product_cfg = cfg.get("products", {}).get(produkt, {})
-    params = product_cfg.get("parameters", [])
-    # Also return available analysis codes for dropdown
-    with db_session() as db:
-        available = db.execute(
-            "SELECT kod, label, skrot FROM parametry_analityczne WHERE aktywny=1 ORDER BY kod"
-        ).fetchall()
-    return jsonify({
-        "parameters": params,
-        "available_codes": [dict(r) for r in available],
-    })
-
-
-@certs_bp.route("/api/cert/config/parameters", methods=["PUT"])
-@login_required
-def api_cert_config_params_save():
-    """Save cert parameters for a product. Body: {produkt, parameters: [...]}."""
-    data = request.get_json(silent=True) or {}
-    produkt = data.get("produkt", "")
-    parameters = data.get("parameters", [])
-    if not produkt:
-        return jsonify({"ok": False, "error": "produkt required"}), 400
-
-    cfg = load_config(reload=True)
-    if produkt not in cfg.get("products", {}):
-        return jsonify({"ok": False, "error": "Product not in config"}), 404
-
-    cfg["products"][produkt]["parameters"] = parameters
-
-    # Write back to file
-    with open(_CONFIG_PATH, "w", encoding="utf-8") as f:
-        _json.dump(cfg, f, ensure_ascii=False, indent=2)
-
-    # Invalidate cache
-    load_config(reload=True)
-
-    return jsonify({"ok": True})
+# Cert config parameter endpoints removed — replaced by /api/parametry/cert/* endpoints
+# in mbr/parametry/routes.py (parametry centralization, 2026-04-09)
 
 
 # ---------------------------------------------------------------------------

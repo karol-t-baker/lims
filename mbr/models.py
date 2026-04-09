@@ -116,7 +116,13 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             nazwa TEXT UNIQUE NOT NULL,
             kod TEXT,
             aktywny INTEGER DEFAULT 1,
-            typy TEXT DEFAULT '["szarza"]'
+            typy TEXT DEFAULT '["szarza"]',
+            display_name TEXT,
+            spec_number TEXT,
+            cas_number TEXT,
+            expiry_months INTEGER DEFAULT 12,
+            opinion_pl TEXT,
+            opinion_en TEXT
         );
 
         CREATE TABLE IF NOT EXISTS zbiorniki (
@@ -235,6 +241,37 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
                 (_CHEGINY_ALL_TYPY, nazwa),
             )
 
+    # Migration: add certificate metadata columns to produkty
+    for col, coldef in [
+        ("display_name", "TEXT"),
+        ("spec_number", "TEXT"),
+        ("cas_number", "TEXT"),
+        ("expiry_months", "INTEGER DEFAULT 12"),
+        ("opinion_pl", "TEXT"),
+        ("opinion_en", "TEXT"),
+    ]:
+        try:
+            db.execute(f"ALTER TABLE produkty ADD COLUMN {col} {coldef}")
+            db.commit()
+        except Exception:
+            pass
+
+    # Auto-generate display_name from nazwa where missing
+    db.execute("""
+        UPDATE produkty SET display_name = REPLACE(nazwa, '_', ' ')
+        WHERE display_name IS NULL OR display_name = ''
+    """)
+    db.commit()
+
+    # Auto-sync: products in mbr_templates but not in produkty
+    db.execute("""
+        INSERT OR IGNORE INTO produkty (nazwa, display_name)
+        SELECT DISTINCT produkt, REPLACE(produkt, '_', ' ')
+        FROM mbr_templates
+        WHERE produkt NOT IN (SELECT nazwa FROM produkty)
+    """)
+    db.commit()
+
     # Map zbiornik product names → codes
     _ZB_PRODUKT_TO_KOD = {
         "Cheginy GLOL": "GLOL", "Cheginy GLO": "GLO", "Cheginy GL": "GL",
@@ -256,12 +293,18 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     # Migration: add jednostka column to parametry_analityczne
     pa_cols = [r[1] for r in db.execute("PRAGMA table_info(parametry_analityczne)").fetchall()]
     if "jednostka" not in pa_cols:
-        db.execute("ALTER TABLE parametry_analityczne ADD COLUMN jednostka TEXT")
+        try:
+            db.execute("ALTER TABLE parametry_analityczne ADD COLUMN jednostka TEXT")
+        except Exception:
+            pass  # table may not exist yet; will be created below
 
     # Migration: add target column to parametry_etapy
     pe_cols = [r[1] for r in db.execute("PRAGMA table_info(parametry_etapy)").fetchall()]
     if "target" not in pe_cols:
-        db.execute("ALTER TABLE parametry_etapy ADD COLUMN target REAL")
+        try:
+            db.execute("ALTER TABLE parametry_etapy ADD COLUMN target REAL")
+        except Exception:
+            pass  # table may not exist yet; will be created below
 
     # Migration: recreate parametry_analityczne without CHECK constraint on typ
     # (allows 'binarny' type; SQLite can't ALTER CHECK)
@@ -334,10 +377,13 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
                        (prod, etap, kolej, rown))
 
     # Migration: rename smca → namca in existing data
-    db.execute("UPDATE OR IGNORE parametry_etapy SET kontekst = 'namca' WHERE kontekst = 'smca'")
-    db.execute("UPDATE OR IGNORE ebr_etapy_status SET etap = 'namca' WHERE etap = 'smca'")
-    db.execute("UPDATE OR IGNORE ebr_etapy_analizy SET etap = 'namca' WHERE etap = 'smca'")
-    db.execute("UPDATE OR IGNORE produkt_etapy SET etap_kod = 'namca' WHERE etap_kod = 'smca'")
+    try:
+        db.execute("UPDATE OR IGNORE parametry_etapy SET kontekst = 'namca' WHERE kontekst = 'smca'")
+        db.execute("UPDATE OR IGNORE ebr_etapy_status SET etap = 'namca' WHERE etap = 'smca'")
+        db.execute("UPDATE OR IGNORE ebr_etapy_analizy SET etap = 'namca' WHERE etap = 'smca'")
+        db.execute("UPDATE OR IGNORE produkt_etapy SET etap_kod = 'namca' WHERE etap_kod = 'smca'")
+    except Exception:
+        pass  # tables may not exist yet on fresh DB; will be created below
 
     db.commit()
 
@@ -399,13 +445,18 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             id              INTEGER PRIMARY KEY,
             kod             TEXT NOT NULL UNIQUE,
             label           TEXT NOT NULL,
-            typ             TEXT NOT NULL CHECK(typ IN ('bezposredni', 'titracja', 'obliczeniowy')),
+            typ             TEXT NOT NULL,
             metoda_nazwa    TEXT,
             metoda_formula  TEXT,
             metoda_factor   REAL,
             formula         TEXT,
             precision       INTEGER DEFAULT 2,
-            aktywny         INTEGER DEFAULT 1
+            aktywny         INTEGER DEFAULT 1,
+            skrot           TEXT,
+            metoda_id       INTEGER REFERENCES metody_miareczkowe(id),
+            jednostka       TEXT,
+            name_en         TEXT,
+            method_code     TEXT
         )
     """)
     db.execute("""
@@ -419,6 +470,8 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             max_limit       REAL,
             nawazka_g       REAL,
             wymagany        INTEGER DEFAULT 0,
+            target          REAL,
+            krok            INTEGER,
             UNIQUE(produkt, kontekst, parametr_id)
         )
     """)
@@ -637,6 +690,35 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
                     "DELETE FROM parametry_analityczne WHERE id = ?",
                     (old_param[0],),
                 )
+    db.commit()
+
+    # Migration: add name_en to parametry_analityczne (English name for certificates)
+    try:
+        db.execute("ALTER TABLE parametry_analityczne ADD COLUMN name_en TEXT")
+        db.commit()
+    except Exception:
+        pass
+
+    # Migration: add method_code to parametry_analityczne (lab method code e.g. L928)
+    try:
+        db.execute("ALTER TABLE parametry_analityczne ADD COLUMN method_code TEXT")
+        db.commit()
+    except Exception:
+        pass
+
+    # Migration: create parametry_cert table (certificate parameter bindings)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS parametry_cert (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            produkt             TEXT NOT NULL,
+            parametr_id         INTEGER NOT NULL REFERENCES parametry_analityczne(id),
+            kolejnosc           INTEGER DEFAULT 0,
+            requirement         TEXT,
+            format              TEXT DEFAULT '1',
+            qualitative_result  TEXT,
+            UNIQUE(produkt, parametr_id)
+        )
+    """)
     db.commit()
 
     # Migration: product_ref_values — per-product reference values for analiza_koncowa

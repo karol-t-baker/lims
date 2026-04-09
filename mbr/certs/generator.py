@@ -108,6 +108,72 @@ def _format_value(value: float, fmt: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# 4b. _build_rows_from_db
+# ---------------------------------------------------------------------------
+def _build_rows_from_db(db, produkt: str, wyniki_flat: dict) -> list[dict]:
+    """Build certificate rows from parametry_cert + parametry_analityczne (DB source).
+
+    Returns list of dicts with keys: _kod, name_pl, name_en, requirement, method, result.
+    _kod is internal (for variant filtering), stripped by caller.
+    """
+    rows_db = db.execute(
+        "SELECT pc.*, pa.kod, pa.label, pa.name_en, pa.method_code, pa.precision as pa_precision "
+        "FROM parametry_cert pc "
+        "JOIN parametry_analityczne pa ON pa.id = pc.parametr_id "
+        "WHERE pc.produkt = ? ORDER BY pc.kolejnosc",
+        (produkt,),
+    ).fetchall()
+
+    rows = []
+    for r in rows_db:
+        result = ""
+        if r["qualitative_result"]:
+            result = r["qualitative_result"]
+        elif r["kod"] and r["kod"] in wyniki_flat:
+            raw = wyniki_flat[r["kod"]]
+            if isinstance(raw, dict):
+                val = raw.get("wartosc", raw.get("value", ""))
+            else:
+                val = raw
+            if val is not None and val != "":
+                try:
+                    fmt = r["format"] or "1"
+                    result = _format_value(float(val), fmt)
+                except (ValueError, TypeError):
+                    result = str(val).replace(".", ",")
+
+        rows.append({
+            "_kod": r["kod"] or "",
+            "name_pl": r["label"] or "",
+            "name_en": r["name_en"] or "",
+            "requirement": r["requirement"] or "",
+            "method": r["method_code"] or "",
+            "result": result,
+        })
+
+    return rows
+
+
+# ---------------------------------------------------------------------------
+# 4c. _get_product_meta
+# ---------------------------------------------------------------------------
+def _get_product_meta(db, produkt: str) -> dict | None:
+    """Read product metadata from produkty table.
+
+    Returns dict with display_name, spec_number, cas_number, expiry_months,
+    opinion_pl, opinion_en — or None if not found.
+    """
+    row = db.execute(
+        "SELECT display_name, spec_number, cas_number, expiry_months, "
+        "opinion_pl, opinion_en FROM produkty WHERE nazwa = ?",
+        (produkt,),
+    ).fetchone()
+    if row is None:
+        return None
+    return dict(row)
+
+
+# ---------------------------------------------------------------------------
 # 5. build_context
 # ---------------------------------------------------------------------------
 def build_context(
@@ -150,57 +216,126 @@ def build_context(
     if variant is None:
         raise ValueError(f"Unknown variant '{variant_id}' for product '{produkt}'")
 
-    # Apply variant overrides
-    spec_number = product_cfg["spec_number"]
-    opinion_pl = product_cfg["opinion_pl"]
-    opinion_en = product_cfg["opinion_en"]
     parameters = copy.deepcopy(product_cfg["parameters"])
 
     overrides = variant.get("overrides", {})
-    if "spec_number" in overrides:
-        spec_number = overrides["spec_number"]
-    if "opinion_pl" in overrides:
-        opinion_pl = overrides["opinion_pl"]
-    if "opinion_en" in overrides:
-        opinion_en = overrides["opinion_en"]
 
-    # Remove parameters
+    # Product metadata — DB-first, fallback to cert_config.json
+    from mbr.db import db_session as _db_session
+    product_meta = None
+    try:
+        with _db_session() as _pdb:
+            product_meta = _get_product_meta(_pdb, key)
+    except Exception:
+        pass
+
+    if product_meta and product_meta.get("display_name"):
+        _display_name = product_meta["display_name"]
+        _spec_number = product_meta["spec_number"] or product_cfg.get("spec_number", "")
+        _cas_number = product_meta["cas_number"] or product_cfg.get("cas_number", "")
+        _expiry_months = product_meta["expiry_months"] or product_cfg.get("expiry_months", 12)
+        _opinion_pl = product_meta["opinion_pl"] or product_cfg.get("opinion_pl", "")
+        _opinion_en = product_meta["opinion_en"] or product_cfg.get("opinion_en", "")
+    else:
+        _display_name = product_cfg.get("display_name", key)
+        _spec_number = product_cfg.get("spec_number", "")
+        _cas_number = product_cfg.get("cas_number", "")
+        _expiry_months = product_cfg.get("expiry_months", 12)
+        _opinion_pl = product_cfg.get("opinion_pl", "")
+        _opinion_en = product_cfg.get("opinion_en", "")
+
+    # Apply variant overrides on top of base values
+    spec_number = overrides.get("spec_number", _spec_number)
+    opinion_pl = overrides.get("opinion_pl", _opinion_pl)
+    opinion_en = overrides.get("opinion_en", _opinion_en)
+
+    # Remove parameters (for config fallback)
     remove_ids = set(overrides.get("remove_parameters", []))
-    if remove_ids:
-        parameters = [p for p in parameters if p["id"] not in remove_ids]
 
-    # Add parameters
-    add_params = overrides.get("add_parameters", [])
-    if add_params:
-        parameters.extend(copy.deepcopy(add_params))
-
-    # Build rows
+    # Build rows — DB-first with config fallback
     rows = []
-    for param in parameters:
-        # Determine result value
-        result = ""
-        if param.get("qualitative_result"):
-            result = param["qualitative_result"]
-        elif param.get("data_field") and param["data_field"] in wyniki_flat:
-            raw = wyniki_flat[param["data_field"]]
-            # wyniki_flat values can be dicts with a 'wartosc' key or raw values
-            if isinstance(raw, dict):
-                val = raw.get("wartosc", raw.get("value", ""))
-            else:
-                val = raw
-            if val is not None and val != "":
-                try:
-                    result = _format_value(float(val), param.get("format", "1"))
-                except (ValueError, TypeError):
-                    result = str(val).replace(".", ",")
+    use_db = False
+    try:
+        with _db_session() as db:
+            cert_count = db.execute(
+                "SELECT COUNT(*) as c FROM parametry_cert WHERE produkt=?", (key,)
+            ).fetchone()["c"]
+            if cert_count > 0:
+                use_db = True
+                db_rows = _build_rows_from_db(db, key, wyniki_flat)
 
-        rows.append({
-            "name_pl": param["name_pl"],
-            "name_en": param["name_en"],
-            "requirement": param["requirement"],
-            "method": param.get("method", ""),
-            "result": result,
-        })
+                # Variant: remove_parameters
+                if remove_ids:
+                    remove_kods = set()
+                    for p in product_cfg.get("parameters", []):
+                        if p["id"] in remove_ids:
+                            remove_kods.add(p.get("data_field") or p["id"])
+                    db_rows = [r for r in db_rows if r.get("_kod") not in remove_kods]
+
+                # Variant: add_parameters (still from config JSON)
+                for ap in overrides.get("add_parameters", []):
+                    result = ""
+                    if ap.get("qualitative_result"):
+                        result = ap["qualitative_result"]
+                    elif ap.get("data_field") and ap["data_field"] in wyniki_flat:
+                        raw = wyniki_flat[ap["data_field"]]
+                        val = raw.get("wartosc", raw) if isinstance(raw, dict) else raw
+                        if val is not None and val != "":
+                            try:
+                                result = _format_value(float(val), ap.get("format", "1"))
+                            except (ValueError, TypeError):
+                                result = str(val).replace(".", ",")
+                    db_rows.append({
+                        "name_pl": ap.get("name_pl", ""),
+                        "name_en": ap.get("name_en", ""),
+                        "requirement": ap.get("requirement", ""),
+                        "method": ap.get("method", ""),
+                        "result": result,
+                    })
+
+                # Strip internal _kod field
+                rows = [{k: v for k, v in r.items() if k != "_kod"} for r in db_rows]
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("parametry_cert DB read failed, falling back to config: %s", e)
+        use_db = False
+
+    if not use_db:
+        # Original config-based logic (unchanged fallback)
+        if remove_ids:
+            parameters = [p for p in parameters if p["id"] not in remove_ids]
+
+        # Add parameters
+        add_params = overrides.get("add_parameters", [])
+        if add_params:
+            parameters.extend(copy.deepcopy(add_params))
+
+        rows = []
+        for param in parameters:
+            # Determine result value
+            result = ""
+            if param.get("qualitative_result"):
+                result = param["qualitative_result"]
+            elif param.get("data_field") and param["data_field"] in wyniki_flat:
+                raw = wyniki_flat[param["data_field"]]
+                # wyniki_flat values can be dicts with a 'wartosc' key or raw values
+                if isinstance(raw, dict):
+                    val = raw.get("wartosc", raw.get("value", ""))
+                else:
+                    val = raw
+                if val is not None and val != "":
+                    try:
+                        result = _format_value(float(val), param.get("format", "1"))
+                    except (ValueError, TypeError):
+                        result = str(val).replace(".", ",")
+
+            rows.append({
+                "name_pl": param["name_pl"],
+                "name_en": param["name_en"],
+                "requirement": param["requirement"],
+                "method": param.get("method", ""),
+                "result": result,
+            })
 
     # Calculate dates
     dt_produkcji = ""
@@ -220,7 +355,7 @@ def build_context(
 
         if dt_obj:
             dt_produkcji = dt_obj.strftime("%d.%m.%Y")
-            expiry_months = product_cfg.get("expiry_months", 12)
+            expiry_months = _expiry_months
             # Add expiry_months
             year = dt_obj.year + (dt_obj.month - 1 + expiry_months) // 12
             month = (dt_obj.month - 1 + expiry_months) % 12 + 1
@@ -248,9 +383,9 @@ def build_context(
     return {
         "company": cfg["company"],
         "footer": cfg["footer"],
-        "display_name": product_cfg["display_name"] + (" MB" if has_rspo else ""),
+        "display_name": _display_name + (" MB" if has_rspo else ""),
         "spec_number": spec_number,
-        "cas_number": product_cfg.get("cas_number", ""),
+        "cas_number": _cas_number,
         "nr_partii": nr_partii,
         "dt_produkcji": dt_produkcji,
         "dt_waznosci": dt_waznosci,
