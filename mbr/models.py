@@ -497,6 +497,41 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     except Exception:
         pass  # column already exists
 
+    # Migration: rebuild ebr_batches CHECK constraint to allow 'platkowanie' typ
+    try:
+        row = db.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='ebr_batches'"
+        ).fetchone()
+        if row and "platkowanie" not in (row["sql"] or ""):
+            db.execute("ALTER TABLE ebr_batches RENAME TO _ebr_batches_old")
+            db.execute("""
+                CREATE TABLE ebr_batches (
+                    ebr_id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    mbr_id              INTEGER NOT NULL REFERENCES mbr_templates(mbr_id),
+                    batch_id            TEXT UNIQUE NOT NULL,
+                    nr_partii           TEXT NOT NULL,
+                    nr_amidatora        TEXT,
+                    nr_mieszalnika      TEXT,
+                    wielkosc_szarzy_kg  REAL,
+                    surowce_json        TEXT,
+                    dt_start            TEXT NOT NULL,
+                    dt_end              TEXT,
+                    status              TEXT NOT NULL DEFAULT 'open'
+                                        CHECK(status IN ('open', 'completed', 'cancelled')),
+                    operator            TEXT,
+                    typ                 TEXT NOT NULL DEFAULT 'szarza'
+                                        CHECK(typ IN ('szarza', 'zbiornik', 'platkowanie')),
+                    nastaw              INTEGER,
+                    przepompowanie_json TEXT,
+                    nr_zbiornika        TEXT DEFAULT ''
+                )
+            """)
+            db.execute("INSERT INTO ebr_batches SELECT * FROM _ebr_batches_old")
+            db.execute("DROP TABLE _ebr_batches_old")
+            db.commit()
+    except Exception:
+        pass
+
     # Migration: add samples_json column for titration persistence
     try:
         db.execute("ALTER TABLE ebr_wyniki ADD COLUMN samples_json TEXT")
