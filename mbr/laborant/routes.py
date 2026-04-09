@@ -74,6 +74,24 @@ def szarze_new():
                         )
                 db.commit()
 
+            # Save platkowanie substraty (optional, from modal substrat rows)
+            substraty_json = request.form.get("substraty_json", "[]")
+            try:
+                import json as _json
+                substraty = _json.loads(substraty_json)
+                for sub in substraty:
+                    sub_id = sub.get("substrat_id")
+                    nr = sub.get("nr_partii", "")
+                    if sub_id:
+                        db.execute(
+                            "INSERT OR IGNORE INTO platkowanie_substraty (ebr_id, substrat_id, nr_partii_substratu) VALUES (?, ?, ?)",
+                            (ebr_id, sub_id, nr),
+                        )
+                if substraty:
+                    db.commit()
+            except Exception:
+                pass
+
     if ebr_id is None:
         flash("Brak aktywnego szablonu MBR dla tego produktu.")
     # Return to referring page (fast_entry or szarze_list)

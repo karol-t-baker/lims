@@ -85,6 +85,22 @@ def admin_produkty():
     return redirect(url_for("parametry.parametry_editor"))
 
 
+# ── Platkowanie substraty (per batch) ──
+
+@zbiorniki_bp.route("/api/platkowanie-substraty/<int:ebr_id>")
+@login_required
+def api_platkowanie_substraty(ebr_id):
+    """Get substraty linked to a platkowanie batch."""
+    with db_session() as db:
+        rows = db.execute("""
+            SELECT ps.id, ps.substrat_id, ps.nr_partii_substratu, s.nazwa
+            FROM platkowanie_substraty ps
+            JOIN substraty s ON s.id = ps.substrat_id
+            WHERE ps.ebr_id = ?
+        """, (ebr_id,)).fetchall()
+    return jsonify([dict(r) for r in rows])
+
+
 # ── Substraty API ──
 
 @zbiorniki_bp.route("/api/substraty")

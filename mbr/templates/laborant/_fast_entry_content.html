@@ -1051,8 +1051,22 @@ function renderCompletedView() {
     '</div>';
     }
 
+    // Substraty section for platkowanie
+    if (isPlatkowanie) {
+    html += '<div class="cv-params" id="cv-substraty">' +
+        '<div class="cv-params-head">' +
+            '<span style="display:flex;align-items:center;gap:6px;">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;opacity:0.5;"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>' +
+                'Substraty' +
+            '</span>' +
+        '</div>' +
+        '<div id="cv-substraty-list" style="padding:14px 16px;color:var(--text-dim);font-size:12px;">Ładowanie...</div>' +
+    '</div>';
+    }
+
     container.innerHTML = html;
     setTimeout(loadCompletedZbiorniki, 100);
+    if (isPlatkowanie) loadCompletedSubstraty();
     if (isZbiornik) loadCompletedCerts();
 
     // Dynamic topbar — hide when hero visible, show on scroll past hero
@@ -2233,6 +2247,29 @@ function editCompletedZbiorniki() {
 }
 
 function completePompuj() { openPumpModal(); }
+
+async function loadCompletedSubstraty() {
+    var el = document.getElementById('cv-substraty-list');
+    if (!el) return;
+    try {
+        var resp = await fetch('/api/platkowanie-substraty/' + ebrId);
+        var subs = await resp.json();
+        if (subs.length === 0) {
+            el.innerHTML = '<span style="color:var(--text-dim);">Brak substratów</span>';
+        } else {
+            var html = '';
+            subs.forEach(function(s) {
+                html += '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;">' +
+                    '<span style="font-weight:600;color:var(--text);">' + esc(s.nazwa) + '</span>' +
+                    '<span style="font-family:var(--mono);color:var(--teal);font-weight:700;">' + esc(s.nr_partii_substratu || '—') + '</span>' +
+                '</div>';
+            });
+            el.innerHTML = html;
+        }
+    } catch(e) {
+        el.innerHTML = '<span style="color:var(--red);">Błąd ładowania</span>';
+    }
+}
 
 async function completePlatkowanie() {
     if (!confirm('Zakończyć płatkowanie?')) return;
