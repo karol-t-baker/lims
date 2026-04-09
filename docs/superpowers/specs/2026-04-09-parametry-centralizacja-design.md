@@ -200,6 +200,20 @@ Rozszerzenie PARAMETRY list o `name_en` i `method_code`.
 
 Endpointy cert w `parametry/routes.py` (nie w `certs/routes.py`) — to zarządzanie parametrami, nie generowanie świadectw.
 
+## Punkt startowy: stash@{0}
+
+Stash zawiera niedokończoną pracę, z której czerpiemy:
+
+### Do wykorzystania
+- **`parametry_editor.html`** — CSS i JS dla dwóch zakładek (pe-tabs, switchTab, loadDefinicje, renderDefTable, addParametr, toggleActive). Rozszerzamy o trzecią zakładkę "Świadectwa".
+- **`parametry/routes.py`** — `is_admin` flag, admin widzi nieaktywne parametry, może edytować typ/jednostka/aktywny, `POST /api/parametry` (tworzenie parametru), `GET/POST /api/ref-values` (wartości referencyjne per produkt, tabela `product_ref_values`).
+
+### Do rozważenia
+- **`product_ref_values`** — tabela wartości referencyjnych per produkt×kontekst. Nie jest częścią core scope centralizacji, ale istnieje w stashu. Jeśli jest potrzebna — zachowujemy. Jeśli nie — pomijamy przy apply.
+
+### Pozostałe zmiany w stashu
+Stash zawiera też zmiany w: laborant/models.py, laborant/routes.py, fast_entry, szarze_list, cert_master, narzedzia_metody. Te zmiany mogą być niezwiązane z parametrami — wymagają selektywnego cherry-pick przy apply (nie stosujemy `git stash pop` na ślepo).
+
 ## Technologia
 
 - Frontend: Vanilla JS (spójne z resztą), Jinja2 template
