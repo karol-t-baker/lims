@@ -3613,14 +3613,10 @@ var _cmParams = [];
 var _cmAvailableCodes = [];
 
 function openCertMappingEditor() {
-  fetch('/api/cert/config/parameters?produkt=' + encodeURIComponent(window._batchProdukt))
-    .then(function(r){return r.json();})
-    .then(function(data) {
-      _cmParams = data.parameters || [];
-      _cmAvailableCodes = data.available_codes || [];
-      renderCertMapping();
-      document.getElementById('cm-modal-overlay').classList.add('show');
-    });
+  // Cert mapping editor moved to /admin/wzory-cert
+  var key = window._batchProdukt.replace(/ /g, '_');
+  var goToEditor = confirm('Edytor parametrów świadectw został przeniesiony do Admin → Wzory świadectw.\n\nCzy chcesz przejść do nowego edytora?');
+  if (goToEditor) window.open('/admin/wzory-cert', '_blank');
 }
 
 function closeCertMapping() {
