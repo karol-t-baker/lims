@@ -2,6 +2,7 @@
 
 import sqlite3
 import pytest
+from flask import Flask
 from mbr.models import init_mbr_tables
 
 
@@ -12,6 +13,42 @@ def db():
     init_mbr_tables(conn)
     yield conn
     conn.close()
+
+
+@pytest.fixture
+def app(db):
+    from mbr.parametry import parametry_bp
+    _app = Flask(__name__)
+    _app.secret_key = "test"
+
+    import mbr.parametry.routes as _routes
+    _orig = _routes.db_session
+
+    from contextlib import contextmanager
+
+    @contextmanager
+    def _test_db_session():
+        yield db
+
+    _routes.db_session = _test_db_session
+    _app.register_blueprint(parametry_bp)
+
+    db.execute(
+        "INSERT INTO parametry_analityczne (kod, label, typ, precision) "
+        "VALUES ('sm', 'Sucha masa', 'bezposredni', 1)"
+    )
+    db.commit()
+
+    yield _app
+    _routes.db_session = _orig
+
+
+@pytest.fixture
+def client(app):
+    with app.test_client() as c:
+        with c.session_transaction() as sess:
+            sess["user"] = {"login": "admin", "rola": "admin"}
+        yield c
 
 
 def test_parametry_analityczne_has_name_en(db):
@@ -109,3 +146,151 @@ def test_jakosciowy_typ_allowed(db):
     ).fetchone()
     assert row is not None
     assert row["typ"] == "jakosciowy"
+
+
+# --- API endpoint tests ---
+
+
+def _get_param_id(db):
+    return db.execute(
+        "SELECT id FROM parametry_analityczne WHERE kod='sm'"
+    ).fetchone()["id"]
+
+
+def test_get_cert_bindings_empty(client):
+    """GET returns empty list for unknown product."""
+    resp = client.get("/api/parametry/cert/UNKNOWN_PRODUCT")
+    assert resp.status_code == 200
+    assert resp.get_json() == []
+
+
+def test_create_cert_binding(client, db):
+    """POST creates binding, returns ok + id."""
+    param_id = _get_param_id(db)
+    resp = client.post(
+        "/api/parametry/cert",
+        json={"produkt": "K40GLO", "parametr_id": param_id, "kolejnosc": 1, "requirement": "min 40%"},
+    )
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["ok"] is True
+    assert isinstance(data["id"], int)
+
+    # Verify it's readable via GET
+    resp2 = client.get("/api/parametry/cert/K40GLO")
+    rows = resp2.get_json()
+    assert len(rows) == 1
+    assert rows[0]["requirement"] == "min 40%"
+    assert rows[0]["kod"] == "sm"
+
+
+def test_update_cert_binding(client, db):
+    """PUT updates requirement field."""
+    param_id = _get_param_id(db)
+    create_resp = client.post(
+        "/api/parametry/cert",
+        json={"produkt": "K40GLO", "parametr_id": param_id, "kolejnosc": 1, "requirement": "old"},
+    )
+    binding_id = create_resp.get_json()["id"]
+
+    resp = client.put(f"/api/parametry/cert/{binding_id}", json={"requirement": "new"})
+    assert resp.status_code == 200
+    assert resp.get_json()["ok"] is True
+
+    row = db.execute("SELECT requirement FROM parametry_cert WHERE id=?", (binding_id,)).fetchone()
+    assert row["requirement"] == "new"
+
+
+def test_delete_cert_binding(client, db):
+    """DELETE removes binding."""
+    param_id = _get_param_id(db)
+    create_resp = client.post(
+        "/api/parametry/cert",
+        json={"produkt": "K40GLO", "parametr_id": param_id, "kolejnosc": 1},
+    )
+    binding_id = create_resp.get_json()["id"]
+
+    resp = client.delete(f"/api/parametry/cert/{binding_id}")
+    assert resp.status_code == 200
+    assert resp.get_json()["ok"] is True
+
+    row = db.execute("SELECT id FROM parametry_cert WHERE id=?", (binding_id,)).fetchone()
+    assert row is None
+
+
+def test_build_rows_from_db(db):
+    """_build_rows_from_db reads params from parametry_cert."""
+    db.execute(
+        "INSERT INTO parametry_analityczne (kod, label, typ, name_en, method_code, precision) "
+        "VALUES ('sm', 'Sucha masa', 'bezposredni', 'Dry matter [%]', 'L903', 1)"
+    )
+    db.commit()
+    pa_id = db.execute("SELECT id FROM parametry_analityczne WHERE kod='sm'").fetchone()["id"]
+    db.execute(
+        "INSERT INTO parametry_cert (produkt, parametr_id, kolejnosc, requirement, format) "
+        "VALUES ('Chegina_K40GLOL', ?, 0, 'min. 44,0', '1')",
+        (pa_id,),
+    )
+    db.commit()
+
+    from mbr.certs.generator import _build_rows_from_db
+    rows = _build_rows_from_db(db, "Chegina_K40GLOL", {"sm": {"wartosc": 45.3}})
+    assert len(rows) == 1
+    assert rows[0]["name_pl"] == "Sucha masa"
+    assert rows[0]["name_en"] == "Dry matter [%]"
+    assert rows[0]["method"] == "L903"
+    assert rows[0]["requirement"] == "min. 44,0"
+    assert rows[0]["result"] == "45,3"
+
+
+def test_build_rows_qualitative(db):
+    """Qualitative params use qualitative_result from parametry_cert."""
+    db.execute(
+        "INSERT INTO parametry_analityczne (kod, label, typ, name_en) "
+        "VALUES ('odour', 'Zapach', 'jakosciowy', 'Odour')"
+    )
+    db.commit()
+    pa_id = db.execute("SELECT id FROM parametry_analityczne WHERE kod='odour'").fetchone()["id"]
+    db.execute(
+        "INSERT INTO parametry_cert (produkt, parametr_id, kolejnosc, requirement, qualitative_result) "
+        "VALUES ('Prod_A', ?, 0, 'słaby /faint', 'zgodny /right')",
+        (pa_id,),
+    )
+    db.commit()
+
+    from mbr.certs.generator import _build_rows_from_db
+    rows = _build_rows_from_db(db, "Prod_A", {})
+    assert len(rows) == 1
+    assert rows[0]["result"] == "zgodny /right"
+    assert rows[0]["requirement"] == "słaby /faint"
+
+
+def test_reorder_cert_bindings(client, db):
+    """POST reorder swaps kolejnosc for two bindings."""
+    db.execute(
+        "INSERT INTO parametry_analityczne (kod, label, typ) VALUES ('nd', 'Refraktometr', 'bezposredni')"
+    )
+    db.commit()
+    param_id_sm = _get_param_id(db)
+    param_id_nd = db.execute("SELECT id FROM parametry_analityczne WHERE kod='nd'").fetchone()["id"]
+
+    r1 = client.post(
+        "/api/parametry/cert",
+        json={"produkt": "K40GLO", "parametr_id": param_id_sm, "kolejnosc": 1},
+    ).get_json()["id"]
+    r2 = client.post(
+        "/api/parametry/cert",
+        json={"produkt": "K40GLO", "parametr_id": param_id_nd, "kolejnosc": 2},
+    ).get_json()["id"]
+
+    resp = client.post(
+        "/api/parametry/cert/reorder",
+        json={"bindings": [{"id": r1, "kolejnosc": 2}, {"id": r2, "kolejnosc": 1}]},
+    )
+    assert resp.status_code == 200
+    assert resp.get_json()["ok"] is True
+
+    row1 = db.execute("SELECT kolejnosc FROM parametry_cert WHERE id=?", (r1,)).fetchone()
+    row2 = db.execute("SELECT kolejnosc FROM parametry_cert WHERE id=?", (r2,)).fetchone()
+    assert row1["kolejnosc"] == 2
+    assert row2["kolejnosc"] == 1
