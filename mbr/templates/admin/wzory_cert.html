@@ -260,6 +260,16 @@ function _codeOptions(current) {
   return html;
 }
 
+function _isAutoValue(val) {
+  // Check if value matches any known label/name_en/method_code from available codes
+  if (!val) return true;
+  for (var i = 0; i < _availableCodes.length; i++) {
+    var c = _availableCodes[i];
+    if (val === c.label || val === c.name_en || val === c.method_code) return true;
+  }
+  return false;
+}
+
 function onCodeSelect(sel) {
   var kod = sel.value;
   if (!kod) return;
@@ -270,18 +280,17 @@ function onCodeSelect(sel) {
     if (_availableCodes[i].kod === kod) { code = _availableCodes[i]; break; }
   }
   if (!code) return;
-  // Auto-fill name_pl, name_en, method if currently empty
   var plInput = tr.querySelector('[data-field="name_pl"]');
   var enInput = tr.querySelector('[data-field="name_en"]');
   var methodInput = tr.querySelector('[data-field="method"]');
   var fmtSelect = tr.querySelector('[data-field="format"]');
-  if (plInput && !plInput.value) plInput.value = code.label || '';
-  if (enInput && !enInput.value) {
+  if (plInput && _isAutoValue(plInput.value)) plInput.value = code.label || '';
+  if (enInput && _isAutoValue(enInput.value)) {
     enInput.value = code.name_en || '';
     autoId(enInput);
   }
-  if (methodInput && !methodInput.value) methodInput.value = code.method_code || '';
-  if (fmtSelect && !fmtSelect.value && code.precision != null) fmtSelect.value = String(code.precision);
+  if (methodInput && _isAutoValue(methodInput.value)) methodInput.value = code.method_code || '';
+  if (fmtSelect && (!fmtSelect.value || _isAutoValue(fmtSelect.value)) && code.precision != null) fmtSelect.value = String(code.precision);
 }
 
 function onCodeSelectAp(sel) {
@@ -297,9 +306,9 @@ function onCodeSelectAp(sel) {
   var pl = row.querySelector('[data-ap="name_pl"]');
   var en = row.querySelector('[data-ap="name_en"]');
   var meth = row.querySelector('[data-ap="method"]');
-  if (pl && !pl.value) pl.value = code.label || '';
-  if (en && !en.value) en.value = code.name_en || '';
-  if (meth && !meth.value) meth.value = code.method_code || '';
+  if (pl && _isAutoValue(pl.value)) pl.value = code.label || '';
+  if (en && _isAutoValue(en.value)) en.value = code.name_en || '';
+  if (meth && _isAutoValue(meth.value)) meth.value = code.method_code || '';
 }
 
 function _formatOptions(current) {
