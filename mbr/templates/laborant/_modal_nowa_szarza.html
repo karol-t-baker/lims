@@ -25,10 +25,10 @@
           <div class="type-grid">
             <div class="type-card" onclick="selectTyp('szarza')">
               <div class="tc-icon">
+                {# Kolba/reaktor — synteza chemiczna betain #}
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2" />
-                  <path d="M6.453 15h11.094" />
-                  <path d="M8.5 2h7" />
+                  <path d="M9 3h6"/><path d="M10 3v7.53L6.11 18.12A2 2 0 007.89 21h8.22a2 2 0 001.78-2.88L14 10.53V3"/>
+                  <line x1="8.5" y1="14" x2="15.5" y2="14"/>
                 </svg>
               </div>
               <div class="tc-name">Szarza produkcyjna</div>
@@ -36,13 +36,9 @@
             </div>
             <div class="type-card" onclick="selectTyp('zbiornik')">
               <div class="tc-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M3 7V5a2 2 0 0 1 2-2h2" />
-                  <path d="M17 3h2a2 2 0 0 1 2 2v2" />
-                  <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
-                  <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="m16 16-1.9-1.9" />
+                {# Zbiornik magazynowy — cylinder z przekrojem #}
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  <ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"/>
                 </svg>
               </div>
               <div class="tc-name">Analiza zbiornika</div>
@@ -50,19 +46,9 @@
             </div>
             <div class="type-card" onclick="selectTyp('platkowanie')">
               <div class="tc-icon">
+                {# Warstwy/platki — sypki produkt chemiczny #}
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="m10 20-1.25-2.5L6 18" />
-                  <path d="M10 4 8.75 6.5 6 6" />
-                  <path d="m14 20 1.25-2.5L18 18" />
-                  <path d="m14 4 1.25 2.5L18 6" />
-                  <path d="m17 21-3-6h-4" />
-                  <path d="m17 3-3 6 1.5 3" />
-                  <path d="M2 12h6.5L10 9" />
-                  <path d="m20 10-1.5 2 1.5 2" />
-                  <path d="M22 12h-6.5L14 15" />
-                  <path d="m4 10 1.5 2L4 14" />
-                  <path d="m7 21 3-6-1.5-3" />
-                  <path d="m7 3 3 6h4" />
+                  <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
                 </svg>
               </div>
               <div class="tc-name">Platkowanie</div>
