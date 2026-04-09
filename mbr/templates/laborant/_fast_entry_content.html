@@ -912,8 +912,8 @@ function renderCompletedView() {
         '<div class="cv-h2-stamp">KJ-LAB · 2026</div>' +
     '</div>';
 
-    // Params list — editable for zbiornik (but not for COA)
-    var canEdit = isZbiornik && userRola !== 'laborant_coa';
+    // Params list — editable for completed batches (zbiornik + szarza, but not for COA)
+    var canEdit = userRola !== 'laborant_coa';
     var paramsHtml = '<div class="cv-params">' +
         '<div class="cv-params-head" style="display:flex;align-items:center;justify-content:space-between;">' +
             '<span>Parametry końcowe</span>' +
