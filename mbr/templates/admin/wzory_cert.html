@@ -1,0 +1,886 @@
+{% extends "base.html" %}
+{% block title %}Wzory świadectw{% endblock %}
+{% block nav_admin %}active{% endblock %}
+
+{% block topbar_title %}
+  <span style="font-weight:700;">Wzory świadectw</span>
+{% endblock %}
+
+{% block head %}
+<style>
+.wc-wrap{display:flex;height:calc(100vh - 52px);overflow:hidden;}
+.wc-left{flex:0 0 55%;max-width:55%;overflow-y:auto;padding:24px 32px;border-right:1px solid var(--border);}
+.wc-right{flex:1;display:flex;flex-direction:column;background:var(--surface-alt);}
+
+/* Flash */
+.wc-flash{padding:10px 16px;border-radius:var(--radius);font-size:12px;font-weight:600;margin-bottom:16px;display:none;}
+.wc-flash.ok{background:#dcfce7;color:var(--green);}
+.wc-flash.err{background:#fef2f2;color:var(--red);}
+
+/* Product list */
+.wc-title{font-size:18px;font-weight:700;margin-bottom:16px;color:var(--text);}
+.wc-cards{display:flex;flex-direction:column;gap:10px;}
+.wc-card{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);cursor:pointer;transition:border-color .15s;}
+.wc-card:hover{border-color:var(--teal);}
+.wc-card-name{font-weight:700;font-size:13px;color:var(--text);}
+.wc-card-meta{font-size:11px;color:var(--text-dim);margin-top:2px;}
+.wc-card-actions{display:flex;gap:6px;align-items:center;}
+.wc-btn{padding:7px 16px;border:none;border-radius:var(--radius);font-size:12px;font-weight:600;cursor:pointer;transition:opacity .15s;}
+.wc-btn:hover{opacity:.85;}
+.wc-btn-primary{background:var(--teal);color:#fff;}
+.wc-btn-danger{background:var(--red);color:#fff;padding:5px 10px;font-size:11px;}
+.wc-btn-secondary{background:var(--surface-alt);color:var(--text);border:1px solid var(--border);}
+.wc-btn-sm{padding:4px 10px;font-size:11px;}
+
+/* New product form */
+.wc-form{display:flex;flex-direction:column;gap:12px;max-width:480px;}
+.wc-form label{font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:3px;}
+.wc-form input,.wc-form textarea{width:100%;padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--radius);font-size:12px;font-family:inherit;background:var(--surface);}
+.wc-form input:focus,.wc-form textarea:focus{border-color:var(--teal);outline:none;}
+.wc-form textarea{resize:vertical;min-height:48px;}
+.wc-form-row{display:flex;gap:12px;}
+.wc-form-row>div{flex:1;}
+
+/* Editor */
+.wc-back{font-size:12px;color:var(--teal);cursor:pointer;margin-bottom:12px;display:inline-block;text-decoration:none;}
+.wc-back:hover{text-decoration:underline;}
+.wc-section{margin-bottom:24px;}
+.wc-section-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px;text-transform:uppercase;letter-spacing:.4px;}
+.wc-ed-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
+.wc-ed-grid.full{grid-template-columns:1fr;}
+.wc-ed-field label{font-size:10px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.3px;display:block;margin-bottom:2px;}
+.wc-ed-field input,.wc-ed-field textarea,.wc-ed-field select{width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:4px;font-size:12px;font-family:inherit;background:var(--surface);}
+.wc-ed-field input:focus,.wc-ed-field textarea:focus,.wc-ed-field select:focus{border-color:var(--teal);outline:none;}
+
+/* Params table */
+.wc-params{width:100%;border-collapse:collapse;font-size:11px;}
+.wc-params th{text-align:left;padding:8px 6px;font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.4px;border-bottom:2px solid var(--border);white-space:nowrap;}
+.wc-params td{padding:5px 4px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.wc-params tr:hover{background:var(--surface-alt);}
+.wc-params input,.wc-params select{width:100%;padding:4px 6px;border:1px solid transparent;border-radius:4px;font-size:11px;font-family:inherit;background:transparent;}
+.wc-params input:hover,.wc-params select:hover{border-color:var(--border);}
+.wc-params input:focus,.wc-params select:focus{border-color:var(--teal);outline:none;background:var(--surface);}
+.wc-params .wc-drag{cursor:grab;color:var(--text-dim);font-size:14px;user-select:none;padding:0 4px;}
+.wc-params .wc-drag:active{cursor:grabbing;}
+.wc-dragging{opacity:.4;}
+.wc-params .wc-id-cell{font-family:var(--mono);font-size:10px;color:var(--text-dim);max-width:90px;overflow:hidden;text-overflow:ellipsis;}
+.wc-del-btn{background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;padding:2px 6px;border-radius:4px;}
+.wc-del-btn:hover{background:#fef2f2;}
+
+/* Variants */
+.wc-variants{display:flex;flex-direction:column;gap:10px;}
+.wc-variant{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.wc-variant-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface-alt);cursor:pointer;user-select:none;}
+.wc-variant-head:hover{background:var(--surface);}
+.wc-variant-title{font-weight:700;font-size:12px;color:var(--text);}
+.wc-variant-chevron{font-size:14px;color:var(--text-dim);transition:transform .15s;}
+.wc-variant.open .wc-variant-chevron{transform:rotate(90deg);}
+.wc-variant-body{display:none;padding:14px;border-top:1px solid var(--border);}
+.wc-variant.open .wc-variant-body{display:block;}
+.wc-variant-row{display:flex;gap:10px;margin-bottom:8px;align-items:center;}
+.wc-variant-row label{font-size:10px;font-weight:600;color:var(--text-dim);text-transform:uppercase;min-width:60px;}
+.wc-variant-row input[type="text"]{flex:1;padding:5px 8px;border:1px solid var(--border);border-radius:4px;font-size:11px;font-family:inherit;}
+.wc-variant-row input[type="text"]:focus{border-color:var(--teal);outline:none;}
+.wc-flags{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0;}
+.wc-flag{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text);}
+.wc-flag input[type="checkbox"]{accent-color:var(--teal);}
+.wc-avon-field{margin-left:20px;margin-bottom:4px;display:none;}
+.wc-avon-field.visible{display:flex;align-items:center;gap:6px;}
+.wc-avon-field input{padding:4px 8px;border:1px solid var(--border);border-radius:4px;font-size:11px;width:200px;}
+.wc-sub-title{font-size:11px;font-weight:700;color:var(--text-dim);margin:12px 0 6px;text-transform:uppercase;letter-spacing:.3px;}
+.wc-remove-params{display:flex;flex-wrap:wrap;gap:8px;}
+.wc-remove-param{display:flex;align-items:center;gap:4px;font-size:11px;}
+.wc-variant-add-params{display:flex;flex-direction:column;gap:6px;margin-top:6px;}
+.wc-variant-add-param{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+.wc-variant-add-param input,.wc-variant-add-param select{padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:11px;font-family:inherit;}
+.wc-variant-add-param input{width:120px;}
+.wc-variant-add-param select{width:140px;}
+
+/* Preview */
+.wc-preview-bar{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--surface);}
+.wc-preview-bar select{padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius);font-size:12px;flex:1;}
+.wc-preview-placeholder{flex:1;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:13px;}
+.wc-preview-iframe{flex:1;border:none;width:100%;display:none;}
+
+/* Save bar */
+.wc-save-bar{display:flex;gap:10px;align-items:center;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wc-wrap">
+  <!-- ═══ LEFT COLUMN ═══ -->
+  <div class="wc-left">
+    <div class="wc-flash" id="wc-flash"></div>
+
+    <!-- Product List View -->
+    <div id="wc-list-view">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <div class="wc-title">Wzory świadectw</div>
+        <button class="wc-btn wc-btn-primary" onclick="showNewForm()">+ Nowy produkt</button>
+      </div>
+      <div class="wc-cards" id="wc-cards"></div>
+    </div>
+
+    <!-- New Product Form -->
+    <div id="wc-new-form" style="display:none;">
+      <a class="wc-back" onclick="hideNewForm()">&larr; Powrót do listy</a>
+      <div class="wc-title">Nowy produkt</div>
+      <div class="wc-form">
+        <div>
+          <label>Nazwa wyświetlana *</label>
+          <input type="text" id="nf-display-name" placeholder="np. Chegina K40GLOL">
+        </div>
+        <div class="wc-form-row">
+          <div><label>Numer specyfikacji</label><input type="text" id="nf-spec-number" placeholder="np. P833"></div>
+          <div><label>Numer CAS</label><input type="text" id="nf-cas-number" placeholder="np. 147170-44-3"></div>
+        </div>
+        <div>
+          <label>Ważność (miesiące)</label>
+          <input type="number" id="nf-expiry-months" value="12" min="1" style="width:100px;">
+        </div>
+        <div>
+          <label>Opinia PL</label>
+          <textarea id="nf-opinion-pl" rows="2" placeholder="Produkt odpowiada wymaganiom..."></textarea>
+        </div>
+        <div>
+          <label>Opinia EN</label>
+          <textarea id="nf-opinion-en" rows="2" placeholder="The product complies with..."></textarea>
+        </div>
+        <div><button class="wc-btn wc-btn-primary" onclick="createProduct()">Utwórz</button></div>
+      </div>
+    </div>
+
+    <!-- Editor View -->
+    <div id="wc-editor-view" style="display:none;">
+      <a class="wc-back" onclick="backToList()">&larr; Powrót do listy</a>
+      <div class="wc-title" id="ed-title"></div>
+
+      <!-- Header fields -->
+      <div class="wc-section">
+        <div class="wc-section-title">Metadane produktu</div>
+        <div class="wc-ed-grid">
+          <div class="wc-ed-field"><label>Nazwa wyświetlana</label><input type="text" id="ed-display-name"></div>
+          <div class="wc-ed-field"><label>Numer specyfikacji</label><input type="text" id="ed-spec-number"></div>
+          <div class="wc-ed-field"><label>Numer CAS</label><input type="text" id="ed-cas-number"></div>
+          <div class="wc-ed-field"><label>Ważność (miesiące)</label><input type="number" id="ed-expiry-months" min="1" style="width:100px;"></div>
+        </div>
+        <div class="wc-ed-grid full">
+          <div class="wc-ed-field"><label>Opinia PL</label><input type="text" id="ed-opinion-pl"></div>
+          <div class="wc-ed-field"><label>Opinia EN</label><input type="text" id="ed-opinion-en"></div>
+        </div>
+      </div>
+
+      <!-- Parameters table -->
+      <div class="wc-section">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div class="wc-section-title">Parametry</div>
+          <button class="wc-btn wc-btn-secondary wc-btn-sm" onclick="addParameter()">+ Dodaj parametr</button>
+        </div>
+        <table class="wc-params">
+          <thead>
+            <tr>
+              <th style="width:28px;"></th>
+              <th style="width:90px;">ID</th>
+              <th>Nazwa PL</th>
+              <th>Nazwa EN</th>
+              <th>Wymaganie</th>
+              <th>Metoda</th>
+              <th style="width:120px;">Pole danych</th>
+              <th style="width:60px;">Format</th>
+              <th>Wynik jakościowy</th>
+              <th style="width:28px;"></th>
+            </tr>
+          </thead>
+          <tbody id="wc-params-body"></tbody>
+        </table>
+      </div>
+
+      <!-- Variants -->
+      <div class="wc-section">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div class="wc-section-title">Warianty</div>
+          <button class="wc-btn wc-btn-secondary wc-btn-sm" onclick="addVariant()">+ Dodaj wariant</button>
+        </div>
+        <div class="wc-variants" id="wc-variants"></div>
+      </div>
+
+      <!-- Save bar -->
+      <div class="wc-save-bar">
+        <button class="wc-btn wc-btn-primary" onclick="saveProduct()">Zapisz wszystko</button>
+        <span id="wc-save-status" style="font-size:11px;color:var(--text-dim);"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ RIGHT COLUMN — Preview ═══ -->
+  <div class="wc-right">
+    <div class="wc-preview-bar">
+      <select id="wc-preview-variant"></select>
+      <button class="wc-btn wc-btn-secondary wc-btn-sm" onclick="refreshPreview()">Odśwież podgląd</button>
+    </div>
+    <div class="wc-preview-placeholder" id="wc-preview-placeholder">Kliknij Odśwież aby wygenerować podgląd</div>
+    <iframe class="wc-preview-iframe" id="wc-preview-iframe"></iframe>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   State
+   ═══════════════════════════════════════════════════════════════════ */
+var _products = [];
+var _currentKey = null;
+var _currentProduct = null;
+var _dbMeta = null;
+var _availableCodes = [];
+var _prevBlobUrl = null;
+
+/* ═══════════════════════════════════════════════════════════════════
+   Helpers
+   ═══════════════════════════════════════════════════════════════════ */
+function _esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function flash(msg, ok) {
+  var el = document.getElementById('wc-flash');
+  el.textContent = msg;
+  el.className = 'wc-flash ' + (ok ? 'ok' : 'err');
+  el.style.display = 'block';
+  setTimeout(function() { el.style.display = 'none'; }, 4000);
+}
+
+function _codeOptions(current) {
+  var html = '<option value="">-- brak --</option>';
+  _availableCodes.forEach(function(c) {
+    var sel = (c.kod === current) ? ' selected' : '';
+    html += '<option value="' + _esc(c.kod) + '"' + sel + '>' + _esc(c.kod) + ' — ' + _esc(c.skrot || c.label) + '</option>';
+  });
+  return html;
+}
+
+function _formatOptions(current) {
+  var opts = [
+    {v:'', l:'-- brak --'},
+    {v:'0', l:'0 (całkowite)'},
+    {v:'1', l:'1 (np. 37,0)'},
+    {v:'2', l:'2 (np. 4,50)'},
+    {v:'3', l:'3 (np. 0,001)'}
+  ];
+  var html = '';
+  opts.forEach(function(o) {
+    var sel = (String(current || '') === o.v) ? ' selected' : '';
+    html += '<option value="' + o.v + '"' + sel + '>' + o.l + '</option>';
+  });
+  return html;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Product List
+   ═══════════════════════════════════════════════════════════════════ */
+function loadProducts() {
+  fetch('/api/cert/config/products').then(function(r) { return r.json(); }).then(function(data) {
+    if (!data.ok) { flash('Błąd ładowania produktów', false); return; }
+    _products = data.products;
+    renderProductList();
+  });
+}
+
+function renderProductList() {
+  var html = '';
+  _products.forEach(function(p) {
+    html += '<div class="wc-card" onclick="editProduct(\'' + _esc(p.key) + '\')">' +
+      '<div>' +
+        '<div class="wc-card-name">' + _esc(p.display_name) + '</div>' +
+        '<div class="wc-card-meta">' + p.params_count + ' parametrów &middot; ' + p.variants_count + ' wariantów &middot; <span style="font-family:var(--mono);font-size:10px;color:var(--text-dim);">' + _esc(p.key) + '</span></div>' +
+      '</div>' +
+      '<div class="wc-card-actions">' +
+        '<button class="wc-btn wc-btn-danger" onclick="event.stopPropagation();deleteProduct(\'' + _esc(p.key) + '\',\'' + _esc(p.display_name) + '\')">Usuń</button>' +
+      '</div>' +
+    '</div>';
+  });
+  if (!_products.length) html = '<div style="color:var(--text-dim);font-size:12px;">Brak produktów. Kliknij "Nowy produkt" aby dodać.</div>';
+  document.getElementById('wc-cards').innerHTML = html;
+}
+
+function showNewForm() {
+  document.getElementById('wc-list-view').style.display = 'none';
+  document.getElementById('wc-new-form').style.display = '';
+}
+
+function hideNewForm() {
+  document.getElementById('wc-new-form').style.display = 'none';
+  document.getElementById('wc-list-view').style.display = '';
+}
+
+function createProduct() {
+  var dn = document.getElementById('nf-display-name').value.trim();
+  if (!dn) { flash('Nazwa wyświetlana jest wymagana', false); return; }
+  var body = {
+    display_name: dn,
+    spec_number: document.getElementById('nf-spec-number').value.trim(),
+    cas_number: document.getElementById('nf-cas-number').value.trim(),
+    expiry_months: parseInt(document.getElementById('nf-expiry-months').value) || 12,
+    opinion_pl: document.getElementById('nf-opinion-pl').value.trim(),
+    opinion_en: document.getElementById('nf-opinion-en').value.trim()
+  };
+  fetch('/api/cert/config/product', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  }).then(function(r) { return r.json(); }).then(function(data) {
+    if (data.ok) {
+      flash('Produkt utworzony: ' + data.key, true);
+      // Reset form
+      document.getElementById('nf-display-name').value = '';
+      document.getElementById('nf-spec-number').value = '';
+      document.getElementById('nf-cas-number').value = '';
+      document.getElementById('nf-expiry-months').value = '12';
+      document.getElementById('nf-opinion-pl').value = '';
+      document.getElementById('nf-opinion-en').value = '';
+      hideNewForm();
+      loadProducts();
+    } else {
+      flash(data.error || 'Błąd tworzenia', false);
+    }
+  });
+}
+
+function deleteProduct(key, name) {
+  if (!confirm('Usunąć produkt "' + name + '"? Tej operacji nie można cofnąć.')) return;
+  fetch('/api/cert/config/product/' + encodeURIComponent(key), { method: 'DELETE' })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok) {
+        var msg = 'Produkt usunięty.';
+        if (data.warning) msg += ' ' + data.warning;
+        flash(msg, true);
+        loadProducts();
+      } else {
+        flash(data.error || 'Błąd usuwania', false);
+      }
+    });
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Editor
+   ═══════════════════════════════════════════════════════════════════ */
+function editProduct(key) {
+  _currentKey = key;
+  // Load available codes + product data in parallel
+  Promise.all([
+    fetch('/api/cert/config/product/' + encodeURIComponent(key)).then(function(r) { return r.json(); }),
+    fetch('/api/parametry/available').then(function(r) { return r.json(); })
+  ]).then(function(results) {
+    var data = results[0];
+    _availableCodes = results[1];
+    if (!data.ok) { flash(data.error || 'Błąd ładowania', false); return; }
+    _currentProduct = data.product;
+    _dbMeta = data.db_meta;
+    renderEditor();
+    // Switch views
+    document.getElementById('wc-list-view').style.display = 'none';
+    document.getElementById('wc-new-form').style.display = 'none';
+    document.getElementById('wc-editor-view').style.display = '';
+    updatePreviewVariantSelect();
+  });
+}
+
+function backToList() {
+  _currentKey = null;
+  _currentProduct = null;
+  _dbMeta = null;
+  document.getElementById('wc-editor-view').style.display = 'none';
+  document.getElementById('wc-list-view').style.display = '';
+  // Reset preview
+  document.getElementById('wc-preview-iframe').style.display = 'none';
+  document.getElementById('wc-preview-placeholder').style.display = '';
+  if (_prevBlobUrl) { URL.revokeObjectURL(_prevBlobUrl); _prevBlobUrl = null; }
+  loadProducts();
+}
+
+function renderEditor() {
+  var p = _currentProduct;
+  var m = _dbMeta;
+  document.getElementById('ed-title').textContent = (m && m.display_name) || p.display_name || _currentKey;
+  // Header fields: prefer db_meta, fallback to product JSON
+  document.getElementById('ed-display-name').value = (m && m.display_name) || p.display_name || '';
+  document.getElementById('ed-spec-number').value = (m && m.spec_number) || p.spec_number || '';
+  document.getElementById('ed-cas-number').value = (m && m.cas_number) || p.cas_number || '';
+  document.getElementById('ed-expiry-months').value = (m && m.expiry_months) || p.expiry_months || 12;
+  document.getElementById('ed-opinion-pl').value = (m && m.opinion_pl) || p.opinion_pl || '';
+  document.getElementById('ed-opinion-en').value = (m && m.opinion_en) || p.opinion_en || '';
+
+  renderParamsTable(p.parameters || []);
+  renderVariants(p.variants || []);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Parameters Table
+   ═══════════════════════════════════════════════════════════════════ */
+function renderParamsTable(params) {
+  var html = '';
+  params.forEach(function(p, i) {
+    html += _paramRow(p, i);
+  });
+  document.getElementById('wc-params-body').innerHTML = html;
+  initDragAndDrop();
+}
+
+function _paramRow(p, idx) {
+  return '<tr draggable="true" data-idx="' + idx + '">' +
+    '<td><span class="wc-drag">&#10303;</span></td>' +
+    '<td class="wc-id-cell"><input data-field="id" value="' + _esc(p.id || '') + '" readonly style="color:var(--text-dim);font-family:var(--mono);font-size:10px;background:transparent;cursor:default;" tabindex="-1"></td>' +
+    '<td><input data-field="name_pl" value="' + _esc(p.name_pl || '') + '"></td>' +
+    '<td><input data-field="name_en" value="' + _esc(p.name_en || '') + '" oninput="autoId(this)"></td>' +
+    '<td><input data-field="requirement" value="' + _esc(p.requirement || '') + '"></td>' +
+    '<td><input data-field="method" value="' + _esc(p.method || '') + '"></td>' +
+    '<td><select data-field="data_field">' + _codeOptions(p.data_field) + '</select></td>' +
+    '<td><select data-field="format">' + _formatOptions(p.format) + '</select></td>' +
+    '<td><input data-field="qualitative_result" value="' + _esc(p.qualitative_result || '') + '"></td>' +
+    '<td><button class="wc-del-btn" onclick="removeParam(this)" title="Usuń parametr">&times;</button></td>' +
+  '</tr>';
+}
+
+function addParameter() {
+  var tbody = document.getElementById('wc-params-body');
+  var idx = tbody.querySelectorAll('tr').length;
+  var p = {id:'', name_pl:'', name_en:'', requirement:'', method:'', data_field:null, format:'', qualitative_result:''};
+  var tmp = document.createElement('tbody');
+  tmp.innerHTML = _paramRow(p, idx);
+  var row = tmp.firstChild;
+  tbody.appendChild(row);
+  initDragAndDrop();
+  // Focus name_pl
+  var np = row.querySelector('[data-field="name_pl"]');
+  if (np) np.focus();
+}
+
+function removeParam(btn) {
+  var tr = btn.closest('tr');
+  if (tr) tr.remove();
+}
+
+function autoId(input) {
+  var tr = input.closest('tr');
+  var idInput = tr.querySelector('[data-field="id"]');
+  // Only auto-generate if id is empty or was auto-generated
+  if (idInput.dataset.manual === '1') return;
+  var val = input.value.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  // Check uniqueness
+  var allIds = [];
+  document.querySelectorAll('#wc-params-body tr').forEach(function(r) {
+    if (r !== tr) {
+      var v = r.querySelector('[data-field="id"]').value;
+      if (v) allIds.push(v);
+    }
+  });
+  var base = val; var n = 2;
+  while (allIds.indexOf(val) !== -1) { val = base + '_' + n; n++; }
+  idInput.value = val;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Drag & Drop
+   ═══════════════════════════════════════════════════════════════════ */
+var _dragRow = null;
+
+function initDragAndDrop() {
+  var rows = document.querySelectorAll('#wc-params-body tr');
+  rows.forEach(function(row) {
+    row.addEventListener('dragstart', handleDragStart);
+    row.addEventListener('dragover', handleDragOver);
+    row.addEventListener('drop', handleDrop);
+    row.addEventListener('dragend', handleDragEnd);
+  });
+}
+
+function handleDragStart(e) {
+  _dragRow = this;
+  this.classList.add('wc-dragging');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', '');
+}
+
+function handleDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  var tbody = document.getElementById('wc-params-body');
+  var rows = Array.from(tbody.querySelectorAll('tr'));
+  var target = this;
+  if (target === _dragRow || !_dragRow) return;
+  var targetIdx = rows.indexOf(target);
+  var dragIdx = rows.indexOf(_dragRow);
+  if (dragIdx < targetIdx) {
+    target.parentNode.insertBefore(_dragRow, target.nextSibling);
+  } else {
+    target.parentNode.insertBefore(_dragRow, target);
+  }
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+}
+
+function handleDragEnd() {
+  if (_dragRow) _dragRow.classList.remove('wc-dragging');
+  _dragRow = null;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Variants
+   ═══════════════════════════════════════════════════════════════════ */
+var _allFlags = [
+  {key: 'has_rspo', label: 'RSPO'},
+  {key: 'has_order_number', label: 'Nr zamówienia'},
+  {key: 'has_certificate_number', label: 'Nr certyfikatu'},
+  {key: 'has_avon_code', label: 'Kod AVON'},
+  {key: 'has_avon_name', label: 'Nazwa AVON'}
+];
+
+function renderVariants(variants) {
+  var html = '';
+  variants.forEach(function(v, vi) {
+    html += renderVariant(v, vi);
+  });
+  document.getElementById('wc-variants').innerHTML = html;
+}
+
+function renderVariant(v, vi) {
+  var isBase = (vi === 0);
+  var flags = v.flags || [];
+  var overrides = v.overrides || {};
+  var removeParams = overrides.remove_parameters || [];
+  var addParams = overrides.add_parameters || [];
+  var baseParams = _currentProduct ? (_currentProduct.parameters || []) : [];
+
+  var html = '<div class="wc-variant' + (vi === 0 ? ' open' : '') + '" data-vi="' + vi + '">';
+
+  // Head
+  html += '<div class="wc-variant-head" onclick="toggleVariant(this)">' +
+    '<span class="wc-variant-title">' + _esc(v.label || v.id) + (isBase ? ' (bazowy)' : '') + '</span>' +
+    '<div style="display:flex;align-items:center;gap:8px;">' +
+    (!isBase ? '<button class="wc-del-btn" onclick="event.stopPropagation();removeVariant(' + vi + ')" title="Usuń wariant">&times;</button>' : '') +
+    '<span class="wc-variant-chevron">&#9654;</span>' +
+    '</div></div>';
+
+  // Body
+  html += '<div class="wc-variant-body">';
+
+  // ID + Label
+  html += '<div class="wc-variant-row"><label>ID</label><input type="text" data-vfield="id" value="' + _esc(v.id || '') + '"' + (isBase ? ' readonly style="background:var(--surface-alt);color:var(--text-dim);"' : '') + '></div>';
+  html += '<div class="wc-variant-row"><label>Label</label><input type="text" data-vfield="label" value="' + _esc(v.label || '') + '"></div>';
+
+  // Flags
+  html += '<div class="wc-sub-title">Flagi</div><div class="wc-flags">';
+  _allFlags.forEach(function(f) {
+    var checked = flags.indexOf(f.key) !== -1 ? ' checked' : '';
+    html += '<label class="wc-flag"><input type="checkbox" data-flag="' + f.key + '"' + checked + ' onchange="onFlagChange(this)">' + f.label + '</label>';
+  });
+  html += '</div>';
+
+  // Avon override fields
+  var avonCodeVisible = flags.indexOf('has_avon_code') !== -1;
+  var avonNameVisible = flags.indexOf('has_avon_name') !== -1;
+  html += '<div class="wc-avon-field' + (avonCodeVisible ? ' visible' : '') + '" data-avon="avon_code"><label style="font-size:10px;min-width:80px;">Kod AVON:</label><input type="text" data-voverride="avon_code" value="' + _esc(overrides.avon_code || '') + '" placeholder="wartość statyczna (opcjonalnie)"></div>';
+  html += '<div class="wc-avon-field' + (avonNameVisible ? ' visible' : '') + '" data-avon="avon_name"><label style="font-size:10px;min-width:80px;">Nazwa AVON:</label><input type="text" data-voverride="avon_name" value="' + _esc(overrides.avon_name || '') + '" placeholder="wartość statyczna (opcjonalnie)"></div>';
+
+  // Overrides: spec_number, opinion_pl, opinion_en
+  if (!isBase) {
+    html += '<div class="wc-sub-title">Nadpisania (puste = dziedzicz z bazy)</div>';
+    html += '<div class="wc-variant-row"><label>Spec nr</label><input type="text" data-voverride="spec_number" value="' + _esc(overrides.spec_number || '') + '"></div>';
+    html += '<div class="wc-variant-row"><label>Opinia PL</label><input type="text" data-voverride="opinion_pl" value="' + _esc(overrides.opinion_pl || '') + '"></div>';
+    html += '<div class="wc-variant-row"><label>Opinia EN</label><input type="text" data-voverride="opinion_en" value="' + _esc(overrides.opinion_en || '') + '"></div>';
+
+    // Remove parameters
+    if (baseParams.length) {
+      html += '<div class="wc-sub-title">Usuń parametry bazowe</div>';
+      html += '<div class="wc-remove-params">';
+      baseParams.forEach(function(bp) {
+        var checked = removeParams.indexOf(bp.id) !== -1 ? ' checked' : '';
+        html += '<label class="wc-remove-param"><input type="checkbox" data-remove-param="' + _esc(bp.id) + '"' + checked + '>' + _esc(bp.name_pl || bp.id) + '</label>';
+      });
+      html += '</div>';
+    }
+
+    // Add parameters
+    html += '<div class="wc-sub-title">Dodatkowe parametry <button class="wc-btn wc-btn-secondary wc-btn-sm" onclick="addVariantParam(' + vi + ')" style="margin-left:8px;">+ Dodaj</button></div>';
+    html += '<div class="wc-variant-add-params" id="wc-vap-' + vi + '">';
+    addParams.forEach(function(ap, api) {
+      html += renderVariantAddParam(vi, api, ap);
+    });
+    html += '</div>';
+  }
+
+  html += '</div></div>';
+  return html;
+}
+
+function renderVariantAddParam(vi, api, ap) {
+  return '<div class="wc-variant-add-param" data-api="' + api + '">' +
+    '<input data-ap="name_pl" value="' + _esc(ap.name_pl || '') + '" placeholder="Nazwa PL">' +
+    '<input data-ap="name_en" value="' + _esc(ap.name_en || '') + '" placeholder="Nazwa EN">' +
+    '<input data-ap="requirement" value="' + _esc(ap.requirement || '') + '" placeholder="Wymaganie">' +
+    '<input data-ap="method" value="' + _esc(ap.method || '') + '" placeholder="Metoda">' +
+    '<select data-ap="data_field">' + _codeOptions(ap.data_field) + '</select>' +
+    '<select data-ap="format" style="width:55px;">' + _formatOptions(ap.format || '1') + '</select>' +
+    '<input data-ap="qualitative_result" value="' + _esc(ap.qualitative_result || '') + '" placeholder="Wynik jakościowy" style="width:140px;">' +
+    '<button class="wc-del-btn" onclick="this.closest(\'.wc-variant-add-param\').remove()">&times;</button>' +
+  '</div>';
+}
+
+function toggleVariant(head) {
+  var v = head.closest('.wc-variant');
+  v.classList.toggle('open');
+}
+
+function addVariant() {
+  var container = document.getElementById('wc-variants');
+  var count = container.querySelectorAll('.wc-variant').length;
+  var v = {id: 'nowy_' + count, label: 'Nowy wariant', flags: [], overrides: {}};
+  var tmp = document.createElement('div');
+  tmp.innerHTML = renderVariant(v, count);
+  var el = tmp.firstChild;
+  container.appendChild(el);
+  el.classList.add('open');
+}
+
+function removeVariant(vi) {
+  var variants = document.querySelectorAll('#wc-variants .wc-variant');
+  if (vi === 0) return; // never delete base
+  if (!confirm('Usunąć ten wariant?')) return;
+  if (variants[vi]) variants[vi].remove();
+}
+
+function onFlagChange(cb) {
+  var body = cb.closest('.wc-variant-body');
+  if (!body) return;
+  var flagKey = cb.dataset.flag;
+  if (flagKey === 'has_avon_code') {
+    var avonCode = body.querySelector('[data-avon="avon_code"]');
+    if (avonCode) avonCode.classList.toggle('visible', cb.checked);
+  }
+  if (flagKey === 'has_avon_name') {
+    var avonName = body.querySelector('[data-avon="avon_name"]');
+    if (avonName) avonName.classList.toggle('visible', cb.checked);
+  }
+}
+
+function addVariantParam(vi) {
+  var container = document.getElementById('wc-vap-' + vi);
+  if (!container) return;
+  var api = container.querySelectorAll('.wc-variant-add-param').length;
+  var ap = {name_pl:'', name_en:'', requirement:'', method:'', data_field:null, qualitative_result:''};
+  var tmp = document.createElement('div');
+  tmp.innerHTML = renderVariantAddParam(vi, api, ap);
+  container.appendChild(tmp.firstChild);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   collectEditorState
+   ═══════════════════════════════════════════════════════════════════ */
+function collectEditorState() {
+  var state = {};
+
+  // 1. Header fields
+  state.display_name = document.getElementById('ed-display-name').value.trim();
+  state.spec_number = document.getElementById('ed-spec-number').value.trim();
+  state.cas_number = document.getElementById('ed-cas-number').value.trim();
+  state.expiry_months = parseInt(document.getElementById('ed-expiry-months').value) || 12;
+  state.opinion_pl = document.getElementById('ed-opinion-pl').value.trim();
+  state.opinion_en = document.getElementById('ed-opinion-en').value.trim();
+
+  // 2. Parameters from table rows
+  var params = [];
+  document.querySelectorAll('#wc-params-body tr').forEach(function(tr) {
+    var p = {};
+    p.id = (tr.querySelector('[data-field="id"]').value || '').trim();
+    p.name_pl = (tr.querySelector('[data-field="name_pl"]').value || '').trim();
+    p.name_en = (tr.querySelector('[data-field="name_en"]').value || '').trim();
+    p.requirement = (tr.querySelector('[data-field="requirement"]').value || '').trim();
+    p.method = (tr.querySelector('[data-field="method"]').value || '').trim();
+    var dfSel = tr.querySelector('[data-field="data_field"]');
+    p.data_field = dfSel.value || null;
+    var fmtSel = tr.querySelector('[data-field="format"]');
+    p.format = fmtSel.value || undefined;
+    var qr = (tr.querySelector('[data-field="qualitative_result"]').value || '').trim();
+    if (qr) p.qualitative_result = qr;
+    // Only include if has an id
+    if (p.id) params.push(p);
+  });
+  state.parameters = params;
+
+  // 3. Variants
+  var variants = [];
+  document.querySelectorAll('#wc-variants .wc-variant').forEach(function(vel, vi) {
+    var v = {};
+    var body = vel.querySelector('.wc-variant-body');
+    v.id = (body.querySelector('[data-vfield="id"]').value || '').trim();
+    v.label = (body.querySelector('[data-vfield="label"]').value || '').trim();
+
+    // Flags
+    var flags = [];
+    body.querySelectorAll('[data-flag]').forEach(function(cb) {
+      if (cb.checked) flags.push(cb.dataset.flag);
+    });
+    v.flags = flags;
+
+    // Overrides
+    var overrides = {};
+    body.querySelectorAll('[data-voverride]').forEach(function(inp) {
+      var val = inp.value.trim();
+      if (val) overrides[inp.dataset.voverride] = val;
+    });
+
+    // Remove parameters
+    var removeParams = [];
+    body.querySelectorAll('[data-remove-param]').forEach(function(cb) {
+      if (cb.checked) removeParams.push(cb.dataset.removeParam);
+    });
+    if (removeParams.length) overrides.remove_parameters = removeParams;
+
+    // Add parameters
+    var addParams = [];
+    body.querySelectorAll('.wc-variant-add-param').forEach(function(div) {
+      var ap = {};
+      div.querySelectorAll('[data-ap]').forEach(function(inp) {
+        var val = inp.tagName === 'SELECT' ? inp.value : inp.value.trim();
+        if (inp.dataset.ap === 'data_field') {
+          ap.data_field = val || null;
+        } else {
+          ap[inp.dataset.ap] = val;
+        }
+      });
+      // Auto-generate id from name_en
+      if (ap.name_en && !ap.id) {
+        ap.id = ap.name_en.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+      }
+      if (ap.name_pl) addParams.push(ap);
+    });
+    if (addParams.length) overrides.add_parameters = addParams;
+
+    if (Object.keys(overrides).length) v.overrides = overrides;
+
+    variants.push(v);
+  });
+  state.variants = variants;
+
+  return state;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Save
+   ═══════════════════════════════════════════════════════════════════ */
+function saveProduct() {
+  var state = collectEditorState();
+  var statusEl = document.getElementById('wc-save-status');
+  statusEl.textContent = 'Zapisywanie...';
+  statusEl.style.color = 'var(--text-dim)';
+
+  // Phase 1: sync metadata to produkty DB (if we have a db_meta id)
+  var dbPromise = Promise.resolve();
+  if (_dbMeta && _dbMeta.id) {
+    dbPromise = fetch('/api/produkty/' + _dbMeta.id, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        display_name: state.display_name,
+        spec_number: state.spec_number,
+        cas_number: state.cas_number,
+        expiry_months: state.expiry_months,
+        opinion_pl: state.opinion_pl,
+        opinion_en: state.opinion_en
+      })
+    }).then(function(r) { return r.json(); });
+  }
+
+  // Phase 2: save params + variants to JSON config
+  var configPromise = fetch('/api/cert/config/product/' + encodeURIComponent(_currentKey), {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(state)
+  }).then(function(r) { return r.json(); });
+
+  Promise.all([dbPromise, configPromise]).then(function(results) {
+    var configResult = results[1];
+    if (configResult && configResult.ok) {
+      flash('Zapisano pomyślnie', true);
+      statusEl.textContent = 'Zapisano';
+      statusEl.style.color = 'var(--green)';
+      // Update local state
+      _currentProduct = Object.assign(_currentProduct || {}, state);
+      updatePreviewVariantSelect();
+    } else {
+      var err = (configResult && configResult.error) || 'Nieznany błąd';
+      flash('Błąd zapisu: ' + err, false);
+      statusEl.textContent = 'Błąd';
+      statusEl.style.color = 'var(--red)';
+    }
+  }).catch(function(e) {
+    flash('Błąd sieci: ' + e.message, false);
+    statusEl.textContent = 'Błąd';
+    statusEl.style.color = 'var(--red)';
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Preview
+   ═══════════════════════════════════════════════════════════════════ */
+function updatePreviewVariantSelect() {
+  var sel = document.getElementById('wc-preview-variant');
+  if (!_currentProduct) { sel.innerHTML = ''; return; }
+  var variants = _currentProduct.variants || [];
+  // Also gather current editor variants for up-to-date list
+  var editorVariants = [];
+  document.querySelectorAll('#wc-variants .wc-variant').forEach(function(vel) {
+    var body = vel.querySelector('.wc-variant-body');
+    var vid = (body.querySelector('[data-vfield="id"]').value || '').trim();
+    var vlabel = (body.querySelector('[data-vfield="label"]').value || '').trim();
+    editorVariants.push({id: vid, label: vlabel});
+  });
+  var src = editorVariants.length ? editorVariants : variants;
+  var html = '';
+  src.forEach(function(v) {
+    html += '<option value="' + _esc(v.id) + '">' + _esc(v.label || v.id) + '</option>';
+  });
+  sel.innerHTML = html;
+}
+
+function refreshPreview() {
+  var state = collectEditorState();
+  var variantId = document.getElementById('wc-preview-variant').value;
+  if (!variantId) { flash('Brak wariantu do podglądu', false); return; }
+
+  var placeholder = document.getElementById('wc-preview-placeholder');
+  var iframe = document.getElementById('wc-preview-iframe');
+  placeholder.textContent = 'Generowanie podglądu...';
+  placeholder.style.display = '';
+  iframe.style.display = 'none';
+
+  fetch('/api/cert/config/preview', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({product: state, variant_id: variantId})
+  }).then(function(r) {
+    if (!r.ok) return r.json().then(function(d) { throw new Error(d.error || 'HTTP ' + r.status); });
+    return r.blob();
+  }).then(function(blob) {
+    if (_prevBlobUrl) URL.revokeObjectURL(_prevBlobUrl);
+    _prevBlobUrl = URL.createObjectURL(blob);
+    iframe.src = _prevBlobUrl;
+    iframe.style.display = '';
+    placeholder.style.display = 'none';
+  }).catch(function(e) {
+    placeholder.textContent = 'Błąd podglądu: ' + e.message;
+    placeholder.style.display = '';
+    iframe.style.display = 'none';
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Init
+   ═══════════════════════════════════════════════════════════════════ */
+loadProducts();
+</script>
+{% endblock %}
