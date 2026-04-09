@@ -3607,123 +3607,11 @@ function _peSetupDragDrop() {
   });
 }
 
-// ═══ CERT MAPPING EDITOR ═══
-
-var _cmParams = [];
-var _cmAvailableCodes = [];
+// ═══ CERT MAPPING EDITOR (moved to /admin/wzory-cert) ═══
 
 function openCertMappingEditor() {
-  // Cert mapping editor moved to /admin/wzory-cert
-  var key = window._batchProdukt.replace(/ /g, '_');
   var goToEditor = confirm('Edytor parametrów świadectw został przeniesiony do Admin → Wzory świadectw.\n\nCzy chcesz przejść do nowego edytora?');
   if (goToEditor) window.open('/admin/wzory-cert', '_blank');
-}
-
-function closeCertMapping() {
-  document.getElementById('cm-modal-overlay').classList.remove('show');
-}
-
-function renderCertMapping() {
-  var html = '';
-  if (_cmParams.length === 0) {
-    html = '<div class="cm-empty">Brak parametrów. Dodaj pierwszy wiersz.</div>';
-  }
-  _cmParams.forEach(function(p, i) {
-    var dfOpts = '<option value="">(jakościowy — stały tekst)</option>';
-    _cmAvailableCodes.forEach(function(c) {
-      var sel = c.kod === p.data_field ? ' selected' : '';
-      dfOpts += '<option value="' + c.kod + '"' + sel + '>' + c.kod + ' — ' + esc(c.skrot || c.label) + '</option>';
-    });
-
-    html += '<div class="cm-card" id="cm-' + i + '">' +
-      '<div class="cm-card-top">' +
-        '<div class="cm-card-nr">' + (i + 1) + '</div>' +
-        '<span class="cm-card-id">' + esc(p.id || '') + '</span>' +
-        '<input type="hidden" data-idx="' + i + '" data-f="id" value="' + esc(p.id || '') + '">' +
-        '<div class="cm-card-names">' +
-          '<input value="' + esc(p.name_pl || '') + '" data-idx="' + i + '" data-f="name_pl" placeholder="Nazwa PL" title="Nazwa PL">' +
-          '<input value="' + esc(p.name_en || '') + '" data-idx="' + i + '" data-f="name_en" placeholder="Name EN" title="Name EN">' +
-        '</div>' +
-        '<button class="cm-card-del" onclick="cmRemove(' + i + ')" title="Usuń">&times;</button>' +
-      '</div>' +
-      '<div class="cm-card-body">' +
-        '<div class="cm-field">' +
-          '<span class="cm-field-label">Powiązany parametr</span>' +
-          '<select data-idx="' + i + '" data-f="data_field" onchange="cmFieldChange(' + i + ',this.value)">' + dfOpts + '</select>' +
-        '</div>' +
-        '<div class="cm-field">' +
-          '<span class="cm-field-label">Wymóg / Requirement</span>' +
-          '<input value="' + esc(p.requirement || '') + '" data-idx="' + i + '" data-f="requirement" placeholder="np. max 150">' +
-        '</div>' +
-        '<div class="cm-field">' +
-          '<span class="cm-field-label">Metoda</span>' +
-          '<input value="' + esc(p.method || '') + '" data-idx="' + i + '" data-f="method" placeholder="np. L928" style="font-family:var(--mono);">' +
-        '</div>' +
-      '</div>' +
-    '</div>';
-  });
-
-  document.getElementById('cm-list').innerHTML = html;
-}
-
-function cmFieldChange(idx, val) {
-  _cmParams[idx].data_field = val || null;
-  if (val) {
-    delete _cmParams[idx].qualitative_result;
-    if (!_cmParams[idx].format) _cmParams[idx].format = "1";
-  }
-}
-
-function cmRemove(idx) {
-  _cmParams.splice(idx, 1);
-  renderCertMapping();
-}
-
-function cmAdd() {
-  _cmParams.push({
-    id: 'nowy',
-    name_pl: '', name_en: '',
-    requirement: '', method: '',
-    data_field: null, format: '1'
-  });
-  renderCertMapping();
-  // Scroll to bottom
-  var list = document.getElementById('cm-list');
-  list.scrollTop = list.scrollHeight;
-}
-
-function cmSave() {
-  // Collect edited values from inputs
-  document.querySelectorAll('.cm-card input, .cm-card select').forEach(function(el) {
-    var idx = parseInt(el.dataset.idx);
-    var f = el.dataset.f;
-    if (isNaN(idx) || !f) return;
-    var val = el.value.trim();
-    if (f === 'data_field') {
-      _cmParams[idx].data_field = val || null;
-    } else {
-      _cmParams[idx][f] = val;
-    }
-  });
-
-  // Ensure qualitative params without data_field have qualitative_result
-  _cmParams.forEach(function(p) {
-    if (!p.data_field && !p.qualitative_result) {
-      p.qualitative_result = 'zgodny /right';
-    }
-  });
-
-  fetch('/api/cert/config/parameters', {
-    method: 'PUT',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({
-      produkt: window._batchProdukt,
-      parameters: _cmParams
-    })
-  }).then(function(r){return r.json();}).then(function(d) {
-    if (d.ok) closeCertMapping();
-    else alert(d.error || 'Błąd zapisu');
-  });
 }
 
 // ═══ INIT (must be after all function definitions) ═══
@@ -3732,21 +3620,7 @@ setupComputedFields();
 loadBatchZbiorniki();
 </script>
 
-{# ═══ CERT MAPPING MODAL ═══ #}
-<div class="pe-modal-overlay" id="cm-modal-overlay" onclick="if(event.target===this)closeCertMapping()">
-  <div class="pe-modal" style="width:720px;">
-    <div class="pe-modal-head">
-      <div class="pe-modal-title">Mapowanie tagów świadectwa — {{ ebr.produkt | short_product }}</div>
-      <button class="pe-modal-close" onclick="closeCertMapping()">&times;</button>
-    </div>
-    <div class="pe-modal-body" id="cm-list" style="max-height:50vh;overflow-y:auto;"></div>
-    <div class="pe-modal-footer">
-      <button class="ped-add-btn" onclick="cmAdd()" style="margin-right:auto;">+ Dodaj wiersz</button>
-      <button class="btn btn-o" onclick="closeCertMapping()">Anuluj</button>
-      <button class="btn btn-p" onclick="cmSave()">Zapisz</button>
-    </div>
-  </div>
-</div>
+{# Cert mapping modal removed — replaced by /admin/wzory-cert #}
 
 {# ═══ PARAM EDITOR MODAL ═══ #}
 <div class="pe-modal-overlay" id="pe-modal-overlay" onclick="if(event.target===this)closeParamEditor()">

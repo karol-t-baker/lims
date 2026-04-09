@@ -803,7 +803,13 @@ function saveProduct() {
   }).then(function(r) { return r.json(); });
 
   Promise.all([dbPromise, configPromise]).then(function(results) {
+    var dbResult = results[0];
     var configResult = results[1];
+    if (dbResult && !dbResult.ok) {
+      flash('Błąd zapisu metadanych: ' + (dbResult.error || 'nieznany'), false);
+      statusEl.textContent = 'Błąd'; statusEl.style.color = 'var(--red)';
+      return;
+    }
     if (configResult && configResult.ok) {
       flash('Zapisano pomyślnie', true);
       statusEl.textContent = 'Zapisano';
