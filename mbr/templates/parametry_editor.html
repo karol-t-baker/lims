@@ -5,9 +5,7 @@
 {% block topbar_title %}
   <span style="font-weight:700;">Parametry analityczne</span>
 {% endblock %}
-{% block topbar_right %}
-  <span id="param-count" class="en-badge" style="background:var(--surface-alt);color:var(--text-sec);"></span>
-{% endblock %}
+{% block topbar_right %}{% endblock %}
 
 {% block head %}
 <style>
@@ -21,181 +19,8 @@
   margin-bottom: 12px; padding-left: 2px;
 }
 
-/* Search */
-.pe-search-wrap {
-  display: flex; align-items: center; gap: 8px;
-  margin-bottom: 14px;
-}
-.pe-search {
-  padding: 7px 12px 7px 32px;
-  border: 1.5px solid var(--border);
-  border-radius: 8px;
-  font-size: 12px; font-family: var(--font);
-  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='M21 21l-4.35-4.35'/%3E%3C/svg%3E") 10px center no-repeat;
-  width: 260px;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-.pe-search:focus { border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-bg); outline: none; }
-.pe-search-count { font-size: 10px; color: var(--text-dim); }
 
-/* Main table */
-.pe-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px; }
-.pe-table thead { position: sticky; top: 0; z-index: 2; }
-.pe-table th {
-  text-align: left; padding: 10px 14px;
-  font-size: 9px; font-weight: 800; color: var(--text-dim);
-  text-transform: uppercase; letter-spacing: 0.8px;
-  background: var(--surface); border-bottom: 2px solid var(--border);
-}
-.pe-table td { padding: 0; vertical-align: middle; }
-
-/* Row */
-.pe-row {
-  cursor: pointer; transition: all 0.15s;
-}
-.pe-row td {
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border-subtle);
-  transition: background 0.15s, border-color 0.15s;
-}
-.pe-row:hover td { background: var(--surface-alt); }
-.pe-row.pe-open td {
-  background: var(--surface-alt);
-  border-bottom-color: transparent;
-}
-.pe-row .pe-chev {
-  width: 14px; height: 14px; color: var(--text-dim);
-  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), color 0.15s;
-  flex-shrink: 0;
-}
-.pe-row.pe-open .pe-chev { transform: rotate(90deg); color: var(--teal); }
-.pe-row:hover .pe-chev { color: var(--text-sec); }
-
-/* Kod column */
-.pe-kod {
-  font-family: var(--mono); font-size: 11px; font-weight: 600;
-  color: var(--text); letter-spacing: -0.3px;
-  background: var(--surface-alt); padding: 2px 7px; border-radius: 4px;
-  display: inline-block;
-}
-
-/* Typ badge */
-.pe-typ {
-  font-size: 8px; font-weight: 800; padding: 3px 8px;
-  border-radius: 10px; text-transform: uppercase; letter-spacing: 0.6px;
-  display: inline-block; line-height: 1;
-}
-.pe-typ-b { background: var(--blue-bg); color: var(--blue); }
-.pe-typ-t { background: var(--amber-bg); color: var(--amber); }
-.pe-typ-o { background: var(--teal-bg); color: var(--teal); }
-
-/* Meta column */
-.pe-meta { font-family: var(--mono); color: var(--text-dim); font-size: 11px; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-/* Binding count */
-.pe-badge { font-size: 10px; color: var(--text-dim); white-space: nowrap; }
-.pe-badge-num {
-  display: inline-block; min-width: 18px; height: 18px; line-height: 18px;
-  text-align: center; font-size: 9px; font-weight: 700;
-  background: var(--teal-bg); color: var(--teal);
-  border-radius: 9px; margin-right: 3px;
-}
-
-/* ═══ ACCORDION PANEL ═══ */
-.pe-panel { display: none; }
-.pe-panel.pe-panel-open { display: table-row; }
-.pe-panel > td {
-  padding: 0 14px 16px 14px !important;
-  background: var(--surface-alt);
-  border-bottom: 2px solid var(--border);
-}
-.pe-panel-inner {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 16px 20px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-}
-
-/* Section label inside panel */
-.pe-sec {
-  font-size: 9px; font-weight: 800; color: var(--text-dim);
-  text-transform: uppercase; letter-spacing: 0.8px;
-  margin: 16px 0 8px; padding-bottom: 4px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-.pe-sec:first-child { margin-top: 0; }
-
-/* Field grid */
-.pe-fields { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 4px; }
-.pe-field { display: flex; flex-direction: column; gap: 4px; }
-.pe-field label {
-  font-size: 8px; font-weight: 800; color: var(--text-dim);
-  text-transform: uppercase; letter-spacing: 0.6px;
-}
-.pe-field input {
-  padding: 7px 10px;
-  border: 1.5px solid var(--border);
-  border-radius: 6px;
-  font-size: 12px; font-family: var(--mono);
-  background: #fff;
-  transition: border-color 0.2s, box-shadow 0.2s, outline 0.2s;
-}
-.pe-field input:hover { border-color: #c5c0b5; }
-.pe-field input:focus { border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-bg); outline: none; }
-.pe-field input.pe-wide { width: 300px; }
-.pe-field input.pe-num { width: 72px; text-align: center; }
-
-/* ═══ BINDINGS TABLE ═══ */
-.pe-bind {
-  width: 100%; border-collapse: separate; border-spacing: 0;
-  font-size: 11px; margin-bottom: 6px;
-  border: 1px solid var(--border-subtle); border-radius: 6px;
-  overflow: hidden;
-}
-.pe-bind th {
-  text-align: left; padding: 6px 10px;
-  font-size: 8px; font-weight: 800; color: var(--text-dim);
-  text-transform: uppercase; letter-spacing: 0.6px;
-  background: #f7f5f0; border-bottom: 1px solid var(--border);
-}
-.pe-bind td {
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--border-subtle);
-  background: #fff;
-}
-.pe-bind tr:last-child td { border-bottom: none; }
-.pe-bind input {
-  padding: 4px 6px;
-  border: 1px solid var(--border-subtle);
-  border-radius: 4px;
-  font-size: 11px; font-family: var(--mono);
-  width: 68px; text-align: center;
-  transition: border-color 0.15s, box-shadow 0.15s, outline 0.2s;
-  background: #fff;
-}
-.pe-bind input:focus { border-color: var(--teal); box-shadow: 0 0 0 2px var(--teal-bg); outline: none; }
-
-/* Kontekst badge in bindings */
-.pe-ctx {
-  font-size: 9px; font-weight: 700; padding: 2px 7px;
-  border-radius: 4px; display: inline-block; letter-spacing: 0.2px;
-}
-.pe-ctx-amid { background: var(--stage-amid-bg); color: var(--stage-amid); }
-.pe-ctx-smca { background: var(--stage-amid-bg); color: var(--stage-amid); }
-.pe-ctx-czwart { background: var(--stage-czwart-bg); color: var(--stage-czwart); }
-.pe-ctx-sulfon { background: var(--stage-sulfon-bg); color: var(--stage-sulfon); }
-.pe-ctx-utlen { background: var(--stage-utlen-bg); color: var(--stage-utlen); }
-.pe-ctx-rozj { background: var(--stage-rozj-bg); color: var(--stage-rozj); }
-.pe-ctx-stand { background: var(--stage-stand-bg); color: var(--stage-stand); }
-.pe-ctx-koncowa { background: var(--stage-koncowa-bg); color: var(--stage-koncowa); }
-.pe-ctx-dodatki { background: var(--stage-dodatki-bg); color: var(--stage-dodatki); }
-
-/* Product name in bindings */
-.pe-prod { font-size: 10px; color: var(--text-sec); }
-.pe-prod-default { font-size: 10px; color: var(--text-dim); font-style: italic; }
-
-/* Delete button */
+/* Delete button — used by cert tab too */
 .pe-bind-del {
   background: none; border: none; cursor: pointer;
   width: 22px; height: 22px; border-radius: 4px;
@@ -205,216 +30,250 @@
 }
 .pe-bind-del:hover { background: var(--red-bg, #fef2f2); color: var(--red); }
 
-/* ═══ ADD BINDING ═══ */
-.pe-add-row {
-  display: flex; gap: 6px; align-items: center; margin-top: 10px; flex-wrap: wrap;
-  padding: 8px 10px;
+/* ═══ TAB STRIP ═══ */
+.pe-tabs {
+  display: flex; gap: 2px; margin-bottom: 18px;
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 0;
+}
+.pe-tab {
+  padding: 7px 18px; font-size: 11px; font-weight: 700;
+  font-family: var(--font); cursor: pointer;
+  background: none; border: none; border-bottom: 2px solid transparent;
+  margin-bottom: -2px; color: var(--text-dim);
+  transition: color 0.15s, border-color 0.15s;
+  letter-spacing: 0.2px;
+}
+.pe-tab:hover { color: var(--text); }
+.pe-tab.pe-tab-active { color: var(--teal); border-bottom-color: var(--teal); }
+
+/* ═══ DEFINICJE (REJESTR) TABLE ═══ */
+.pa-table {
+  width: 100%; border-collapse: separate; border-spacing: 0;
+  font-size: 12px;
+}
+.pa-table thead { position: sticky; top: 0; z-index: 2; }
+.pa-table th {
+  text-align: left; padding: 9px 12px;
+  font-size: 9px; font-weight: 800; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 0.8px;
+  background: var(--surface); border-bottom: 2px solid var(--border);
+}
+.pa-table td {
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+}
+.pa-table tr:hover td { background: var(--surface-alt); }
+.pa-kod {
+  font-family: var(--mono); font-size: 11px; font-weight: 600;
+  color: var(--text); background: var(--surface-alt);
+  padding: 2px 6px; border-radius: 4px; display: inline-block;
+}
+.pa-input {
+  padding: 4px 8px; border: 1.5px solid transparent;
+  border-radius: 5px; font-size: 11px; font-family: var(--mono);
+  background: transparent; width: 100%; box-sizing: border-box;
+  transition: border-color 0.15s, background 0.15s;
+}
+.pa-input:hover { border-color: var(--border); background: #fff; }
+.pa-input:focus { border-color: var(--teal); background: #fff; box-shadow: 0 0 0 2px var(--teal-bg); outline: none; }
+.pa-select {
+  padding: 4px 6px; border: 1.5px solid transparent;
+  border-radius: 5px; font-size: 11px; font-family: var(--font);
+  background: transparent; cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.pa-select:hover { border-color: var(--border); background: #fff; }
+.pa-select:focus { border-color: var(--teal); background: #fff; outline: none; }
+.pa-toggle {
+  display: inline-block; padding: 2px 10px;
+  border-radius: 10px; font-size: 9px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.5px;
+  cursor: pointer; border: none; font-family: var(--font);
+  transition: all 0.15s;
+}
+.pa-toggle.on { background: var(--teal-bg); color: var(--teal); }
+.pa-toggle.off { background: var(--surface-alt); color: var(--text-dim); }
+.pa-add {
+  display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+  padding: 10px 12px; margin-top: 12px;
   background: #fafaf7; border: 1.5px dashed var(--border);
   border-radius: 8px;
 }
-.pe-add-label {
-  font-size: 8px; font-weight: 800; color: var(--text-dim);
-  text-transform: uppercase; letter-spacing: 0.5px; margin-right: 2px;
-}
-.pe-add-row select {
+.pa-add input, .pa-add select {
   padding: 5px 8px; border: 1px solid var(--border);
-  border-radius: 5px; font-size: 11px; font-family: var(--font);
-  background: #fff; color: var(--text);
+  border-radius: 5px; font-size: 11px;
+  background: #fff; font-family: var(--font);
 }
-.pe-add-row input {
-  padding: 5px 8px; border: 1px solid var(--border);
-  border-radius: 5px; font-size: 11px; font-family: var(--mono);
-  width: 68px; text-align: center; background: #fff;
+.pa-add input { font-family: var(--mono); }
+.pa-add input:focus, .pa-add select:focus {
+  border-color: var(--teal); box-shadow: 0 0 0 2px var(--teal-bg); outline: none;
 }
-.pe-add-btn {
+.pa-add button {
   padding: 6px 14px; background: var(--teal); color: #fff;
   border: none; border-radius: 6px;
   font-size: 10px; font-weight: 700; cursor: pointer;
   font-family: var(--font); letter-spacing: 0.3px;
-  transition: background 0.15s, transform 0.1s;
+  transition: background 0.15s;
 }
-.pe-add-btn:hover { background: var(--teal-dark); }
-.pe-add-btn:active { transform: scale(0.97); }
-
-/* ═══ LOAD ANIMATION ═══ */
-@keyframes peSlideIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.pe-row { animation: peSlideIn 0.3s ease both; }
+.pa-add button:hover { background: var(--teal-dark); }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="pe-wrap">
-  <div class="pe-section-label">Rejestr parametrów analitycznych</div>
-  <div class="pe-search-wrap">
-    <input class="pe-search" id="pe-search" type="text" placeholder="Szukaj parametru..." oninput="filterTable()">
-    <span class="pe-search-count" id="pe-search-count"></span>
+  <!-- Tab strip -->
+  <div class="pe-tabs">
+    <button class="pe-tab pe-tab-active" id="tab-bind" onclick="switchTab('bind')">Etapy</button>
+    {% if is_admin %}<button class="pe-tab" id="tab-def" onclick="switchTab('def')">Rejestr</button>{% endif %}
+    {% if is_admin %}
+    <button class="pe-tab" id="tab-cert" onclick="switchTab('cert')">Świadectwa</button>
+    {% endif %}
   </div>
-  <table class="pe-table" id="pe-table">
-    <thead>
-      <tr>
-        <th style="width:32px;"></th>
-        <th>Kod</th>
-        <th>Skrót</th>
-        <th>Nazwa pełna</th>
-        <th>Typ</th>
-        <th>Metoda / Formuła</th>
-        <th style="text-align:right;">Etapy</th>
-      </tr>
-    </thead>
-    <tbody id="pe-body">
-      <tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:32px;font-size:11px;">Ładowanie...</td></tr>
-    </tbody>
-  </table>
+
+  <!-- Panel: Etapy (bindings editor) -->
+  <div id="panel-bind">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;">
+      <label style="font-size:11px;font-weight:700;color:var(--text-sec);">Produkt:</label>
+      <select id="etap-produkt" class="pa-select" style="border-color:var(--border);min-width:200px;" onchange="loadEtapBindings()">
+        <option value="">— wybierz —</option>
+        {% for p in products %}
+        <option value="{{ p }}">{{ p.replace('_', ' ') }}</option>
+        {% endfor %}
+      </select>
+      <label style="font-size:11px;font-weight:700;color:var(--text-sec);margin-left:10px;">Etap:</label>
+      <select id="etap-kontekst" class="pa-select" style="border-color:var(--border);min-width:180px;" onchange="loadEtapBindings()">
+        <option value="">— wybierz —</option>
+        {% for k in konteksty %}
+        <option value="{{ k }}">{{ k }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <table class="pa-table" id="etap-table" style="display:none;">
+      <thead>
+        <tr>
+          <th style="width:30px;">⠿</th>
+          <th>Kod</th>
+          <th>Skrót</th>
+          <th style="width:80px;">Naważka [g]</th>
+          <th style="width:80px;">Min</th>
+          <th style="width:80px;">Target</th>
+          <th style="width:80px;">Max</th>
+          <th style="width:40px;"></th>
+        </tr>
+      </thead>
+      <tbody id="etap-body"></tbody>
+    </table>
+
+    <div class="pa-add" id="etap-add" style="display:none;">
+      <select id="etap-add-param" style="width:200px;">
+        <option value="">— parametr —</option>
+      </select>
+      <input type="text" id="etap-add-naw" placeholder="Naważka [g]" style="width:90px;" inputmode="decimal">
+      <input type="text" id="etap-add-min" placeholder="Min" style="width:70px;" inputmode="decimal">
+      <input type="text" id="etap-add-max" placeholder="Max" style="width:70px;" inputmode="decimal">
+      <button onclick="addEtapBinding()">+ Dodaj</button>
+    </div>
+  </div>
+
+  <!-- Panel: Rejestr (admin only — global parameter definitions) -->
+  {% if is_admin %}
+  <div id="panel-def" style="display:none;">
+    <div id="pa-table-wrap">
+      <table class="pa-table" id="pa-table">
+        <thead>
+          <tr>
+            <th>Kod</th>
+            <th>Label PL</th>
+            <th>Name EN</th>
+            <th>Skrót</th>
+            <th>Typ</th>
+            <th>Metoda</th>
+            <th>Jednostka</th>
+            <th>Precyzja</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="pa-body">
+          <tr><td colspan="9" style="text-align:center;color:var(--text-dim);padding:32px;font-size:11px;">Ładowanie...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pa-add">
+      <span style="font-size:8px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Nowy parametr</span>
+      <input id="pa-new-kod" type="text" placeholder="kod" style="width:90px;">
+      <input id="pa-new-label" type="text" placeholder="Nazwa PL" style="width:160px;">
+      <input id="pa-new-name-en" type="text" placeholder="Name EN" style="width:140px;">
+      <input id="pa-new-skrot" type="text" placeholder="skrót" style="width:70px;">
+      <select id="pa-new-typ">
+        <option value="bezposredni">bezpośredni</option>
+        <option value="titracja">titracja</option>
+        <option value="obliczeniowy">obliczeniowy</option>
+      </select>
+      <input id="pa-new-method-code" type="text" placeholder="method_code" style="width:120px;">
+      <input id="pa-new-jednostka" type="text" placeholder="jednostka" style="width:70px;">
+      <input id="pa-new-precision" type="number" placeholder="prec." value="2" style="width:55px;">
+      <button onclick="addParametr()">+ Dodaj</button>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if is_admin %}
+  <div id="panel-cert" style="display:none;">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;">
+      <label style="font-size:11px;font-weight:700;color:var(--text-sec);">Produkt:</label>
+      <select id="cert-produkt" class="pa-select" style="border-color:var(--border);min-width:200px;" onchange="loadCertBindings()">
+        <option value="">— wybierz —</option>
+        {% for p in cert_products %}
+        <option value="{{ p }}">{{ p.replace('_', ' ') }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <table class="pa-table" id="cert-table" style="display:none;">
+      <thead>
+        <tr>
+          <th style="width:30px;">⠿</th>
+          <th>Parametr</th>
+          <th>Label PL</th>
+          <th>Name EN</th>
+          <th>Metoda</th>
+          <th style="width:150px;">Requirement</th>
+          <th style="width:60px;">Format</th>
+          <th style="width:140px;">Qual. result</th>
+          <th style="width:40px;"></th>
+        </tr>
+      </thead>
+      <tbody id="cert-body"></tbody>
+    </table>
+
+    <div class="pa-add" id="cert-add" style="display:none;">
+      <select id="cert-add-param" style="width:200px;">
+        <option value="">— parametr —</option>
+      </select>
+      <input type="text" id="cert-add-req" placeholder="Requirement" style="width:140px;">
+      <select id="cert-add-fmt" style="width:60px;">
+        <option value="0">0</option>
+        <option value="1" selected>1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+      </select>
+      <input type="text" id="cert-add-qual" placeholder="Qual. result (opcjonalne)" style="width:160px;">
+      <button onclick="addCertBinding()">+ Dodaj</button>
+    </div>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-var _products = {{ products | tojson }};
-var _konteksty = {{ konteksty | tojson }};
-var _params = [];
-
-function loadParams() {
-  fetch('/api/parametry/list').then(function(r){return r.json();}).then(function(data) {
-    _params = data;
-    document.getElementById('param-count').textContent = data.length + ' parametrów';
-    renderTable();
-  });
-}
-
-var _ctxMap = {
-  amidowanie:'amid', smca:'smca', czwartorzedowanie:'czwart',
-  sulfonowanie:'sulfon', utlenienie:'utlen', rozjasnianie:'rozj',
-  standaryzacja:'stand', analiza_koncowa:'koncowa', dodatki:'dodatki'
-};
-function ctxCls(k) { return 'pe-ctx-' + (_ctxMap[k] || 'stand'); }
-
-function renderTable() {
-  var tbody = document.getElementById('pe-body');
-  var html = '';
-  _params.forEach(function(p, idx) {
-    var typCls = p.typ === 'titracja' ? 'pe-typ-t' : p.typ === 'obliczeniowy' ? 'pe-typ-o' : 'pe-typ-b';
-    var typLabel = p.typ === 'titracja' ? 'miarecz.' : p.typ === 'obliczeniowy' ? 'oblicz.' : 'bezpośr.';
-    var meta = '';
-    if (p.typ === 'titracja' && p.metoda_nazwa) meta = p.metoda_nazwa + ' (' + p.metoda_factor + ')';
-    else if (p.typ === 'obliczeniowy' && p.formula) meta = p.formula;
-    var bindCount = p.bindings ? p.bindings.length : 0;
-
-    html += '<tr class="pe-row" id="pe-r-' + p.id + '" data-search="' + esc((p.kod + ' ' + (p.skrot||'') + ' ' + p.label + ' ' + (p.metoda_nazwa||'')).toLowerCase()) + '" onclick="togglePanel(' + p.id + ')" style="animation-delay:' + (idx * 0.03) + 's">' +
-      '<td><svg class="pe-chev" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 4l4 4-4 4"/></svg></td>' +
-      '<td><span class="pe-kod">' + p.kod + '</span></td>' +
-      '<td style="font-weight:600;font-size:12px;">' + esc(p.skrot || p.kod) + '</td>' +
-      '<td style="color:var(--text-sec);font-size:11px;">' + esc(p.label) + '</td>' +
-      '<td><span class="pe-typ ' + typCls + '">' + typLabel + '</span></td>' +
-      '<td class="pe-meta">' + esc(meta) + '</td>' +
-      '<td class="pe-badge" style="text-align:right;">' + (bindCount > 0 ? '<span class="pe-badge-num">' + bindCount + '</span>' : '<span style="color:var(--border);">—</span>') + '</td>' +
-    '</tr>';
-
-    html += '<tr class="pe-panel" id="pe-p-' + p.id + '"><td colspan="7">' + renderPanel(p) + '</td></tr>';
-  });
-  tbody.innerHTML = html;
-}
+var _isAdmin = {{ is_admin | tojson }};
+var _paLoaded = false;
 
 function esc(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
-
-function togglePanel(id) {
-  var panel = document.getElementById('pe-p-' + id);
-  var row = document.getElementById('pe-r-' + id);
-  var isOpen = panel.classList.contains('pe-panel-open');
-  // Close all
-  document.querySelectorAll('.pe-panel-open').forEach(function(el) { el.classList.remove('pe-panel-open'); });
-  document.querySelectorAll('.pe-row.pe-open').forEach(function(el) { el.classList.remove('pe-open'); });
-  if (!isOpen) {
-    panel.classList.add('pe-panel-open');
-    row.classList.add('pe-open');
-  }
-}
-
-function renderPanel(p) {
-  var h = '<div class="pe-panel-inner">';
-
-  // Section: global properties
-  h += '<div class="pe-sec">Definicja parametru</div>';
-  h += '<div class="pe-fields">';
-  h += renderField('Skrót', p.id, 'skrot', p.skrot || '', '');
-  h += renderField('Nazwa pełna', p.id, 'label', p.label, 'pe-wide');
-  h += renderField('Precyzja', p.id, 'precision', p.precision, 'pe-num');
-  if (p.typ === 'obliczeniowy') {
-    h += renderField('Formuła', p.id, 'formula', p.formula || '', 'pe-wide');
-  }
-  if (p.typ === 'titracja') {
-    h += renderField('Metoda', p.id, 'metoda_nazwa', p.metoda_nazwa || '', 'pe-wide');
-    h += renderField('Wzór', p.id, 'metoda_formula', p.metoda_formula || '', 'pe-wide');
-    h += renderField('Factor', p.id, 'metoda_factor', p.metoda_factor || '', 'pe-num');
-  }
-  h += '</div>';
-
-  // Section: bindings
-  h += '<div class="pe-sec">Przypisania do etapów' + (p.bindings && p.bindings.length > 0 ? ' <span style="font-weight:400;color:var(--text-dim);text-transform:none;letter-spacing:0;">(' + p.bindings.length + ')</span>' : '') + '</div>';
-
-  var isOblicz = p.typ === 'obliczeniowy';
-  var hasBias = isOblicz && p.bindings && p.bindings.some(function(b) { return b.sa_bias != null; });
-  if (p.bindings && p.bindings.length > 0) {
-    h += '<table class="pe-bind"><thead><tr><th>Kontekst</th><th>Produkt</th>';
-    if (isOblicz) {
-      h += '<th>Formuła</th>';
-      if (hasBias) h += '<th>Bias</th>';
-    }
-    h += '<th>Naważka [g]</th><th>Min</th><th>Max</th><th style="width:30px;"></th></tr></thead><tbody>';
-    p.bindings.forEach(function(b) {
-      // Resolve formula for display: replace sa_bias placeholder with actual value
-      var resolvedFormula = p.formula || '';
-      if (b.sa_bias != null && resolvedFormula.indexOf('sa_bias') >= 0) {
-        resolvedFormula = resolvedFormula.replace('sa_bias', String(b.sa_bias));
-      }
-
-      h += '<tr>' +
-        '<td><span class="pe-ctx ' + ctxCls(b.kontekst) + '">' + b.kontekst + '</span></td>' +
-        '<td>' + (b.produkt ? '<span class="pe-prod">' + b.produkt.replace(/_/g, ' ') + '</span>' : '<span class="pe-prod-default">wszystkie</span>') + '</td>';
-      if (isOblicz) {
-        h += '<td style="font-family:var(--mono);font-size:10px;color:var(--text-dim);">' + esc(resolvedFormula) + '</td>';
-        if (hasBias) {
-          h += '<td><input type="text" inputmode="decimal" value="' + (b.sa_bias != null ? String(b.sa_bias).replace('.',',') : '') + '" onclick="event.stopPropagation()" onblur="saveBinding(' + b.id + ',\'sa_bias\',this)" placeholder="0" style="width:60px;"></td>';
-        }
-      }
-      h += '<td><input type="text" inputmode="decimal" value="' + (b.nawazka_g != null ? String(b.nawazka_g).replace('.',',') : '') + '" onclick="event.stopPropagation()" onblur="saveBinding(' + b.id + ',\'nawazka_g\',this)"></td>' +
-        '<td><input type="text" inputmode="decimal" value="' + (b.min_limit != null ? String(b.min_limit).replace('.',',') : '') + '" onclick="event.stopPropagation()" onblur="saveBinding(' + b.id + ',\'min_limit\',this)"></td>' +
-        '<td><input type="text" inputmode="decimal" value="' + (b.max_limit != null ? String(b.max_limit).replace('.',',') : '') + '" onclick="event.stopPropagation()" onblur="saveBinding(' + b.id + ',\'max_limit\',this)"></td>' +
-        '<td><button class="pe-bind-del" onclick="event.stopPropagation();deleteBinding(' + b.id + ',' + p.id + ')" title="Usuń">&times;</button></td>' +
-      '</tr>';
-    });
-    h += '</tbody></table>';
-  }
-
-  // Add binding form
-  h += '<div class="pe-add-row" onclick="event.stopPropagation()">' +
-    '<span class="pe-add-label">Dodaj</span>' +
-    '<select id="pe-add-ctx-' + p.id + '">';
-  _konteksty.forEach(function(k) { h += '<option value="' + k + '">' + k + '</option>'; });
-  h += '</select>' +
-    '<select id="pe-add-prod-' + p.id + '"><option value="">(wszystkie)</option>';
-  _products.forEach(function(pr) { h += '<option value="' + pr + '">' + pr.replace(/_/g,' ') + '</option>'; });
-  h += '</select>' +
-    '<input id="pe-add-naw-' + p.id + '" type="text" inputmode="decimal" placeholder="naw.">' +
-    '<input id="pe-add-min-' + p.id + '" type="text" inputmode="decimal" placeholder="min">' +
-    '<input id="pe-add-max-' + p.id + '" type="text" inputmode="decimal" placeholder="max">' +
-    '<button class="pe-add-btn" onclick="addBinding(' + p.id + ')">+ Dodaj</button>' +
-  '</div>';
-
-  h += '</div>'; // pe-panel-inner
-  return h;
-}
-
-function renderField(label, paramId, field, value, cls) {
-  return '<div class="pe-field">' +
-    '<label>' + label + '</label>' +
-    '<input class="' + (cls || '') + '" type="text" value="' + esc(String(value != null ? value : '')) + '"' +
-    ' onclick="event.stopPropagation()" onblur="saveParam(' + paramId + ',\'' + field + '\',this)">' +
-  '</div>';
-}
 
 // ═══ SAVE FUNCTIONS ═══
 
@@ -437,88 +296,353 @@ function saveParam(paramId, field, input) {
     method: 'PUT',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(body)
-  }).then(function(r) {
-    flashField(input, r.ok);
-    if (r.ok) {
-      var p = _params.find(function(x) { return x.id === paramId; });
-      if (p) p[field] = val;
-    }
+  }).then(function(r) { flashField(input, r.ok); });
+}
+
+// ═══ ETAPY TAB ═══
+
+var _etapBindings = [];
+var _etapAvailableLoaded = false;
+
+function loadEtapAvailable() {
+  fetch('/api/parametry/available').then(function(r){return r.json();}).then(function(data) {
+    _etapAvailableLoaded = true;
+    var sel = document.getElementById('etap-add-param');
+    var html = '<option value="">— parametr —</option>';
+    data.forEach(function(p) {
+      html += '<option value="' + p.id + '">' + p.kod + ' — ' + (p.skrot || p.label) + '</option>';
+    });
+    sel.innerHTML = html;
   });
 }
 
-function saveBinding(bindingId, field, input) {
-  var val = parseNum(input.value);
-  var body = {};
-  body[field] = val;
-  fetch('/api/parametry/etapy/' + bindingId, {
-    method: 'PUT',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(body)
-  }).then(function(r) { flashField(input, r.ok); });
-}
-
-function saveBindingText(bindingId, field, input) {
-  var val = input.value.trim() || null;
-  var body = {};
-  body[field] = val;
-  fetch('/api/parametry/etapy/' + bindingId, {
-    method: 'PUT',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(body)
-  }).then(function(r) { flashField(input, r.ok); });
-}
-
-function deleteBinding(bindingId, paramId) {
-  fetch('/api/parametry/etapy/' + bindingId, {method: 'DELETE'})
-    .then(function(r) {
-      if (r.ok) {
-        var p = _params.find(function(x) { return x.id === paramId; });
-        if (p) p.bindings = p.bindings.filter(function(b) { return b.id !== bindingId; });
-        renderTable();
-        setTimeout(function() { togglePanel(paramId); }, 10);
-      }
+function loadEtapBindings() {
+  var produkt = document.getElementById('etap-produkt').value;
+  var kontekst = document.getElementById('etap-kontekst').value;
+  if (!produkt || !kontekst) {
+    document.getElementById('etap-table').style.display = 'none';
+    document.getElementById('etap-add').style.display = 'none';
+    return;
+  }
+  fetch('/api/parametry/etapy/' + encodeURIComponent(produkt) + '/' + encodeURIComponent(kontekst))
+    .then(function(r){return r.json();})
+    .then(function(data) {
+      _etapBindings = data;
+      renderEtapTable(data);
+      document.getElementById('etap-table').style.display = '';
+      document.getElementById('etap-add').style.display = 'flex';
+      if (!_etapAvailableLoaded) loadEtapAvailable();
     });
 }
 
-function addBinding(paramId) {
-  var ctx = document.getElementById('pe-add-ctx-' + paramId).value;
-  var prod = document.getElementById('pe-add-prod-' + paramId).value;
-  var naw = parseNum(document.getElementById('pe-add-naw-' + paramId).value);
-  var mn = parseNum(document.getElementById('pe-add-min-' + paramId).value);
-  var mx = parseNum(document.getElementById('pe-add-max-' + paramId).value);
+function renderEtapTable(data) {
+  var html = '';
+  data.forEach(function(b, idx) {
+    var prodLabel = b.produkt
+      ? '<span style="font-size:9px;color:var(--text-dim);margin-left:4px;">(' + b.produkt.replace(/_/g,' ') + ')</span>'
+      : '<span style="font-size:9px;color:var(--text-dim);margin-left:4px;">(domyślny)</span>';
+    html += '<tr draggable="true" data-id="' + b.id + '" data-idx="' + idx + '" ' +
+      'ondragstart="etapDragStart(event)" ondragover="etapDragOver(event)" ondrop="etapDrop(event)">' +
+      '<td style="cursor:grab;color:var(--text-dim);text-align:center;">⠿</td>' +
+      '<td><span class="pa-kod">' + esc(b.kod || '') + '</span>' + prodLabel + '</td>' +
+      '<td style="font-weight:600;font-size:12px;">' + esc(b.skrot || b.kod) + '</td>' +
+      '<td><input class="pa-input" type="text" inputmode="decimal" value="' + (b.nawazka_g != null ? String(b.nawazka_g).replace('.',',') : '') + '" onblur="saveEtapField(' + b.id + ',\'nawazka_g\',this)" style="width:70px;text-align:center;"></td>' +
+      '<td><input class="pa-input" type="text" inputmode="decimal" value="' + (b.min_limit != null ? String(b.min_limit).replace('.',',') : '') + '" onblur="saveEtapField(' + b.id + ',\'min_limit\',this)" style="width:70px;text-align:center;"></td>' +
+      '<td><input class="pa-input" type="text" inputmode="decimal" value="' + (b.target != null ? String(b.target).replace('.',',') : '') + '" onblur="saveEtapField(' + b.id + ',\'target\',this)" style="width:70px;text-align:center;"></td>' +
+      '<td><input class="pa-input" type="text" inputmode="decimal" value="' + (b.max_limit != null ? String(b.max_limit).replace('.',',') : '') + '" onblur="saveEtapField(' + b.id + ',\'max_limit\',this)" style="width:70px;text-align:center;"></td>' +
+      '<td><button class="pe-bind-del" onclick="deleteEtapBinding(' + b.id + ')">&times;</button></td>' +
+    '</tr>';
+  });
+  document.getElementById('etap-body').innerHTML = html ||
+    '<tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:20px;">Brak przypisań dla tego etapu</td></tr>';
+}
 
+function saveEtapField(id, field, input) {
+  var val = parseNum(input.value);
+  var body = {}; body[field] = val;
+  fetch('/api/parametry/etapy/' + id, {
+    method: 'PUT', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  }).then(function(r) { flashField(input, r.ok); });
+}
+
+function addEtapBinding() {
+  var produkt = document.getElementById('etap-produkt').value;
+  var kontekst = document.getElementById('etap-kontekst').value;
+  var paramId = document.getElementById('etap-add-param').value;
+  if (!produkt || !kontekst || !paramId) return;
   fetch('/api/parametry/etapy', {
-    method: 'POST',
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      parametr_id: parseInt(paramId),
+      kontekst: kontekst,
+      produkt: produkt,
+      nawazka_g: parseNum(document.getElementById('etap-add-naw').value),
+      min_limit: parseNum(document.getElementById('etap-add-min').value),
+      max_limit: parseNum(document.getElementById('etap-add-max').value),
+    })
+  }).then(function(r){return r.json();}).then(function(d) {
+    if (d.ok) {
+      document.getElementById('etap-add-naw').value = '';
+      document.getElementById('etap-add-min').value = '';
+      document.getElementById('etap-add-max').value = '';
+      loadEtapBindings();
+    } else { alert(d.error || 'Błąd'); }
+  });
+}
+
+function deleteEtapBinding(id) {
+  if (!confirm('Usunąć przypisanie?')) return;
+  fetch('/api/parametry/etapy/' + id, {method: 'DELETE'})
+    .then(function(r){return r.json();})
+    .then(function(d) { if (d.ok) loadEtapBindings(); });
+}
+
+var _etapDragIdx = null;
+function etapDragStart(e) {
+  _etapDragIdx = parseInt(e.currentTarget.dataset.idx);
+  e.dataTransfer.effectAllowed = 'move';
+}
+function etapDragOver(e) { e.preventDefault(); }
+function etapDrop(e) {
+  e.preventDefault();
+  var targetIdx = parseInt(e.currentTarget.dataset.idx);
+  if (_etapDragIdx === null || _etapDragIdx === targetIdx) return;
+  var item = _etapBindings.splice(_etapDragIdx, 1)[0];
+  _etapBindings.splice(targetIdx, 0, item);
+  var reorderData = _etapBindings.map(function(b, i) { return {id: b.id, kolejnosc: i}; });
+  fetch('/api/parametry/etapy/reorder', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({bindings: reorderData})
+  });
+  renderEtapTable(_etapBindings);
+}
+
+// ═══ TAB SWITCHING ═══
+
+function switchTab(which) {
+  ['bind', 'def', 'cert'].forEach(function(t) {
+    var tab = document.getElementById('tab-' + t);
+    var panel = document.getElementById('panel-' + t);
+    if (tab) tab.classList.toggle('pe-tab-active', t === which);
+    if (panel) panel.style.display = (t === which) ? '' : 'none';
+  });
+  if (which === 'def' && !_paLoaded) loadDefinicje();
+  if (which === 'cert' && !_certLoaded) loadCertAvailable();
+}
+
+// ═══ REJESTR TAB (admin) ═══
+
+function loadDefinicje() {
+  fetch('/api/parametry/list').then(function(r) { return r.json(); }).then(function(data) {
+    _paLoaded = true;
+    renderDefTable(data);
+  });
+}
+
+function renderDefTable(data) {
+  var tbody = document.getElementById('pa-body');
+  if (!tbody) return;
+  var typLabels = { bezposredni: 'bezpośredni', titracja: 'miareczkowanie', obliczeniowy: 'obliczeniowy' };
+  var html = '';
+  data.forEach(function(p) {
+    var isOn = p.aktywny ? 'on' : 'off';
+    var isOnLabel = p.aktywny ? 'aktywny' : 'ukryty';
+    html += '<tr>' +
+      '<td><span class="pa-kod">' + esc(p.kod) + '</span></td>' +
+      '<td><input class="pa-input" type="text" value="' + esc(p.label || '') + '" onblur="saveDefField(' + p.id + ',\'label\',this.value)"></td>' +
+      '<td><input class="pa-input" type="text" value="' + esc(p.name_en || '') + '" onblur="saveDefField(' + p.id + ',\'name_en\',this.value)"></td>' +
+      '<td><input class="pa-input" type="text" value="' + esc(p.skrot || '') + '" style="width:80px;" onblur="saveDefField(' + p.id + ',\'skrot\',this.value)"></td>' +
+      '<td><select class="pa-select" onchange="saveDefField(' + p.id + ',\'typ\',this.value)">' +
+        '<option value="bezposredni"' + (p.typ === 'bezposredni' ? ' selected' : '') + '>bezpośredni</option>' +
+        '<option value="titracja"' + (p.typ === 'titracja' ? ' selected' : '') + '>titracja</option>' +
+        '<option value="obliczeniowy"' + (p.typ === 'obliczeniowy' ? ' selected' : '') + '>obliczeniowy</option>' +
+      '</select></td>' +
+      '<td><input class="pa-input" type="text" value="' + esc(p.method_code || '') + '" onblur="saveDefField(' + p.id + ',\'method_code\',this.value)"></td>' +
+      '<td><input class="pa-input" type="text" value="' + esc(p.jednostka || '') + '" style="width:70px;" onblur="saveDefField(' + p.id + ',\'jednostka\',this.value)"></td>' +
+      '<td><input class="pa-input" type="number" value="' + (p.precision != null ? p.precision : 2) + '" style="width:55px;text-align:center;" onblur="saveDefField(' + p.id + ',\'precision\',parseFloat(this.value))"></td>' +
+      '<td><button class="pa-toggle ' + isOn + '" onclick="toggleActive(' + p.id + ',' + (p.aktywny ? 1 : 0) + ',this)">' + isOnLabel + '</button></td>' +
+    '</tr>';
+  });
+  tbody.innerHTML = html || '<tr><td colspan="9" style="text-align:center;color:var(--text-dim);padding:24px;">Brak parametrów</td></tr>';
+}
+
+function saveDefField(id, field, value) {
+  var body = {};
+  body[field] = value;
+  fetch('/api/parametry/' + id, {
+    method: 'PUT',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({parametr_id: paramId, kontekst: ctx, produkt: prod || null, nawazka_g: naw, min_limit: mn, max_limit: mx})
+    body: JSON.stringify(body)
+  });
+}
+
+function toggleActive(id, current, btn) {
+  var newVal = current ? 0 : 1;
+  fetch('/api/parametry/' + id, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({aktywny: newVal})
   }).then(function(r) {
-    if (r.status === 409) { alert('Ten binding już istnieje'); return; }
     if (r.ok) {
-      loadParams();
-      setTimeout(function() { togglePanel(paramId); }, 200);
+      btn.classList.toggle('on', !!newVal);
+      btn.classList.toggle('off', !newVal);
+      btn.textContent = newVal ? 'aktywny' : 'ukryty';
+      btn.setAttribute('onclick', 'toggleActive(' + id + ',' + newVal + ',this)');
     }
   });
 }
 
-function filterTable() {
-  var q = document.getElementById('pe-search').value.toLowerCase().trim();
-  var rows = document.querySelectorAll('.pe-row');
-  var visible = 0;
-  rows.forEach(function(row) {
-    var match = !q || (row.dataset.search || '').indexOf(q) >= 0;
-    row.style.display = match ? '' : 'none';
-    // Also hide corresponding panel
-    var panelId = row.id.replace('pe-r-', 'pe-p-');
-    var panel = document.getElementById(panelId);
-    if (panel && !match) { panel.classList.remove('pe-panel-open'); row.classList.remove('pe-open'); }
-    if (match) visible++;
+function addParametr() {
+  var kod = document.getElementById('pa-new-kod').value.trim();
+  var label = document.getElementById('pa-new-label').value.trim();
+  var nameEn = document.getElementById('pa-new-name-en').value.trim();
+  var skrot = document.getElementById('pa-new-skrot').value.trim();
+  var typ = document.getElementById('pa-new-typ').value;
+  var methodCode = document.getElementById('pa-new-method-code').value.trim();
+  var jednostka = document.getElementById('pa-new-jednostka').value.trim();
+  var precision = parseInt(document.getElementById('pa-new-precision').value) || 2;
+
+  if (!kod || !label) { alert('Kod i Label PL są wymagane'); return; }
+
+  fetch('/api/parametry', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      kod: kod, label: label, name_en: nameEn, skrot: skrot,
+      typ: typ, method_code: methodCode, jednostka: jednostka, precision: precision
+    })
+  }).then(function(r) {
+    if (r.status === 409) { alert('Parametr o tym kodzie już istnieje'); return; }
+    if (r.ok) {
+      // Clear inputs
+      ['pa-new-kod','pa-new-label','pa-new-name-en','pa-new-skrot','pa-new-method-code','pa-new-jednostka'].forEach(function(id) {
+        document.getElementById(id).value = '';
+      });
+      document.getElementById('pa-new-precision').value = '2';
+      _paLoaded = false;
+      loadDefinicje();
+    }
   });
-  var countEl = document.getElementById('pe-search-count');
-  if (q) countEl.textContent = visible + ' / ' + rows.length;
-  else countEl.textContent = '';
 }
 
-// Init
-loadParams();
+// ═══ CERT TAB ═══
+
+var _certLoaded = false;
+var _certAvailable = [];
+var _certBindings = [];
+
+function loadCertAvailable() {
+  fetch('/api/parametry/available').then(function(r){return r.json();}).then(function(data) {
+    _certAvailable = data;
+    _certLoaded = true;
+    var sel = document.getElementById('cert-add-param');
+    var html = '<option value="">— parametr —</option>';
+    data.forEach(function(p) {
+      html += '<option value="' + p.id + '">' + p.kod + ' — ' + (p.skrot || p.label) + '</option>';
+    });
+    sel.innerHTML = html;
+  });
+}
+
+function loadCertBindings() {
+  var produkt = document.getElementById('cert-produkt').value;
+  if (!produkt) {
+    document.getElementById('cert-table').style.display = 'none';
+    document.getElementById('cert-add').style.display = 'none';
+    return;
+  }
+  fetch('/api/parametry/cert/' + encodeURIComponent(produkt))
+    .then(function(r){return r.json();})
+    .then(function(data) {
+      _certBindings = data;
+      renderCertTable(data);
+      document.getElementById('cert-table').style.display = '';
+      document.getElementById('cert-add').style.display = 'flex';
+    });
+}
+
+function renderCertTable(data) {
+  var html = '';
+  data.forEach(function(b, idx) {
+    html += '<tr draggable="true" data-id="' + b.id + '" data-idx="' + idx + '" ' +
+      'ondragstart="certDragStart(event)" ondragover="certDragOver(event)" ondrop="certDrop(event)">' +
+      '<td style="cursor:grab;color:var(--text-dim);text-align:center;">⠿</td>' +
+      '<td><span class="pa-kod">' + (b.kod || '') + '</span></td>' +
+      '<td style="font-size:11px;">' + (b.label || '') + '</td>' +
+      '<td style="font-size:11px;color:var(--text-sec);">' + (b.name_en || '') + '</td>' +
+      '<td style="font-size:11px;font-family:var(--mono);">' + (b.method_code || '') + '</td>' +
+      '<td><input class="pa-input" value="' + (b.requirement||'').replace(/"/g,'&quot;') + '" ' +
+        'onchange="saveCertField(' + b.id + ',\'requirement\',this.value)"></td>' +
+      '<td><select class="pa-select" onchange="saveCertField(' + b.id + ',\'format\',this.value)">' +
+        ['0','1','2','3'].map(function(f){return '<option'+(String(f)===String(b.format)?' selected':'')+'>'+f+'</option>';}).join('') +
+      '</select></td>' +
+      '<td><input class="pa-input" value="' + (b.qualitative_result||'').replace(/"/g,'&quot;') + '" ' +
+        'onchange="saveCertField(' + b.id + ',\'qualitative_result\',this.value)" placeholder="—"></td>' +
+      '<td><button class="pe-bind-del" onclick="deleteCertBinding(' + b.id + ')">&times;</button></td>' +
+    '</tr>';
+  });
+  document.getElementById('cert-body').innerHTML = html || '<tr><td colspan="9" style="text-align:center;color:var(--text-dim);padding:20px;">Brak przypisań</td></tr>';
+}
+
+function saveCertField(id, field, value) {
+  var body = {}; body[field] = value;
+  fetch('/api/parametry/cert/' + id, {
+    method: 'PUT', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  });
+}
+
+function addCertBinding() {
+  var produkt = document.getElementById('cert-produkt').value;
+  var paramId = document.getElementById('cert-add-param').value;
+  if (!produkt || !paramId) return;
+  fetch('/api/parametry/cert', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      produkt: produkt,
+      parametr_id: parseInt(paramId),
+      kolejnosc: _certBindings.length,
+      requirement: document.getElementById('cert-add-req').value.trim(),
+      format: document.getElementById('cert-add-fmt').value,
+      qualitative_result: document.getElementById('cert-add-qual').value.trim() || null,
+    })
+  }).then(function(r){return r.json();}).then(function(d) {
+    if (d.ok) {
+      document.getElementById('cert-add-req').value = '';
+      document.getElementById('cert-add-qual').value = '';
+      loadCertBindings();
+    } else { alert(d.error || 'Błąd'); }
+  });
+}
+
+function deleteCertBinding(id) {
+  if (!confirm('Usunąć przypisanie?')) return;
+  fetch('/api/parametry/cert/' + id, {method: 'DELETE'})
+    .then(function(r){return r.json();})
+    .then(function(d) { if (d.ok) loadCertBindings(); });
+}
+
+var _certDragIdx = null;
+function certDragStart(e) {
+  _certDragIdx = parseInt(e.currentTarget.dataset.idx);
+  e.dataTransfer.effectAllowed = 'move';
+}
+function certDragOver(e) { e.preventDefault(); }
+function certDrop(e) {
+  e.preventDefault();
+  var targetIdx = parseInt(e.currentTarget.dataset.idx);
+  if (_certDragIdx === null || _certDragIdx === targetIdx) return;
+  var item = _certBindings.splice(_certDragIdx, 1)[0];
+  _certBindings.splice(targetIdx, 0, item);
+  var reorderData = _certBindings.map(function(b, i) { return {id: b.id, kolejnosc: i}; });
+  fetch('/api/parametry/cert/reorder', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({bindings: reorderData})
+  });
+  renderCertTable(_certBindings);
+}
+
+// Init — no eager loading needed; tabs load on demand
 </script>
 {% endblock %}

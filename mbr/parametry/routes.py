@@ -1,10 +1,10 @@
 import json as _json
 
-from flask import request, jsonify, render_template
+from flask import request, jsonify, render_template, session
 
 from mbr.parametry import parametry_bp
 from mbr.parametry.registry import get_parametry_for_kontekst, get_calc_methods, get_konteksty, build_parametry_lab
-from mbr.shared.decorators import login_required
+from mbr.shared.decorators import login_required, role_required
 from mbr.db import db_session
 
 
@@ -33,10 +33,12 @@ def api_calc_methods():
 @parametry_bp.route("/api/parametry/list")
 @login_required
 def api_parametry_list():
-    """All parameters with their etapy bindings."""
+    """All parameters with their etapy bindings. Admin sees inactive too."""
+    rola = session.get("user", {}).get("rola", "")
+    where = "" if rola == "admin" else "WHERE aktywny=1"
     with db_session() as db:
         params = db.execute(
-            "SELECT * FROM parametry_analityczne WHERE aktywny=1 ORDER BY typ, kod"
+            f"SELECT * FROM parametry_analityczne {where} ORDER BY typ, kod"
         ).fetchall()
         result = []
         for p in params:
@@ -53,9 +55,12 @@ def api_parametry_list():
 @parametry_bp.route("/api/parametry/<int:param_id>", methods=["PUT"])
 @login_required
 def api_parametry_update(param_id):
-    """Update global parameter fields."""
+    """Update global parameter fields. Admin can edit additional fields."""
     data = request.get_json(silent=True) or {}
+    rola = session.get("user", {}).get("rola", "")
     allowed = {"label", "skrot", "formula", "metoda_nazwa", "metoda_formula", "metoda_factor", "precision"}
+    if rola == "admin":
+        allowed |= {"typ", "jednostka", "aktywny", "name_en", "method_code"}
     updates = {k: v for k, v in data.items() if k in allowed}
     if not updates:
         return jsonify({"error": "No valid fields"}), 400
@@ -65,6 +70,30 @@ def api_parametry_update(param_id):
         db.execute(f"UPDATE parametry_analityczne SET {sets} WHERE id=?", vals)
         db.commit()
     return jsonify({"ok": True})
+
+
+@parametry_bp.route("/api/parametry", methods=["POST"])
+@role_required("admin")
+def api_parametry_create():
+    """Create a new analytical parameter (admin only)."""
+    data = request.get_json(silent=True) or {}
+    kod = (data.get("kod") or "").strip()
+    label = (data.get("label") or "").strip()
+    typ = data.get("typ", "bezposredni")
+    if not kod or not label:
+        return jsonify({"error": "kod and label required"}), 400
+    with db_session() as db:
+        try:
+            cur = db.execute(
+                "INSERT INTO parametry_analityczne (kod, label, skrot, typ, jednostka, precision, name_en, method_code) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (kod, label, data.get("skrot", ""), typ, data.get("jednostka", ""),
+                 data.get("precision", 2), data.get("name_en", ""), data.get("method_code", "")),
+            )
+            db.commit()
+        except Exception:
+            return jsonify({"error": "Parametr already exists"}), 409
+    return jsonify({"ok": True, "id": cur.lastrowid})
 
 
 @parametry_bp.route("/api/parametry/etapy", methods=["POST"])
@@ -102,7 +131,7 @@ def api_parametry_etapy_create():
 def api_parametry_etapy_update(binding_id):
     """Update binding fields."""
     data = request.get_json(silent=True) or {}
-    allowed = {"nawazka_g", "min_limit", "max_limit", "kolejnosc", "formula", "sa_bias"}
+    allowed = {"nawazka_g", "min_limit", "max_limit", "target", "kolejnosc", "formula", "sa_bias"}
     updates = {k: v for k, v in data.items() if k in allowed}
     if not updates:
         return jsonify({"error": "No valid fields"}), 400
@@ -168,6 +197,22 @@ def api_parametry_available():
     return jsonify([dict(r) for r in rows])
 
 
+@parametry_bp.route("/api/parametry/etapy/<produkt>/<kontekst>")
+@login_required
+def api_parametry_etapy_list(produkt, kontekst):
+    """List raw etapy bindings for product+kontekst, with parameter info."""
+    with db_session() as db:
+        rows = db.execute(
+            "SELECT pe.*, pa.kod, pa.label, pa.skrot, pa.typ "
+            "FROM parametry_etapy pe "
+            "JOIN parametry_analityczne pa ON pa.id = pe.parametr_id "
+            "WHERE (pe.produkt = ? OR pe.produkt IS NULL) AND pe.kontekst = ? "
+            "ORDER BY pe.kolejnosc, pa.kod",
+            (produkt, kontekst),
+        ).fetchall()
+    return jsonify([dict(r) for r in rows])
+
+
 @parametry_bp.route("/api/parametry/etapy/reorder", methods=["POST"])
 @login_required
 def api_parametry_etapy_reorder():
@@ -202,13 +247,107 @@ def api_rebuild_mbr():
     return jsonify({"ok": True})
 
 
+@parametry_bp.route("/api/parametry/cert/<produkt>")
+@login_required
+def api_parametry_cert_list(produkt):
+    """List cert bindings for a product, JOINed with parametry_analityczne."""
+    with db_session() as db:
+        rows = db.execute(
+            """SELECT pc.id, pc.produkt, pc.parametr_id, pc.kolejnosc,
+                      pc.requirement, pc.format, pc.qualitative_result,
+                      pa.kod, pa.label, pa.name_en, pa.method_code, pa.skrot
+               FROM parametry_cert pc
+               JOIN parametry_analityczne pa ON pc.parametr_id = pa.id
+               WHERE pc.produkt = ?
+               ORDER BY pc.kolejnosc""",
+            (produkt,),
+        ).fetchall()
+    return jsonify([dict(r) for r in rows])
+
+
+@parametry_bp.route("/api/parametry/cert", methods=["POST"])
+@role_required("admin")
+def api_parametry_cert_create():
+    """Create a cert binding."""
+    data = request.get_json(silent=True) or {}
+    produkt = data.get("produkt")
+    parametr_id = data.get("parametr_id")
+    if not produkt or not parametr_id:
+        return jsonify({"error": "produkt and parametr_id required"}), 400
+    kolejnosc = data.get("kolejnosc", 0)
+    requirement = data.get("requirement")
+    fmt = data.get("format")
+    qualitative_result = data.get("qualitative_result")
+    with db_session() as db:
+        cur = db.execute(
+            """INSERT INTO parametry_cert (produkt, parametr_id, kolejnosc, requirement, format, qualitative_result)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (produkt, parametr_id, kolejnosc, requirement, fmt, qualitative_result),
+        )
+        db.commit()
+        new_id = cur.lastrowid
+    return jsonify({"ok": True, "id": new_id})
+
+
+@parametry_bp.route("/api/parametry/cert/<int:binding_id>", methods=["PUT"])
+@role_required("admin")
+def api_parametry_cert_update(binding_id):
+    """Update cert binding fields."""
+    data = request.get_json(silent=True) or {}
+    allowed = {"kolejnosc", "requirement", "format", "qualitative_result"}
+    updates = {k: v for k, v in data.items() if k in allowed}
+    if not updates:
+        return jsonify({"error": "No valid fields"}), 400
+    sets = ", ".join(f"{k}=?" for k in updates)
+    vals = list(updates.values()) + [binding_id]
+    with db_session() as db:
+        db.execute(f"UPDATE parametry_cert SET {sets} WHERE id=?", vals)
+        db.commit()
+    return jsonify({"ok": True})
+
+
+@parametry_bp.route("/api/parametry/cert/<int:binding_id>", methods=["DELETE"])
+@role_required("admin")
+def api_parametry_cert_delete(binding_id):
+    """Delete a cert binding."""
+    with db_session() as db:
+        db.execute("DELETE FROM parametry_cert WHERE id=?", (binding_id,))
+        db.commit()
+    return jsonify({"ok": True})
+
+
+@parametry_bp.route("/api/parametry/cert/reorder", methods=["POST"])
+@role_required("admin")
+def api_parametry_cert_reorder():
+    """Batch-update kolejnosc for cert bindings. Body: {bindings: [{id, kolejnosc}, ...]}"""
+    data = request.get_json(silent=True) or {}
+    bindings = data.get("bindings", [])
+    if not bindings:
+        return jsonify({"error": "bindings required"}), 400
+    with db_session() as db:
+        for b in bindings:
+            db.execute("UPDATE parametry_cert SET kolejnosc=? WHERE id=?", (b["kolejnosc"], b["id"]))
+        db.commit()
+    return jsonify({"ok": True})
+
+
 @parametry_bp.route("/parametry")
 @login_required
 def parametry_editor():
     """Parameter editor page."""
+    rola = session.get("user", {}).get("rola", "")
     with db_session() as db:
         products = [r["produkt"] for r in db.execute(
             "SELECT DISTINCT produkt FROM mbr_templates WHERE status='active' ORDER BY produkt"
         ).fetchall()]
         konteksty = get_konteksty(db)
-    return render_template("parametry_editor.html", products=products, konteksty=konteksty)
+        cert_products = [r["produkt"] for r in db.execute(
+            "SELECT DISTINCT produkt FROM parametry_cert ORDER BY produkt"
+        ).fetchall()]
+        all_products = sorted(set(products) | set(cert_products))
+    return render_template(
+        "parametry_editor.html",
+        products=products, konteksty=konteksty,
+        is_admin=(rola == "admin"),
+        cert_products=all_products,
+    )
