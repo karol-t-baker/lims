@@ -189,10 +189,11 @@ def api_parametry_etapy_delete(binding_id):
 @parametry_bp.route("/api/parametry/available")
 @login_required
 def api_parametry_available():
-    """All active parameters (for picker). Returns [{id, kod, label, skrot, typ}]."""
+    """All active parameters (for picker)."""
     with db_session() as db:
         rows = db.execute(
-            "SELECT id, kod, label, skrot, typ FROM parametry_analityczne WHERE aktywny=1 ORDER BY typ, kod"
+            "SELECT id, kod, label, skrot, typ, name_en, method_code, precision "
+            "FROM parametry_analityczne WHERE aktywny=1 ORDER BY typ, kod"
         ).fetchall()
     return jsonify([dict(r) for r in rows])
 
