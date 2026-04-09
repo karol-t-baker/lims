@@ -3,14 +3,14 @@
 import json as _json
 from pathlib import Path
 
-from flask import Response, abort, jsonify, request, send_file, session
+from flask import Response, abort, jsonify, render_template, request, send_file, session
 
 from mbr.certs import certs_bp
 from mbr.certs.generator import generate_certificate_pdf, get_required_fields, get_variants, save_certificate_data, load_config, _CONFIG_PATH
 from mbr.certs.models import create_swiadectwo, list_swiadectwa
 from mbr.db import db_session
 from mbr.models import get_ebr, get_ebr_wyniki, get_mbr
-from mbr.shared.decorators import login_required
+from mbr.shared.decorators import login_required, role_required
 
 
 # ---------------------------------------------------------------------------
@@ -192,6 +192,212 @@ def api_cert_list():
 
 # Cert config parameter endpoints removed — replaced by /api/parametry/cert/* endpoints
 # in mbr/parametry/routes.py (parametry centralization, 2026-04-09)
+
+
+# ---------------------------------------------------------------------------
+# Product CRUD for cert config editor
+# ---------------------------------------------------------------------------
+
+def _read_config():
+    """Read cert_config.json (fresh, no cache)."""
+    with open(_CONFIG_PATH, encoding="utf-8") as f:
+        return _json.load(f)
+
+
+def _write_config(cfg):
+    """Write cert_config.json atomically."""
+    tmp = str(_CONFIG_PATH) + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        _json.dump(cfg, f, ensure_ascii=False, indent=2)
+    import os
+    os.replace(tmp, str(_CONFIG_PATH))
+    # Invalidate generator cache
+    from mbr.certs import generator
+    generator._cached_config = None
+
+
+@certs_bp.route("/admin/wzory-cert")
+@role_required("admin")
+def admin_wzory_cert():
+    return render_template("admin/wzory_cert.html")
+
+
+@certs_bp.route("/api/cert/config/products")
+@role_required("admin")
+def api_cert_config_products():
+    """List all products with summary info."""
+    cfg = _read_config()
+    products = cfg.get("products", {})
+    result = []
+    for key, prod in products.items():
+        result.append({
+            "key": key,
+            "display_name": prod.get("display_name", key),
+            "params_count": len(prod.get("parameters", [])),
+            "variants_count": len(prod.get("variants", [])),
+        })
+    return jsonify({"ok": True, "products": result})
+
+
+@certs_bp.route("/api/cert/config/product/<key>")
+@role_required("admin")
+def api_cert_config_product_get(key):
+    """Full product data + optional DB metadata."""
+    cfg = _read_config()
+    products = cfg.get("products", {})
+    if key not in products:
+        return jsonify({"error": "Product not found"}), 404
+    product = products[key]
+
+    db_meta = None
+    with db_session() as db:
+        row = db.execute(
+            "SELECT id, display_name, spec_number, cas_number, expiry_months, opinion_pl, opinion_en FROM produkty WHERE nazwa = ?",
+            (key,),
+        ).fetchone()
+        if row:
+            db_meta = {
+                "id": row["id"],
+                "display_name": row["display_name"],
+                "spec_number": row["spec_number"],
+                "cas_number": row["cas_number"],
+                "expiry_months": row["expiry_months"],
+                "opinion_pl": row["opinion_pl"],
+                "opinion_en": row["opinion_en"],
+            }
+
+    return jsonify({"ok": True, "product": product, "db_meta": db_meta})
+
+
+@certs_bp.route("/api/cert/config/product/<key>", methods=["PUT"])
+@role_required("admin")
+def api_cert_config_product_put(key):
+    """Save product parameters + variants to cert_config.json."""
+    cfg = _read_config()
+    products = cfg.get("products", {})
+    if key not in products:
+        return jsonify({"error": "Product not found"}), 404
+
+    data = request.get_json(silent=True) or {}
+    parameters = data.get("parameters")
+    variants = data.get("variants")
+
+    # Validate parameters
+    if parameters is not None:
+        param_ids = set()
+        for p in parameters:
+            pid = p.get("id", "").strip()
+            if not pid:
+                return jsonify({"error": "Parameter missing id"}), 400
+            if pid in param_ids:
+                return jsonify({"error": f"Duplicate parameter id: {pid}"}), 400
+            param_ids.add(pid)
+            if not p.get("name_pl") or not p.get("name_en") or not p.get("requirement"):
+                return jsonify({"error": f"Parameter '{pid}' missing name_pl, name_en, or requirement"}), 400
+        products[key]["parameters"] = parameters
+
+    # Validate variants
+    if variants is not None:
+        variant_ids = set()
+        base_param_ids = {p["id"] for p in products[key].get("parameters", [])}
+        for v in variants:
+            vid = v.get("id", "").strip()
+            if not vid:
+                return jsonify({"error": "Variant missing id"}), 400
+            if vid in variant_ids:
+                return jsonify({"error": f"Duplicate variant id: {vid}"}), 400
+            variant_ids.add(vid)
+            if not v.get("label"):
+                return jsonify({"error": f"Variant '{vid}' missing label"}), 400
+            # Validate remove_parameters references
+            overrides = v.get("overrides") or {}
+            remove_params = overrides.get("remove_parameters", [])
+            for rp in remove_params:
+                if rp not in base_param_ids:
+                    return jsonify({"error": f"Variant '{vid}' remove_parameters references unknown param: {rp}"}), 400
+        products[key]["variants"] = variants
+
+    # Sync display_name and meta fields if provided
+    for field in ("display_name", "spec_number", "cas_number", "expiry_months", "opinion_pl", "opinion_en"):
+        if field in data:
+            products[key][field] = data[field]
+
+    cfg["products"] = products
+    _write_config(cfg)
+    return jsonify({"ok": True})
+
+
+@certs_bp.route("/api/cert/config/product", methods=["POST"])
+@role_required("admin")
+def api_cert_config_product_create():
+    """Create a new product in cert_config.json and optionally in DB."""
+    data = request.get_json(silent=True) or {}
+    display_name = (data.get("display_name") or "").strip()
+    if not display_name:
+        return jsonify({"error": "display_name is required"}), 400
+
+    key = display_name.replace(" ", "_")
+
+    cfg = _read_config()
+    products = cfg.get("products", {})
+    if key in products:
+        return jsonify({"error": f"Product '{key}' already exists"}), 409
+
+    products[key] = {
+        "display_name": display_name,
+        "spec_number": data.get("spec_number", ""),
+        "cas_number": data.get("cas_number", ""),
+        "expiry_months": data.get("expiry_months", 12),
+        "opinion_pl": data.get("opinion_pl", ""),
+        "opinion_en": data.get("opinion_en", ""),
+        "parameters": [],
+        "variants": [
+            {"id": "base", "label": display_name, "flags": []}
+        ],
+    }
+    cfg["products"] = products
+    _write_config(cfg)
+
+    # Insert into produkty DB table if not exists
+    with db_session() as db:
+        existing = db.execute("SELECT id FROM produkty WHERE nazwa = ?", (key,)).fetchone()
+        if not existing:
+            db.execute(
+                "INSERT INTO produkty (nazwa, display_name, spec_number, cas_number, expiry_months, opinion_pl, opinion_en) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (key, display_name, data.get("spec_number", ""), data.get("cas_number", ""), data.get("expiry_months", 12), data.get("opinion_pl", ""), data.get("opinion_en", "")),
+            )
+            db.commit()
+
+    return jsonify({"ok": True, "key": key})
+
+
+@certs_bp.route("/api/cert/config/product/<key>", methods=["DELETE"])
+@role_required("admin")
+def api_cert_config_product_delete(key):
+    """Delete a product from cert_config.json."""
+    cfg = _read_config()
+    products = cfg.get("products", {})
+    if key not in products:
+        return jsonify({"error": "Product not found"}), 404
+
+    # Check for issued certificates
+    warning = None
+    with db_session() as db:
+        row = db.execute(
+            "SELECT COUNT(*) as cnt FROM swiadectwa WHERE nr_partii LIKE ?",
+            (f"%{products[key].get('display_name', key)}%",),
+        ).fetchone()
+        if row and row["cnt"] > 0:
+            warning = f"Found {row['cnt']} issued certificate(s) referencing this product."
+
+    del products[key]
+    cfg["products"] = products
+    _write_config(cfg)
+
+    result = {"ok": True}
+    if warning:
+        result["warning"] = warning
+    return jsonify(result)
 
 
 # ---------------------------------------------------------------------------
