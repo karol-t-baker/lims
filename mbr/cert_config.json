@@ -36,19 +36,19 @@
           "id": "odour",
           "name_pl": "Zapach",
           "name_en": "Odour",
-          "requirement": "słaby /faint",
-          "method": "organoleptycznie /organoleptic",
+          "requirement": "słaby\n/faint",
+          "method": "organoleptycznie\n/organoleptic",
           "data_field": null,
-          "qualitative_result": "zgodny /right"
+          "qualitative_result": "zgodny\n/right"
         },
         {
           "id": "appearance",
           "name_pl": "Wygląd",
           "name_en": "Appearance",
-          "requirement": "klarowna ciecz /clear liquid",
-          "method": "organoleptycznie /organoleptic",
+          "requirement": "klarowna ciecz\n/clear liquid",
+          "method": "organoleptycznie\n/organoleptic",
           "data_field": null,
-          "qualitative_result": "zgodny /right"
+          "qualitative_result": "zgodny\n/right"
         },
         {
           "id": "ph",
@@ -72,7 +72,7 @@
           "id": "nacl",
           "name_pl": "NaCl [%]",
           "name_en": "NaCl [%]",
-          "requirement": "5,8-7,3",
+          "requirement": "5,8–7,3",
           "method": "L941",
           "data_field": "nacl",
           "format": "1"
@@ -90,7 +90,7 @@
           "id": "h2o",
           "name_pl": "H2O [%]",
           "name_en": "H2O [%]",
-          "requirement": "52,0-56,0",
+          "requirement": "52,0 – 56,0",
           "method": "L903",
           "data_field": "h2o",
           "format": "1"
@@ -124,6 +124,18 @@
             "remove_parameters": [
               "dry_matter",
               "h2o"
+            ],
+            "add_parameters": [
+              {
+                "name_pl": "Barwa wg Hazen",
+                "name_en": "blala",
+                "requirement": "",
+                "method": "",
+                "data_field": "kwas_hcl",
+                "format": "1",
+                "qualitative_result": "",
+                "id": "blala"
+              }
             ]
           }
         },
@@ -131,9 +143,9 @@
           "id": "loreal_belgia",
           "label": "Chegina K40GLOL — Loreal Belgia MB",
           "flags": [
+            "has_rspo",
             "has_order_number",
-            "has_certificate_number",
-            "has_rspo"
+            "has_certificate_number"
           ],
           "overrides": {
             "spec_number": "P826",
@@ -149,9 +161,9 @@
           "id": "loreal_wlochy",
           "label": "Chegina K40GLOL — Loreal Włochy MB",
           "flags": [
+            "has_rspo",
             "has_order_number",
-            "has_certificate_number",
-            "has_rspo"
+            "has_certificate_number"
           ],
           "overrides": {
             "spec_number": "P826",
@@ -167,9 +179,9 @@
           "id": "kosmepol",
           "label": "Chegina K40GLOL — Kosmepol MB",
           "flags": [
+            "has_rspo",
             "has_order_number",
-            "has_certificate_number",
-            "has_rspo"
+            "has_certificate_number"
           ],
           "overrides": {
             "spec_number": "P826",
@@ -394,19 +406,19 @@
           "id": "odour",
           "name_pl": "Zapach",
           "name_en": "Odour",
-          "requirement": "słaby /faint",
-          "method": "organoleptycznie /organoleptic",
+          "requirement": "słaby\n/faint",
+          "method": "organoleptycznie\n/organoleptic",
           "data_field": null,
-          "qualitative_result": "zgodny /right"
+          "qualitative_result": "zgodny\n/right"
         },
         {
           "id": "appearance",
           "name_pl": "Wygląd",
           "name_en": "Appearance",
-          "requirement": "klarowna ciecz /clear liquid",
-          "method": "organoleptycznie /organoleptic",
+          "requirement": "klarowna ciecz /clear liquid,",
+          "method": "organoleptycznie\n/organoleptic",
           "data_field": null,
-          "qualitative_result": "zgodny /right"
+          "qualitative_result": "zgodny\n/right"
         },
         {
           "id": "ph",
@@ -499,19 +511,19 @@
           "id": "odour",
           "name_pl": "Zapach",
           "name_en": "Odour",
-          "requirement": "słaby /faint",
-          "method": "organoleptycznie /organoleptic",
+          "requirement": "słaby\n/faint",
+          "method": "organoleptycznie\n/organoleptic",
           "data_field": null,
-          "qualitative_result": "zgodny /right"
+          "qualitative_result": "zgodny\n/right"
         },
         {
           "id": "appearance",
           "name_pl": "Wygląd",
           "name_en": "Appearance",
-          "requirement": "klarowna ciecz /clear liquid",
-          "method": "organoleptycznie /organoleptic",
+          "requirement": "klarowna ciecz\n/clear liquid",
+          "method": "organoleptycznie\n/organoleptic",
           "data_field": null,
-          "qualitative_result": "zgodny /right"
+          "qualitative_result": "zgodny\n/right"
         },
         {
           "id": "ph",
@@ -595,28 +607,28 @@
           "id": "colour",
           "name_pl": "Barwa",
           "name_en": "Colour",
-          "requirement": "jasnożółty /pale yellow",
-          "method": "organoleptycznie /organoleptic",
+          "requirement": "jasnożółty\n/pale yellow",
+          "method": "organoleptycznie\n/organoleptic",
           "data_field": null,
-          "qualitative_result": "zgodny /right"
+          "qualitative_result": "zgodny\n/right"
         },
         {
           "id": "odour",
           "name_pl": "Zapach",
           "name_en": "Odour",
-          "requirement": "charakterystyczny słaby /characteristic faint",
-          "method": "organoleptycznie /organoleptic",
+          "requirement": "charakterystycznysłaby\n/characteristic faint",
+          "method": "organoleptycznie\n/organoleptic",
           "data_field": null,
-          "qualitative_result": "zgodny /right"
+          "qualitative_result": "zgodny\n/right"
         },
         {
           "id": "appearance",
           "name_pl": "Wygląd",
           "name_en": "Appearance",
-          "requirement": "klarowna ciecz /clear liquid",
-          "method": "organoleptycznie /organoleptic",
+          "requirement": "klarowna ciecz\n/clear liquid",
+          "method": "organoleptycznie\n/organoleptic",
           "data_field": null,
-          "qualitative_result": "zgodny /right"
+          "qualitative_result": "zgodny\n/right"
         },
         {
           "id": "ph",
@@ -706,40 +718,48 @@
       "opinion_en": "The product complies with P819",
       "parameters": [
         {
-          "data_field": "sm",
-          "format": "1",
           "id": "dry_matter",
-          "method": "L903",
-          "name_en": "Dry matter [%]",
           "name_pl": "Sucha masa [%]",
-          "requirement": "min 35,5"
+          "name_en": "Dry matter [%]",
+          "requirement": "min 35,5",
+          "method": "L903",
+          "data_field": "sm",
+          "format": "1"
         },
         {
-          "data_field": "nd20",
-          "format": "4",
           "id": "nd20",
-          "method": "PN-EN ISO 6320:2017-04",
-          "name_en": "Refraction (nD20)",
           "name_pl": "Wsp. załamania światła (nD20)",
-          "requirement": "1,3800-1,3950"
+          "name_en": "Refraction (nD20)",
+          "requirement": "1,3800-1,3950",
+          "method": "PN-EN ISO 6320:2017-04",
+          "data_field": "nd20"
         },
         {
-          "data_field": "barwa_fau",
-          "format": "0",
           "id": "barwa_jod",
-          "method": "L928",
-          "name_en": "Colour (Iodine scale)",
           "name_pl": "Barwa w skali jodowej",
-          "requirement": "max 3"
+          "name_en": "Colour (Iodine scale)",
+          "requirement": "max 3",
+          "method": "L928",
+          "data_field": "barwa_fau",
+          "format": "0"
         },
         {
-          "data_field": "sa",
-          "format": "1",
           "id": "active_matter",
-          "method": "L932",
-          "name_en": "Active matter [%]",
           "name_pl": "Substancja aktywna [%]",
-          "requirement": "30,0-32,0"
+          "name_en": "Active matter [%]",
+          "requirement": "30,0-32,0",
+          "method": "L932",
+          "data_field": "sa",
+          "format": "1"
+        },
+        {
+          "id": "ph",
+          "name_pl": "pH (10%, aq)",
+          "name_en": "pH",
+          "requirement": "4,50-7,50",
+          "method": "L905",
+          "data_field": "ph_10proc",
+          "format": "2"
         }
       ],
       "variants": [
@@ -771,13 +791,14 @@
           "overrides": {
             "add_parameters": [
               {
-                "id": "h2o2",
                 "name_pl": "Nadtlenki w przeliczeniu na H2O2 [%]",
                 "name_en": "Peroxides as H2O2 [%]",
                 "requirement": "max 0,00",
                 "method": "L901",
                 "data_field": "h2o2",
-                "format": "2"
+                "format": "2",
+                "qualitative_result": "",
+                "id": "peroxides_as_h2o2"
               }
             ]
           }
@@ -862,19 +883,19 @@
           "id": "odour",
           "name_pl": "Zapach",
           "name_en": "Odour",
-          "requirement": "charakterystyczny, słaby tłuszczowo-aminowy /characteristic, faint fatty-amine",
-          "method": "organoleptycznie /organoleptic",
+          "requirement": "charakterystyczny, słaby „tłuszczowo-amidowy”\n/ characteristic,\nweak soapy",
+          "method": "organoleptycznie\n/organoleptic",
           "data_field": null,
-          "qualitative_result": "zgodny /right"
+          "qualitative_result": "zgodny\n/right"
         },
         {
           "id": "appearance",
           "name_pl": "Wygląd",
           "name_en": "Appearance",
-          "requirement": "klarowna ciecz /clear liquid",
-          "method": "organoleptycznie /organoleptic",
+          "requirement": "klarowna ciecz\n/clear liquid",
+          "method": "organoleptycznie\n/organoleptic",
           "data_field": null,
-          "qualitative_result": "zgodny /right"
+          "qualitative_result": "Z zgodny\n/right"
         },
         {
           "id": "ph",
@@ -926,27 +947,30 @@
           "name_pl": "MCA [ppm]",
           "name_en": "MCA [ppm]",
           "requirement": "max 3000",
-          "method": "metoda zew. /external method",
+          "method": "metoda zew.\n/external method",
           "data_field": "mca",
-          "format": "0"
+          "format": "0",
+          "qualitative_result": "< 3000"
         },
         {
           "id": "dca",
           "name_pl": "DCA [ppm]",
           "name_en": "DCA [ppm]",
           "requirement": "max 400",
-          "method": "metoda zew. /external method",
+          "method": "metoda zew.\n/external method",
           "data_field": "dca",
-          "format": "0"
+          "format": "0",
+          "qualitative_result": "< 400"
         },
         {
           "id": "dmapa",
           "name_pl": "DMAPA [ppm]",
           "name_en": "DMAPA [ppm]",
           "requirement": "max 100",
-          "method": "metoda zew. /external method",
+          "method": "metoda zew.\n/ external method",
           "data_field": "dmapa",
-          "format": "0"
+          "format": "0",
+          "qualitative_result": "< 100"
         }
       ],
       "variants": [
@@ -1025,8 +1049,8 @@
           "id": "appearance",
           "name_pl": "Wygląd",
           "name_en": "Appearance",
-          "requirement": "klarowna ciecz /clear liquid",
-          "method": "organoleptycznie /organoleptic",
+          "requirement": "klarowna ciecz\n/clear liquid",
+          "method": "organoleptycznie\n/organoleptic",
           "data_field": null,
           "qualitative_result": "zgodny /right"
         },
@@ -1043,8 +1067,8 @@
           "id": "odour",
           "name_pl": "Zapach",
           "name_en": "Odour",
-          "requirement": "charakterystyczny, słaby /faint, characteristic",
-          "method": "organoleptycznie /organoleptic",
+          "requirement": "charakterystyczny, słaby\n/faint, characteristic",
+          "method": "organoleptycznie\n/organoleptic",
           "data_field": null,
           "qualitative_result": "zgodny /right"
         },
@@ -1052,7 +1076,7 @@
           "id": "ph",
           "name_pl": "pH (5%, aq, 25°C)",
           "name_en": "pH (5%, aq, 25°C)",
-          "requirement": "6,00-8,00",
+          "requirement": "6,00 – 8,00",
           "method": "L905",
           "data_field": "ph_10proc",
           "format": "2"
@@ -1061,7 +1085,7 @@
           "id": "active_matter",
           "name_pl": "Substancja aktywna [%]",
           "name_en": "Active matter [%]",
-          "requirement": "29,0-33,0",
+          "requirement": "29,0 - 33,0",
           "method": "L932",
           "data_field": "sa",
           "format": "1"
@@ -1070,7 +1094,7 @@
           "id": "alkalinity",
           "name_pl": "Alkaliczność [meq/g]",
           "name_en": "Total alkalinity [meq/g]",
-          "requirement": "1,15-1,30",
+          "requirement": "1,15 – 1,30",
           "method": "L921",
           "data_field": "alkalicznosc",
           "format": "2"
@@ -1096,10 +1120,10 @@
           "id": "appearance",
           "name_pl": "Wygląd",
           "name_en": "Appearance",
-          "requirement": "klarowna ciecz /clear liquid",
-          "method": "organoleptycznie /organoleptic",
+          "requirement": "klarowna ciecz\n/clear liquid",
+          "method": "organoleptycznie\n/organoleptic",
           "data_field": null,
-          "qualitative_result": "zgodny /right"
+          "qualitative_result": "zgodny\n/right"
         },
         {
           "id": "barwa_hz",
@@ -1114,16 +1138,16 @@
           "id": "odour",
           "name_pl": "Zapach",
           "name_en": "Odour",
-          "requirement": "charakterystyczny słaby /faint characteristic",
-          "method": "organoleptycznie /organoleptic",
+          "requirement": "charakterystyczny słaby\n/faint characteristic",
+          "method": "organoleptycznie\n/organoleptic",
           "data_field": null,
-          "qualitative_result": "zgodny /right"
+          "qualitative_result": "zgodny\n/right"
         },
         {
           "id": "ph",
           "name_pl": "pH (5%, aq, 25°C)",
           "name_en": "pH (5%, aq, 25°C)",
-          "requirement": "6,00-8,00",
+          "requirement": "6,00 – 8,00",
           "method": "L905",
           "data_field": "ph_10proc",
           "format": "2"
@@ -1430,28 +1454,29 @@
           "id": "odour",
           "name_pl": "Zapach",
           "name_en": "Odour",
-          "requirement": "charakterystyczny aminowy /characteristic, amine-like",
+          "requirement": "charakterystyczny aminowy\n/characteristic, amine-like",
           "method": "organoleptycznie /organoleptic",
           "data_field": null,
-          "qualitative_result": "zgodny /right"
+          "qualitative_result": "zgodny\n/right"
         },
         {
           "id": "appearance",
           "name_pl": "Wygląd",
           "name_en": "Appearance",
-          "requirement": "substancja stała, woskowa /flakes, waxy",
+          "requirement": "substancja stała, woskowa\n/flakes, waxy",
           "method": "organoleptycznie /organoleptic",
           "data_field": null,
-          "qualitative_result": "zgodny /right"
+          "qualitative_result": "zgodny\n/right"
         },
         {
           "id": "wkt",
-          "name_pl": "Wolne kwasy tłuszczowe [%] (kwas laurynowy M=200,3)",
-          "name_en": "Free fatty acids [%] as lauric acid",
+          "name_pl": "Wolne kwasy tłuszczowe [%]\nw przeliczeniu na kwas laurynowy\n(M = 200,3 g/mol)",
+          "name_en": "Free fatty acids [%] as lauric acid, (MW = 200,3 g/mol)",
           "requirement": "max 0,5",
           "method": "L925",
           "data_field": "wkt",
-          "format": "1"
+          "format": "1",
+          "qualitative_result": "<0,1"
         },
         {
           "id": "mea",
@@ -1469,7 +1494,8 @@
           "requirement": "max 6,0",
           "method": "L952",
           "data_field": "estry",
-          "format": "1"
+          "format": "1",
+          "qualitative_result": "<1,0"
         }
       ],
       "variants": [
@@ -1553,12 +1579,13 @@
         },
         {
           "id": "wkt",
-          "name_pl": "Wolne kwasy tłuszczowe [%] (kwas laurynowy)",
-          "name_en": "Free fatty acids [%] as lauric acid",
+          "name_pl": "Wolne kwasy tłuszczowe [%]\nw przeliczeniu na kwas laurynowy\n(MW = 200,3 g/mol)",
+          "name_en": "Free fatty acids [%] as lauric acid, (MW = 200,3 g/mol)",
           "requirement": "max 1,0",
           "method": "L925",
           "data_field": "wkt",
-          "format": "1"
+          "format": "1",
+          "qualitative_result": "<1,0"
         },
         {
           "id": "mea",
@@ -1571,12 +1598,13 @@
         },
         {
           "id": "estry",
-          "name_pl": "Estry [%] (laurynian metylu)",
-          "name_en": "Esters [%] as methyl laurate",
+          "name_pl": "Estry [%] w przeliczeniu na laurynian metylu",
+          "name_en": "Esters [%] as methyl laurate,\n(MW=214 g/mol)",
           "requirement": "max 6,0",
           "method": "L952",
           "data_field": "estry",
-          "format": "1"
+          "format": "1",
+          "qualitative_result": "<1,0"
         }
       ],
       "variants": [
@@ -1608,19 +1636,19 @@
           "id": "odour",
           "name_pl": "Zapach",
           "name_en": "Odour",
-          "requirement": "charakterystyczny /characteristic",
-          "method": "organoleptycznie /organoleptic",
+          "requirement": "charakterystyczny\n/characteristic",
+          "method": "organoleptycznie\n/organoleptic",
           "data_field": null,
-          "qualitative_result": "zgodny /right"
+          "qualitative_result": "zgodny\n/right"
         },
         {
           "id": "appearance",
           "name_pl": "Wygląd",
           "name_en": "Appearance",
-          "requirement": "wosk /wax",
+          "requirement": "wosk\n/wax",
           "method": "P801",
           "data_field": null,
-          "qualitative_result": "zgodny /right"
+          "qualitative_result": "zgodny\n/right"
         },
         {
           "id": "lk",
@@ -1629,7 +1657,8 @@
           "requirement": "max 2,00",
           "method": "PN-EN ISO 660:2021-03",
           "data_field": "lk",
-          "format": "2"
+          "format": "2",
+          "qualitative_result": "<0,01"
         },
         {
           "id": "lz",
@@ -1688,19 +1717,19 @@
           "id": "odour",
           "name_pl": "Zapach",
           "name_en": "Odour",
-          "requirement": "charakterystyczny /characteristic",
-          "method": "organoleptycznie /organoleptic",
+          "requirement": "charakterystyczny\n/characteristic",
+          "method": "organoleptycznie\n/organoleptic",
           "data_field": null,
-          "qualitative_result": "zgodny /right"
+          "qualitative_result": "zgodny\n/right"
         },
         {
           "id": "appearance",
           "name_pl": "Wygląd",
           "name_en": "Appearance",
-          "requirement": "wosk /wax",
+          "requirement": "substancja woskowa\n/waxy substance",
           "method": "P801",
           "data_field": null,
-          "qualitative_result": "zgodny /right"
+          "qualitative_result": "zgodny\n/right"
         },
         {
           "id": "lk",
@@ -1709,16 +1738,18 @@
           "requirement": "max 2,00",
           "method": "PN-EN ISO 660:2021-03",
           "data_field": "lk",
-          "format": "2"
+          "format": "2",
+          "qualitative_result": "<0,01"
         },
         {
           "id": "lz",
           "name_pl": "Liczba zmydlania [mg KOH/g]",
-          "name_en": "Saponification value [mg KOH/g]",
+          "name_en": "Saponification value\n[mg KOH/g]",
           "requirement": "max 2,00",
           "method": "PN-EN ISO 3657:2024-01",
           "data_field": "lz",
-          "format": "2"
+          "format": "2",
+          "qualitative_result": "<0,01"
         },
         {
           "id": "t_kropl",
@@ -1740,12 +1771,13 @@
         },
         {
           "id": "li",
-          "name_pl": "Liczba jodowa [g I2/100g]",
-          "name_en": "Iodine value [g I2/100g]",
+          "name_pl": "Liczba jodowa [g I2/100 g]",
+          "name_en": "Iodine value [g I2/100 g]",
           "requirement": "max 2,00",
           "method": "PN-EN ISO 3961:2018-09",
           "data_field": "li",
-          "format": "2"
+          "format": "2",
+          "qualitative_result": "<0,20"
         }
       ],
       "variants": [
@@ -1798,7 +1830,7 @@
         {
           "id": "la",
           "name_pl": "Liczba aminowa [mg KOH/g]",
-          "name_en": "Amine value [mg KOH/g]",
+          "name_en": "Amine value [mg/KOH/g]",
           "requirement": "130-160",
           "method": "L914",
           "data_field": "la",
@@ -1834,19 +1866,19 @@
           "id": "odour",
           "name_pl": "Zapach",
           "name_en": "Odour",
-          "requirement": "charakterystyczny /characteristic",
-          "method": "organoleptycznie /organoleptic",
+          "requirement": "charakterystyczny\n/characteristic",
+          "method": "organoleptycznie\n/organoleptic",
           "data_field": null,
-          "qualitative_result": "zgodny /right"
+          "qualitative_result": "zgodny\n/right"
         },
         {
           "id": "appearance",
           "name_pl": "Wygląd",
           "name_en": "Appearance",
-          "requirement": "substancja woskowa /wax",
+          "requirement": "substancja woskowa\n/wax",
           "method": "P804",
           "data_field": null,
-          "qualitative_result": "zgodny /right"
+          "qualitative_result": "zgodny\n/right"
         },
         {
           "id": "lk",
@@ -1868,7 +1900,7 @@
         },
         {
           "id": "lh",
-          "name_pl": "Liczba hydroksylowa [mg KOH/g]",
+          "name_pl": "Liczba hydroksylowa\n[mg KOH/g]",
           "name_en": "Hydroxyl value [mg KOH/g]",
           "requirement": "70,0-130,0",
           "method": "L929",
@@ -1947,7 +1979,7 @@
           "id": "lz",
           "name_pl": "Liczba zmydlenia [mg KOH/g]",
           "name_en": "Saponification value [mg KOH/g]",
-          "requirement": "188-200",
+          "requirement": "188÷200",
           "method": "PN-EN ISO 3657:2024-01",
           "data_field": "lz",
           "format": "0"
@@ -1956,7 +1988,7 @@
           "id": "t_topn",
           "name_pl": "Temperatura topnienia [°C]",
           "name_en": "Melting point [°C]",
-          "requirement": "58,0-64,0",
+          "requirement": "58,0÷64,0",
           "method": "L934",
           "data_field": "t_topn",
           "format": "1"
@@ -2007,8 +2039,8 @@
         },
         {
           "id": "li",
-          "name_pl": "Liczba jodowa [g I2/100g]",
-          "name_en": "Iodine value [g I2/100g]",
+          "name_pl": "Liczba jodowa [g J2/100g]",
+          "name_en": "Iodine value [g J2/100g]",
           "requirement": "63,0-83,0",
           "method": "PN-EN ISO 3961:2018-09",
           "data_field": "li",
@@ -2180,9 +2212,10 @@
           "name_pl": "Liczba kwasowa [mg KOH/g]",
           "name_en": "Acid value [mg KOH/g]",
           "requirement": "max 0,2",
-          "method": "zgodnie z świadectwem dostawcy",
+          "method": "zgodnie z świadectwem dostawcy/according to supplier’s CoA",
           "data_field": "lk",
-          "format": "1"
+          "format": "1",
+          "qualitative_result": "<0,1"
         },
         {
           "id": "lz",
@@ -2198,16 +2231,17 @@
           "name_pl": "Liczba jodowa [g I2/100g]",
           "name_en": "Iodine value [g I2/100g]",
           "requirement": "max 1,0",
-          "method": "zgodnie z świadectwem dostawcy",
+          "method": "zgodnie z świadectwem dostawcy/according to supplier’s CoA",
           "data_field": "li",
-          "format": "1"
+          "format": "1",
+          "qualitative_result": "<0,1"
         },
         {
           "id": "c16",
           "name_pl": "%C16",
           "name_en": "%C16",
-          "requirement": "25-35",
-          "method": "zgodnie z świadectwem dostawcy",
+          "requirement": "25 – 35",
+          "method": "zgodnie z świadectwem dostawcy/according to supplier’s CoA",
           "data_field": null,
           "qualitative_result": null
         },
@@ -2215,8 +2249,8 @@
           "id": "c18",
           "name_pl": "%C18",
           "name_en": "%C18",
-          "requirement": "60-75",
-          "method": "zgodnie z świadectwem dostawcy",
+          "requirement": "60 - 75",
+          "method": "zgodnie z świadectwem dostawcy/according to supplier’s CoA",
           "data_field": null,
           "qualitative_result": null
         }
@@ -2265,9 +2299,10 @@
           "name_pl": "Liczba kwasowa [mg KOH/g]",
           "name_en": "Acid value [mg KOH/g]",
           "requirement": "max 0,2",
-          "method": "zgodnie z świadectwem dostawcy",
+          "method": "zgodnie z świadectwem dostawcy/according to supplier’s CoA",
           "data_field": "lk",
-          "format": "1"
+          "format": "1",
+          "qualitative_result": "<0,1"
         },
         {
           "id": "lz",
@@ -2283,16 +2318,17 @@
           "name_pl": "Liczba jodowa [g I2/100g]",
           "name_en": "Iodine value [g I2/100g]",
           "requirement": "max 1,0",
-          "method": "zgodnie z świadectwem dostawcy",
+          "method": "zgodnie z świadectwem dostawcy/according to supplier’s CoA",
           "data_field": "li",
-          "format": "1"
+          "format": "1",
+          "qualitative_result": "<0,1"
         },
         {
           "id": "c16",
           "name_pl": "%C16",
           "name_en": "%C16",
-          "requirement": "45-55",
-          "method": "zgodnie z świadectwem dostawcy",
+          "requirement": "45 – 55",
+          "method": "zgodnie z świadectwem dostawcy/according to supplier’s CoA",
           "data_field": null,
           "qualitative_result": null
         },
@@ -2300,8 +2336,8 @@
           "id": "c18",
           "name_pl": "%C18",
           "name_en": "%C18",
-          "requirement": "45-55",
-          "method": "zgodnie z świadectwem dostawcy",
+          "requirement": "45 - 55",
+          "method": "zgodnie z świadectwem dostawcy/according to supplier’s CoA",
           "data_field": null,
           "qualitative_result": null
         }
@@ -2329,7 +2365,7 @@
           "name_pl": "Liczba hydroksylowa [mg KOH/g]",
           "name_en": "Hydroxyl number [mg KOH/g]",
           "requirement": "210-220",
-          "method": "60064737*",
+          "method": "L955",
           "data_field": "lh",
           "format": "0"
         },
@@ -2356,16 +2392,17 @@
           "name_pl": "Liczba jodowa [g I2/100g]",
           "name_en": "Iodine value [g I2/100g]",
           "requirement": "max 1,0",
-          "method": "60065250*",
+          "method": "60064690*",
           "data_field": "li",
-          "format": "1"
+          "format": "1",
+          "qualitative_result": "<0,1"
         },
         {
           "id": "c16",
           "name_pl": "%C16",
           "name_en": "%C16",
-          "requirement": "25-32",
-          "method": "60065250*",
+          "requirement": "25 – 32",
+          "method": "60065138*",
           "data_field": null,
           "qualitative_result": null
         },
@@ -2373,8 +2410,8 @@
           "id": "c18",
           "name_pl": "%C18",
           "name_en": "%C18",
-          "requirement": "65-75",
-          "method": "60065250*",
+          "requirement": "65 - 75",
+          "method": "60065138*",
           "data_field": null,
           "qualitative_result": null
         }
@@ -2406,10 +2443,10 @@
           "id": "colour",
           "name_pl": "Barwa",
           "name_en": "Colour",
-          "requirement": "bezbarwna-jasnożółta /clear to light yellow",
-          "method": "organoleptycznie /organoleptic",
+          "requirement": "bezbarwna-jasnożółta/\nclear to light yellow",
+          "method": "organoleptycznie\n/organoleptic",
           "data_field": null,
-          "qualitative_result": "zgodny /right"
+          "qualitative_result": "zgodny\n/right"
         },
         {
           "id": "ph",
@@ -2450,7 +2487,7 @@
           "id": "lk",
           "name_pl": "Liczba kwasowa [mg KOH/g]",
           "name_en": "Acid value [mg KOH/g]",
-          "requirement": "206-212",
+          "requirement": "206 – 212",
           "method": "PN-EN ISO 660:2021-03",
           "data_field": "lk",
           "format": "0"
@@ -2459,8 +2496,8 @@
           "id": "t_kropl",
           "name_pl": "Temperatura kroplenia [°C]",
           "name_en": "Dropping point [°C]",
-          "requirement": "54,0-56,5",
-          "method": "metoda dostawcy surowca",
+          "requirement": "54,0 – 56,5",
+          "method": "metoda dostawcy surowca/ according to supplier’s CoA",
           "data_field": "t_kropl",
           "format": "1"
         },
