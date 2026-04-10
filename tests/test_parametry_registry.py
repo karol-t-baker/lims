@@ -116,3 +116,68 @@ def test_obliczeniowy_has_formula(db):
     if sa:
         assert sa["typ"] == "obliczeniowy"
         assert sa["formula"] == "sm - nacl - 0.6"
+
+
+# ---------------------------------------------------------------------------
+# Nadtlenki migration tests
+# ---------------------------------------------------------------------------
+
+def test_h2o2_skrot_renamed_to_perh(db):
+    """After migration, h2o2 skrót must be '%Perh.' (not '%H₂O₂')."""
+    row = db.execute(
+        "SELECT skrot FROM parametry_analityczne WHERE kod='h2o2'"
+    ).fetchone()
+    assert row is not None, "h2o2 parameter must exist"
+    assert row["skrot"] == "%Perh."
+
+
+def test_nadtlenki_parameter_exists(db):
+    """Migration must create a 'nadtlenki' parameter with correct fields."""
+    row = db.execute(
+        "SELECT kod, label, skrot, typ, metoda_id, jednostka "
+        "FROM parametry_analityczne WHERE kod='nadtlenki'"
+    ).fetchone()
+    assert row is not None, "nadtlenki parameter must be created"
+    assert row["label"] == "Nadtlenki"
+    assert row["skrot"] == "%H\u2082O\u2082"
+    assert row["typ"] == "titracja"
+    assert row["metoda_id"] == 4
+    assert row["jednostka"] == "%"
+
+
+def test_nadtlenki_replaces_h2o2_in_analiza_koncowa(db):
+    """For each of the 5 products, nadtlenki must be bound to analiza_koncowa
+    and h2o2 must NOT be bound to analiza_koncowa."""
+    products = [
+        "Chegina_K40GLOL",
+        "Cheminox_K",
+        "Cheminox_K35",
+        "Cheminox_LA",
+        "Chemipol_ML",
+    ]
+    nadtlenki_id = db.execute(
+        "SELECT id FROM parametry_analityczne WHERE kod='nadtlenki'"
+    ).fetchone()
+    assert nadtlenki_id is not None
+    nadtlenki_id = nadtlenki_id["id"]
+
+    h2o2_id = db.execute(
+        "SELECT id FROM parametry_analityczne WHERE kod='h2o2'"
+    ).fetchone()
+    assert h2o2_id is not None
+    h2o2_id = h2o2_id["id"]
+
+    for prod in products:
+        bound = db.execute(
+            "SELECT id FROM parametry_etapy "
+            "WHERE produkt=? AND kontekst='analiza_koncowa' AND parametr_id=?",
+            (prod, nadtlenki_id),
+        ).fetchone()
+        assert bound is not None, f"{prod}: nadtlenki not bound to analiza_koncowa"
+
+        old_bound = db.execute(
+            "SELECT id FROM parametry_etapy "
+            "WHERE produkt=? AND kontekst='analiza_koncowa' AND parametr_id=?",
+            (prod, h2o2_id),
+        ).fetchone()
+        assert old_bound is None, f"{prod}: h2o2 still bound to analiza_koncowa"
