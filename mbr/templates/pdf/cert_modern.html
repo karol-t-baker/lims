@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<style>
+@page {
+  size: 210mm 297mm;
+  margin: 18mm 22mm 24mm 22mm;
+
+  @bottom-center {
+    content: "P P U Chemco Sp. z o.o.  ·  ul. Kościuszki 19, 83-033 Sobowidz  ·  biuro@chemco.pl  ·  BDO: 000003546";
+    font-family: 'Helvetica Neue', 'Arial', sans-serif;
+    font-size: 7pt;
+    color: #888;
+    border-top: 0.5pt solid #ccc;
+    padding-top: 6pt;
+  }
+}
+body {
+  font-family: 'Helvetica Neue', 'Arial', sans-serif;
+  font-size: 10pt;
+  color: #1a1a1a;
+  margin: 0;
+  padding: 0;
+  line-height: 1.45;
+}
+
+/* ── Header ────────────────────────────────────────────────────────── */
+.hdr {
+  display: table;
+  width: 100%;
+  margin-bottom: 20pt;
+  padding-bottom: 14pt;
+  border-bottom: 2.5pt solid #c8102e;
+}
+.hdr-logo {
+  display: table-cell;
+  width: 26mm;
+  vertical-align: middle;
+}
+.hdr-logo img {
+  width: 22mm;
+  height: auto;
+}
+.hdr-title {
+  display: table-cell;
+  text-align: center;
+  vertical-align: middle;
+  padding: 0 10pt;
+}
+.hdr-title-main {
+  font-size: 15pt;
+  font-weight: 700;
+  letter-spacing: 0.5pt;
+  color: #1a1a1a;
+  display: block;
+}
+.hdr-title-sub {
+  font-size: 10pt;
+  color: #666;
+  display: block;
+  margin-top: 1pt;
+}
+.hdr-product {
+  font-size: 16pt;
+  font-weight: 700;
+  color: #c8102e;
+  display: block;
+  margin-top: 6pt;
+}
+.hdr-spec {
+  display: table-cell;
+  width: 30%;
+  vertical-align: middle;
+  text-align: right;
+  font-size: 9pt;
+  color: #555;
+}
+.hdr-spec .spec-label { font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.8pt; color: #999; display: block; }
+.hdr-spec .spec-val { font-size: 11pt; font-weight: 600; color: #1a1a1a; }
+.hdr-spec .cas-val { font-size: 9pt; color: #666; margin-top: 2pt; display: block; }
+
+/* ── Info section ──────────────────────────────────────────────────── */
+.info-grid {
+  display: table;
+  width: 100%;
+  margin: 10pt 0 14pt 0;
+  font-size: 9.5pt;
+}
+.info-row {
+  display: table-row;
+}
+.info-label {
+  display: table-cell;
+  width: 45%;
+  padding: 3pt 0;
+  color: #555;
+}
+.info-val {
+  display: table-cell;
+  padding: 3pt 0;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+/* ── AVON ──────────────────────────────────────────────────────────── */
+.avon {
+  background: #f7f7f7;
+  border-radius: 4pt;
+  padding: 6pt 10pt;
+  margin-bottom: 10pt;
+  font-size: 9pt;
+}
+.avon span { font-weight: 600; }
+
+/* ── Results table ─────────────────────────────────────────────────── */
+table.rt {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12pt 0;
+  font-size: 9.5pt;
+}
+table.rt th {
+  background: #2c3e50;
+  color: #fff;
+  font-weight: 600;
+  font-size: 8.5pt;
+  text-transform: uppercase;
+  letter-spacing: 0.3pt;
+  padding: 7pt 6pt;
+  text-align: center;
+  border: none;
+}
+table.rt th:first-child { text-align: left; border-radius: 3pt 0 0 0; }
+table.rt th:last-child { border-radius: 0 3pt 0 0; }
+table.rt td {
+  padding: 6pt 6pt;
+  border-bottom: 0.5pt solid #e0e0e0;
+  vertical-align: middle;
+}
+table.rt td:nth-child(1) { width: 44%; }
+table.rt td:nth-child(2) { width: 20%; text-align: center; }
+table.rt td:nth-child(3) { width: 22%; text-align: center; font-size: 8.5pt; color: #666; }
+table.rt td:nth-child(4) { width: 14%; text-align: center; font-weight: 600; }
+table.rt tr:last-child td { border-bottom: 2pt solid #2c3e50; }
+table.rt .param-pl { font-weight: 500; }
+table.rt .param-en { color: #888; font-size: 8.5pt; }
+table.rt td.empty { color: #ccc; }
+
+/* ── Bottom sections ───────────────────────────────────────────────── */
+.section { margin-top: 14pt; }
+.section-label {
+  font-size: 8pt;
+  text-transform: uppercase;
+  letter-spacing: 0.8pt;
+  color: #999;
+  margin-bottom: 3pt;
+}
+.section-val {
+  font-size: 10pt;
+  color: #1a1a1a;
+}
+.opinion-box {
+  background: #f0f7f0;
+  border-left: 3pt solid #27ae60;
+  padding: 8pt 12pt;
+  margin: 8pt 0;
+  font-size: 10pt;
+}
+
+/* ── Signature area ────────────────────────────────────────────────── */
+.sig-area {
+  margin-top: 20pt;
+  display: table;
+  width: 100%;
+}
+.sig-left {
+  display: table-cell;
+  width: 50%;
+  vertical-align: bottom;
+  font-size: 9pt;
+}
+.sig-right {
+  display: table-cell;
+  width: 50%;
+  vertical-align: bottom;
+  text-align: right;
+  font-size: 9pt;
+  color: #666;
+}
+.sig-name { font-weight: 600; color: #1a1a1a; }
+.sig-role { color: #888; font-size: 8.5pt; }
+
+.electronic {
+  margin-top: 16pt;
+  font-size: 7.5pt;
+  color: #aaa;
+  border-top: 0.5pt solid #e0e0e0;
+  padding-top: 6pt;
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-logo">
+    <img src="{{ logo_path }}" alt="">
+  </div>
+  <div class="hdr-title">
+    <span class="hdr-title-main">ŚWIADECTWO JAKOŚCI</span>
+    <span class="hdr-title-sub">Certificate of Analysis</span>
+    <span class="hdr-product">{{ display_name }}</span>
+  </div>
+  <div class="hdr-spec">
+    <span class="spec-label">Specyfikacja / TDS</span>
+    <span class="spec-val">{{ spec_number }}</span>
+    {% if cas_number %}<span class="cas-val">CAS: {{ cas_number }}</span>{% endif %}
+  </div>
+</div>
+
+<!-- AVON (conditional) -->
+{% if avon_code %}
+<div class="avon">
+  <span>AVON code:</span> {{ avon_code }}
+  {% if avon_name %}&emsp;<span>AVON name:</span> {{ avon_name }}{% endif %}
+</div>
+{% endif %}
+
+<!-- BATCH INFO -->
+<div class="info-grid">
+  <div class="info-row">
+    <div class="info-label">Partia / Batch</div>
+    <div class="info-val">{{ nr_partii }}</div>
+  </div>
+  <div class="info-row">
+    <div class="info-label">Data produkcji / Production date</div>
+    <div class="info-val">{{ dt_produkcji }}</div>
+  </div>
+  <div class="info-row">
+    <div class="info-label">Data ważności / Expiry date</div>
+    <div class="info-val">{{ dt_waznosci }}</div>
+  </div>
+  {% if order_number %}
+  <div class="info-row">
+    <div class="info-label">Numer zamówienia / Order No.</div>
+    <div class="info-val">{{ order_number }}</div>
+  </div>
+  {% endif %}
+  {% if certificate_number %}
+  <div class="info-row">
+    <div class="info-label">Numer certyfikatu / Certificate No.</div>
+    <div class="info-val">{{ certificate_number }}{% if has_rspo %} · CU-RSPO SCC-857488{% endif %}</div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- RESULTS TABLE -->
+<table class="rt">
+  <tr>
+    <th>Parametr / Characteristic</th>
+    <th>Wymagania / Req.</th>
+    <th>Metoda / Method</th>
+    <th>Wynik / Result</th>
+  </tr>
+  {% for row in rows %}
+  <tr>
+    <td><span class="param-pl">{{ row.name_pl }}</span>{% if row.name_en %}<br><span class="param-en">{{ row.name_en }}</span>{% endif %}</td>
+    <td>{{ row.requirement }}</td>
+    <td>{{ row.method }}</td>
+    <td{% if not row.result %} class="empty"{% endif %}>{{ row.result if row.result else '—' }}</td>
+  </tr>
+  {% endfor %}
+</table>
+
+<!-- COUNTRY -->
+<div class="section">
+  <div class="section-label">Kraj pochodzenia / Country of origin</div>
+  <div class="section-val">Polska / Poland</div>
+</div>
+
+<!-- OPINION -->
+<div class="section">
+  <div class="section-label">Opinia Laboratorium KJ / Quality Control Opinion</div>
+  <div class="opinion-box">
+    {{ opinion_pl }}<br>
+    <span style="color: #666; font-style: italic;">{{ opinion_en }}</span>
+  </div>
+</div>
+
+<!-- SIGNATURE -->
+<div class="sig-area">
+  <div class="sig-left">
+    <div class="section-label">Miejsce i data / Place and date</div>
+    <div class="sig-name">Sobowidz, {{ dt_wystawienia }}</div>
+  </div>
+  <div class="sig-right">
+    <div class="section-label">Wystawił / Issued by</div>
+    <div class="sig-name">Specjalista ds. KJ</div>
+    <div class="sig-role">Quality Control Specialist</div>
+  </div>
+</div>
+
+<div class="electronic">
+  Dokument utworzony elektronicznie, nie wymaga podpisu. / The certificate is not signed as it is electronically edited.
+</div>
+
+</body>
+</html>
