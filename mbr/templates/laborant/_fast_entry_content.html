@@ -2565,7 +2565,7 @@ function recomputeField(computedInput) {
     var context = {};
     document.querySelectorAll('input[data-sekcja="' + sekcja + '"]').forEach(function(inp) {
         if (inp.dataset.kod && inp.value !== '') {
-            context[inp.dataset.kod] = parseFloat(inp.value);
+            context[inp.dataset.kod] = parseFloat(inp.value.replace(',', '.'));
         }
     });
 
