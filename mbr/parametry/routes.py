@@ -186,16 +186,25 @@ def api_parametry_sa_bias():
         if not row:
             return jsonify({"error": "Binding not found"}), 404
 
-        # Build binding formula: strip trailing number from global formula, replace with new bias.
-        # e.g. "sm - nacl - 0.6"  →  "sm - nacl - 0.7"
+        # If global formula uses 'sa_bias' placeholder, updating sa_bias field is enough —
+        # get_parametry_for_kontekst substitutes it automatically.
+        # If global formula has a hardcoded number, embed the new value in binding_formula.
         import re as _re
-        base = _re.sub(r'\s*[-+]\s*[\d.]+\s*$', '', row["global_formula"] or "").strip()
-        new_formula = f"{base} - {sa_bias}" if base else None
-
-        db.execute(
-            "UPDATE parametry_etapy SET sa_bias=?, formula=? WHERE id=?",
-            (sa_bias, new_formula, row["id"]),
-        )
+        global_formula = row["global_formula"] or ""
+        if "sa_bias" in global_formula:
+            # Placeholder-based: just update sa_bias, no binding formula needed
+            db.execute(
+                "UPDATE parametry_etapy SET sa_bias=?, formula=NULL WHERE id=?",
+                (sa_bias, row["id"]),
+            )
+        else:
+            # Hardcoded number: replace trailing number with new bias in binding formula
+            base = _re.sub(r'\s*[-+]\s*[\d.]+\s*$', '', global_formula).strip()
+            new_formula = f"{base} - {sa_bias}" if base else None
+            db.execute(
+                "UPDATE parametry_etapy SET sa_bias=?, formula=? WHERE id=?",
+                (sa_bias, new_formula, row["id"]),
+            )
         # Rebuild parametry_lab snapshot so future form loads see the updated formula
         plab = build_parametry_lab(db, produkt)
         db.execute(
