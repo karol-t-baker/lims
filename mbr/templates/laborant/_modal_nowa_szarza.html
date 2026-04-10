@@ -378,11 +378,13 @@ async function _loadProductsForType(typ) {
     if (qpEl) {
         var qpHtml = '';
         // Platkowanie: show ALL products as buttons (few products, no search needed)
-        var qpList = (typ === 'platkowanie') ? products : products.slice(0, 4);
+        // Szarza/zbiornik: show 5 priority products in defined order
+        var PRIORITY_PICKS = ['Chegina_K7', 'Chegina_K40GLOL', 'Chegina_K40GLO', 'Chegina_K40GL', 'Chelamid_DK'];
+        var qpList = (typ === 'platkowanie') ? products : PRIORITY_PICKS.map(function(n) {
+            return products.find(function(p) { return p.nazwa === n; });
+        }).filter(Boolean);
         qpList.forEach(function(p) {
-            var short = (typ === 'platkowanie')
-                ? (p.display_name || p.nazwa.replace(/_/g, ' '))
-                : p.nazwa.replace(/^Chegina_/, '').replace(/^[A-Za-z]+_/, '').replace(/_/g, ' ');
+            var short = p.display_name || p.nazwa.replace(/_/g, ' ');
             qpHtml += '<button type="button" class="qp-btn" onclick="quickPick(this,\'' + p.nazwa + '\',\'' + typ + '\')">' + short + '</button>';
         });
         qpEl.innerHTML = qpHtml;
