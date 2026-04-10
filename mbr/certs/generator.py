@@ -222,7 +222,7 @@ def build_context(
 
             rows.append({
                 "name_pl": name_pl,
-                "name_en": name_en,
+                "name_en": f"/{name_en}" if name_en else "",
                 "requirement": r["requirement"] or "",
                 "method": method,
                 "result": result,
@@ -356,9 +356,10 @@ def build_preview_context(product_json: dict, variant_id: str) -> dict:
         elif param.get("data_field"):
             fmt = param.get("format") or "1"
             result = _format_value(12.34, fmt)
+        _ne = param.get("name_en", "")
         rows.append({
             "name_pl": param.get("name_pl", ""),
-            "name_en": param.get("name_en", ""),
+            "name_en": f"/{_ne}" if _ne else "",
             "requirement": param.get("requirement", ""),
             "method": param.get("method", ""),
             "result": result,
