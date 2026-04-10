@@ -128,7 +128,7 @@ table.rt td.empty { color: #999; }
   </tr>
   {% for row in rows %}
   <tr>
-    <td>{{ row.name_pl }}<br>/{{ row.name_en }}</td>
+    <td>{{ row.name_pl }}{% if row.name_en %}<br>/{{ row.name_en }}{% endif %}</td>
     <td>{{ row.requirement }}</td>
     <td>{{ row.method }}</td>
     <td{% if not row.result %} class="empty"{% endif %}>{{ row.result }}</td>
