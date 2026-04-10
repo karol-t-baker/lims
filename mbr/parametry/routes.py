@@ -172,6 +172,12 @@ def api_parametry_sa_bias():
         if not row:
             return jsonify({"error": "Binding not found"}), 404
         db.execute("UPDATE parametry_etapy SET sa_bias = ? WHERE id = ?", (sa_bias, row["id"]))
+        # Rebuild parametry_lab snapshot so future form loads see the updated formula
+        plab = build_parametry_lab(db, produkt)
+        db.execute(
+            "UPDATE mbr_templates SET parametry_lab=? WHERE produkt=? AND status='active'",
+            (_json.dumps(plab, ensure_ascii=False), produkt),
+        )
         db.commit()
     return jsonify({"ok": True})
 
