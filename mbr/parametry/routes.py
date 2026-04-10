@@ -156,7 +156,7 @@ def api_parametry_sa_bias():
     with db_session() as db:
         # Find binding for this product + kod in analiza_koncowa
         row = db.execute(
-            """SELECT pe.id FROM parametry_etapy pe
+            """SELECT pe.id, pa.formula AS global_formula FROM parametry_etapy pe
                JOIN parametry_analityczne pa ON pe.parametr_id = pa.id
                WHERE pa.kod = ? AND pe.produkt = ? AND pe.kontekst = 'analiza_koncowa'""",
             (kod, produkt),
@@ -164,14 +164,24 @@ def api_parametry_sa_bias():
         if not row:
             # Try default (NULL produkt)
             row = db.execute(
-                """SELECT pe.id FROM parametry_etapy pe
+                """SELECT pe.id, pa.formula AS global_formula FROM parametry_etapy pe
                    JOIN parametry_analityczne pa ON pe.parametr_id = pa.id
                    WHERE pa.kod = ? AND pe.produkt IS NULL AND pe.kontekst = 'analiza_koncowa'""",
                 (kod,),
             ).fetchone()
         if not row:
             return jsonify({"error": "Binding not found"}), 404
-        db.execute("UPDATE parametry_etapy SET sa_bias = ? WHERE id = ?", (sa_bias, row["id"]))
+
+        # Build binding formula: strip trailing number from global formula, replace with new bias.
+        # e.g. "sm - nacl - 0.6"  →  "sm - nacl - 0.7"
+        import re as _re
+        base = _re.sub(r'\s*[-+]\s*[\d.]+\s*$', '', row["global_formula"] or "").strip()
+        new_formula = f"{base} - {sa_bias}" if base else None
+
+        db.execute(
+            "UPDATE parametry_etapy SET sa_bias=?, formula=? WHERE id=?",
+            (sa_bias, new_formula, row["id"]),
+        )
         # Rebuild parametry_lab snapshot so future form loads see the updated formula
         plab = build_parametry_lab(db, produkt)
         db.execute(
