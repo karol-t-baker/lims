@@ -76,8 +76,8 @@ def szarze_new():
 
             # Save platkowanie substraty (optional, from modal substrat rows)
             substraty_json = request.form.get("substraty_json", "[]")
+            import json as _json
             try:
-                import json as _json
                 substraty = _json.loads(substraty_json)
                 for sub in substraty:
                     sub_id = sub.get("substrat_id")

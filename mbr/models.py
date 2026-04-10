@@ -824,6 +824,27 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
         except Exception:
             pass
 
+    # Migration: fix platkowanie_substraty FK reference (may point to _ebr_batches_old after ebr_batches rebuild)
+    try:
+        ps_sql = db.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='platkowanie_substraty'"
+        ).fetchone()
+        if ps_sql and "_ebr_batches_old" in (ps_sql["sql"] or ""):
+            db.execute("ALTER TABLE platkowanie_substraty RENAME TO _platkowanie_substraty_old")
+            db.execute("""
+                CREATE TABLE platkowanie_substraty (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ebr_id INTEGER NOT NULL REFERENCES ebr_batches(ebr_id),
+                    substrat_id INTEGER NOT NULL REFERENCES substraty(id),
+                    nr_partii_substratu TEXT
+                )
+            """)
+            db.execute("INSERT INTO platkowanie_substraty SELECT * FROM _platkowanie_substraty_old")
+            db.execute("DROP TABLE _platkowanie_substraty_old")
+            db.commit()
+    except Exception:
+        pass
+
     # Migration: product_ref_values — per-product reference values for analiza_koncowa
     db.execute("""
         CREATE TABLE IF NOT EXISTS product_ref_values (
