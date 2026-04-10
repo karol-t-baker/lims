@@ -100,6 +100,48 @@ def main():
         save_cert_config_export(db)
     print("  OK — cert_config.json regenerated")
 
+    print("\n=== 6. Merge duplicate produkty (Chemal_CS3070, HSH_CS3070, Kwas_stearynowy) ===")
+    db = sqlite3.connect(DB_PATH)
+    db.row_factory = sqlite3.Row
+    db.execute("PRAGMA foreign_keys=ON")
+
+    MERGES = [
+        ("Chemal_CS3070", "Chemal_CS_3070"),
+        ("HSH_CS3070",    "HSH_CS_3070"),
+        ("Kwas_stearynowy", "Kwas_Stearynowy"),
+    ]
+    for old, new in MERGES:
+        # Migrate parametry_etapy
+        db.execute("""
+            INSERT OR IGNORE INTO parametry_etapy
+                (produkt, kontekst, parametr_id, kolejnosc, min_limit, max_limit, nawazka_g, wymagany, formula, sa_bias, krok, target)
+            SELECT ?, kontekst, parametr_id, kolejnosc, min_limit, max_limit, nawazka_g, wymagany, formula, sa_bias, krok, target
+            FROM parametry_etapy WHERE produkt = ?
+        """, (new, old))
+        db.execute("DELETE FROM parametry_etapy WHERE produkt = ?", (old,))
+        db.execute("DELETE FROM mbr_templates WHERE produkt = ?", (old,))
+        db.execute("DELETE FROM produkty WHERE nazwa = ?", (old,))
+        print(f"  {old} → {new}")
+    db.commit()
+
+    print("\n=== 7. Assign missing produkt codes ===")
+    CODES = [
+        ("Chegina_GLOL40",  "GLOL40"),
+        ("Chemal_CS_3070",  "CML_CS3070"),
+        ("Chemal_CS_5050",  "CML_CS5050"),
+        ("HSH_CS_3070",     "HSH_CS3070"),
+        ("Kwas_Stearynowy", "KWS_ST"),
+    ]
+    for nazwa, kod in CODES:
+        existing = db.execute("SELECT kod FROM produkty WHERE nazwa=?", (nazwa,)).fetchone()
+        if existing and not existing["kod"]:
+            db.execute("UPDATE produkty SET kod=? WHERE nazwa=?", (kod, nazwa))
+            print(f"  {nazwa} → {kod}")
+        else:
+            print(f"  OK {nazwa} — already has code")
+    db.commit()
+    db.close()
+
     print("\n=== DONE ===")
 
 
