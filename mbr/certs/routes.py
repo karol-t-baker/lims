@@ -116,7 +116,7 @@ def api_cert_generate():
         pdf_bytes,
         mimetype="application/pdf",
         headers={
-            "Content-Disposition": f"attachment; filename=\"{filename_ascii}\"; filename*=UTF-8''{quote(filename)}",
+            "Content-Disposition": f"inline; filename=\"{filename_ascii}\"; filename*=UTF-8''{quote(filename)}",
             "X-Cert-Id": str(cert_id),
         },
     )
