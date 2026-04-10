@@ -104,6 +104,15 @@
 
 /* Save bar */
 .wc-save-bar{display:flex;gap:10px;align-items:center;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);}
+
+/* Rich-text preview (super/subscript) under name inputs */
+.rt-preview{font-size:11px;color:var(--text-dim);margin-top:2px;min-height:13px;line-height:1.2;font-family:serif;}
+.rt-preview:empty{display:none;}
+.rt-preview sup{font-size:0.75em;vertical-align:super;}
+.rt-preview sub{font-size:0.75em;vertical-align:sub;}
+.rt-wrap{display:flex;flex-direction:column;flex:1;min-width:0;}
+.wc-hint{font-size:11px;color:var(--text-dim);margin:0 0 8px;}
+.wc-hint code{background:var(--surface);padding:1px 5px;border-radius:3px;font-family:var(--mono);font-size:10.5px;}
 </style>
 {% endblock %}
 
@@ -177,6 +186,7 @@
           <div class="wc-section-title">Parametry</div>
           <button class="wc-btn wc-btn-secondary wc-btn-sm" onclick="addParameter()">+ Dodaj parametr</button>
         </div>
+        <p class="wc-hint">Indeksy w nazwach: <code>^{...}</code> = górny, <code>_{...}</code> = dolny. Przykład: <code>n_{D}^{20}</code> → n<sub>D</sub><sup>20</sup></p>
         <table class="wc-params">
           <thead>
             <tr>
@@ -249,6 +259,32 @@ function flash(msg, ok) {
   el.className = 'wc-flash ' + (ok ? 'ok' : 'err');
   el.style.display = 'block';
   setTimeout(function() { el.style.display = 'none'; }, 4000);
+}
+
+/* Rich-text preview for parameter names.
+   Syntax: ^{...} → superscript, _{...} → subscript (e.g. n_{D}^{20}).
+   Mirrors _md_to_richtext() in mbr/certs/generator.py. */
+function _rtHtml(text) {
+  if (!text) return '';
+  var out = '';
+  var re = /(\^\{[^}]*\}|_\{[^}]*\})/g;
+  var last = 0;
+  var m;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) out += _esc(text.slice(last, m.index));
+    var inner = m[0].slice(2, -1);
+    out += (m[0][0] === '^') ? '<sup>' + _esc(inner) + '</sup>' : '<sub>' + _esc(inner) + '</sub>';
+    last = re.lastIndex;
+  }
+  if (last < text.length) out += _esc(text.slice(last));
+  return out;
+}
+
+function updateRtPreview(input) {
+  var wrap = input.parentElement;
+  if (!wrap) return;
+  var prev = wrap.querySelector('.rt-preview');
+  if (prev) prev.innerHTML = _rtHtml(input.value || '');
 }
 
 function _codeOptions(current) {
@@ -491,8 +527,8 @@ function _paramRow(p, idx) {
   return '<tr draggable="true" data-idx="' + idx + '">' +
     '<td><span class="wc-drag">&#10303;</span></td>' +
     '<td class="wc-id-cell"><input data-field="id" value="' + _esc(p.id || '') + '" readonly style="color:var(--text-dim);font-family:var(--mono);font-size:10px;background:transparent;cursor:default;" tabindex="-1"></td>' +
-    '<td><input data-field="name_pl" value="' + _esc(p.name_pl || '') + '" oninput="autoId(this)"></td>' +
-    '<td><input data-field="name_en" value="' + _esc(p.name_en || '') + '" oninput="autoId(this)"></td>' +
+    '<td><input data-field="name_pl" value="' + _esc(p.name_pl || '') + '" oninput="autoId(this);updateRtPreview(this)"><div class="rt-preview">' + _rtHtml(p.name_pl || '') + '</div></td>' +
+    '<td><input data-field="name_en" value="' + _esc(p.name_en || '') + '" oninput="autoId(this);updateRtPreview(this)"><div class="rt-preview">' + _rtHtml(p.name_en || '') + '</div></td>' +
     '<td><input data-field="requirement" value="' + _esc(p.requirement || '') + '"></td>' +
     '<td><input data-field="method" value="' + _esc(p.method || '') + '"></td>' +
     '<td><select data-field="data_field" onchange="onCodeSelect(this)">' + _codeOptions(p.data_field) + '</select></td>' +
@@ -682,8 +718,8 @@ function renderVariant(v, vi) {
 
 function renderVariantAddParam(vi, api, ap) {
   return '<div class="wc-variant-add-param" data-api="' + api + '">' +
-    '<input data-ap="name_pl" value="' + _esc(ap.name_pl || '') + '" placeholder="Nazwa PL">' +
-    '<input data-ap="name_en" value="' + _esc(ap.name_en || '') + '" placeholder="Nazwa EN">' +
+    '<div class="rt-wrap"><input data-ap="name_pl" value="' + _esc(ap.name_pl || '') + '" placeholder="Nazwa PL" oninput="updateRtPreview(this)"><div class="rt-preview">' + _rtHtml(ap.name_pl || '') + '</div></div>' +
+    '<div class="rt-wrap"><input data-ap="name_en" value="' + _esc(ap.name_en || '') + '" placeholder="Nazwa EN" oninput="updateRtPreview(this)"><div class="rt-preview">' + _rtHtml(ap.name_en || '') + '</div></div>' +
     '<input data-ap="requirement" value="' + _esc(ap.requirement || '') + '" placeholder="Wymaganie">' +
     '<input data-ap="method" value="' + _esc(ap.method || '') + '" placeholder="Metoda">' +
     '<select data-ap="data_field" onchange="onCodeSelectAp(this)">' + _codeOptions(ap.data_field) + '</select>' +

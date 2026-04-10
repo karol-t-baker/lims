@@ -8,12 +8,41 @@ Rendering: docxtpl fills .docx master template → Gotenberg converts to PDF.
 import copy
 import io
 import json
+import re
 import tempfile
 from datetime import date, datetime
 from pathlib import Path
 
 import requests
-from docxtpl import DocxTemplate
+from docxtpl import DocxTemplate, RichText
+
+
+# Lightweight markup for parameter names: `^{...}` → superscript, `_{...}` → subscript.
+# Example: "n_{D}^{20}" renders as n with D subscript and 20 superscript.
+# Chosen over bare `^foo^`/`_foo_` because underscores and carets are common in chemical
+# identifiers and product names — the explicit `{...}` braces prevent accidental matches.
+_RT_RE = re.compile(r"(\^\{[^}]*\}|_\{[^}]*\})")
+
+
+def _md_to_richtext(text: str) -> RichText:
+    """Convert a string with `^{sup}` / `_{sub}` markers into a docxtpl RichText.
+
+    Plain strings (no markers) are still returned as RichText — the template uses
+    `{{r ... }}` tags everywhere, so values must be RichText objects.
+    """
+    rt = RichText()
+    if not text:
+        return rt
+    for part in _RT_RE.split(text):
+        if not part:
+            continue
+        if part.startswith("^{") and part.endswith("}"):
+            rt.add(part[2:-1], superscript=True)
+        elif part.startswith("_{") and part.endswith("}"):
+            rt.add(part[2:-1], subscript=True)
+        else:
+            rt.add(part)
+    return rt
 
 _CONFIG_PATH = Path(__file__).resolve().parent.parent / "cert_config.json"
 _TEMPLATE_PATH = Path(__file__).resolve().parent.parent / "templates" / "cert_master_template.docx"
@@ -221,8 +250,8 @@ def build_context(
                         result = str(val).replace(".", ",")
 
             rows.append({
-                "name_pl": name_pl,
-                "name_en": f"/{name_en}" if name_en else "",
+                "name_pl": _md_to_richtext(name_pl),
+                "name_en": _md_to_richtext(f"/{name_en}") if name_en else _md_to_richtext(""),
                 "requirement": r["requirement"] or "",
                 "method": method,
                 "result": result,
@@ -358,8 +387,8 @@ def build_preview_context(product_json: dict, variant_id: str) -> dict:
             result = _format_value(12.34, fmt)
         _ne = param.get("name_en", "")
         rows.append({
-            "name_pl": param.get("name_pl", ""),
-            "name_en": f"/{_ne}" if _ne else "",
+            "name_pl": _md_to_richtext(param.get("name_pl", "")),
+            "name_en": _md_to_richtext(f"/{_ne}") if _ne else _md_to_richtext(""),
             "requirement": param.get("requirement", ""),
             "method": param.get("method", ""),
             "result": result,
