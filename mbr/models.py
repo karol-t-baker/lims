@@ -906,6 +906,7 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             ("Cheminox_LA",     3,  0.0, 0.01, None),
             ("Chemipol_ML",     4,  0.0, 0.15, None),
         ]
+        import sys as _sys
         _h2o2_row = db.execute(
             "SELECT id FROM parametry_analityczne WHERE kod='h2o2'"
         ).fetchone()
@@ -913,7 +914,9 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             "SELECT id FROM parametry_analityczne WHERE kod='nadtlenki'"
         ).fetchone()
 
-        if _h2o2_row and _nadtlenki_row:
+        if not (_h2o2_row and _nadtlenki_row):
+            print("[migration] nadtlenki: skipping swap — h2o2 or nadtlenki param not found", file=_sys.stderr)
+        else:
             _h2o2_id = _h2o2_row["id"]
             _nadtlenki_id = _nadtlenki_row["id"]
 

@@ -275,7 +275,7 @@ ETAPY_BINDINGS = [
     _b("Chegina_K40GLOL", "analiza_koncowa", "nd20",        4,  1.39,  1.42),
     _b("Chegina_K40GLOL", "analiza_koncowa", "sa",          5,  36,    42),
     _b("Chegina_K40GLOL", "analiza_koncowa", "aa",          6,  0,     0.3),
-    _b("Chegina_K40GLOL", "analiza_koncowa", "nadtlenki",   7,  0,     0.010),
+    _b("Chegina_K40GLOL", "analiza_koncowa", "nadtlenki",   7,  0,     0.010, nawazka=10.0),
     _b("Chegina_K40GLOL", "analiza_koncowa", "so3",         8,  0,     0.030),
     _b("Chegina_K40GLOL", "analiza_koncowa", "barwa_fau",   9,  0,     200),
     _b("Chegina_K40GLOL", "analiza_koncowa", "barwa_hz",    10, 0,     500),
@@ -324,8 +324,8 @@ def seed(db):
             """
             INSERT OR IGNORE INTO parametry_analityczne
                 (kod, label, typ, metoda_nazwa, metoda_formula, metoda_factor,
-                 formula, precision, skrot, name_en, method_code)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 formula, precision, skrot, name_en, method_code, jednostka)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 p["kod"],
@@ -339,6 +339,7 @@ def seed(db):
                 p.get("skrot"),
                 p.get("name_en", ""),
                 p.get("method_code", ""),
+                p.get("jednostka"),
             ),
         )
         # Update skrot + label + name_en + method_code on existing rows (INSERT OR IGNORE skips them)
@@ -658,6 +659,7 @@ _PARAM_METHOD_MAP = {
     "aa": "CHEGINY %AA",
     "so3": "Siarczyny [%]",
     "h2o2": "Perhydrol [%]",
+    "nadtlenki": "Nadtlenki [%]",
     "lk": "Liczba Kwasowa (LK)",
     "la": "Liczba Aminowa (LA)",
     "wolna_amina": "DMAPA [%]",
