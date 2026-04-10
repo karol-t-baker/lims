@@ -1321,12 +1321,17 @@ async function doGenerateCert(btn, variantId, extraFields) {
         if (resp.ok && ct.includes('application/pdf')) {
             var blob = await resp.blob();
             var cd = resp.headers.get('Content-Disposition') || '';
-            var match = cd.match(/filename="(.+)"/);
+            var match = cd.match(/filename="(.+?)"/);
             var filename = match ? match[1] : 'swiadectwo.pdf';
             // Use multiple download strategies for browser compatibility
             var url = URL.createObjectURL(blob);
-            window.open(url, '_blank');
-            setTimeout(function() { URL.revokeObjectURL(url); }, 60000);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(function() { URL.revokeObjectURL(url); }, 5000);
         } else if (resp.ok) {
             try { var d = await resp.json(); alert('Błąd: ' + (d.error || 'Brak PDF w odpowiedzi')); } catch(e2) { alert('Odpowiedź nie jest PDF'); }
         } else {
