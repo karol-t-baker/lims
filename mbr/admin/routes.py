@@ -177,6 +177,17 @@ def api_feedback_priorytet(fb_id):
     return jsonify({"ok": True})
 
 
+@admin_bp.route("/api/admin/feedback/export", methods=["GET"])
+@role_required("admin")
+def api_feedback_export():
+    with db_session() as db:
+        rows = db.execute("SELECT * FROM feedback ORDER BY dt DESC").fetchall()
+        data = [dict(r) for r in rows]
+    resp = jsonify(data)
+    resp.headers["Content-Disposition"] = "attachment; filename=feedback.json"
+    return resp
+
+
 @admin_bp.route("/api/admin/feedback/<int:fb_id>", methods=["DELETE"])
 @role_required("admin")
 def api_feedback_delete(fb_id):
