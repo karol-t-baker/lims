@@ -418,8 +418,8 @@ def seed(db):
             "SELECT id FROM parametry_analityczne WHERE kod='nadtlenki'"
         ).fetchone()
         if _h2o2_row and _nadtlenki_row:
-            _h2o2_id = _h2o2_row[0]
-            _nadtlenki_id = _nadtlenki_row[0]
+            _h2o2_id = _h2o2_row["id"]
+            _nadtlenki_id = _nadtlenki_row["id"]
             for _prod, _kol, _mn, _mx, _naw in _NADTLENKI_EXTRA:
                 db.execute(
                     "DELETE FROM parametry_etapy "
@@ -432,8 +432,9 @@ def seed(db):
                     VALUES (?, 'analiza_koncowa', ?, ?, ?, ?, ?, 1)
                 """, (_prod, _nadtlenki_id, _kol, _mn, _mx, _naw))
         db.commit()
-    except Exception:
-        pass
+    except Exception as _e:
+        import sys as _sys
+        print(f"[migration] nadtlenki seed: {_e}", file=_sys.stderr)
 
     total_pa = db.execute("SELECT COUNT(*) FROM parametry_analityczne").fetchone()[0]
     total_pe = db.execute("SELECT COUNT(*) FROM parametry_etapy").fetchone()[0]

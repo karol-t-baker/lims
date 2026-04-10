@@ -932,8 +932,9 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
                 """, (_prod, _nadtlenki_id, _kol, _mn, _mx, _naw))
 
         db.commit()
-    except Exception:
-        pass
+    except Exception as _e:
+        import sys as _sys
+        print(f"[migration] nadtlenki: {_e}", file=_sys.stderr)
 
 # ---------------------------------------------------------------------------
 # Auto-numbering — moved to mbr.laborant.models, re-exported for backward compat
