@@ -153,6 +153,16 @@ def api_parametry_etapy_update(binding_id):
     vals = list(updates.values()) + [binding_id]
     with db_session() as db:
         db.execute(f"UPDATE parametry_etapy SET {sets} WHERE id=?", vals)
+        # Rebuild parametry_lab for the affected product
+        row = db.execute(
+            "SELECT produkt FROM parametry_etapy WHERE id=?", (binding_id,)
+        ).fetchone()
+        if row and row["produkt"]:
+            plab = build_parametry_lab(db, row["produkt"])
+            db.execute(
+                "UPDATE mbr_templates SET parametry_lab=? WHERE produkt=? AND status='active'",
+                (_json.dumps(plab, ensure_ascii=False), row["produkt"]),
+            )
         db.commit()
     return jsonify({"ok": True})
 
