@@ -68,6 +68,20 @@ def api_parametry_update(param_id):
     vals = list(updates.values()) + [param_id]
     with db_session() as db:
         db.execute(f"UPDATE parametry_analityczne SET {sets} WHERE id=?", vals)
+        # Rebuild parametry_lab for all active templates that use this parameter
+        affected = db.execute(
+            """SELECT DISTINCT mt.produkt
+               FROM mbr_templates mt
+               JOIN parametry_etapy pe ON pe.produkt = mt.produkt
+               WHERE pe.parametr_id = ? AND mt.status = 'active'""",
+            (param_id,),
+        ).fetchall()
+        for row in affected:
+            plab = build_parametry_lab(db, row["produkt"])
+            db.execute(
+                "UPDATE mbr_templates SET parametry_lab=? WHERE produkt=? AND status='active'",
+                (_json.dumps(plab, ensure_ascii=False), row["produkt"]),
+            )
         db.commit()
     return jsonify({"ok": True})
 
