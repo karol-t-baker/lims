@@ -923,6 +923,16 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
                 ('nadtlenki', 'Nadtlenki', 'titracja', '%H\u2082O\u2082', ?, '%')
         """, (_metoda_id,))
 
+        # 4b. Populate legacy inline metoda columns (needed by get_parametry_for_kontekst)
+        #     Idempotent: only updates when still NULL
+        db.execute("""
+            UPDATE parametry_analityczne
+            SET metoda_nazwa='Nadtlenki [%]',
+                metoda_formula='(V1 * T1 * 1.704) / M',
+                metoda_factor=1.704
+            WHERE kod='nadtlenki' AND metoda_factor IS NULL
+        """)
+
         # 5. Replace h2o2 → nadtlenki in parametry_etapy for analiza_koncowa
         _NADTLENKI_PRODUCTS = [
             # (produkt, kolejnosc, min_limit, max_limit, nawazka_g)
@@ -959,6 +969,20 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
                         (produkt, kontekst, parametr_id, kolejnosc, min_limit, max_limit, nawazka_g, wymagany)
                     VALUES (?, 'analiza_koncowa', ?, ?, ?, ?, ?, 1)
                 """, (_prod, _nadtlenki_id, _kol, _mn, _mx, _naw))
+
+            # 6. Rebuild parametry_lab in active MBR templates so forms show nadtlenki
+            try:
+                from mbr.parametry.registry import build_parametry_lab as _bpl
+                import json as _plab_json
+                for _prod, _, _, _, _ in _NADTLENKI_PRODUCTS:
+                    _plab = _bpl(db, _prod)
+                    db.execute(
+                        "UPDATE mbr_templates SET parametry_lab=? "
+                        "WHERE produkt=? AND status='active'",
+                        (_plab_json.dumps(_plab, ensure_ascii=False), _prod),
+                    )
+            except Exception as _pe:
+                print(f"[migration] nadtlenki: parametry_lab rebuild failed: {_pe}", file=_sys.stderr)
 
         db.commit()
     except Exception as _e:
