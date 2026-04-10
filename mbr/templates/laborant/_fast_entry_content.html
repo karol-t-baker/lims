@@ -1525,6 +1525,7 @@ function repeatAnaliza() {
     }
 
     renderSections();
+    setupComputedFields();
     setTimeout(function() {
         var sections = document.querySelectorAll('.section.current');
         if (sections.length > 0) sections[sections.length - 1].scrollIntoView({behavior: 'smooth', block: 'start'});
@@ -2386,6 +2387,7 @@ function repeatAnalizaCyclic() {
     roundState.next_step = 'analiza';
     roundState.is_decision = false;
     renderSections();
+    setupComputedFields();
 }
 
 
@@ -2418,9 +2420,17 @@ function saveBias(kod) {
         if (r.ok) {
             var st = document.getElementById('calc-bias-status');
             if (st) { st.textContent = '✓ Zapisano'; st.style.opacity = '1'; setTimeout(function() { st.style.opacity = '0'; }, 2000); }
-            // Update formula display
+            // Update formula display in calculator panel
             var formulaEl = document.querySelector('#calc-container .calc-formula');
             if (formulaEl) formulaEl.textContent = 'sm - nacl - ' + bias;
+            // Update data-formula on the SA input and recompute immediately
+            var newFormula = 'sm - nacl - ' + bias;
+            document.querySelectorAll('input[data-kod="' + kod + '"][data-formula]').forEach(function(saInp) {
+                saInp.dataset.formula = newFormula;
+                recomputeField(saInp);
+            });
+            // Re-attach listeners with new formula
+            setupComputedFields();
         }
     });
 }
@@ -2520,6 +2530,13 @@ document.addEventListener('focusin', window._panelFocusBridge);
 
 // Computed fields
 function setupComputedFields() {
+    // Remove previously attached computed-field listeners to avoid duplicates on re-render
+    document.querySelectorAll('input[data-computed-listener]').forEach(function(inp) {
+        (inp._computedHandlers || []).forEach(function(h) { inp.removeEventListener('input', h); });
+        delete inp._computedHandlers;
+        inp.removeAttribute('data-computed-listener');
+    });
+
     document.querySelectorAll('input[data-formula]').forEach(function(computedInput) {
         var formula = computedInput.dataset.formula;
         var sekcja = computedInput.dataset.sekcja;
@@ -2529,7 +2546,11 @@ function setupComputedFields() {
                 'input[data-kod="' + depKod + '"][data-sekcja="' + sekcja + '"]'
             );
             if (depInput && depInput !== computedInput) {
-                depInput.addEventListener('input', function() { recomputeField(computedInput); });
+                var handler = function() { recomputeField(computedInput); };
+                if (!depInput._computedHandlers) depInput._computedHandlers = [];
+                depInput._computedHandlers.push(handler);
+                depInput.setAttribute('data-computed-listener', '1');
+                depInput.addEventListener('input', handler);
             }
         });
         recomputeField(computedInput);
@@ -3382,6 +3403,7 @@ function psSkipStage(etap) {
         showProcessStage(data.next_etap);
       } else {
         renderSections();
+        setupComputedFields();
       }
       renderSidebarEtapy();
     }
