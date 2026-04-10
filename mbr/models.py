@@ -859,6 +859,82 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     """)
     db.commit()
 
+    # Migration: rename h2o2 skrót → %Perh., add nadtlenki parameter,
+    # replace h2o2 with nadtlenki in analiza_koncowa for betaine products
+    try:
+        # 1. Rename h2o2 skrót (idempotent — UPDATE only when still old value)
+        db.execute(
+            "UPDATE parametry_analityczne SET skrot='%Perh.' "
+            "WHERE kod='h2o2' AND (skrot IS NULL OR skrot != '%Perh.')"
+        )
+
+        # 2. Ensure "Nadtlenki [%]" method exists in metody_miareczkowe
+        #    (seed_metody may not have run yet — e.g. in tests)
+        import json as _json
+        db.execute("""
+            INSERT OR IGNORE INTO metody_miareczkowe
+                (nazwa, formula, mass_required, volumes_json, titrants_json)
+            VALUES (?, ?, ?, ?, ?)
+        """, (
+            "Nadtlenki [%]",
+            "(V1 * T1 * 1.704) / M",
+            1,
+            _json.dumps([{"label": "VCe [ml]", "titrant": "T1"}]),
+            _json.dumps([{"id": "T1", "label": "C(Ce)", "default": 0.1}]),
+        ))
+
+        # 3. Look up metoda_id by name (resilient to ID shifts)
+        _metoda = db.execute(
+            "SELECT id FROM metody_miareczkowe WHERE nazwa='Nadtlenki [%]'"
+        ).fetchone()
+        _metoda_id = _metoda["id"] if _metoda else None
+
+        # 4. Insert nadtlenki parameter (INSERT OR IGNORE = idempotent)
+        db.execute("""
+            INSERT OR IGNORE INTO parametry_analityczne
+                (kod, label, typ, skrot, metoda_id, jednostka)
+            VALUES
+                ('nadtlenki', 'Nadtlenki', 'titracja', '%H\u2082O\u2082', ?, '%')
+        """, (_metoda_id,))
+
+        # 5. Replace h2o2 → nadtlenki in parametry_etapy for analiza_koncowa
+        _NADTLENKI_PRODUCTS = [
+            # (produkt, kolejnosc, min_limit, max_limit, nawazka_g)
+            ("Chegina_K40GLOL", 7,  0.0, 0.01, 10.0),
+            ("Cheminox_K",      3,  0.0, 0.01, None),
+            ("Cheminox_K35",    3,  0.0, 0.01, None),
+            ("Cheminox_LA",     3,  0.0, 0.01, None),
+            ("Chemipol_ML",     4,  0.0, 0.15, None),
+        ]
+        _h2o2_row = db.execute(
+            "SELECT id FROM parametry_analityczne WHERE kod='h2o2'"
+        ).fetchone()
+        _nadtlenki_row = db.execute(
+            "SELECT id FROM parametry_analityczne WHERE kod='nadtlenki'"
+        ).fetchone()
+
+        if _h2o2_row and _nadtlenki_row:
+            _h2o2_id = _h2o2_row["id"]
+            _nadtlenki_id = _nadtlenki_row["id"]
+
+            for _prod, _kol, _mn, _mx, _naw in _NADTLENKI_PRODUCTS:
+                # Remove old h2o2 binding for this product/context
+                db.execute(
+                    "DELETE FROM parametry_etapy "
+                    "WHERE produkt=? AND kontekst='analiza_koncowa' AND parametr_id=?",
+                    (_prod, _h2o2_id),
+                )
+                # Insert nadtlenki binding (INSERT OR IGNORE = idempotent)
+                db.execute("""
+                    INSERT OR IGNORE INTO parametry_etapy
+                        (produkt, kontekst, parametr_id, kolejnosc, min_limit, max_limit, nawazka_g, wymagany)
+                    VALUES (?, 'analiza_koncowa', ?, ?, ?, ?, ?, 1)
+                """, (_prod, _nadtlenki_id, _kol, _mn, _mx, _naw))
+
+        db.commit()
+    except Exception:
+        pass
+
 # ---------------------------------------------------------------------------
 # Auto-numbering — moved to mbr.laborant.models, re-exported for backward compat
 # ---------------------------------------------------------------------------

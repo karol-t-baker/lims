@@ -76,13 +76,22 @@ PARAMETRY = [
      "precision": 3,
      "name_en": "Sulphites [%]",           "method_code": ""},
     {"kod": "h2o2",
-     "label": "Nadtlenek wodoru",  "skrot": "%H₂O₂",
+     "label": "Nadtlenek wodoru",  "skrot": "%Perh.",
      "typ": "titracja",
      "metoda_nazwa": "Manganometryczna",
      "metoda_formula": "% = (V * 0.0017 * 100) / m",
      "metoda_factor": 0.17,
      "precision": 3,
      "name_en": "Peroxides as H2O2 [%]",   "method_code": "L901"},
+    {"kod": "nadtlenki",
+     "label": "Nadtlenki",  "skrot": "%H\u2082O\u2082",
+     "typ": "titracja",
+     "metoda_nazwa": "Nadtlenki [%]",
+     "metoda_formula": "(V1 * T1 * 1.704) / M",
+     "metoda_factor": 1.704,
+     "precision": 3,
+     "jednostka": "%",
+     "name_en": "Peroxides [%]",   "method_code": ""},
     {"kod": "wolna_amina",
      "label": "Wolna amina",  "skrot": "%WA",
      "typ": "titracja",
@@ -266,7 +275,7 @@ ETAPY_BINDINGS = [
     _b("Chegina_K40GLOL", "analiza_koncowa", "nd20",        4,  1.39,  1.42),
     _b("Chegina_K40GLOL", "analiza_koncowa", "sa",          5,  36,    42),
     _b("Chegina_K40GLOL", "analiza_koncowa", "aa",          6,  0,     0.3),
-    _b("Chegina_K40GLOL", "analiza_koncowa", "h2o2",        7,  0,     0.010),
+    _b("Chegina_K40GLOL", "analiza_koncowa", "nadtlenki",   7,  0,     0.010),
     _b("Chegina_K40GLOL", "analiza_koncowa", "so3",         8,  0,     0.030),
     _b("Chegina_K40GLOL", "analiza_koncowa", "barwa_fau",   9,  0,     200),
     _b("Chegina_K40GLOL", "analiza_koncowa", "barwa_hz",    10, 0,     500),
@@ -390,6 +399,41 @@ def seed(db):
             pe_rows += 1
 
     db.commit()
+
+    # Post-seed: apply nadtlenki migration for products seeded via seed_from_seed_mbr
+    # (Cheminox_K, Cheminox_K35, Cheminox_LA, Chemipol_ML)
+    # For Chegina_K40GLOL the binding is already set correctly above via ETAPY_BINDINGS.
+    try:
+        _NADTLENKI_EXTRA = [
+            # (produkt, kolejnosc, min_limit, max_limit, nawazka_g)
+            ("Cheminox_K",   3, 0.0, 0.01, None),
+            ("Cheminox_K35", 3, 0.0, 0.01, None),
+            ("Cheminox_LA",  3, 0.0, 0.01, None),
+            ("Chemipol_ML",  4, 0.0, 0.15, None),
+        ]
+        _h2o2_row = db.execute(
+            "SELECT id FROM parametry_analityczne WHERE kod='h2o2'"
+        ).fetchone()
+        _nadtlenki_row = db.execute(
+            "SELECT id FROM parametry_analityczne WHERE kod='nadtlenki'"
+        ).fetchone()
+        if _h2o2_row and _nadtlenki_row:
+            _h2o2_id = _h2o2_row[0]
+            _nadtlenki_id = _nadtlenki_row[0]
+            for _prod, _kol, _mn, _mx, _naw in _NADTLENKI_EXTRA:
+                db.execute(
+                    "DELETE FROM parametry_etapy "
+                    "WHERE produkt=? AND kontekst='analiza_koncowa' AND parametr_id=?",
+                    (_prod, _h2o2_id),
+                )
+                db.execute("""
+                    INSERT OR IGNORE INTO parametry_etapy
+                        (produkt, kontekst, parametr_id, kolejnosc, min_limit, max_limit, nawazka_g, wymagany)
+                    VALUES (?, 'analiza_koncowa', ?, ?, ?, ?, ?, 1)
+                """, (_prod, _nadtlenki_id, _kol, _mn, _mx, _naw))
+        db.commit()
+    except Exception:
+        pass
 
     total_pa = db.execute("SELECT COUNT(*) FROM parametry_analityczne").fetchone()[0]
     total_pe = db.execute("SELECT COUNT(*) FROM parametry_etapy").fetchone()[0]
