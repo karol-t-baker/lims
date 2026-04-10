@@ -134,15 +134,23 @@ def test_h2o2_skrot_renamed_to_perh(db):
 def test_nadtlenki_parameter_exists(db):
     """Migration must create a 'nadtlenki' parameter with correct fields."""
     row = db.execute(
-        "SELECT kod, label, skrot, typ, metoda_id, jednostka "
+        "SELECT kod, label, skrot, typ, jednostka "
         "FROM parametry_analityczne WHERE kod='nadtlenki'"
     ).fetchone()
     assert row is not None, "nadtlenki parameter must be created"
     assert row["label"] == "Nadtlenki"
     assert row["skrot"] == "%H\u2082O\u2082"
     assert row["typ"] == "titracja"
-    assert row["metoda_id"] == 4
     assert row["jednostka"] == "%"
+
+    # Verify method by name (resilient to ID shifts)
+    metoda_row = db.execute(
+        "SELECT m.nazwa FROM metody_miareczkowe m "
+        "JOIN parametry_analityczne p ON p.metoda_id = m.id "
+        "WHERE p.kod='nadtlenki'"
+    ).fetchone()
+    assert metoda_row is not None, "nadtlenki must be linked to a method"
+    assert metoda_row["nazwa"] == "Nadtlenki [%]"
 
 
 def test_nadtlenki_replaces_h2o2_in_analiza_koncowa(db):
