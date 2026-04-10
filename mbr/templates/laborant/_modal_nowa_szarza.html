@@ -239,7 +239,10 @@
           </button>
           <div class="m-sp"></div>
           <button type="button" class="m-btn m-btn-o" onclick="closeModal()">Anuluj</button>
-          <button type="submit" class="m-btn m-btn-p">Utworz</button>
+          <button type="submit" class="m-btn m-btn-p">
+            Utwórz
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"><path d="M5 12h14"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
         </div>
       </form>
     </div>
@@ -376,6 +379,7 @@ async function _loadProductsForType(typ) {
     // Update quick-pick buttons
     var qpEl = document.getElementById(qpId);
     if (qpEl) {
+        qpEl.classList.toggle('qp-dense', typ === 'platkowanie');
         var qpHtml = '';
         // Platkowanie: show ALL products as buttons (few products, no search needed)
         // Szarza/zbiornik: show 5 priority products in defined order
@@ -384,8 +388,18 @@ async function _loadProductsForType(typ) {
             return products.find(function(p) { return p.nazwa === n; });
         }).filter(Boolean);
         qpList.forEach(function(p) {
-            var short = p.display_name || p.nazwa.replace(/_/g, ' ');
-            qpHtml += '<button type="button" class="qp-btn" onclick="quickPick(this,\'' + p.nazwa + '\',\'' + typ + '\')">' + short + '</button>';
+            var parts = p.nazwa.split('_');
+            var inner;
+            if (parts.length >= 2) {
+                var brand = parts[0];
+                var variant = parts.slice(1).join(' ');
+                inner = '<span class="qp-brand">' + brand + '</span><span class="qp-variant">' + variant + '</span>';
+            } else {
+                var short = p.display_name || p.nazwa.replace(/_/g, ' ');
+                inner = short;
+            }
+            var extraCls = parts.length >= 2 ? '' : ' qp-btn-simple';
+            qpHtml += '<button type="button" class="qp-btn' + extraCls + '" onclick="quickPick(this,\'' + p.nazwa + '\',\'' + typ + '\')" title="' + (p.display_name || p.nazwa) + '">' + inner + '</button>';
         });
         qpEl.innerHTML = qpHtml;
     }
@@ -493,7 +507,11 @@ function quickPick(btn, product, context) {
   var selected = step.querySelector('.product-selected');
   wrap.style.display = 'none';
   selected.style.display = 'flex';
-  var shortName = btn.textContent.trim();
+  var variantEl = btn.querySelector('.qp-variant');
+  var brandEl = btn.querySelector('.qp-brand');
+  var shortName = variantEl && brandEl
+      ? (brandEl.textContent + ' ' + variantEl.textContent).trim()
+      : btn.textContent.trim();
   selected.querySelector('.product-selected-name').textContent = shortName;
   selected.querySelector('.sb-full').textContent = product;
   fetchAutoNr(product, context);

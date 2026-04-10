@@ -1411,9 +1411,9 @@ body {
 .modal-close:hover { border-color: var(--text-sec); color: var(--text); background: var(--surface-alt); }
 .modal-body { padding: 24px; overflow-y: auto; flex: 1; min-height: 0; }
 .modal-footer {
-  padding: 18px 24px; border-top: 1px solid var(--border-subtle);
-  display: flex; align-items: center; gap: 8px;
-  background: var(--surface-alt);
+  padding: 16px 24px; border-top: 1px solid var(--border-subtle);
+  display: flex; align-items: center; gap: 12px;
+  background: linear-gradient(180deg, var(--surface-alt) 0%, rgba(0,0,0,0.015) 100%);
 }
 .field-error {
   font-size: 11px; color: var(--red, #dc2626); margin-top: 4px;
@@ -1425,22 +1425,37 @@ body {
 }
 @keyframes shakeIn { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
 .m-btn {
-  padding: 10px 22px; border-radius: 8px; font-size: 13px;
-  border: none; cursor: pointer; font-weight: 600; font-family: var(--font);
-  transition: all 0.12s;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 11px 22px; border-radius: 9px; font-size: 12.5px;
+  border: 1px solid transparent; cursor: pointer; font-weight: 600;
+  font-family: var(--font); letter-spacing: 0.01em; line-height: 1;
+  transition: transform 0.14s ease, box-shadow 0.14s ease, background 0.14s ease, border-color 0.14s ease, color 0.14s ease, filter 0.14s ease;
+  white-space: nowrap;
 }
-.m-btn-p { background: var(--teal); color: white; }
-.m-btn-p:hover { filter: brightness(1.1); }
-.m-btn-o { background: white; border: 1px solid var(--border); color: var(--text-sec); }
-.m-btn-o:hover { background: var(--surface-alt); }
+.m-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+.m-btn-p {
+  background: var(--teal); color: white;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.2) inset, 0 1px 2px rgba(13, 110, 107, 0.18), 0 4px 12px -4px rgba(13, 110, 107, 0.35);
+}
+.m-btn-p:hover { filter: brightness(1.06); transform: translateY(-1px); box-shadow: 0 1px 0 rgba(255,255,255,0.22) inset, 0 2px 4px rgba(13, 110, 107, 0.22), 0 8px 18px -4px rgba(13, 110, 107, 0.42); }
+.m-btn-p:active { transform: translateY(0); filter: brightness(0.97); }
+.m-btn-p:disabled { opacity: 0.45; cursor: not-allowed; filter: saturate(0.6); box-shadow: none; transform: none; }
+.m-btn-o {
+  background: white; border-color: var(--border); color: var(--text-sec);
+  box-shadow: 0 1px 0 rgba(0,0,0,0.02);
+}
+.m-btn-o:hover { background: var(--surface-alt); border-color: var(--text-dim); color: var(--text); }
+.m-btn-o:active { transform: translateY(0.5px); }
 .m-btn-back {
-  display: flex; align-items: center; gap: 4px;
+  display: inline-flex; align-items: center; gap: 6px;
   background: none; border: none; color: var(--text-dim);
   cursor: pointer; font-size: 12px; font-family: var(--font); font-weight: 500;
-  padding: 8px 12px; border-radius: 6px;
+  padding: 9px 10px 9px 6px; border-radius: 7px; letter-spacing: 0.01em;
+  transition: color 0.14s ease, background 0.14s ease;
 }
-.m-btn-back:hover { background: white; color: var(--text-sec); }
-.m-btn-back svg { width: 14px; height: 14px; }
+.m-btn-back:hover { background: white; color: var(--text); }
+.m-btn-back:hover svg { transform: translateX(-2px); }
+.m-btn-back svg { width: 14px; height: 14px; transition: transform 0.18s ease; }
 .m-sp { flex: 1; }
 
 /* ── Tank selection pills (shared: pump modal + new batch modal) ── */
@@ -1576,16 +1591,51 @@ body {
 .step-line.done { background: var(--green); }
 
 /* Quick pick pills */
-.quick-picks { display: flex; gap: 6px; margin-bottom: 10px; }
-.qp-btn {
-  padding: 7px 14px; border-radius: 20px;
-  border: 1.5px solid var(--border); background: white;
-  font-size: 12px; font-weight: 600; font-family: var(--mono);
-  color: var(--text-sec); cursor: pointer;
-  transition: all 0.12s;
+.quick-picks {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 6px; margin-bottom: 10px;
 }
-.qp-btn:hover { border-color: var(--teal); color: var(--teal); background: var(--teal-bg); }
-.qp-btn.active { border-color: var(--teal); color: white; background: var(--teal); }
+/* Platkowanie — all products shown, same 3-col grid, extra rows wrap naturally */
+.quick-picks.qp-dense {
+  grid-template-columns: repeat(3, 1fr);
+}
+.qp-btn {
+  position: relative;
+  display: inline-flex; align-items: baseline; justify-content: center; gap: 5px;
+  padding: 7px 10px; border-radius: 999px; min-height: 30px;
+  border: 1.5px solid var(--border); background: white;
+  cursor: pointer; line-height: 1;
+  transition: border-color 0.14s ease, background 0.14s ease, transform 0.14s ease, box-shadow 0.14s ease, color 0.14s ease;
+}
+.qp-btn:hover {
+  border-color: var(--teal);
+  background: var(--teal-bg, rgba(13, 110, 107, 0.06));
+}
+.qp-brand {
+  font-size: 8.5px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--text-dim);
+  font-family: var(--font);
+}
+.qp-variant {
+  font-size: 12px; font-weight: 700; font-family: var(--mono);
+  color: var(--text); letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.qp-btn:hover .qp-brand { color: var(--teal); }
+.qp-btn:hover .qp-variant { color: var(--teal); }
+.qp-btn.active {
+  border-color: var(--teal); background: var(--teal);
+  box-shadow: 0 2px 8px -3px rgba(13, 110, 107, 0.45);
+}
+.qp-btn.active .qp-brand { color: rgba(255,255,255,0.72); }
+.qp-btn.active .qp-variant { color: white; }
+/* Single-line fallback when product has no brand/variant split */
+.qp-btn-simple {
+  font-size: 12px; font-weight: 600; font-family: var(--mono);
+  color: var(--text-sec);
+}
+.qp-btn-simple:hover { color: var(--teal); }
+.qp-btn-simple.active { color: white; }
 
 /* Search input with icon */
 .search-wrap { position: relative; }
