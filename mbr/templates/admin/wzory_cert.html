@@ -785,7 +785,11 @@ function collectEditorState() {
     var overrides = {};
     body.querySelectorAll('[data-voverride]').forEach(function(inp) {
       var val = inp.value.trim();
-      if (val) overrides[inp.dataset.voverride] = val;
+      if (!val) return;
+      // Skip avon fields when their flag is unchecked
+      var avonEl = inp.closest('[data-avon]');
+      if (avonEl && !avonEl.classList.contains('visible')) return;
+      overrides[inp.dataset.voverride] = val;
     });
 
     // Remove parameters
