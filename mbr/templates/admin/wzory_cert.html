@@ -419,13 +419,21 @@ function deleteProduct(key, name) {
    ═══════════════════════════════════════════════════════════════════ */
 function editProduct(key) {
   _currentKey = key;
-  // Load available codes + product data in parallel
+  // Load available codes (restricted to active MBR's analiza_koncowa) + product data in parallel
   Promise.all([
     fetch('/api/cert/config/product/' + encodeURIComponent(key)).then(function(r) { return r.json(); }),
-    fetch('/api/parametry/available').then(function(r) { return r.json(); })
+    fetch('/api/parametry/available?produkt=' + encodeURIComponent(key)).then(function(r) { return r.json(); })
   ]).then(function(results) {
     var data = results[0];
-    _availableCodes = results[1];
+    var paramsResp = results[1];
+    if (paramsResp && paramsResp.no_mbr) {
+      flash('Brak aktywnego MBR dla produktu "' + key + '" — najpierw aktywuj MBR z parametrami w sekcji „analiza końcowa”, aby móc dodawać parametry do świadectwa.', false);
+      _availableCodes = [];
+    } else if (paramsResp && Array.isArray(paramsResp.params)) {
+      _availableCodes = paramsResp.params;
+    } else {
+      _availableCodes = Array.isArray(paramsResp) ? paramsResp : [];
+    }
     if (!data.ok) { flash(data.error || 'Błąd ładowania', false); return; }
     _currentProduct = data.product;
     _dbMeta = data.db_meta;

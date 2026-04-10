@@ -238,8 +238,35 @@ def api_parametry_etapy_delete(binding_id):
 @parametry_bp.route("/api/parametry/available")
 @login_required
 def api_parametry_available():
-    """All active parameters (for picker)."""
+    """Active parameters for picker.
+
+    If `?produkt=X` is given, restrict to parameters defined in the active MBR's
+    `analiza_koncowa` section for that product. This enforces that certificate
+    parameters can only be drawn from what the laborant actually measures.
+    """
+    produkt = (request.args.get("produkt") or "").strip()
     with db_session() as db:
+        if produkt:
+            from mbr.technolog.models import get_active_mbr
+            mbr = get_active_mbr(db, produkt)
+            if not mbr:
+                return jsonify({"no_mbr": True, "produkt": produkt, "params": []})
+            try:
+                plab = _json.loads(mbr.get("parametry_lab") or "{}")
+            except Exception:
+                plab = {}
+            pola = ((plab.get("analiza_koncowa") or {}).get("pola")) or []
+            allowed_kody = [p.get("kod") for p in pola if p.get("kod")]
+            if not allowed_kody:
+                return jsonify({"no_mbr": True, "produkt": produkt, "params": []})
+            placeholders = ",".join("?" * len(allowed_kody))
+            rows = db.execute(
+                f"SELECT id, kod, label, skrot, typ, name_en, method_code, precision "
+                f"FROM parametry_analityczne WHERE aktywny=1 AND kod IN ({placeholders}) "
+                f"ORDER BY typ, kod",
+                allowed_kody,
+            ).fetchall()
+            return jsonify({"no_mbr": False, "produkt": produkt, "params": [dict(r) for r in rows]})
         rows = db.execute(
             "SELECT id, kod, label, skrot, typ, name_en, method_code, precision "
             "FROM parametry_analityczne WHERE aktywny=1 ORDER BY typ, kod"

@@ -383,6 +383,29 @@ def api_cert_config_product_put(key):
         pa_rows = db.execute("SELECT id, kod FROM parametry_analityczne").fetchall()
         kod_to_id = {r["kod"]: r["id"] for r in pa_rows if r["kod"]}
 
+        # Whitelist: only kody present in the active MBR's analiza_koncowa may be
+        # used on the certificate. If there's no active MBR, reject any attempt
+        # to add parameters to the cert (user must create/activate the MBR first).
+        from mbr.technolog.models import get_active_mbr
+        mbr = get_active_mbr(db, key)
+        analiza_kody = set()
+        if mbr:
+            try:
+                plab = _json.loads(mbr.get("parametry_lab") or "{}")
+            except Exception:
+                plab = {}
+            pola = ((plab.get("analiza_koncowa") or {}).get("pola")) or []
+            analiza_kody = {p.get("kod") for p in pola if p.get("kod")}
+
+        def _reject_if_not_in_analiza(df: str, context: str):
+            if not df:
+                return None
+            if not mbr:
+                return jsonify({"error": f"{context}: brak aktywnego MBR dla produktu „{key}” — nie można przypisać parametru „{df}”"}), 400
+            if df not in analiza_kody:
+                return jsonify({"error": f"{context}: parametr „{df}” nie występuje w sekcji „analiza końcowa” aktywnego MBR"}), 400
+            return None
+
         # Validate parameters
         if parameters is not None:
             param_ids = set()
@@ -398,6 +421,9 @@ def api_cert_config_product_put(key):
                 df = (p.get("data_field") or "").strip()
                 if df and df not in kod_to_id:
                     return jsonify({"error": f"Parameter '{pid}': data_field '{df}' not found in parametry_analityczne"}), 400
+                err = _reject_if_not_in_analiza(df, f"Parametr „{pid}”")
+                if err:
+                    return err
 
         # Validate variants
         if variants is not None:
@@ -425,6 +451,11 @@ def api_cert_config_product_put(key):
                 for rp in remove_params:
                     if rp not in base_param_ids:
                         return jsonify({"error": f"Variant '{vid}' remove_parameters references unknown param: {rp}"}), 400
+                for ap in overrides.get("add_parameters", []) or []:
+                    ap_df = (ap.get("data_field") or ap.get("id") or "").strip()
+                    err = _reject_if_not_in_analiza(ap_df, f"Wariant „{vid}”, parametr „{ap_df}”")
+                    if err:
+                        return err
 
         # Update produkty metadata
         for field in ("display_name", "spec_number", "cas_number", "expiry_months", "opinion_pl", "opinion_en"):
