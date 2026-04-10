@@ -824,6 +824,32 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
         except Exception:
             pass
 
+    # Migration: fix swiadectwa FK reference (may point to _ebr_batches_old after ebr_batches rebuild)
+    try:
+        sw_sql = db.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='swiadectwa'"
+        ).fetchone()
+        if sw_sql and "_ebr_batches_old" in (sw_sql["sql"] or ""):
+            db.execute("ALTER TABLE swiadectwa RENAME TO _swiadectwa_old")
+            db.execute("""
+                CREATE TABLE swiadectwa (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ebr_id          INTEGER NOT NULL REFERENCES ebr_batches(ebr_id),
+                    template_name   TEXT NOT NULL,
+                    nr_partii       TEXT NOT NULL,
+                    pdf_path        TEXT NOT NULL,
+                    dt_wystawienia  TEXT NOT NULL,
+                    wystawil        TEXT NOT NULL,
+                    nieaktualne     INTEGER DEFAULT 0,
+                    data_json       TEXT
+                )
+            """)
+            db.execute("INSERT INTO swiadectwa SELECT * FROM _swiadectwa_old")
+            db.execute("DROP TABLE _swiadectwa_old")
+            db.commit()
+    except Exception:
+        pass
+
     # Migration: fix platkowanie_substraty FK reference (may point to _ebr_batches_old after ebr_batches rebuild)
     try:
         ps_sql = db.execute(
