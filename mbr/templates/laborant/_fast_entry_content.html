@@ -478,10 +478,14 @@
 .cv-param:last-child { border-bottom: none; }
 .cv-param.cv-row-ok { background: var(--green-bg); }
 .cv-param.cv-row-err { background: var(--red-bg); }
-.cv-p-dot { display: none; }
+.cv-p-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.cv-dot-ok { background: var(--green); }
+.cv-dot-err { background: var(--red); }
 .cv-p-label { flex: 1; font-size: 12px; color: var(--text-sec); }
 .cv-param.cv-row-err .cv-p-label { color: var(--red); font-weight: 600; }
 .cv-p-val { font-family: var(--mono); font-size: 15px; font-weight: 700; min-width: 60px; text-align: right; }
+.cv-param.cv-row-ok .cv-p-val, .cv-param.cv-row-ok .cv-p-input { color: var(--green); }
+.cv-param.cv-row-err .cv-p-val, .cv-param.cv-row-err .cv-p-input { color: var(--red); }
 .cv-val-err { color: var(--red); font-weight: 700; }
 .cv-p-norm { font-family: var(--mono); font-size: 10px; color: var(--text-dim); width: 75px; text-align: right; }
 .cv-p-input {
@@ -940,7 +944,9 @@ function renderCompletedView() {
         else if (pole.max != null) normText = '< ' + pole.max;
 
         var rowCls = r ? (ok ? 'cv-row-ok' : 'cv-row-err') : '';
+        var dotHtml = r ? '<div class="cv-p-dot ' + (ok ? 'cv-dot-ok' : 'cv-dot-err') + '"></div>' : '<div class="cv-p-dot"></div>';
         paramsHtml += '<div class="cv-param ' + rowCls + '">' +
+            dotHtml +
             '<span class="cv-p-label">' + esc(pole.skrot || pole.label) + '</span>';
         if (canEdit) {
             paramsHtml += '<input class="cv-p-input" type="text" inputmode="decimal" value="' + (val !== null && val !== '' ? String(val).replace('.', ',') : '') + '"' +
@@ -1015,6 +1021,7 @@ function renderCompletedView() {
                     else if (pole.min != null) normText = '> ' + pole.min;
                     else if (pole.max != null) normText = '< ' + pole.max;
                     html += '<div class="cv-param ' + (ok ? 'cv-row-ok' : 'cv-row-err') + '">' +
+                        '<div class="cv-p-dot ' + (ok ? 'cv-dot-ok' : 'cv-dot-err') + '"></div>' +
                         '<span class="cv-p-label">' + esc(pole.skrot || pole.label) + '</span>' +
                         '<span class="cv-p-val ' + (ok ? '' : 'cv-val-err') + '">' + String(r.wartosc).replace('.', ',') + '</span>' +
                         '<span class="cv-p-norm">' + normText + '</span>' +
