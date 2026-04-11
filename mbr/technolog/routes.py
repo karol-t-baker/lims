@@ -2,7 +2,7 @@
 technolog/routes.py — MBR CRUD and technolog dashboard routes.
 """
 
-from flask import request, session, render_template, redirect, url_for, flash
+from flask import request, session, render_template, redirect, url_for, flash, jsonify
 
 from mbr.technolog import technolog_bp
 from mbr.technolog.models import list_mbr, get_mbr, save_mbr, activate_mbr, clone_mbr
@@ -48,6 +48,16 @@ def mbr_activate(mbr_id):
     else:
         flash("Szablon aktywowany.")
     return redirect(url_for("technolog.mbr_list"))
+
+
+@technolog_bp.route("/api/mbr/<int:mbr_id>/audit-history")
+@role_required("admin", "technolog")
+def mbr_audit_history(mbr_id):
+    """Return per-MBR audit history (sorted DESC by dt, with actors)."""
+    from mbr.shared import audit
+    with db_session() as db:
+        history = audit.query_audit_history_for_entity(db, "mbr", mbr_id)
+    return jsonify({"history": history})
 
 
 @technolog_bp.route("/technolog/mbr/<int:mbr_id>/clone", methods=["POST"])
