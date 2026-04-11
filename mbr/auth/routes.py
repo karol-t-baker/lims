@@ -53,6 +53,19 @@ def login():
 
 @auth_bp.route("/logout")
 def logout():
+    if "user" in session:
+        user = session["user"]
+        with db_session() as db:
+            audit.log_event(
+                audit.EVENT_AUTH_LOGOUT,
+                actors=[{
+                    "worker_id": None,
+                    "actor_login": user["login"],
+                    "actor_rola": user["rola"],
+                }],
+                db=db,
+            )
+            db.commit()
     session.clear()
     return redirect(url_for("auth.login"))
 

@@ -186,3 +186,32 @@ def test_login_failure_with_unknown_user_still_logs(anon_client, db):
     import json as _json
     payload = _json.loads(rows[0]["payload_json"])
     assert payload["attempted_login"] == "ghost_user"
+
+
+# ---------- /logout ----------
+
+def test_logout_logs_auth_logout(monkeypatch, db):
+    """Logout produces an audit entry with the user being logged out as actor.
+    Entry must be written BEFORE session.clear()."""
+    create_user(db, login="anna", password="goodpass", rola="laborant")
+
+    client = _make_client(monkeypatch, db, rola=None)
+    # Manually set the session as if anna had logged in
+    with client.session_transaction() as sess:
+        sess["user"] = {"login": "anna", "rola": "laborant", "imie_nazwisko": "Anna K."}
+
+    resp = client.get("/logout")
+    assert resp.status_code in (302, 303)  # redirect to login
+
+    rows = db.execute(
+        "SELECT id FROM audit_log WHERE event_type='auth.logout'"
+    ).fetchall()
+    assert len(rows) == 1
+
+    actors = db.execute(
+        "SELECT actor_login, actor_rola FROM audit_log_actors WHERE audit_id=?",
+        (rows[0]["id"],),
+    ).fetchall()
+    assert len(actors) == 1
+    assert actors[0]["actor_login"] == "anna"
+    assert actors[0]["actor_rola"] == "laborant"
