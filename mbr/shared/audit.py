@@ -202,7 +202,9 @@ def actors_from_request(db) -> list:
 # =========================================================================
 
 import json as _json
+import gzip as _gzip
 from datetime import datetime as _dt, timezone as _tz
+from pathlib import Path as _Path
 
 
 def log_event(
@@ -307,3 +309,212 @@ def log_event(
         )
 
     return audit_id
+
+
+# =========================================================================
+# Read path — query helpers for the admin panel + per-record history
+# =========================================================================
+
+
+def _build_where_clauses(*, dt_from=None, dt_to=None, event_type_glob=None,
+                        entity_type=None, entity_id=None, worker_id=None,
+                        free_text=None, request_id=None) -> tuple:
+    """Translate filter args into a (where_sql, params) tuple."""
+    clauses = []
+    params = []
+    if dt_from:
+        clauses.append("dt >= ?")
+        params.append(dt_from)
+    if dt_to:
+        # Inclusive end-of-day for date strings
+        end = dt_to + "T23:59:59" if len(dt_to) == 10 else dt_to
+        clauses.append("dt <= ?")
+        params.append(end)
+    if event_type_glob:
+        if "*" in event_type_glob:
+            clauses.append("event_type LIKE ?")
+            params.append(event_type_glob.replace("*", "%"))
+        else:
+            clauses.append("event_type = ?")
+            params.append(event_type_glob)
+    if entity_type:
+        clauses.append("entity_type = ?")
+        params.append(entity_type)
+    if entity_id is not None:
+        clauses.append("entity_id = ?")
+        params.append(int(entity_id))
+    if worker_id is not None:
+        clauses.append(
+            "EXISTS (SELECT 1 FROM audit_log_actors a "
+            "WHERE a.audit_id = audit_log.id AND a.worker_id = ?)"
+        )
+        params.append(int(worker_id))
+    if free_text:
+        # Escape LIKE metacharacters: backslash first (escape char), then % and _
+        escaped = free_text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        clauses.append("(entity_label LIKE ? ESCAPE '\\' OR payload_json LIKE ? ESCAPE '\\')")
+        like = f"%{escaped}%"
+        params.extend([like, like])
+    if request_id:
+        clauses.append("request_id = ?")
+        params.append(request_id)
+    where_sql = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+    return where_sql, params
+
+
+def query_audit_log(
+    db,
+    *,
+    dt_from: str = None,
+    dt_to: str = None,
+    event_type_glob: str = None,
+    entity_type: str = None,
+    entity_id: int = None,
+    worker_id: int = None,
+    free_text: str = None,
+    request_id: str = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> tuple:
+    """Query the audit log with optional filters and pagination.
+
+    Returns (rows, total_count) where rows is a list of dicts (each augmented
+    with an 'actors' list) and total_count is the unpaginated row count.
+
+    Glob behavior: event_type_glob='auth.*' becomes SQL LIKE 'auth.%'.
+    Exact equality is used when no '*' is present.
+
+    Multi-actor filter (worker_id) uses EXISTS subquery so a row matches if
+    ANY of its actors equals worker_id.
+    """
+    where_sql, params = _build_where_clauses(
+        dt_from=dt_from, dt_to=dt_to, event_type_glob=event_type_glob,
+        entity_type=entity_type, entity_id=entity_id, worker_id=worker_id,
+        free_text=free_text, request_id=request_id,
+    )
+
+    # Total count first (cheap, same WHERE)
+    total_row = db.execute(
+        f"SELECT COUNT(*) FROM audit_log{where_sql}", params
+    ).fetchone()
+    total = total_row[0]
+
+    # Data page
+    data_sql = (
+        f"SELECT id, dt, event_type, entity_type, entity_id, entity_label, "
+        f"diff_json, payload_json, context_json, request_id, ip, user_agent, result "
+        f"FROM audit_log{where_sql} ORDER BY dt DESC, id DESC LIMIT ? OFFSET ?"
+    )
+    rows = [dict(r) for r in db.execute(data_sql, params + [limit, offset]).fetchall()]
+
+    # Bulk-load actors for the page (avoids N+1)
+    if rows:
+        ids = [r["id"] for r in rows]
+        placeholders = ",".join("?" * len(ids))
+        actor_rows = db.execute(
+            f"SELECT audit_id, worker_id, actor_login, actor_rola "
+            f"FROM audit_log_actors WHERE audit_id IN ({placeholders})",
+            ids,
+        ).fetchall()
+        by_audit = {}
+        for ar in actor_rows:
+            by_audit.setdefault(ar["audit_id"], []).append(dict(ar))
+        for r in rows:
+            r["actors"] = by_audit.get(r["id"], [])
+    return rows, total
+
+
+def query_audit_history_for_entity(db, entity_type: str, entity_id: int) -> list:
+    """Per-record history for entity views (EBR/MBR/cert).
+
+    Returns rows sorted dt DESC with actors joined. No pagination —
+    entity histories are bounded (a single batch typically generates <50 events).
+    """
+    rows, _total = query_audit_log(
+        db,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        limit=1000,  # safety cap
+        offset=0,
+    )
+    return rows
+
+
+def archive_old_entries(db, cutoff_iso: str, archive_dir) -> dict:
+    """Archive audit_log entries older than cutoff_iso into a gzipped JSONL
+    file, then delete them from the active DB.
+
+    File path: {archive_dir}/audit_{cutoff_year}.jsonl.gz where cutoff_year
+    is parsed from cutoff_iso. Uses gzip append mode so multiple archivals
+    in the same year accumulate into one file.
+
+    After deletion, logs a 'system.audit.archived' event with the system
+    virtual actor and a payload of {count, file, cutoff}.
+
+    All operations run in a single transaction. If the gzip write fails,
+    the transaction rolls back and no rows are deleted.
+
+    Returns: {'archived': N, 'file': str(path), 'cutoff': cutoff_iso}.
+    """
+    archive_dir = _Path(archive_dir)
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    year = cutoff_iso[:4]
+    archive_path = archive_dir / f"audit_{year}.jsonl.gz"
+
+    # 1. Read rows + actors that will be archived
+    where_sql = " WHERE dt < ?"
+    rows_to_archive = [dict(r) for r in db.execute(
+        f"SELECT id, dt, event_type, entity_type, entity_id, entity_label, "
+        f"diff_json, payload_json, context_json, request_id, ip, user_agent, result "
+        f"FROM audit_log{where_sql}", (cutoff_iso,),
+    ).fetchall()]
+    if rows_to_archive:
+        ids = [r["id"] for r in rows_to_archive]
+        placeholders = ",".join("?" * len(ids))
+        actor_rows = db.execute(
+            f"SELECT audit_id, worker_id, actor_login, actor_rola "
+            f"FROM audit_log_actors WHERE audit_id IN ({placeholders})",
+            ids,
+        ).fetchall()
+        by_audit = {}
+        for ar in actor_rows:
+            by_audit.setdefault(ar["audit_id"], []).append(dict(ar))
+        for r in rows_to_archive:
+            r["actors"] = by_audit.get(r["id"], [])
+
+    archived_count = len(rows_to_archive)
+
+    # 2. Append to gzipped JSONL file. If this raises, the transaction
+    # rolls back and no rows are deleted.
+    try:
+        if rows_to_archive:
+            with _gzip.open(archive_path, "at", encoding="utf-8") as f:
+                for r in rows_to_archive:
+                    f.write(_json.dumps(r, ensure_ascii=False, default=str) + "\n")
+
+            # 3. Delete archived rows from the DB
+            db.execute(f"DELETE FROM audit_log{where_sql}", (cutoff_iso,))
+
+            # 4. Log the archive event itself (system actor) AFTER delete so
+            # the fresh event cannot be swept by the same call.
+            log_event(
+                EVENT_SYSTEM_AUDIT_ARCHIVED,
+                payload={
+                    "count": archived_count,
+                    "file": str(archive_path),
+                    "cutoff": cutoff_iso,
+                },
+                actors=actors_system(),
+                db=db,
+            )
+
+            db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+    return {
+        "archived": archived_count,
+        "file": str(archive_path) if rows_to_archive else None,
+        "cutoff": cutoff_iso,
+    }

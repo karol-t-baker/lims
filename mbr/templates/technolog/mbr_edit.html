@@ -71,6 +71,10 @@
     </div>
     {% endif %}
   </form>
+
+  {% with entity_type='mbr', entity_id=mbr.mbr_id %}
+    {% include "_audit_history_section.html" %}
+  {% endwith %}
 </div>
 {% endblock %}
 

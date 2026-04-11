@@ -228,18 +228,14 @@ def toggle_golden(ebr_id):
     return jsonify({"ok": True, "is_golden": new_val})
 
 
-@laborant_bp.route("/api/ebr/<int:ebr_id>/audit")
-@login_required
-def get_audit_log(ebr_id):
+@laborant_bp.route("/api/ebr/<int:ebr_id>/audit-history")
+@role_required("laborant", "laborant_kj", "laborant_coa", "admin", "technolog")
+def ebr_audit_history(ebr_id):
+    """Return per-EBR audit history (sorted DESC by dt, with actors)."""
+    from mbr.shared import audit
     with db_session() as db:
-        # Get all audit entries for this batch's records
-        rows = db.execute("""
-            SELECT a.* FROM audit_log a
-            WHERE (a.tabela='ebr_etapy_analizy' AND a.rekord_id IN (SELECT id FROM ebr_etapy_analizy WHERE ebr_id=?))
-               OR (a.tabela='ebr_wyniki' AND a.rekord_id IN (SELECT wynik_id FROM ebr_wyniki WHERE ebr_id=?))
-            ORDER BY a.dt DESC
-        """, (ebr_id, ebr_id)).fetchall()
-    return jsonify({"audit": [dict(r) for r in rows]})
+        history = audit.query_audit_history_for_entity(db, "ebr", ebr_id)
+    return jsonify({"history": history})
 
 
 @laborant_bp.route("/laborant/ebr/<int:ebr_id>/complete", methods=["POST"])

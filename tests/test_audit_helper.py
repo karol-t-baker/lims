@@ -485,3 +485,303 @@ def test_smoke_log_event_through_flask_route(monkeypatch, tmp_path):
         assert actors[0]["worker_id"] == worker_id
         assert actors[0]["actor_login"] == "tu"
         assert actors[0]["actor_rola"] == "technolog"
+
+
+# ---------- query_audit_log fixtures ----------
+
+@pytest.fixture
+def queryable_audit_db(audit_db):
+    """audit_db fixture with several seed events spanning event types and dates."""
+    import json as _json
+    rows = [
+        # (dt,                event_type,           entity_type, entity_id, entity_label,    diff_json,                              payload_json,        request_id)
+        ("2026-04-01T08:00:00", "auth.login",         None,        None,      None,            None,                                   '{"login":"alice"}', "req-1"),
+        ("2026-04-01T09:15:00", "ebr.wynik.saved",    "ebr",       42,        "Szarża 2026/42", '[{"pole":"sm","stara":85,"nowa":87}]', None,                "req-2"),
+        ("2026-04-02T10:30:00", "ebr.wynik.saved",    "ebr",       42,        "Szarża 2026/42", '[{"pole":"ph","stara":7,"nowa":7.2}]', None,                "req-3"),
+        ("2026-04-03T11:00:00", "cert.generated",     "cert",      7,         "Świad. K40GLO",  None,                                   '{"path":"/x.pdf"}', "req-4"),
+        ("2026-04-05T12:45:00", "auth.login",         None,        None,      None,            None,                                   '{"login":"bob"}',   "req-5"),
+        ("2026-04-08T13:00:00", "ebr.wynik.saved",    "ebr",       43,        "Szarża 2026/43", '[{"pole":"sm","stara":80,"nowa":82}]', None,                "req-6"),
+    ]
+    for r in rows:
+        cur = audit_db.execute(
+            """INSERT INTO audit_log
+               (dt, event_type, entity_type, entity_id, entity_label,
+                diff_json, payload_json, request_id, result)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ok')""",
+            r,
+        )
+        # Always at least one actor — alternate between worker 1 and worker 2
+        wid = 1 if cur.lastrowid % 2 == 1 else 2
+        login = "anna" if wid == 1 else "maria"
+        audit_db.execute(
+            "INSERT INTO audit_log_actors (audit_id, worker_id, actor_login, actor_rola) VALUES (?, ?, ?, 'laborant')",
+            (cur.lastrowid, wid, login),
+        )
+    audit_db.commit()
+    return audit_db
+
+
+# ---------- query_audit_log ----------
+
+def test_query_returns_empty_when_no_rows(audit_db):
+    rows, total = audit.query_audit_log(audit_db)
+    assert rows == []
+    assert total == 0
+
+
+def test_query_returns_all_rows_with_actors(queryable_audit_db):
+    rows, total = audit.query_audit_log(queryable_audit_db)
+    assert total == 6
+    assert len(rows) == 6
+    # Each row has an actors list (>=1 element)
+    for r in rows:
+        assert "actors" in r
+        assert len(r["actors"]) >= 1
+        assert "actor_login" in r["actors"][0]
+
+
+def test_query_filter_by_dt_range(queryable_audit_db):
+    rows, total = audit.query_audit_log(
+        queryable_audit_db,
+        dt_from="2026-04-02",
+        dt_to="2026-04-05",
+    )
+    assert total == 3  # 2026-04-02, 04-03, 04-05
+    assert all(r["dt"][:10] in ("2026-04-02", "2026-04-03", "2026-04-05") for r in rows)
+
+
+def test_query_filter_by_event_type_glob(queryable_audit_db):
+    rows, total = audit.query_audit_log(
+        queryable_audit_db, event_type_glob="auth.*"
+    )
+    assert total == 2
+    assert all(r["event_type"].startswith("auth.") for r in rows)
+
+
+def test_query_filter_by_event_type_exact(queryable_audit_db):
+    rows, total = audit.query_audit_log(
+        queryable_audit_db, event_type_glob="cert.generated"
+    )
+    assert total == 1
+    assert rows[0]["event_type"] == "cert.generated"
+
+
+def test_query_filter_by_entity(queryable_audit_db):
+    rows, total = audit.query_audit_log(
+        queryable_audit_db, entity_type="ebr", entity_id=42
+    )
+    assert total == 2
+    assert all(r["entity_id"] == 42 for r in rows)
+
+
+def test_query_filter_by_worker_id_uses_actors_table(queryable_audit_db):
+    rows, total = audit.query_audit_log(queryable_audit_db, worker_id=1)
+    assert total > 0
+    # Every returned row has worker 1 as one of its actors
+    for r in rows:
+        assert any(a["worker_id"] == 1 for a in r["actors"])
+
+
+def test_query_filter_by_free_text_searches_label_and_payload(queryable_audit_db):
+    # 'K40GLO' is in cert entity_label only
+    rows, total = audit.query_audit_log(queryable_audit_db, free_text="K40GLO")
+    assert total == 1
+    assert rows[0]["entity_label"] == "Świad. K40GLO"
+
+    # 'alice' is only in payload_json of one auth.login
+    rows, total = audit.query_audit_log(queryable_audit_db, free_text="alice")
+    assert total == 1
+    assert "alice" in rows[0]["payload_json"]
+
+
+def test_query_filter_by_free_text_escapes_like_metacharacters(audit_db):
+    """User searching for '100%' or 'foo_bar' should NOT trigger LIKE wildcard expansion."""
+    # Seed two rows: one with literal '100%' in label, one with '1009' (would match if % were a wildcard)
+    audit_db.execute(
+        """INSERT INTO audit_log (dt, event_type, entity_type, entity_id, entity_label, result)
+           VALUES ('2026-04-01T08:00:00', 'x.y.z', 'ebr', 1, 'sm 100%', 'ok')"""
+    )
+    audit_db.execute(
+        """INSERT INTO audit_log (dt, event_type, entity_type, entity_id, entity_label, result)
+           VALUES ('2026-04-01T09:00:00', 'x.y.z', 'ebr', 2, 'sm 1009', 'ok')"""
+    )
+    audit_db.commit()
+
+    rows, total = audit.query_audit_log(audit_db, free_text="100%")
+    # Only 'sm 100%' must match — not 'sm 1009'
+    assert total == 1
+    assert rows[0]["entity_label"] == "sm 100%"
+
+    # Underscore literal: search '_bar' should not match '1bar'
+    audit_db.execute(
+        """INSERT INTO audit_log (dt, event_type, entity_type, entity_id, entity_label, result)
+           VALUES ('2026-04-02T08:00:00', 'x.y.z', 'ebr', 3, 'foo_bar', 'ok')"""
+    )
+    audit_db.execute(
+        """INSERT INTO audit_log (dt, event_type, entity_type, entity_id, entity_label, result)
+           VALUES ('2026-04-02T09:00:00', 'x.y.z', 'ebr', 4, 'foo1bar', 'ok')"""
+    )
+    audit_db.commit()
+
+    rows, total = audit.query_audit_log(audit_db, free_text="_bar")
+    # Only 'foo_bar' matches; 'foo1bar' does NOT (underscore literal, not wildcard)
+    assert total == 1
+    assert rows[0]["entity_label"] == "foo_bar"
+
+
+def test_query_filter_by_request_id(queryable_audit_db):
+    rows, total = audit.query_audit_log(queryable_audit_db, request_id="req-3")
+    assert total == 1
+    assert rows[0]["request_id"] == "req-3"
+
+
+def test_query_pagination(queryable_audit_db):
+    # 6 seeded rows, page size 2
+    rows_page1, total = audit.query_audit_log(queryable_audit_db, limit=2, offset=0)
+    rows_page2, _ = audit.query_audit_log(queryable_audit_db, limit=2, offset=2)
+    rows_page3, _ = audit.query_audit_log(queryable_audit_db, limit=2, offset=4)
+    assert total == 6
+    assert len(rows_page1) == 2
+    assert len(rows_page2) == 2
+    assert len(rows_page3) == 2
+    # Pages are disjoint
+    ids1 = {r["id"] for r in rows_page1}
+    ids2 = {r["id"] for r in rows_page2}
+    ids3 = {r["id"] for r in rows_page3}
+    assert ids1.isdisjoint(ids2)
+    assert ids2.isdisjoint(ids3)
+
+
+# ---------- query_audit_history_for_entity ----------
+
+def test_history_for_entity_returns_only_matching(queryable_audit_db):
+    rows = audit.query_audit_history_for_entity(queryable_audit_db, "ebr", 42)
+    assert len(rows) == 2
+    assert all(r["entity_id"] == 42 for r in rows)
+    assert all(r["entity_type"] == "ebr" for r in rows)
+    # Sorted DESC by dt
+    assert rows[0]["dt"] >= rows[1]["dt"]
+
+
+def test_history_for_entity_includes_actors(queryable_audit_db):
+    rows = audit.query_audit_history_for_entity(queryable_audit_db, "cert", 7)
+    assert len(rows) == 1
+    assert "actors" in rows[0]
+    assert len(rows[0]["actors"]) >= 1
+    assert "actor_login" in rows[0]["actors"][0]
+
+
+# ---------- archive_old_entries ----------
+
+def test_archive_dumps_old_entries_to_jsonl_gz_and_deletes(queryable_audit_db, tmp_path):
+    import gzip as _gzip
+    archive_dir = tmp_path / "audit_archive"
+    archive_dir.mkdir()
+    # Cutoff: anything before 2026-04-04 is "old" (4 of 6 rows)
+    summary = audit.archive_old_entries(
+        queryable_audit_db, "2026-04-04T00:00:00", archive_dir
+    )
+    assert summary["archived"] == 4
+    # Active DB has only 2 originals + 1 system.audit.archived = 3
+    remaining = queryable_audit_db.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0]
+    assert remaining == 3
+    # Archive file exists with 4 lines
+    archive_file = archive_dir / "audit_2026.jsonl.gz"
+    assert archive_file.exists()
+    with _gzip.open(archive_file, "rt") as f:
+        lines = f.readlines()
+    assert len(lines) == 4
+    # Each line is valid JSON with our row shape + actors
+    import json as _json
+    for line in lines:
+        parsed = _json.loads(line)
+        assert "id" in parsed
+        assert "event_type" in parsed
+        assert "actors" in parsed
+
+
+def test_archive_appends_to_existing_year_file(queryable_audit_db, tmp_path):
+    import gzip as _gzip
+    archive_dir = tmp_path / "audit_archive"
+    archive_dir.mkdir()
+    # First archive: cutoff 2026-04-02 → 1 old row
+    audit.archive_old_entries(queryable_audit_db, "2026-04-02T00:00:00", archive_dir)
+    # Second archive: cutoff 2026-04-04 → 3 newly-old rows
+    audit.archive_old_entries(queryable_audit_db, "2026-04-04T00:00:00", archive_dir)
+    archive_file = archive_dir / "audit_2026.jsonl.gz"
+    with _gzip.open(archive_file, "rt") as f:
+        lines = f.readlines()
+    # 1 + 3 = 4 lines total in the same file (gzip append concatenation)
+    assert len(lines) == 4
+
+
+def test_archive_returns_summary_dict(queryable_audit_db, tmp_path):
+    archive_dir = tmp_path / "audit_archive"
+    archive_dir.mkdir()
+    summary = audit.archive_old_entries(
+        queryable_audit_db, "2026-04-04T00:00:00", archive_dir
+    )
+    assert summary["archived"] == 4
+    assert summary["cutoff"] == "2026-04-04T00:00:00"
+    assert "audit_2026.jsonl.gz" in summary["file"]
+
+
+def test_archive_logs_system_audit_archived_event(queryable_audit_db, tmp_path):
+    archive_dir = tmp_path / "audit_archive"
+    archive_dir.mkdir()
+    audit.archive_old_entries(queryable_audit_db, "2026-04-04T00:00:00", archive_dir)
+    # The new system.audit.archived event must exist
+    rows = queryable_audit_db.execute(
+        "SELECT event_type, payload_json FROM audit_log WHERE event_type='system.audit.archived'"
+    ).fetchall()
+    assert len(rows) == 1
+    import json as _json
+    payload = _json.loads(rows[0]["payload_json"])
+    assert payload["count"] == 4
+    assert payload["cutoff"] == "2026-04-04T00:00:00"
+    assert "audit_2026.jsonl.gz" in payload["file"]
+    # Actor of the archive event is the 'system' virtual actor
+    aid_row = queryable_audit_db.execute(
+        "SELECT id FROM audit_log WHERE event_type='system.audit.archived'"
+    ).fetchone()
+    actors = queryable_audit_db.execute(
+        "SELECT actor_login, actor_rola, worker_id FROM audit_log_actors WHERE audit_id=?",
+        (aid_row[0],),
+    ).fetchall()
+    assert len(actors) == 1
+    assert actors[0]["actor_login"] == "system"
+    assert actors[0]["actor_rola"] == "system"
+    assert actors[0]["worker_id"] is None
+
+
+def test_archive_empty_set_does_not_log_or_create_file(audit_db, tmp_path):
+    """When zero rows match the cutoff, no system event is logged and no file is created.
+    Prevents scheduled archival jobs from littering audit_log with no-op events."""
+    archive_dir = tmp_path / "audit_archive"
+    archive_dir.mkdir()
+    # No seed rows — audit_log is empty
+    summary = audit.archive_old_entries(audit_db, "2026-04-04T00:00:00", archive_dir)
+    assert summary["archived"] == 0
+    assert summary["file"] is None
+    assert summary["cutoff"] == "2026-04-04T00:00:00"
+    # No system.audit.archived event was logged
+    rows = audit_db.execute(
+        "SELECT COUNT(*) FROM audit_log WHERE event_type='system.audit.archived'"
+    ).fetchone()
+    assert rows[0] == 0
+    # No file was created
+    assert not (archive_dir / "audit_2026.jsonl.gz").exists()
+
+
+# ---------- audit_actors Jinja filter ----------
+
+def test_audit_actors_filter_joins_logins():
+    from mbr.shared.filters import audit_actors_filter
+    row = {"actors": [{"actor_login": "AK"}, {"actor_login": "MW"}]}
+    assert audit_actors_filter(row) == "AK, MW"
+
+
+def test_audit_actors_filter_handles_empty():
+    from mbr.shared.filters import audit_actors_filter
+    assert audit_actors_filter({"actors": []}) == "—"
+    assert audit_actors_filter({}) == "—"

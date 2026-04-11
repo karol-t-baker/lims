@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block topbar_title %}Audit trail{% endblock %}
+
+{% block content %}
+<style>
+.audit-page { padding: 16px 24px; }
+.audit-filters { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; }
+.af-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+.af-row label { display: flex; flex-direction: column; font-size: 10px; text-transform: uppercase; color: var(--text-dim); gap: 4px; }
+.af-row input, .af-row select { font-size: 12px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: white; }
+.af-row .btn { padding: 7px 14px; font-size: 12px; border: 1px solid var(--border); border-radius: 6px; background: white; cursor: pointer; }
+.af-row .btn.btn-primary { background: var(--teal); color: white; border-color: var(--teal); }
+.af-row .btn.btn-warn { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+.audit-meta { font-size: 11px; color: var(--text-dim); margin: 8px 4px; font-family: var(--mono); }
+.audit-table { width: 100%; border-collapse: collapse; font-size: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.audit-table th { text-align: left; padding: 9px 12px; background: var(--surface-alt); border-bottom: 1px solid var(--border); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); }
+.audit-table td { padding: 7px 12px; border-bottom: 1px solid var(--border-subtle, #f0ece4); vertical-align: top; }
+.audit-row { cursor: pointer; }
+.audit-row:hover { background: var(--surface-alt); }
+.audit-table .dt { font-family: var(--mono); white-space: nowrap; }
+.audit-table .ev code { font-size: 11px; background: var(--surface-alt); padding: 1px 6px; border-radius: 3px; }
+.audit-table .bad { color: var(--red); font-weight: 700; }
+.audit-table .exp { width: 24px; text-align: center; color: var(--text-dim); }
+.audit-details td { background: #fafaf7; padding: 12px 18px; }
+.d-section { margin-bottom: 8px; }
+.d-section pre { font-size: 10px; background: white; padding: 6px 8px; border: 1px solid var(--border); border-radius: 4px; overflow: auto; max-height: 120px; }
+.d-diff { font-size: 11px; border-collapse: collapse; }
+.d-diff th, .d-diff td { padding: 3px 10px; border: 1px solid var(--border); }
+.d-meta { font-size: 11px; color: var(--text-dim); display: flex; gap: 16px; margin-top: 4px; }
+.d-meta a { color: var(--teal); }
+.audit-pager { text-align: center; margin: 12px 0; font-size: 12px; color: var(--text-dim); }
+.audit-pager a { color: var(--teal); margin: 0 8px; text-decoration: none; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+.modal-overlay[hidden] { display: none; }
+.modal-overlay .modal { background: white; padding: 20px 24px; border-radius: 10px; max-width: 480px; }
+.modal-overlay .actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
+</style>
+
+<div class="audit-page">
+  <form class="audit-filters" method="get" action="/admin/audit">
+    <div class="af-row">
+      <label>Od <input type="date" name="dt_from" value="{{ filters.get('dt_from', '') }}"></label>
+      <label>Do <input type="date" name="dt_to" value="{{ filters.get('dt_to', '') }}"></label>
+      <label>Event
+        <select name="event_type_glob">
+          {% for grp in event_groups %}
+          <option value="{{ grp.value }}" {% if filters.get('event_type_glob') == grp.value %}selected{% endif %}>{{ grp.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Byt
+        <select name="entity_type">
+          {% for et in entity_types %}
+          <option value="{{ et.value }}" {% if filters.get('entity_type') == et.value %}selected{% endif %}>{{ et.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Aktor
+        <select name="worker_id">
+          <option value="">(wszyscy)</option>
+          {% for w in workers %}
+          <option value="{{ w.id }}" {% if filters.get('worker_id')|string == w.id|string %}selected{% endif %}>{{ w.nickname or w.inicjaly }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Szukaj <input type="text" name="free_text" value="{{ filters.get('free_text', '') }}" placeholder="numer szarży, produkt..."></label>
+      <button type="submit" class="btn btn-primary">Filtruj</button>
+      <a class="btn" href="/admin/audit">Reset</a>
+      <a class="btn" href="/admin/audit/export.csv?{{ request.query_string.decode() }}">Eksport CSV</a>
+      <button type="button" class="btn btn-warn" onclick="openArchiveModal()">Archiwizuj &gt; 2 lata</button>
+    </div>
+  </form>
+
+  <div class="audit-meta">{{ total }} wpisów (strona {{ page }} / {{ page_count }})</div>
+
+  <table class="audit-table">
+    <thead>
+      <tr><th>Data/godz</th><th>Event</th><th>Byt</th><th>Aktor(zy)</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr class="audit-row" onclick="toggleDetails({{ r.id }})">
+        <td class="dt">{{ r.dt[:19]|replace('T', ' ') }}</td>
+        <td class="ev"><code>{{ r.event_type }}</code>{% if r.result == 'error' %} <span class="bad">×</span>{% endif %}</td>
+        <td>{{ r.entity_label or ((r.entity_type ~ '#' ~ r.entity_id) if r.entity_type else '—') }}</td>
+        <td>{{ r|audit_actors }}</td>
+        <td class="exp">▶</td>
+      </tr>
+      <tr class="audit-details" id="details-{{ r.id }}" hidden>
+        <td colspan="5">
+          {% if r.diff_parsed %}
+            <div class="d-section"><b>Diff:</b>
+              <table class="d-diff">
+                <tr><th>Pole</th><th>Stara</th><th>Nowa</th></tr>
+                {% for d in r.diff_parsed %}
+                <tr><td>{{ d.pole }}</td><td>{{ d.stara }}</td><td>{{ d.nowa }}</td></tr>
+                {% endfor %}
+              </table>
+            </div>
+          {% endif %}
+          {% if r.payload_json %}<div class="d-section"><b>Payload:</b><pre>{{ r.payload_json }}</pre></div>{% endif %}
+          {% if r.context_json %}<div class="d-section"><b>Kontekst:</b><pre>{{ r.context_json }}</pre></div>{% endif %}
+          <div class="d-meta">
+            <span>IP: {{ r.ip or '—' }}</span>
+            {% if r.request_id %}<a href="/admin/audit?request_id={{ r.request_id }}">Pokaż wszystkie z tego kliknięcia →</a>{% endif %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="audit-pager">
+    {% if page > 1 %}<a href="{{ pager_base }}{{ page - 1 }}">← Poprzednia</a>{% endif %}
+    Strona {{ page }} / {{ page_count }}
+    {% if page < page_count %}<a href="{{ pager_base }}{{ page + 1 }}">Następna →</a>{% endif %}
+  </div>
+</div>
+
+<div id="archive-modal" class="modal-overlay" hidden>
+  <div class="modal">
+    <h3>Archiwizacja wpisów audytu</h3>
+    <p>Wpisów do archiwizacji: <b id="archive-count">…</b></p>
+    <p>Cutoff: <b id="archive-cutoff">…</b></p>
+    <p>Wpisy zostaną zapisane do <code>data/audit_archive/audit_&lt;rok&gt;.jsonl.gz</code> i usunięte z aktywnej bazy.</p>
+    <div class="actions">
+      <button class="btn" onclick="closeArchiveModal()">Anuluj</button>
+      <button class="btn btn-warn" onclick="confirmArchive()">Archiwizuj</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleDetails(id) {
+  var el = document.getElementById('details-' + id);
+  if (el) el.hidden = !el.hidden;
+}
+async function openArchiveModal() {
+  var cutoff = new Date();
+  cutoff.setFullYear(cutoff.getFullYear() - 2);
+  var cutoffIso = cutoff.toISOString();
+  var resp = await fetch('/admin/audit/archive/preview', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({cutoff_iso: cutoffIso})
+  });
+  var data = await resp.json();
+  document.getElementById('archive-count').textContent = data.count;
+  document.getElementById('archive-cutoff').textContent = cutoffIso.substring(0, 10);
+  document.getElementById('archive-modal').dataset.cutoff = cutoffIso;
+  document.getElementById('archive-modal').hidden = false;
+}
+function closeArchiveModal() {
+  document.getElementById('archive-modal').hidden = true;
+}
+async function confirmArchive() {
+  var cutoff = document.getElementById('archive-modal').dataset.cutoff;
+  var resp = await fetch('/admin/audit/archive', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({cutoff_iso: cutoff})
+  });
+  var data = await resp.json();
+  alert('Zarchiwizowano ' + data.archived + ' wpisów do ' + data.file);
+  closeArchiveModal();
+  location.reload();
+}
+</script>
+{% endblock %}
