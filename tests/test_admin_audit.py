@@ -171,3 +171,38 @@ def test_admin_audit_panel_pager_preserves_filters(admin_client, db):
         # Pager exists and the next-page href must contain event_type_glob
         assert "event_type_glob=auth" in body, \
             "Pager 'Następna' link should preserve event_type_glob filter, but only 'page' is present"
+
+
+# ---------- /admin/audit/export.csv ----------
+
+def test_admin_audit_export_csv_streams_correct_columns(admin_client, db):
+    # Seed a row with a comma in entity_label to test escaping
+    cur = db.execute(
+        """INSERT INTO audit_log (dt, event_type, entity_type, entity_id,
+           entity_label, payload_json, request_id, result)
+           VALUES ('2026-04-01T08:00:00', 'ebr.wynik.saved', 'ebr', 99,
+           'Szarża, with comma', '{"a":1}', 'req-x', 'ok')"""
+    )
+    db.execute(
+        "INSERT INTO audit_log_actors (audit_id, worker_id, actor_login, actor_rola) VALUES (?, 1, 'AK', 'laborant')",
+        (cur.lastrowid,),
+    )
+    db.commit()
+
+    resp = admin_client.get("/admin/audit/export.csv")
+    assert resp.status_code == 200
+    assert resp.content_type.startswith("text/csv")
+    body = resp.get_data(as_text=True)
+    lines = body.strip().split("\n")
+    # Header + 1 data row
+    assert len(lines) == 2
+    header = lines[0]
+    assert "dt" in header and "event_type" in header and "entity_label" in header
+    # Comma in entity_label must be quoted
+    assert '"Szarża, with comma"' in lines[1]
+    assert "ebr.wynik.saved" in lines[1]
+
+
+def test_admin_audit_export_csv_forbidden_for_non_admin(laborant_client, db):
+    resp = laborant_client.get("/admin/audit/export.csv")
+    assert resp.status_code == 403

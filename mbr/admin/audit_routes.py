@@ -135,3 +135,53 @@ def audit_panel():
         entity_types=_ENTITY_TYPES,
         pager_base=pager_base,
     )
+
+
+@admin_bp.route("/admin/audit/export.csv")
+@role_required("admin")
+def audit_export_csv():
+    """Stream the audit log as CSV using the same WHERE as the panel.
+
+    Hard cap at 1,000,000 rows for memory safety. The csv module handles
+    quoting/escaping; entity_label values with commas are auto-quoted.
+    """
+    filters = _parse_filters_from_query(request.args)
+
+    def generate():
+        # Header row
+        out = io.StringIO()
+        writer = csv.writer(out)
+        writer.writerow([
+            "dt", "event_type", "entity_type", "entity_id", "entity_label",
+            "actors", "result", "diff", "payload", "ip", "request_id",
+        ])
+        yield out.getvalue()
+
+        with db_session() as db:
+            rows, _total = audit.query_audit_log(
+                db, **filters, limit=1_000_000, offset=0
+            )
+        for r in rows:
+            out = io.StringIO()
+            writer = csv.writer(out)
+            actors_str = ", ".join(a["actor_login"] for a in (r.get("actors") or []))
+            writer.writerow([
+                r.get("dt") or "",
+                r.get("event_type") or "",
+                r.get("entity_type") or "",
+                r.get("entity_id") or "",
+                r.get("entity_label") or "",
+                actors_str,
+                r.get("result") or "",
+                r.get("diff_json") or "",
+                r.get("payload_json") or "",
+                r.get("ip") or "",
+                r.get("request_id") or "",
+            ])
+            yield out.getvalue()
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=audit_log.csv"},
+    )
