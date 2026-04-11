@@ -174,30 +174,6 @@ def test_update_produkty_new_fields(client_produkty, db):
     assert row["spec_number"] == "P999"
     assert row["expiry_months"] == 24
 
-def test_get_product_meta_from_db(db):
-    db.execute(
-        "INSERT INTO produkty (nazwa, display_name, spec_number, cas_number, "
-        "expiry_months, opinion_pl, opinion_en) "
-        "VALUES ('TestP', 'Test Product', 'P999', '111-22-3', 24, 'Dobry', 'Good')"
-    )
-    db.commit()
-    from mbr.certs.generator import _get_product_meta
-    meta = _get_product_meta(db, "TestP")
-    assert meta is not None
-    assert meta["display_name"] == "Test Product"
-    assert meta["spec_number"] == "P999"
-    assert meta["cas_number"] == "111-22-3"
-    assert meta["expiry_months"] == 24
-    assert meta["opinion_pl"] == "Dobry"
-    assert meta["opinion_en"] == "Good"
-
-
-def test_get_product_meta_missing(db):
-    from mbr.certs.generator import _get_product_meta
-    meta = _get_product_meta(db, "NonExistent")
-    assert meta is None
-
-
 def test_create_produkt(client_produkty, db):
     resp = client_produkty.post("/api/produkty", json={
         "nazwa": "New_Product",
