@@ -25,7 +25,7 @@ def create_app():
 
     # Audit trail: per-request UUID + ShiftRequiredError → 400 JSON
     import uuid
-    from flask import g, jsonify as _jsonify
+    from flask import g, jsonify
     from mbr.shared.audit import ShiftRequiredError
 
     @app.before_request
@@ -34,7 +34,7 @@ def create_app():
 
     @app.errorhandler(ShiftRequiredError)
     def _audit_shift_required(e):
-        return _jsonify({"error": "shift_required"}), 400
+        return jsonify({"error": "shift_required"}), 400
 
     # Shared: filters, context processor
     from mbr.shared.filters import register_filters
