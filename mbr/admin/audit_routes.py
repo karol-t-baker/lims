@@ -32,6 +32,12 @@ from mbr.shared import audit
 from mbr.shared.decorators import role_required
 
 
+def _csv_val(v):
+    """CSV cell value: empty string for None, str(v) otherwise.
+    Avoids the 'or' shortcut which silently drops legitimate 0 / False / ''."""
+    return "" if v is None else v
+
+
 # ---------- Filter parser + dropdown groups ----------
 
 _EVENT_TYPE_GROUPS = [
@@ -142,8 +148,15 @@ def audit_panel():
 def audit_export_csv():
     """Stream the audit log as CSV using the same WHERE as the panel.
 
-    Hard cap at 1,000,000 rows for memory safety. The csv module handles
-    quoting/escaping; entity_label values with commas are auto-quoted.
+    Note on memory: query_audit_log() materializes all matching rows via
+    fetchall() before this generator yields. The streaming Response only
+    benefits HTTP chunked transfer, not peak Python memory. The hard cap
+    of 1,000,000 rows below is the actual memory safety valve. If real
+    audit logs grow large enough that 1M rows in memory becomes a problem,
+    refactor query_audit_log into a cursor-based iterator with per-batch
+    actor bulk-loading. Tracking: Phase 7 cleanup. For now, the cap +
+    typical row size of ~1KB bounds peak memory at ~1GB worst case, which
+    is acceptable for an admin-triggered export.
     """
     filters = _parse_filters_from_query(request.args)
 
@@ -166,17 +179,17 @@ def audit_export_csv():
             writer = csv.writer(out)
             actors_str = ", ".join(a["actor_login"] for a in (r.get("actors") or []))
             writer.writerow([
-                r.get("dt") or "",
-                r.get("event_type") or "",
-                r.get("entity_type") or "",
-                r.get("entity_id") or "",
-                r.get("entity_label") or "",
+                _csv_val(r.get("dt")),
+                _csv_val(r.get("event_type")),
+                _csv_val(r.get("entity_type")),
+                _csv_val(r.get("entity_id")),
+                _csv_val(r.get("entity_label")),
                 actors_str,
-                r.get("result") or "",
-                r.get("diff_json") or "",
-                r.get("payload_json") or "",
-                r.get("ip") or "",
-                r.get("request_id") or "",
+                _csv_val(r.get("result")),
+                _csv_val(r.get("diff_json")),
+                _csv_val(r.get("payload_json")),
+                _csv_val(r.get("ip")),
+                _csv_val(r.get("request_id")),
             ])
             yield out.getvalue()
 

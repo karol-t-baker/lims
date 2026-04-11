@@ -206,3 +206,26 @@ def test_admin_audit_export_csv_streams_correct_columns(admin_client, db):
 def test_admin_audit_export_csv_forbidden_for_non_admin(laborant_client, db):
     resp = laborant_client.get("/admin/audit/export.csv")
     assert resp.status_code == 403
+
+
+def test_admin_audit_export_csv_preserves_entity_id_zero(admin_client, db):
+    """A legitimate entity_id=0 must appear as '0' in the CSV, not empty string."""
+    cur = db.execute(
+        """INSERT INTO audit_log (dt, event_type, entity_type, entity_id, result)
+           VALUES ('2026-04-01T08:00:00', 'x.y.z', 'ebr', 0, 'ok')"""
+    )
+    db.execute(
+        "INSERT INTO audit_log_actors (audit_id, worker_id, actor_login, actor_rola) VALUES (?, NULL, 'tester', 'admin')",
+        (cur.lastrowid,),
+    )
+    db.commit()
+
+    resp = admin_client.get("/admin/audit/export.csv")
+    body = resp.get_data(as_text=True)
+    lines = body.strip().split("\n")
+    assert len(lines) == 2
+    # Header row + data row
+    data_row = lines[1]
+    # entity_id is column index 3 (dt, event_type, entity_type, entity_id, ...)
+    fields = next(__import__("csv").reader([data_row]))
+    assert fields[3] == "0", f"Expected entity_id=0 to be '0', got {fields[3]!r}"
