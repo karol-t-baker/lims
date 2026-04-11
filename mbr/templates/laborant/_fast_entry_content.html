@@ -983,7 +983,6 @@ function renderSections() {
 
 // ═══ UWAGI KOŃCOWE ═══
 var _uwagiState = null;  // { tekst, dt, autor, historia }
-var _uwagiSaveTimer = null;
 var _uwagiEditMode = false;
 var _uwagiCurrentEbrId = null;
 
@@ -1078,8 +1077,6 @@ function _uwagiOnInput() {
     counter.textContent = len + ' / 500';
     counter.classList.toggle('over', len > 500);
     if (saveBtn) saveBtn.disabled = len > 500;
-    if (_uwagiSaveTimer) clearTimeout(_uwagiSaveTimer);
-    _uwagiSaveTimer = setTimeout(function() { _uwagiSave(); }, 800);
 }
 
 async function _uwagiSave() {
