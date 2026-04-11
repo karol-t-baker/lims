@@ -1054,6 +1054,20 @@ var _uwagiEditMode = false;
 var _uwagiCurrentEbrId = null;
 var _uwagiAutorOverride = null;  // null = use full shift; array of worker_ids = override
 
+// Phase 3: shift_required handler — opens shift modal when backend rejects
+// laborant write because no shift is confirmed.
+async function _handleShiftRequired(resp) {
+    if (resp.status !== 400) return false;
+    var body = await resp.clone().json().catch(function() { return {}; });
+    if (body.error !== 'shift_required') return false;
+    if (typeof openShiftModal === 'function') {
+        openShiftModal();
+    } else {
+        alert('Wymagana potwierdzona zmiana przed zapisem. Otwórz modal Zmiana w nagłówku.');
+    }
+    return true;
+}
+
 async function loadUwagi(ebrId) {
     _uwagiCurrentEbrId = ebrId;
     _uwagiAutorOverride = null;
@@ -1275,6 +1289,7 @@ async function _uwagiSave() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
         });
+        if (await _handleShiftRequired(resp)) return;
         if (!resp.ok) {
             var err = await resp.json().catch(function() { return { error: 'błąd' }; });
             alert(err.error || 'Błąd zapisu notatki');
@@ -1295,6 +1310,7 @@ async function _uwagiClear() {
     if (!confirm('Na pewno usunąć notatkę?')) return;
     try {
         var resp = await fetch('/api/ebr/' + _uwagiCurrentEbrId + '/uwagi', { method: 'DELETE' });
+        if (await _handleShiftRequired(resp)) return;
         if (!resp.ok) {
             var err = await resp.json().catch(function() { return { error: 'błąd' }; });
             alert(err.error || 'Błąd usuwania');
@@ -1972,7 +1988,7 @@ function repeatAnaliza() {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({sekcja: nextSekcja, values: saveValues})
-        });
+        }).then(_handleShiftRequired);
     }
 
     renderSections();
@@ -2294,6 +2310,7 @@ async function saveSection(sekcja) {
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({sekcja: sekcja, values: values})
     });
+    if (await _handleShiftRequired(resp)) return;
     if (resp.ok) {
         // Reload the partial content in SPA mode
         if (typeof loadBatch === 'function' && typeof currentView !== 'undefined' && currentView === 'detail') {
@@ -2344,7 +2361,8 @@ function doSaveField(input, sekcja, kod) {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({sekcja: sekcja, values: values})
-    }).then(function(resp) {
+    }).then(async function(resp) {
+        if (await _handleShiftRequired(resp)) return;
         if (resp.ok) {
             input.style.outline = '2px solid var(--green, #16a34a)';
             setTimeout(function() { input.style.outline = ''; }, 800);
@@ -2393,7 +2411,7 @@ function setBinary(btn, sekcja, kod, value) {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({sekcja: sekcja, values: values})
-    });
+    }).then(_handleShiftRequired);
 }
 
 
@@ -2831,7 +2849,7 @@ function repeatAnalizaCyclic() {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({sekcja: nextSekcja, values: saveValues})
-        });
+        }).then(_handleShiftRequired);
     }
 
     roundState.next_sekcja = nextSekcja;
