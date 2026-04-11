@@ -662,6 +662,16 @@ def pdf_mbr(mbr_id):
                     headers={"Content-Disposition": f"inline; filename=MBR_{mbr['produkt']}_v{mbr['wersja']}.pdf"})
 
 
+@certs_bp.route("/api/cert/<int:cert_id>/audit-history")
+@role_required("admin", "technolog", "laborant_coa", "laborant_kj")
+def cert_audit_history(cert_id):
+    """Return per-cert audit history (sorted DESC by dt, with actors)."""
+    from mbr.shared import audit
+    with db_session() as db:
+        history = audit.query_audit_history_for_entity(db, "cert", cert_id)
+    return jsonify({"history": history})
+
+
 @certs_bp.route("/pdf/ebr/<int:ebr_id>")
 @login_required
 def pdf_ebr(ebr_id):

@@ -23,6 +23,7 @@ def _make_client(monkeypatch, db, rola="admin"):
     import mbr.admin.routes
     import mbr.laborant.routes
     import mbr.technolog.routes
+    import mbr.certs.routes
 
     @contextmanager
     def fake_db_session():
@@ -33,6 +34,7 @@ def _make_client(monkeypatch, db, rola="admin"):
     monkeypatch.setattr(mbr.admin.routes, "db_session", fake_db_session)
     monkeypatch.setattr(mbr.laborant.routes, "db_session", fake_db_session)
     monkeypatch.setattr(mbr.technolog.routes, "db_session", fake_db_session)
+    monkeypatch.setattr(mbr.certs.routes, "db_session", fake_db_session)
 
     from mbr.app import create_app
     app = create_app()
@@ -397,3 +399,22 @@ def test_mbr_audit_history_returns_filtered(admin_client, db):
 def test_mbr_audit_history_role_protected(laborant_client, db):
     resp = laborant_client.get("/api/mbr/7/audit-history")
     assert resp.status_code == 403
+
+
+# ---------- /api/cert/<id>/audit-history ----------
+
+def test_cert_audit_history_returns_filtered(admin_client, db):
+    cur = db.execute(
+        "INSERT INTO audit_log (dt, event_type, entity_type, entity_id, entity_label, result) VALUES ('2026-04-01T08:00:00', 'cert.generated', 'cert', 12, 'Świad. K40GLO', 'ok')"
+    )
+    db.execute(
+        "INSERT INTO audit_log_actors (audit_id, worker_id, actor_login, actor_rola) VALUES (?, NULL, 'kj', 'laborant_kj')",
+        (cur.lastrowid,),
+    )
+    db.commit()
+
+    resp = admin_client.get("/api/cert/12/audit-history")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert len(data["history"]) == 1
+    assert data["history"][0]["entity_label"] == "Świad. K40GLO"
