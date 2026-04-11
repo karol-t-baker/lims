@@ -669,3 +669,86 @@ def test_history_for_entity_includes_actors(queryable_audit_db):
     assert "actors" in rows[0]
     assert len(rows[0]["actors"]) >= 1
     assert "actor_login" in rows[0]["actors"][0]
+
+
+# ---------- archive_old_entries ----------
+
+def test_archive_dumps_old_entries_to_jsonl_gz_and_deletes(queryable_audit_db, tmp_path):
+    import gzip as _gzip
+    archive_dir = tmp_path / "audit_archive"
+    archive_dir.mkdir()
+    # Cutoff: anything before 2026-04-04 is "old" (4 of 6 rows)
+    summary = audit.archive_old_entries(
+        queryable_audit_db, "2026-04-04T00:00:00", archive_dir
+    )
+    assert summary["archived"] == 4
+    # Active DB has only 2 originals + 1 system.audit.archived = 3
+    remaining = queryable_audit_db.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0]
+    assert remaining == 3
+    # Archive file exists with 4 lines
+    archive_file = archive_dir / "audit_2026.jsonl.gz"
+    assert archive_file.exists()
+    with _gzip.open(archive_file, "rt") as f:
+        lines = f.readlines()
+    assert len(lines) == 4
+    # Each line is valid JSON with our row shape + actors
+    import json as _json
+    for line in lines:
+        parsed = _json.loads(line)
+        assert "id" in parsed
+        assert "event_type" in parsed
+        assert "actors" in parsed
+
+
+def test_archive_appends_to_existing_year_file(queryable_audit_db, tmp_path):
+    import gzip as _gzip
+    archive_dir = tmp_path / "audit_archive"
+    archive_dir.mkdir()
+    # First archive: cutoff 2026-04-02 → 1 old row
+    audit.archive_old_entries(queryable_audit_db, "2026-04-02T00:00:00", archive_dir)
+    # Second archive: cutoff 2026-04-04 → 3 newly-old rows
+    audit.archive_old_entries(queryable_audit_db, "2026-04-04T00:00:00", archive_dir)
+    archive_file = archive_dir / "audit_2026.jsonl.gz"
+    with _gzip.open(archive_file, "rt") as f:
+        lines = f.readlines()
+    # 1 + 3 = 4 lines total in the same file (gzip append concatenation)
+    assert len(lines) == 4
+
+
+def test_archive_returns_summary_dict(queryable_audit_db, tmp_path):
+    archive_dir = tmp_path / "audit_archive"
+    archive_dir.mkdir()
+    summary = audit.archive_old_entries(
+        queryable_audit_db, "2026-04-04T00:00:00", archive_dir
+    )
+    assert summary["archived"] == 4
+    assert summary["cutoff"] == "2026-04-04T00:00:00"
+    assert "audit_2026.jsonl.gz" in summary["file"]
+
+
+def test_archive_logs_system_audit_archived_event(queryable_audit_db, tmp_path):
+    archive_dir = tmp_path / "audit_archive"
+    archive_dir.mkdir()
+    audit.archive_old_entries(queryable_audit_db, "2026-04-04T00:00:00", archive_dir)
+    # The new system.audit.archived event must exist
+    rows = queryable_audit_db.execute(
+        "SELECT event_type, payload_json FROM audit_log WHERE event_type='system.audit.archived'"
+    ).fetchall()
+    assert len(rows) == 1
+    import json as _json
+    payload = _json.loads(rows[0]["payload_json"])
+    assert payload["count"] == 4
+    assert payload["cutoff"] == "2026-04-04T00:00:00"
+    assert "audit_2026.jsonl.gz" in payload["file"]
+    # Actor of the archive event is the 'system' virtual actor
+    aid_row = queryable_audit_db.execute(
+        "SELECT id FROM audit_log WHERE event_type='system.audit.archived'"
+    ).fetchone()
+    actors = queryable_audit_db.execute(
+        "SELECT actor_login, actor_rola, worker_id FROM audit_log_actors WHERE audit_id=?",
+        (aid_row[0],),
+    ).fetchall()
+    assert len(actors) == 1
+    assert actors[0]["actor_login"] == "system"
+    assert actors[0]["actor_rola"] == "system"
+    assert actors[0]["worker_id"] is None

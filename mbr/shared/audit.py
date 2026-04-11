@@ -202,7 +202,9 @@ def actors_from_request(db) -> list:
 # =========================================================================
 
 import json as _json
+import gzip as _gzip
 from datetime import datetime as _dt, timezone as _tz
+from pathlib import Path as _Path
 
 
 def log_event(
@@ -436,3 +438,83 @@ def query_audit_history_for_entity(db, entity_type: str, entity_id: int) -> list
         offset=0,
     )
     return rows
+
+
+def archive_old_entries(db, cutoff_iso: str, archive_dir) -> dict:
+    """Archive audit_log entries older than cutoff_iso into a gzipped JSONL
+    file, then delete them from the active DB.
+
+    File path: {archive_dir}/audit_{cutoff_year}.jsonl.gz where cutoff_year
+    is parsed from cutoff_iso. Uses gzip append mode so multiple archivals
+    in the same year accumulate into one file.
+
+    After deletion, logs a 'system.audit.archived' event with the system
+    virtual actor and a payload of {count, file, cutoff}.
+
+    All operations run in a single transaction. If the gzip write fails,
+    the transaction rolls back and no rows are deleted.
+
+    Returns: {'archived': N, 'file': str(path), 'cutoff': cutoff_iso}.
+    """
+    archive_dir = _Path(archive_dir)
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    year = cutoff_iso[:4]
+    archive_path = archive_dir / f"audit_{year}.jsonl.gz"
+
+    # 1. Read rows + actors that will be archived
+    where_sql = " WHERE dt < ?"
+    rows_to_archive = [dict(r) for r in db.execute(
+        f"SELECT id, dt, event_type, entity_type, entity_id, entity_label, "
+        f"diff_json, payload_json, context_json, request_id, ip, user_agent, result "
+        f"FROM audit_log{where_sql}", (cutoff_iso,),
+    ).fetchall()]
+    if rows_to_archive:
+        ids = [r["id"] for r in rows_to_archive]
+        placeholders = ",".join("?" * len(ids))
+        actor_rows = db.execute(
+            f"SELECT audit_id, worker_id, actor_login, actor_rola "
+            f"FROM audit_log_actors WHERE audit_id IN ({placeholders})",
+            ids,
+        ).fetchall()
+        by_audit = {}
+        for ar in actor_rows:
+            by_audit.setdefault(ar["audit_id"], []).append(dict(ar))
+        for r in rows_to_archive:
+            r["actors"] = by_audit.get(r["id"], [])
+
+    archived_count = len(rows_to_archive)
+
+    # 2. Append to gzipped JSONL file. If this raises, the transaction
+    # rolls back and no rows are deleted.
+    try:
+        if rows_to_archive:
+            with _gzip.open(archive_path, "at", encoding="utf-8") as f:
+                for r in rows_to_archive:
+                    f.write(_json.dumps(r, ensure_ascii=False, default=str) + "\n")
+
+            # 3. Delete archived rows from the DB
+            db.execute(f"DELETE FROM audit_log{where_sql}", (cutoff_iso,))
+
+        # 4. Log the archive event itself (system actor) AFTER delete so
+        # the fresh event cannot be swept by the same call.
+        log_event(
+            EVENT_SYSTEM_AUDIT_ARCHIVED,
+            payload={
+                "count": archived_count,
+                "file": str(archive_path),
+                "cutoff": cutoff_iso,
+            },
+            actors=actors_system(),
+            db=db,
+        )
+
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+    return {
+        "archived": archived_count,
+        "file": str(archive_path),
+        "cutoff": cutoff_iso,
+    }
