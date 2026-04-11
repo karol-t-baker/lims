@@ -79,7 +79,7 @@ CREATE TABLE audit_log_actors (
     worker_id       INTEGER,                    -- NULL dla 'system' lub nieznanego przy auth.login_failed
     actor_login     TEXT NOT NULL,              -- snapshot username/loginu
     actor_rola      TEXT NOT NULL,              -- snapshot roli ('laborant', 'admin', 'system', ...)
-    PRIMARY KEY (audit_id, worker_id, actor_login)
+    PRIMARY KEY (audit_id, actor_login)
 );
 
 CREATE INDEX idx_audit_log_dt          ON audit_log(dt DESC);
@@ -93,7 +93,7 @@ CREATE INDEX idx_audit_actors_worker   ON audit_log_actors(worker_id);
 
 - `entity_label` (denormalizacja) — listingi panelu admina czytelne bez JOIN-ów do 6 tabel; szarża/produkt mogą zmienić nazwę lub zostać usunięte, log trzyma podpis z momentu akcji.
 - `result = 'ok' | 'error'` — pozwala logować nieudane loginy, odrzucone zapisy z pustą zmianą, błędy generowania PDF.
-- PK `(audit_id, worker_id, actor_login)` — `actor_login` w kluczu umożliwia kilka aktorów z `worker_id=NULL` (system + login failed z nieznanym loginem) bez konfliktów.
+- PK `(audit_id, actor_login)` — używamy `actor_login` zamiast `worker_id` w kluczu, bo `worker_id` jest NULL-owalne dla aktora `system` i SQLite traktuje NULL-e jako różne (NULL ≠ NULL w UNIQUE), co złamałoby unikalność. `actor_login` jest zawsze NOT NULL.
 - Indeksy pokrywają typowe filtry panelu admina i historie per-rekord.
 
 ## Helper `mbr/shared/audit.py`
@@ -374,3 +374,19 @@ Test parametryzowany listą `[(url, method, payload)]`. Dla każdego: wyślij re
 | Gdzie żyje kod logujący | Jawny helper (A) | Dekorator (B) — słabo dla diffów; triggery SQLite (C) — nie widzą sesji |
 | `ebr_uwagi_history` | Zostawiamy, dublowanie OK | Migracja do audit_log — ryzyko regresji w świeżym feature |
 | Empty shift | Blokuje zapis laboranta | Fallback na login — istnieje dziś, usuwamy |
+
+---
+
+## Phase 1 Status (implementation)
+
+**Completed:** 2026-04-11
+
+- Schema: `audit_log` + `audit_log_actors` + 5 indexes in `init_mbr_tables()` (`c61f2ba`, fix `ba120e7`)
+- Migration script: `scripts/migrate_audit_log_v2.py` — idempotent, dry-run, recovery detection, transaction-safe (`10295b3`, hardening `b0d8d4f`)
+- Helper: `mbr/shared/audit.py` — 55 event_type constants, `ShiftRequiredError`, `diff_fields()`, `actors_system/_explicit/_from_request()`, `log_event()` (`7ebfabf`, `c102c97`, `eee4f8a`, `2f241fc`, `90efd8e`)
+- Flask wiring: `before_request` → `g.audit_request_id`, `errorhandler(ShiftRequiredError)` → 400 JSON (`0b60302`, `628813b`)
+- Tests: `tests/test_audit_helper.py` (25 tests: unit + integration + smoke), `tests/test_migrate_audit_log_v2.py` (7 migration tests)
+
+**Not yet integrated:** Zero call sites in blueprints. Next: Phase 2 (admin panel) or Phase 3 (auth + workers integration).
+
+**Test baseline:** 252 passed, 16 skipped, 0 failed.

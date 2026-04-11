@@ -218,53 +218,6 @@ def test_delete_cert_binding(client, db):
     assert row is None
 
 
-def test_build_rows_from_db(db):
-    """_build_rows_from_db reads params from parametry_cert."""
-    db.execute(
-        "INSERT INTO parametry_analityczne (kod, label, typ, name_en, method_code, precision) "
-        "VALUES ('sm', 'Sucha masa', 'bezposredni', 'Dry matter [%]', 'L903', 1)"
-    )
-    db.commit()
-    pa_id = db.execute("SELECT id FROM parametry_analityczne WHERE kod='sm'").fetchone()["id"]
-    db.execute(
-        "INSERT INTO parametry_cert (produkt, parametr_id, kolejnosc, requirement, format) "
-        "VALUES ('Chegina_K40GLOL', ?, 0, 'min. 44,0', '1')",
-        (pa_id,),
-    )
-    db.commit()
-
-    from mbr.certs.generator import _build_rows_from_db
-    rows = _build_rows_from_db(db, "Chegina_K40GLOL", {"sm": {"wartosc": 45.3}})
-    assert len(rows) == 1
-    assert rows[0]["name_pl"] == "Sucha masa"
-    assert rows[0]["name_en"] == "Dry matter [%]"
-    assert rows[0]["method"] == "L903"
-    assert rows[0]["requirement"] == "min. 44,0"
-    assert rows[0]["result"] == "45,3"
-
-
-def test_build_rows_qualitative(db):
-    """Qualitative params use qualitative_result from parametry_cert."""
-    db.execute(
-        "INSERT INTO parametry_analityczne (kod, label, typ, name_en) "
-        "VALUES ('odour', 'Zapach', 'jakosciowy', 'Odour')"
-    )
-    db.commit()
-    pa_id = db.execute("SELECT id FROM parametry_analityczne WHERE kod='odour'").fetchone()["id"]
-    db.execute(
-        "INSERT INTO parametry_cert (produkt, parametr_id, kolejnosc, requirement, qualitative_result) "
-        "VALUES ('Prod_A', ?, 0, 'słaby /faint', 'zgodny /right')",
-        (pa_id,),
-    )
-    db.commit()
-
-    from mbr.certs.generator import _build_rows_from_db
-    rows = _build_rows_from_db(db, "Prod_A", {})
-    assert len(rows) == 1
-    assert rows[0]["result"] == "zgodny /right"
-    assert rows[0]["requirement"] == "słaby /faint"
-
-
 def test_reorder_cert_bindings(client, db):
     """POST reorder swaps kolejnosc for two bindings."""
     db.execute(

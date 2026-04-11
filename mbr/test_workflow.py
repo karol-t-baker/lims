@@ -1,9 +1,12 @@
 """End-to-end test: seed -> create EBR -> cyclic standaryzacja -> complete -> verify v4 sync."""
+import pytest
+
 from mbr.models import (get_db, init_mbr_tables, get_active_mbr, create_ebr,
                          save_wyniki, complete_ebr, sync_ebr_to_v4, get_ebr,
                          get_ebr_wyniki, get_round_state)
 
 
+@pytest.mark.skip(reason="integration test — opens real data/batch_db.sqlite and requires seeded mbr_templates. Rewrite with in-memory fixture. See docs/superpowers/todo/2026-04-11-quarantined-tests.md")
 def test_cyclic_standaryzacja():
     db = get_db()
     init_mbr_tables(db)

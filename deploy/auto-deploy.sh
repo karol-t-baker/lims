@@ -27,6 +27,9 @@ git pull origin main --quiet
 # Install any new dependencies
 /opt/lims/venv/bin/pip install -r requirements.txt --quiet 2>/dev/null || true
 
+# Run pending migrations BEFORE restart (scripts must be idempotent — re-running is a no-op)
+/opt/lims/venv/bin/python scripts/migrate_audit_log_v2.py --db data/batch_db.sqlite
+
 # Restart app
 sudo systemctl restart lims
 
