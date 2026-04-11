@@ -751,3 +751,114 @@ def migrate_wyniki_to_rounds(db: sqlite3.Connection) -> int:
 
     db.commit()
     return updated
+
+
+# ---------------------------------------------------------------------------
+# Uwagi końcowe (final batch notes)
+# ---------------------------------------------------------------------------
+
+def get_uwagi(db: sqlite3.Connection, ebr_id: int) -> dict:
+    """Return current uwagi_koncowe state for an EBR batch.
+
+    Returns dict with keys: tekst, dt, autor, historia.
+    Raises ValueError if batch not found.
+    """
+    row = db.execute(
+        "SELECT uwagi_koncowe FROM ebr_batches WHERE ebr_id = ?", (ebr_id,)
+    ).fetchone()
+    if row is None:
+        raise ValueError(f"Batch {ebr_id} not found")
+
+    historia_rows = db.execute(
+        "SELECT id, tekst, action, autor, dt FROM ebr_uwagi_history "
+        "WHERE ebr_id = ? ORDER BY dt DESC, id DESC",
+        (ebr_id,),
+    ).fetchall()
+    historia = [
+        {"id": h["id"], "tekst": h["tekst"], "action": h["action"], "autor": h["autor"], "dt": h["dt"]}
+        for h in historia_rows
+    ]
+
+    tekst = row["uwagi_koncowe"]
+    if tekst is None:
+        dt = None
+        autor = None
+    else:
+        recent = next(
+            (h for h in historia if h["action"] in ("create", "update")), None
+        )
+        dt = recent["dt"] if recent else None
+        autor = recent["autor"] if recent else None
+
+    return {"tekst": tekst, "dt": dt, "autor": autor, "historia": historia}
+
+
+def save_uwagi(db: sqlite3.Connection, ebr_id: int, tekst, autor: str) -> dict:
+    """Create, update, or delete uwagi_koncowe for an EBR batch.
+
+    Returns the same dict shape as get_uwagi().
+    Raises ValueError for validation errors or missing/cancelled batch.
+    """
+    # 1. Normalise input
+    if tekst is not None:
+        tekst = tekst.strip()
+
+    # 2. Length check
+    if tekst and len(tekst) > 500:
+        raise ValueError("Za długie (max 500 znaków)")
+
+    # 3-4. Fetch current state
+    row = db.execute(
+        "SELECT uwagi_koncowe, status FROM ebr_batches WHERE ebr_id = ?", (ebr_id,)
+    ).fetchone()
+    if row is None:
+        raise ValueError(f"Batch {ebr_id} not found")
+
+    # 5. Guard against cancelled batches
+    if row["status"] == "cancelled":
+        raise ValueError("Nie można edytować notatki anulowanej szarży")
+
+    old = row["uwagi_koncowe"]
+    new = tekst or None  # empty string → NULL
+
+    # 7. Action detection — no-ops first
+    if old is None and new is None:
+        return get_uwagi(db, ebr_id)
+    if old == new:
+        return get_uwagi(db, ebr_id)
+
+    if old is None:
+        action = "create"
+    elif new is None:
+        action = "delete"
+    else:
+        action = "update"
+
+    now = datetime.now().isoformat(timespec="seconds")
+
+    # 8. Insert history row (stores OLD value)
+    db.execute(
+        "INSERT INTO ebr_uwagi_history (ebr_id, tekst, action, autor, dt) VALUES (?, ?, ?, ?, ?)",
+        (ebr_id, old, action, autor, now),
+    )
+
+    # 9. Update the batch
+    db.execute(
+        "UPDATE ebr_batches SET uwagi_koncowe = ? WHERE ebr_id = ?",
+        (new, ebr_id),
+    )
+
+    # 10. Bump sync_seq
+    next_seq = db.execute(
+        "SELECT COALESCE(MAX(sync_seq), 0) + 1 FROM ebr_batches"
+    ).fetchone()[0]
+    db.execute(
+        "UPDATE ebr_batches SET sync_seq = ? WHERE ebr_id = ?",
+        (next_seq, ebr_id),
+    )
+
+    # 11. Commit
+    db.commit()
+
+    # 12. Return fresh state
+    return get_uwagi(db, ebr_id)

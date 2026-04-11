@@ -16,6 +16,7 @@ from mbr.laborant.models import (
     list_ebr_open, list_ebr_recent,
     create_ebr, get_ebr, get_ebr_wyniki, get_round_state,
     save_wyniki, complete_ebr, sync_ebr_to_v4,
+    get_uwagi, save_uwagi,
 )
 
 
@@ -274,3 +275,49 @@ def get_samples(ebr_id, sekcja, kod):
         ).fetchone()
     samples = json.loads(row["samples_json"]) if row and row["samples_json"] else []
     return jsonify({"samples": samples})
+
+
+# ---------------------------------------------------------------------------
+# Uwagi końcowe API (final batch notes)
+# ---------------------------------------------------------------------------
+
+@laborant_bp.route("/api/ebr/<int:ebr_id>/uwagi", methods=["GET"])
+@login_required
+def api_get_uwagi(ebr_id):
+    """Return current uwagi_koncowe + history for an EBR batch."""
+    with db_session() as db:
+        try:
+            data = get_uwagi(db, ebr_id)
+        except ValueError:
+            return jsonify({"error": "Not found"}), 404
+    return jsonify(data)
+
+
+@laborant_bp.route("/api/ebr/<int:ebr_id>/uwagi", methods=["PUT"])
+@role_required("laborant", "laborant_kj", "laborant_coa", "admin")
+def api_put_uwagi(ebr_id):
+    """Create or update uwagi_koncowe for an EBR batch."""
+    body = request.get_json(silent=True) or {}
+    tekst = body.get("tekst", "")
+    with db_session() as db:
+        try:
+            result = save_uwagi(db, ebr_id, tekst, autor=session["user"]["login"])
+        except ValueError as e:
+            msg = str(e)
+            status = 404 if "not found" in msg.lower() else 400
+            return jsonify({"error": msg}), status
+    return jsonify(result)
+
+
+@laborant_bp.route("/api/ebr/<int:ebr_id>/uwagi", methods=["DELETE"])
+@role_required("laborant", "laborant_kj", "laborant_coa", "admin")
+def api_delete_uwagi(ebr_id):
+    """Clear uwagi_koncowe for an EBR batch (equivalent to PUT with tekst='')."""
+    with db_session() as db:
+        try:
+            result = save_uwagi(db, ebr_id, "", autor=session["user"]["login"])
+        except ValueError as e:
+            msg = str(e)
+            status = 404 if "not found" in msg.lower() else 400
+            return jsonify({"error": msg}), status
+    return jsonify(result)
