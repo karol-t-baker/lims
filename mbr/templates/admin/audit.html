@@ -30,10 +30,12 @@
 .d-meta a { color: var(--teal); }
 .audit-pager { text-align: center; margin: 12px 0; font-size: 12px; color: var(--text-dim); }
 .audit-pager a { color: var(--teal); margin: 0 8px; text-decoration: none; }
-.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 9999; }
-.modal-overlay[hidden] { display: none; }
-.modal-overlay .modal { background: white; padding: 20px 24px; border-radius: 10px; max-width: 480px; }
-.modal-overlay .actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
+/* Archive modal — scoped to #archive-modal so it doesn't collide with the
+   global .modal-overlay class used by feedback modal in base.html. */
+#archive-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 9999; }
+#archive-modal[hidden] { display: none; }
+#archive-modal .modal { background: white; padding: 20px 24px; border-radius: 10px; max-width: 480px; }
+#archive-modal .actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
 </style>
 
 <div class="audit-page">
@@ -117,7 +119,7 @@
   </div>
 </div>
 
-<div id="archive-modal" class="modal-overlay" hidden>
+<div id="archive-modal" hidden>
   <div class="modal">
     <h3>Archiwizacja wpisów audytu</h3>
     <p>Wpisów do archiwizacji: <b id="archive-count">…</b></p>
