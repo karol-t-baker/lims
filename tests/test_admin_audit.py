@@ -329,3 +329,45 @@ def test_admin_audit_archive_apply_forbidden_for_non_admin(laborant_client, db):
 def test_admin_audit_archive_apply_missing_cutoff_returns_400(admin_client, db):
     resp = admin_client.post("/admin/audit/archive", json={})
     assert resp.status_code == 400
+
+
+# ---------- /api/ebr/<id>/audit-history ----------
+
+def test_ebr_audit_history_endpoint_returns_only_ebr_entries(admin_client, db):
+    # Seed 3 ebr-related + 1 cert-related (must be filtered out)
+    for i, (et, eid) in enumerate([("ebr", 42), ("ebr", 42), ("ebr", 99), ("cert", 7)]):
+        cur = db.execute(
+            "INSERT INTO audit_log (dt, event_type, entity_type, entity_id, result) VALUES (?, 'x.y.z', ?, ?, 'ok')",
+            (f"2026-04-0{i+1}T08:00:00", et, eid),
+        )
+        db.execute(
+            "INSERT INTO audit_log_actors (audit_id, worker_id, actor_login, actor_rola) VALUES (?, NULL, 'tester', 'admin')",
+            (cur.lastrowid,),
+        )
+    db.commit()
+
+    resp = admin_client.get("/api/ebr/42/audit-history")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert "history" in data
+    assert len(data["history"]) == 2
+    assert all(r["entity_type"] == "ebr" and r["entity_id"] == 42 for r in data["history"])
+    # Sorted DESC by dt
+    assert data["history"][0]["dt"] >= data["history"][1]["dt"]
+
+
+def test_ebr_audit_history_endpoint_includes_actors(admin_client, db):
+    cur = db.execute(
+        "INSERT INTO audit_log (dt, event_type, entity_type, entity_id, result) VALUES ('2026-04-01T08:00:00', 'ebr.wynik.saved', 'ebr', 50, 'ok')"
+    )
+    db.execute(
+        "INSERT INTO audit_log_actors (audit_id, worker_id, actor_login, actor_rola) VALUES (?, 1, 'AK', 'laborant')",
+        (cur.lastrowid,),
+    )
+    db.commit()
+
+    resp = admin_client.get("/api/ebr/50/audit-history")
+    data = resp.get_json()
+    assert len(data["history"]) == 1
+    assert "actors" in data["history"][0]
+    assert data["history"][0]["actors"][0]["actor_login"] == "AK"
