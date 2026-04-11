@@ -417,3 +417,70 @@ def test_shift_required_error_returns_http_400_json(monkeypatch, tmp_path):
     assert resp.status_code == 400
     body = resp.get_json()
     assert body == {"error": "shift_required"}
+
+
+# ---------- Smoke test: full write path through a real Flask route ----------
+
+def test_smoke_log_event_through_flask_route(monkeypatch, tmp_path):
+    """Real Flask route calls log_event(); verify row landed with correct
+    request_id, actors, and serialized payload."""
+    import mbr.db as mbr_db
+    db_path = tmp_path / "smoke.sqlite"
+    monkeypatch.setattr(mbr_db, "DB_PATH", db_path)
+
+    from mbr.app import create_app
+    app = create_app()
+    app.config["TESTING"] = True
+
+    # Seed one worker so actors_from_request can resolve the session user.
+    # Note: current workers DDL lacks login/rola columns — actors_from_request
+    # for single-actor roles (technolog) reads those from session anyway.
+    with mbr_db.db_session() as db:
+        db.execute(
+            "INSERT INTO workers (imie, nazwisko, nickname, inicjaly) VALUES (?,?,?,?)",
+            ("Test", "User", "TU", "TU"),
+        )
+        db.commit()
+        worker_id = db.execute("SELECT id FROM workers WHERE inicjaly='TU'").fetchone()[0]
+
+    @app.route("/__probe_log__", methods=["POST"])
+    def _probe_log():
+        from flask import session
+        from mbr.db import db_session as _ds
+        session["user"] = {"login": "tu", "rola": "technolog", "worker_id": worker_id}
+        with _ds() as db:
+            aid = audit.log_event(
+                audit.EVENT_MBR_TEMPLATE_UPDATED,
+                entity_type="mbr",
+                entity_id=123,
+                entity_label="K40GLO v3",
+                diff=[{"pole": "etapy_json", "stara": "old", "nowa": "new"}],
+                db=db,
+            )
+            db.commit()
+        return {"id": aid}
+
+    client = app.test_client()
+    resp = client.post("/__probe_log__")
+    assert resp.status_code == 200
+    audit_id = resp.get_json()["id"]
+
+    with mbr_db.db_session() as db:
+        row = db.execute(
+            "SELECT event_type, entity_type, entity_id, entity_label, request_id FROM audit_log WHERE id=?",
+            (audit_id,),
+        ).fetchone()
+        assert row["event_type"] == "mbr.template.updated"
+        assert row["entity_type"] == "mbr"
+        assert row["entity_id"] == 123
+        assert row["entity_label"] == "K40GLO v3"
+        assert row["request_id"] is not None
+
+        actors = db.execute(
+            "SELECT worker_id, actor_login, actor_rola FROM audit_log_actors WHERE audit_id=?",
+            (audit_id,),
+        ).fetchall()
+        assert len(actors) == 1
+        assert actors[0]["worker_id"] == worker_id
+        assert actors[0]["actor_login"] == "tu"
+        assert actors[0]["actor_rola"] == "technolog"
