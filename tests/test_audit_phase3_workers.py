@@ -199,3 +199,35 @@ def test_worker_toggled_unknown_returns_404_no_log(admin_client, db):
         "SELECT COUNT(*) FROM audit_log WHERE event_type='worker.updated'"
     ).fetchone()[0]
     assert count == 0
+
+
+# ---------- DELETE /api/workers/<id> ----------
+
+def test_worker_deleted_logs_event_with_snapshot(admin_client, db):
+    resp = admin_client.delete("/api/workers/1")
+    assert resp.status_code == 200
+
+    rows = db.execute(
+        "SELECT id, entity_type, entity_id, entity_label, payload_json FROM audit_log "
+        "WHERE event_type='worker.deleted'"
+    ).fetchall()
+    assert len(rows) == 1
+    assert rows[0]["entity_type"] == "worker"
+    assert rows[0]["entity_id"] == 1
+    assert rows[0]["entity_label"] == "Anna Kowalska"
+
+    import json as _json
+    payload = _json.loads(rows[0]["payload_json"])
+    assert payload["imie"] == "Anna"
+    assert payload["nazwisko"] == "Kowalska"
+    assert payload["inicjaly"] == "AK"
+
+
+def test_worker_delete_unknown_no_log(admin_client, db):
+    """Deleting a non-existent worker is idempotent — no audit entry produced."""
+    resp = admin_client.delete("/api/workers/999")
+    assert resp.status_code == 200
+    count = db.execute(
+        "SELECT COUNT(*) FROM audit_log WHERE event_type='worker.deleted'"
+    ).fetchone()[0]
+    assert count == 0

@@ -212,9 +212,33 @@ def api_toggle_worker(worker_id):
 @workers_bp.route("/api/workers/<int:worker_id>", methods=["DELETE"])
 @login_required
 def api_delete_worker(worker_id):
-    from mbr.workers.models import delete_worker
     with db_session() as db:
-        delete_worker(db, worker_id)
+        # Snapshot before delete for the audit payload
+        snapshot_row = db.execute(
+            "SELECT imie, nazwisko, inicjaly, nickname, avatar_icon, avatar_color, aktywny "
+            "FROM workers WHERE id=?",
+            (worker_id,),
+        ).fetchone()
+
+        db.execute("DELETE FROM workers WHERE id=?", (worker_id,))
+
+        if snapshot_row is not None:
+            snapshot = dict(snapshot_row)
+            user = session.get("user", {})
+            audit.log_event(
+                audit.EVENT_WORKER_DELETED,
+                entity_type="worker",
+                entity_id=worker_id,
+                entity_label=f"{snapshot['imie']} {snapshot['nazwisko']}",
+                payload=snapshot,
+                actors=[{
+                    "worker_id": None,
+                    "actor_login": user.get("login", "unknown"),
+                    "actor_rola": user.get("rola", "unknown"),
+                }],
+                db=db,
+            )
+        db.commit()
     return jsonify({"ok": True})
 
 
