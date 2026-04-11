@@ -31,3 +31,31 @@ def verify_user(db: sqlite3.Connection, login: str, password: str) -> dict | Non
     if not bcrypt.checkpw(password.encode(), row["password_hash"].encode()):
         return None
     return dict(row)
+
+
+def change_password(
+    db: sqlite3.Connection, user_id: int, new_password: str
+) -> dict:
+    """Hash and update password for an existing user.
+
+    Returns dict with user_id + login + rola (no password_hash).
+    Raises ValueError if user not found or password is shorter than 6 chars.
+    """
+    if len(new_password) < 6:
+        raise ValueError("Password must be at least 6 characters")
+
+    row = db.execute(
+        "SELECT user_id, login, rola FROM mbr_users WHERE user_id = ?",
+        (user_id,),
+    ).fetchone()
+    if row is None:
+        raise ValueError(f"User {user_id} not found")
+
+    password_hash = bcrypt.hashpw(new_password.encode(), bcrypt.gensalt()).decode()
+    db.execute(
+        "UPDATE mbr_users SET password_hash = ? WHERE user_id = ?",
+        (password_hash, user_id),
+    )
+    db.commit()
+
+    return {"user_id": row["user_id"], "login": row["login"], "rola": row["rola"]}

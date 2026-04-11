@@ -99,3 +99,31 @@ def test_create_multiple_users_unique_ids(db):
     id1 = create_user(db, login="user1", password="pass1", rola="technolog")
     id2 = create_user(db, login="user2", password="pass2", rola="laborant")
     assert id1 != id2
+
+
+def test_change_password_updates_hash(db):
+    """change_password() updates the hash so verify_user works with the new password."""
+    from mbr.auth.models import change_password
+    user_id = create_user(db, login="kowalski", password="oldpass1", rola="laborant")
+    result = change_password(db, user_id, "newpass2")
+    assert result["user_id"] == user_id
+    assert result["login"] == "kowalski"
+    assert verify_user(db, "kowalski", "newpass2") is not None
+    assert verify_user(db, "kowalski", "oldpass1") is None
+
+
+def test_change_password_rejects_short(db):
+    """Password shorter than 6 chars raises ValueError."""
+    from mbr.auth.models import change_password
+    user_id = create_user(db, login="kowalski", password="oldpass1", rola="laborant")
+    import pytest as _pytest
+    with _pytest.raises(ValueError, match="6"):
+        change_password(db, user_id, "short")
+
+
+def test_change_password_unknown_user_raises(db):
+    """Non-existent user_id raises ValueError."""
+    from mbr.auth.models import change_password
+    import pytest as _pytest
+    with _pytest.raises(ValueError, match="not found"):
+        change_password(db, 9999, "validpass")
