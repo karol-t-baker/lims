@@ -73,10 +73,56 @@ def api_shift():
 def api_worker_profile(worker_id):
     data = request.get_json(silent=True) or {}
     with db_session() as db:
-        update_worker_profile(db, worker_id,
-            nickname=data.get("nickname"),
-            avatar_icon=data.get("avatar_icon"),
-            avatar_color=data.get("avatar_color"))
+        # Snapshot before for the diff
+        old_row = db.execute(
+            "SELECT imie, nazwisko, nickname, avatar_icon, avatar_color FROM workers WHERE id=?",
+            (worker_id,),
+        ).fetchone()
+        if old_row is None:
+            return jsonify({"error": "not found"}), 404
+        old = dict(old_row)
+
+        # Build the UPDATE inline so it stays in our transaction. The model
+        # helper update_worker_profile commits internally, which would split
+        # the UPDATE and audit log INSERT across two separate commits.
+        sets = []
+        vals = []
+        if data.get("nickname") is not None:
+            sets.append("nickname = ?")
+            vals.append(data["nickname"])
+        if data.get("avatar_icon") is not None:
+            sets.append("avatar_icon = ?")
+            vals.append(data["avatar_icon"])
+        if data.get("avatar_color") is not None:
+            sets.append("avatar_color = ?")
+            vals.append(data["avatar_color"])
+        if sets:
+            vals.append(worker_id)
+            db.execute(f"UPDATE workers SET {', '.join(sets)} WHERE id = ?", vals)
+
+        new_row = db.execute(
+            "SELECT nickname, avatar_icon, avatar_color FROM workers WHERE id=?",
+            (worker_id,),
+        ).fetchone()
+        new = dict(new_row)
+
+        diff = audit.diff_fields(old, new, ["nickname", "avatar_icon", "avatar_color"])
+        if diff:
+            user = session.get("user", {})
+            audit.log_event(
+                audit.EVENT_WORKER_UPDATED,
+                entity_type="worker",
+                entity_id=worker_id,
+                entity_label=f"{old['imie']} {old['nazwisko']}",
+                diff=diff,
+                actors=[{
+                    "worker_id": None,
+                    "actor_login": user.get("login", "unknown"),
+                    "actor_rola": user.get("rola", "unknown"),
+                }],
+                db=db,
+            )
+        db.commit()  # single commit covers both UPDATE and audit INSERT
     return jsonify({"ok": True})
 
 

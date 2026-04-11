@@ -100,3 +100,47 @@ def test_shift_changed_records_old_value(admin_client, db):
     p2 = _json.loads(rows[1]["payload_json"])
     assert p2["old"] == [1]
     assert p2["new"] == [1, 2]
+
+
+# ---------- POST /api/worker/<id>/profile ----------
+
+def test_worker_updated_profile_logs_event(admin_client, db):
+    """Profile update produces worker.updated with diff of changed fields only."""
+    resp = admin_client.post(
+        "/api/worker/1/profile",
+        json={"nickname": "AKowalska", "avatar_icon": 5, "avatar_color": 3},
+    )
+    assert resp.status_code == 200
+
+    rows = db.execute(
+        "SELECT id, event_type, entity_type, entity_id, entity_label, diff_json "
+        "FROM audit_log WHERE event_type='worker.updated'"
+    ).fetchall()
+    assert len(rows) == 1
+    assert rows[0]["entity_type"] == "worker"
+    assert rows[0]["entity_id"] == 1
+    assert rows[0]["entity_label"] == "Anna Kowalska"
+
+    import json as _json
+    diff = _json.loads(rows[0]["diff_json"])
+    fields = {d["pole"]: d for d in diff}
+    assert fields["nickname"]["stara"] == "AK"
+    assert fields["nickname"]["nowa"] == "AKowalska"
+    assert fields["avatar_icon"]["stara"] == 0
+    assert fields["avatar_icon"]["nowa"] == 5
+    assert fields["avatar_color"]["stara"] == 0
+    assert fields["avatar_color"]["nowa"] == 3
+
+
+def test_worker_profile_no_change_no_log(admin_client, db):
+    """If POST sends the same values that already exist, no audit entry."""
+    # First call sets nickname to AKowalska
+    admin_client.post("/api/worker/1/profile", json={"nickname": "AKowalska"})
+    # Second call sends the same value
+    admin_client.post("/api/worker/1/profile", json={"nickname": "AKowalska"})
+
+    count = db.execute(
+        "SELECT COUNT(*) FROM audit_log WHERE event_type='worker.updated'"
+    ).fetchone()[0]
+    # Only the first call produced an entry
+    assert count == 1
