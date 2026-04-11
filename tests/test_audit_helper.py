@@ -203,3 +203,168 @@ def test_actors_from_request_laborant_kj_ignores_shift_returns_single(app_with_w
     assert len(result) == 1
     assert result[0]["worker_id"] == 1
     assert result[0]["actor_rola"] == "laborant_kj"
+
+
+# ---------- log_event ----------
+
+@pytest.fixture
+def audit_db(workers_db):
+    """Extend workers_db with audit_log + audit_log_actors tables."""
+    workers_db.executescript("""
+        CREATE TABLE IF NOT EXISTS audit_log (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            dt              TEXT NOT NULL,
+            event_type      TEXT NOT NULL,
+            entity_type     TEXT,
+            entity_id       INTEGER,
+            entity_label    TEXT,
+            diff_json       TEXT,
+            payload_json    TEXT,
+            context_json    TEXT,
+            request_id      TEXT,
+            ip              TEXT,
+            user_agent      TEXT,
+            result          TEXT NOT NULL DEFAULT 'ok'
+        );
+        CREATE TABLE IF NOT EXISTS audit_log_actors (
+            audit_id        INTEGER NOT NULL REFERENCES audit_log(id) ON DELETE CASCADE,
+            worker_id       INTEGER,
+            actor_login     TEXT NOT NULL,
+            actor_rola      TEXT NOT NULL,
+            PRIMARY KEY (audit_id, actor_login)
+        );
+    """)
+    workers_db.commit()
+    return workers_db
+
+
+def test_log_event_writes_row_with_system_actor(audit_db):
+    audit_id = audit.log_event(
+        audit.EVENT_SYSTEM_MIGRATION_APPLIED,
+        entity_type=None,
+        entity_id=None,
+        payload={"migration": "audit_log_v2"},
+        actors=audit.actors_system(),
+        db=audit_db,
+    )
+    assert isinstance(audit_id, int)
+    assert audit_id > 0
+
+    row = audit_db.execute("SELECT * FROM audit_log WHERE id=?", (audit_id,)).fetchone()
+    assert row["event_type"] == "system.migration.applied"
+    assert row["entity_type"] is None
+    assert row["result"] == "ok"
+    assert row["dt"] is not None
+    assert json.loads(row["payload_json"])["migration"] == "audit_log_v2"
+
+    actors = audit_db.execute(
+        "SELECT worker_id, actor_login, actor_rola FROM audit_log_actors WHERE audit_id=?",
+        (audit_id,)
+    ).fetchall()
+    assert len(actors) == 1
+    assert actors[0]["worker_id"] is None
+    assert actors[0]["actor_login"] == "system"
+
+
+def test_log_event_writes_multiple_actors(audit_db):
+    audit_id = audit.log_event(
+        audit.EVENT_EBR_WYNIK_SAVED,
+        entity_type="ebr",
+        entity_id=42,
+        entity_label="Szarża 2026/42",
+        diff=[{"pole": "temperatura", "stara": 85, "nowa": 87}],
+        actors=[
+            {"worker_id": 1, "actor_login": "anna", "actor_rola": "laborant"},
+            {"worker_id": 2, "actor_login": "maria", "actor_rola": "laborant"},
+        ],
+        db=audit_db,
+    )
+    actors = audit_db.execute(
+        "SELECT worker_id FROM audit_log_actors WHERE audit_id=? ORDER BY worker_id",
+        (audit_id,),
+    ).fetchall()
+    assert [a["worker_id"] for a in actors] == [1, 2]
+
+
+def test_log_event_serializes_diff_and_payload_as_json(audit_db):
+    audit_id = audit.log_event(
+        audit.EVENT_MBR_TEMPLATE_UPDATED,
+        entity_type="mbr",
+        entity_id=7,
+        diff=[{"pole": "etapy_json", "stara": [{"s": 1}], "nowa": [{"s": 2}]}],
+        payload={"reason": "recipe fix"},
+        actors=audit.actors_system(),
+        db=audit_db,
+    )
+    row = audit_db.execute(
+        "SELECT diff_json, payload_json FROM audit_log WHERE id=?", (audit_id,)
+    ).fetchone()
+    diff = json.loads(row["diff_json"])
+    assert diff[0]["nowa"] == [{"s": 2}]
+    payload = json.loads(row["payload_json"])
+    assert payload["reason"] == "recipe fix"
+
+
+def test_log_event_accepts_result_error(audit_db):
+    """auth.login with result='error' for failed login attempts."""
+    audit_id = audit.log_event(
+        audit.EVENT_AUTH_LOGIN,
+        payload={"attempted_login": "ghost"},
+        result="error",
+        actors=[{"worker_id": None, "actor_login": "ghost", "actor_rola": "unknown"}],
+        db=audit_db,
+    )
+    row = audit_db.execute("SELECT result FROM audit_log WHERE id=?", (audit_id,)).fetchone()
+    assert row["result"] == "error"
+
+
+def test_log_event_resolves_actors_from_request_when_not_provided(audit_db):
+    """If `actors=` not passed, helper resolves from Flask session."""
+    app = Flask(__name__)
+    app.secret_key = "test"
+    with app.test_request_context():
+        from flask import session, g
+        session["user"] = {"login": "jan", "rola": "technolog", "worker_id": 3}
+        g.audit_request_id = "req-abc-123"
+
+        audit_id = audit.log_event(
+            audit.EVENT_MBR_TEMPLATE_CREATED,
+            entity_type="mbr",
+            entity_id=1,
+            db=audit_db,
+        )
+
+    row = audit_db.execute(
+        "SELECT request_id FROM audit_log WHERE id=?", (audit_id,)
+    ).fetchone()
+    assert row["request_id"] == "req-abc-123"
+
+    actors = audit_db.execute(
+        "SELECT worker_id, actor_login FROM audit_log_actors WHERE audit_id=?",
+        (audit_id,),
+    ).fetchall()
+    assert len(actors) == 1
+    assert actors[0]["worker_id"] == 3
+
+
+def test_log_event_writes_in_caller_transaction_rollback_removes_both(audit_db):
+    """If caller rolls back, audit row AND actor row must also roll back."""
+    audit_db.execute("BEGIN")
+    audit_id = audit.log_event(
+        audit.EVENT_WORKER_CREATED,
+        entity_type="worker",
+        entity_id=999,
+        actors=audit.actors_system(),
+        db=audit_db,
+    )
+    # Simulate business-logic failure → rollback
+    audit_db.rollback()
+
+    rows = audit_db.execute(
+        "SELECT COUNT(*) FROM audit_log WHERE id=?", (audit_id,)
+    ).fetchone()[0]
+    actors = audit_db.execute(
+        "SELECT COUNT(*) FROM audit_log_actors WHERE audit_id=?", (audit_id,)
+    ).fetchone()[0]
+    assert rows == 0
+    assert actors == 0

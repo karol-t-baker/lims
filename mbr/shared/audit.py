@@ -190,3 +190,115 @@ def actors_from_request(db) -> list:
         "actor_login": user["login"],
         "actor_rola": rola,
     }]
+
+
+# =========================================================================
+# Write path
+# =========================================================================
+
+import json as _json
+from datetime import datetime as _dt
+
+
+def log_event(
+    event_type: str,
+    *,
+    entity_type: str = None,
+    entity_id: int = None,
+    entity_label: str = None,
+    diff: list = None,
+    payload: dict = None,
+    context: dict = None,
+    actors: list = None,
+    result: str = "ok",
+    db=None,
+) -> int:
+    """Write one audit_log row + its actors, in the caller's DB transaction.
+
+    Args:
+        event_type: One of the EVENT_* constants defined in this module.
+        entity_type: e.g. 'ebr', 'mbr', 'cert', 'worker', or None.
+        entity_id: PK of the affected record, or None for non-entity events.
+        entity_label: Denormalized human label (szarża number, produkt) for
+            admin panel listings — spares JOINs on historical data.
+        diff: List of {'pole', 'stara', 'nowa'} dicts from diff_fields().
+        payload: Arbitrary event-specific context (PDF path, template name).
+        context: Extra request context (ebr_id, produkt, ...) — merged with
+            Flask g attributes if available.
+        actors: Pre-resolved actor list. If None, resolved via
+            actors_from_request(db) — requires Flask request context.
+        result: 'ok' | 'error' — used by auth.login_failed etc.
+        db: sqlite3.Connection to write into. REQUIRED. Write shares the
+            caller's transaction; caller commits (or rolls back).
+
+    Returns:
+        audit_log.id (int) of the new row.
+
+    Raises:
+        ShiftRequiredError: if actors=None and the current user is a
+            laborant with empty shift_workers.
+        ValueError: if db is None or unknown worker in explicit actors.
+    """
+    if db is None:
+        raise ValueError("log_event requires db= to share caller's transaction")
+
+    if actors is None:
+        actors = actors_from_request(db)
+
+    # Request context (best-effort — works outside Flask for system events)
+    request_id = None
+    ip = None
+    user_agent = None
+    try:
+        from flask import g, request
+        try:
+            request_id = getattr(g, "audit_request_id", None)
+        except RuntimeError:
+            request_id = None
+        try:
+            xff = request.headers.get("X-Forwarded-For")
+            if xff:
+                # nginx behind a proxy may send "client, proxy1, proxy2"
+                ip = xff.split(",")[0].strip()
+            else:
+                ip = request.remote_addr
+            user_agent = request.headers.get("User-Agent")
+        except RuntimeError:
+            pass
+    except (RuntimeError, ImportError):
+        # No Flask app / request context — e.g. migrations, startup
+        pass
+
+    dt = _dt.utcnow().isoformat()
+
+    cur = db.execute(
+        """INSERT INTO audit_log
+           (dt, event_type, entity_type, entity_id, entity_label,
+            diff_json, payload_json, context_json,
+            request_id, ip, user_agent, result)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        (
+            dt,
+            event_type,
+            entity_type,
+            entity_id,
+            entity_label,
+            _json.dumps(diff, ensure_ascii=False) if diff else None,
+            _json.dumps(payload, ensure_ascii=False) if payload else None,
+            _json.dumps(context, ensure_ascii=False) if context else None,
+            request_id,
+            ip,
+            user_agent,
+            result,
+        ),
+    )
+    audit_id = cur.lastrowid
+
+    for actor in actors:
+        db.execute(
+            """INSERT INTO audit_log_actors (audit_id, worker_id, actor_login, actor_rola)
+               VALUES (?, ?, ?, ?)""",
+            (audit_id, actor["worker_id"], actor["actor_login"], actor["actor_rola"]),
+        )
+
+    return audit_id
