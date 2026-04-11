@@ -234,7 +234,7 @@ def test_get_uwagi_after_delete(db, ebr_batch):
 # Tasks 9-11: Flask HTTP API tests
 # ---------------------------------------------------------------------------
 
-def _make_client(monkeypatch, db, rola="laborant"):
+def _make_client(monkeypatch, db, rola="laborant", shift_workers=None):
     """Build a Flask test client whose db_session yields the given in-memory db."""
     from contextlib import contextmanager
     import mbr.db
@@ -254,12 +254,22 @@ def _make_client(monkeypatch, db, rola="laborant"):
     with app.test_client() as c:
         with c.session_transaction() as sess:
             sess["user"] = {"login": "testuser", "rola": rola}
+            if shift_workers is not None:
+                sess["shift_workers"] = shift_workers
         yield c
 
 
 @pytest.fixture
 def client(monkeypatch, db, ebr_batch):
-    yield from _make_client(monkeypatch, db, rola="laborant")
+    # Seed a worker whose nickname matches the session login, and put them
+    # into shift_workers so Phase 3 enforcement (laborant must have a shift)
+    # is satisfied while keeping legacy autor == "testuser" assertions valid.
+    db.execute(
+        "INSERT INTO workers (id, imie, nazwisko, inicjaly, nickname, aktywny) "
+        "VALUES (999, 'Test', 'User', 'TU', 'testuser', 1)"
+    )
+    db.commit()
+    yield from _make_client(monkeypatch, db, rola="laborant", shift_workers=[999])
 
 
 @pytest.fixture
@@ -364,16 +374,33 @@ def _seed_workers(db):
     db.commit()
 
 
-def test_resolve_actor_label_falls_back_to_login_when_no_shift(db):
-    """Empty shift_workers → autor = session login (existing behaviour kept for now)."""
+def test_resolve_actor_label_falls_back_to_login_for_non_laborant_roles(db):
+    """Empty shift_workers → autor = session login for admin/technolog/laborant_kj/laborant_coa.
+    For role 'laborant', see test_resolve_actor_label_laborant_empty_shift_raises."""
     from flask import Flask
     from mbr.laborant.routes import _resolve_actor_label
+    app = Flask(__name__)
+    app.secret_key = "test"
+    for rola in ("admin", "technolog", "laborant_kj", "laborant_coa"):
+        with app.test_request_context():
+            from flask import session
+            session["user"] = {"login": "shared_lab", "rola": rola}
+            assert _resolve_actor_label(db) == "shared_lab"
+
+
+def test_resolve_actor_label_laborant_empty_shift_raises(db):
+    """Empty shift_workers + role='laborant' → ShiftRequiredError (Phase 3 enforcement)."""
+    from flask import Flask
+    from mbr.laborant.routes import _resolve_actor_label
+    from mbr.shared.audit import ShiftRequiredError
+    import pytest as _pytest
     app = Flask(__name__)
     app.secret_key = "test"
     with app.test_request_context():
         from flask import session
         session["user"] = {"login": "shared_lab", "rola": "laborant"}
-        assert _resolve_actor_label(db) == "shared_lab"
+        with _pytest.raises(ShiftRequiredError):
+            _resolve_actor_label(db)
 
 
 def test_resolve_actor_label_uses_shift_when_set(db):
