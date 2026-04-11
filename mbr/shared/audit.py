@@ -132,16 +132,21 @@ def actors_system() -> list:
 
 
 def actors_explicit(db, worker_ids: list) -> list:
-    """Resolve an explicit list of worker_ids → actor dicts.
+    """Resolve explicit worker_ids from the `workers` table.
 
-    Used by COA (certs flow) where the form asks for a specific `wystawil`.
-    Snapshots login + rola at call time. Raises ValueError for unknown IDs.
+    Used for rola='laborant' multi-actor case (shift workers pracujący w parach).
+    `workers` table in this project has no login/rola columns — workers are lab
+    technicians identified by imie+nazwisko+inicjaly+nickname. Since this resolver
+    is only called for shift workers, we hardcode actor_rola='laborant' and use
+    nickname (preferred) or inicjaly (fallback) as actor_login.
+
+    Raises ValueError if any worker_id is missing from the DB.
     """
     if not worker_ids:
         return []
     placeholders = ",".join("?" * len(worker_ids))
     rows = db.execute(
-        f"SELECT id, login, rola FROM workers WHERE id IN ({placeholders})",
+        f"SELECT id, nickname, inicjaly FROM workers WHERE id IN ({placeholders})",
         list(worker_ids),
     ).fetchall()
     by_id = {r["id"]: r for r in rows}
@@ -151,8 +156,8 @@ def actors_explicit(db, worker_ids: list) -> list:
     return [
         {
             "worker_id": wid,
-            "actor_login": by_id[wid]["login"],
-            "actor_rola": by_id[wid]["rola"],
+            "actor_login": by_id[wid]["nickname"] or by_id[wid]["inicjaly"],
+            "actor_rola": "laborant",
         }
         for wid in worker_ids
     ]

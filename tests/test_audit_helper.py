@@ -99,16 +99,17 @@ def workers_db():
     db.execute("""
         CREATE TABLE workers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            imie TEXT, nazwisko TEXT, nickname TEXT, inicjaly TEXT,
-            login TEXT, rola TEXT
+            imie TEXT NOT NULL, nazwisko TEXT NOT NULL, inicjaly TEXT NOT NULL,
+            nickname TEXT DEFAULT '', avatar_icon INTEGER DEFAULT 0,
+            avatar_color INTEGER DEFAULT 0, aktywny INTEGER NOT NULL DEFAULT 1
         )
     """)
     db.executemany(
-        "INSERT INTO workers (id, imie, nazwisko, nickname, inicjaly, login, rola) VALUES (?,?,?,?,?,?,?)",
+        "INSERT INTO workers (id, imie, nazwisko, inicjaly, nickname) VALUES (?,?,?,?,?)",
         [
-            (1, "Anna",  "Kowalska", "AK", "AK", "anna",  "laborant_coa"),
-            (2, "Maria", "Wójcik",   "MW", "MW", "maria", "laborant"),
-            (3, "Jan",   "Nowak",    "JN", "JN", "jan",   "technolog"),
+            (1, "Anna",  "Kowalska", "AK", "AK"),
+            (2, "Maria", "Wójcik",   "MW", "MW"),
+            (3, "Jan",   "Nowak",    "JN", "JN"),
         ],
     )
     db.commit()
@@ -119,8 +120,8 @@ def workers_db():
 def test_actors_explicit_resolves_worker_rows_from_db(workers_db):
     result = audit.actors_explicit(workers_db, [1, 3])
     assert result == [
-        {"worker_id": 1, "actor_login": "anna", "actor_rola": "laborant_coa"},
-        {"worker_id": 3, "actor_login": "jan",  "actor_rola": "technolog"},
+        {"worker_id": 1, "actor_login": "AK", "actor_rola": "laborant"},
+        {"worker_id": 3, "actor_login": "JN", "actor_rola": "laborant"},
     ]
 
 

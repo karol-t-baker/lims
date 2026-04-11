@@ -26,8 +26,9 @@ def _make_db_with_old_schema(rows=None):
     db.execute("""
         CREATE TABLE workers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            imie TEXT, nazwisko TEXT, nickname TEXT, inicjaly TEXT,
-            login TEXT, rola TEXT
+            imie TEXT NOT NULL, nazwisko TEXT NOT NULL, inicjaly TEXT NOT NULL,
+            nickname TEXT DEFAULT '', avatar_icon INTEGER DEFAULT 0,
+            avatar_color INTEGER DEFAULT 0, aktywny INTEGER NOT NULL DEFAULT 1
         )
     """)
     for r in rows or []:
@@ -55,10 +56,10 @@ def test_migrate_old_audit_log_backfills_rows():
         ("2026-04-01T11:00:00", "ebr_stages", 17, "status", "open", "done", "MW"),
     ])
     db.execute(
-        "INSERT INTO workers (id, imie, nazwisko, nickname, inicjaly, rola) VALUES (1,'Anna','Kowalska','AK','AK','laborant')"
+        "INSERT INTO workers (id, imie, nazwisko, nickname, inicjaly) VALUES (1,'Anna','Kowalska','AK','AK')"
     )
     db.execute(
-        "INSERT INTO workers (id, imie, nazwisko, nickname, inicjaly, rola) VALUES (2,'Maria','Wójcik','MW','MW','laborant')"
+        "INSERT INTO workers (id, imie, nazwisko, nickname, inicjaly) VALUES (2,'Maria','Wójcik','MW','MW')"
     )
     db.commit()
 
@@ -120,7 +121,7 @@ def test_migrate_recovers_from_wedged_state():
         ("2026-04-01T11:00:00", "ebr_stages", 17, "status", "open", "done", "MW"),
     ])
     db.execute(
-        "INSERT INTO workers (id, imie, nazwisko, nickname, inicjaly, rola) VALUES (1,'Anna','Kowalska','AK','AK','laborant')"
+        "INSERT INTO workers (id, imie, nazwisko, nickname, inicjaly) VALUES (1,'Anna','Kowalska','AK','AK')"
     )
     db.commit()
 

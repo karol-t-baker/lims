@@ -11,7 +11,7 @@ Steps:
   3. Create new audit_log + audit_log_actors + indexes.
   4. Backfill audit_log_v1 -> audit_log as event_type='legacy.field_change',
      resolving `zmienil` string -> worker_id when possible (JOIN on workers.inicjaly
-     or workers.nickname or workers.login).
+     or workers.nickname).
   5. Verify counts match; leave audit_log_v1 in place for rollback (drop in Phase 7).
 
 Usage:
@@ -81,13 +81,13 @@ def _resolve_worker(db: sqlite3.Connection, zmienil: str):
     if not _table_exists(db, "workers"):
         return (None, zmienil, "unknown")
     row = db.execute(
-        """SELECT id, COALESCE(rola, 'unknown') AS rola FROM workers
-           WHERE inicjaly=? OR nickname=? OR login=?
+        """SELECT id FROM workers
+           WHERE inicjaly=? OR nickname=?
            LIMIT 1""",
-        (zmienil, zmienil, zmienil),
+        (zmienil, zmienil),
     ).fetchone()
     if row:
-        return (row[0], zmienil, row[1])
+        return (row[0], zmienil, "laborant")
     return (None, zmienil, "unknown")
 
 
