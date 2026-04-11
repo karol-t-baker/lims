@@ -150,6 +150,32 @@ def test_list_completed_registry_cert_count(db, seeded):
         assert r["cert_count"] == 0
 
 
+def test_list_completed_registry_includes_uwagi_koncowe(db):
+    """Registry should expose uwagi_koncowe column for the completed list view."""
+    from datetime import datetime
+    from mbr.registry.models import list_completed_registry
+
+    now = datetime.now().isoformat(timespec="seconds")
+    db.execute(
+        "INSERT INTO mbr_templates (produkt, wersja, status, etapy_json, parametry_lab, "
+        "utworzony_przez, dt_utworzenia) VALUES (?, 1, 'active', '[]', '{}', 'test', ?)",
+        ("TestProduct", now),
+    )
+    mbr_id = db.execute(
+        "SELECT mbr_id FROM mbr_templates WHERE produkt='TestProduct'"
+    ).fetchone()["mbr_id"]
+    db.execute(
+        "INSERT INTO ebr_batches (mbr_id, batch_id, nr_partii, dt_start, dt_end, status, typ, uwagi_koncowe) "
+        "VALUES (?, 'TP__1', '1/2026', ?, ?, 'completed', 'szarza', 'nota testowa')",
+        (mbr_id, now, now),
+    )
+    db.commit()
+
+    result = list_completed_registry(db, produkt="TestProduct")
+    assert len(result) == 1
+    assert result[0]["uwagi_koncowe"] == "nota testowa"
+
+
 def test_list_completed_registry_filter_by_typ(db, seeded):
     # seeded already has mbr1 for "Chegina K40GL" wersja=1; use that mbr_id directly
     mbr_id = seeded["mbr1"]
