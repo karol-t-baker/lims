@@ -508,7 +508,7 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             worker_id       INTEGER,
             actor_login     TEXT NOT NULL,
             actor_rola      TEXT NOT NULL,
-            PRIMARY KEY (audit_id, worker_id, actor_login)
+            PRIMARY KEY (audit_id, actor_login)
         )
     """)
     db.execute("CREATE INDEX IF NOT EXISTS idx_audit_log_dt ON audit_log(dt DESC)")

@@ -79,7 +79,7 @@ CREATE TABLE audit_log_actors (
     worker_id       INTEGER,                    -- NULL dla 'system' lub nieznanego przy auth.login_failed
     actor_login     TEXT NOT NULL,              -- snapshot username/loginu
     actor_rola      TEXT NOT NULL,              -- snapshot roli ('laborant', 'admin', 'system', ...)
-    PRIMARY KEY (audit_id, worker_id, actor_login)
+    PRIMARY KEY (audit_id, actor_login)
 );
 
 CREATE INDEX idx_audit_log_dt          ON audit_log(dt DESC);
@@ -93,7 +93,7 @@ CREATE INDEX idx_audit_actors_worker   ON audit_log_actors(worker_id);
 
 - `entity_label` (denormalizacja) — listingi panelu admina czytelne bez JOIN-ów do 6 tabel; szarża/produkt mogą zmienić nazwę lub zostać usunięte, log trzyma podpis z momentu akcji.
 - `result = 'ok' | 'error'` — pozwala logować nieudane loginy, odrzucone zapisy z pustą zmianą, błędy generowania PDF.
-- PK `(audit_id, worker_id, actor_login)` — `actor_login` w kluczu umożliwia kilka aktorów z `worker_id=NULL` (system + login failed z nieznanym loginem) bez konfliktów.
+- PK `(audit_id, actor_login)` — używamy `actor_login` zamiast `worker_id` w kluczu, bo `worker_id` jest NULL-owalne dla aktora `system` i SQLite traktuje NULL-e jako różne (NULL ≠ NULL w UNIQUE), co złamałoby unikalność. `actor_login` jest zawsze NOT NULL.
 - Indeksy pokrywają typowe filtry panelu admina i historie per-rekord.
 
 ## Helper `mbr/shared/audit.py`
