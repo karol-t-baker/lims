@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS ebr_uwagi_history (
     tekst      TEXT,              -- poprzedni stan przed zmianą; NULL gdy action='create'
     action     TEXT NOT NULL CHECK(action IN ('create', 'update', 'delete')),
     autor      TEXT NOT NULL,     -- login z Flask session
-    dt         TEXT NOT NULL      -- ISO timestamp
+    dt         TEXT NOT NULL      -- ISO 8601 timestamp z datetime.now().isoformat()
 );
 
 CREATE INDEX IF NOT EXISTS idx_ebr_uwagi_history_ebr
@@ -93,6 +93,8 @@ GET    /api/ebr/<int:ebr_id>/uwagi/historia
 ```
 
 ### `GET /api/ebr/<id>/uwagi`
+
+Dekoratory: `@login_required` tylko. Każdy uwierzytelniony użytkownik (laborant, laborant_kj, laborant_coa, technolog, admin) może odczytać uwagi. Edycja jest zawężona przez `role_required` na PUT/DELETE.
 
 Response:
 ```json
@@ -252,7 +254,7 @@ Helper w `mbr/laborant/models.py::list_batches()` (lub analogiczny) dostaje `uwa
 
 ## Cache, sync
 
-- Po zapisie notatki bumpujemy `ebr_batches.sync_seq` — to spójne z istniejącym wzorcem synchronizacji danych szarży między klientami.
+- Po zapisie notatki bumpujemy `ebr_batches.sync_seq` — to spójne z istniejącym wzorcem synchronizacji danych szarży między klientami. Format: `sync_seq = (SELECT COALESCE(MAX(sync_seq), 0) + 1 FROM ebr_batches)`, jak w `laborant/models.py` przy complete-batch.
 - Odpowiedzi API — `Cache-Control: no-store` (już włączone globalnie w `after_request` hooku).
 
 ## Testy
@@ -297,7 +299,7 @@ Frontend JS nie jest testowany — zgodnie z istniejącą konwencją (tylko back
 
 2. **Wzrost historii.** Miliony wpisów przez lata. SQLite radzi sobie spokojnie, indeks `(ebr_id, dt DESC)` sprawia że `get_uwagi` jest O(log N) per szarża.
 
-3. **Kasowanie szarży.** Jeśli jest hard-delete (w `admin`), potrzebny CASCADE na FK — do ustalenia w trakcie implementacji (check jak inne FK od `ebr_batches` są skonfigurowane; jeśli bez cascade, zostawiamy zgodnie z konwencją i kasujemy historię osobno w delete-handlerze).
+3. **Kasowanie szarży.** Jeśli istnieje hard-delete (w `admin`), historia nie ma skonfigurowanego `ON DELETE CASCADE` w definicji FK — zachowujemy spójność z istniejącymi tabelami (`ebr_wyniki`, `ebr_korekty` też nie mają cascade). Plan: w delete-handlerze szarży (jeśli jest) dopinamy ręczne `DELETE FROM ebr_uwagi_history WHERE ebr_id = ?`. Jeśli nie ma hard-delete (tylko soft-cancel via `status='cancelled'`), historia zostaje jako archiwum.
 
 4. **Długie tooltipy.** Natywny `title=` przy 500 znaków pokaże długi pasek. Pragmatycznie akceptowalne; ewentualna zamiana na custom tooltip w kolejnej iteracji.
 
