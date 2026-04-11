@@ -144,3 +144,30 @@ def test_worker_profile_no_change_no_log(admin_client, db):
     ).fetchone()[0]
     # Only the first call produced an entry
     assert count == 1
+
+
+# ---------- POST /api/workers (add) ----------
+
+def test_worker_created_logs_event(admin_client, db):
+    resp = admin_client.post(
+        "/api/workers",
+        json={"imie": "Jan", "nazwisko": "Nowak", "nickname": "Janek"},
+    )
+    assert resp.status_code == 200
+    new_id = resp.get_json()["id"]
+
+    rows = db.execute(
+        "SELECT id, entity_type, entity_id, entity_label, payload_json FROM audit_log "
+        "WHERE event_type='worker.created'"
+    ).fetchall()
+    assert len(rows) == 1
+    assert rows[0]["entity_type"] == "worker"
+    assert rows[0]["entity_id"] == new_id
+    assert rows[0]["entity_label"] == "Jan Nowak"
+
+    import json as _json
+    payload = _json.loads(rows[0]["payload_json"])
+    assert payload["imie"] == "Jan"
+    assert payload["nazwisko"] == "Nowak"
+    assert payload["inicjaly"] == "JN"
+    assert payload["nickname"] == "Janek"

@@ -129,7 +129,6 @@ def api_worker_profile(worker_id):
 @workers_bp.route("/api/workers", methods=["POST"])
 @login_required
 def api_add_worker():
-    from mbr.workers.models import add_worker
     data = request.get_json(silent=True) or {}
     imie = (data.get("imie") or "").strip()
     nazwisko = (data.get("nazwisko") or "").strip()
@@ -138,7 +137,35 @@ def api_add_worker():
     inicjaly = (imie[0] + nazwisko[0]).upper()
     nickname = (data.get("nickname") or "").strip()
     with db_session() as db:
-        wid = add_worker(db, imie, nazwisko, inicjaly, nickname)
+        # Inline the INSERT (don't call add_worker model helper, which commits
+        # internally — would split row INSERT and audit INSERT across two
+        # separate transactions). Same pattern as api_worker_profile.
+        cur = db.execute(
+            "INSERT INTO workers (imie, nazwisko, inicjaly, nickname, aktywny) VALUES (?, ?, ?, ?, 1)",
+            (imie, nazwisko, inicjaly, nickname),
+        )
+        wid = cur.lastrowid
+
+        user = session.get("user", {})
+        audit.log_event(
+            audit.EVENT_WORKER_CREATED,
+            entity_type="worker",
+            entity_id=wid,
+            entity_label=f"{imie} {nazwisko}",
+            payload={
+                "imie": imie,
+                "nazwisko": nazwisko,
+                "inicjaly": inicjaly,
+                "nickname": nickname,
+            },
+            actors=[{
+                "worker_id": None,
+                "actor_login": user.get("login", "unknown"),
+                "actor_rola": user.get("rola", "unknown"),
+            }],
+            db=db,
+        )
+        db.commit()
     return jsonify({"ok": True, "id": wid})
 
 
