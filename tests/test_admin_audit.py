@@ -1,0 +1,146 @@
+"""Tests for /admin/audit panel + archival + per-record history endpoints."""
+
+import sqlite3
+import pytest
+from contextlib import contextmanager
+
+from mbr.models import init_mbr_tables
+
+
+@pytest.fixture
+def db():
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    init_mbr_tables(conn)
+    yield conn
+    conn.close()
+
+
+def _make_client(monkeypatch, db, rola="admin"):
+    """Build a Flask test client with the in-memory db monkey-patched in."""
+    import mbr.db
+    import mbr.admin.audit_routes
+    import mbr.admin.routes
+    import mbr.laborant.routes
+
+    @contextmanager
+    def fake_db_session():
+        yield db
+
+    monkeypatch.setattr(mbr.db, "db_session", fake_db_session)
+    monkeypatch.setattr(mbr.admin.audit_routes, "db_session", fake_db_session)
+    monkeypatch.setattr(mbr.admin.routes, "db_session", fake_db_session)
+    monkeypatch.setattr(mbr.laborant.routes, "db_session", fake_db_session)
+
+    from mbr.app import create_app
+    app = create_app()
+    app.config["TESTING"] = True
+
+    client = app.test_client()
+    with client.session_transaction() as sess:
+        sess["user"] = {"login": "tester", "rola": rola, "worker_id": None}
+    return client
+
+
+@pytest.fixture
+def admin_client(monkeypatch, db):
+    return _make_client(monkeypatch, db, rola="admin")
+
+
+@pytest.fixture
+def laborant_client(monkeypatch, db):
+    return _make_client(monkeypatch, db, rola="laborant")
+
+
+def _seed_some_audit_rows(db):
+    """Insert a handful of audit_log rows for the panel tests."""
+    rows = [
+        ("2026-04-01T08:00:00", "auth.login", None, None, None, '{"login":"alice"}', "req-1"),
+        ("2026-04-02T09:00:00", "ebr.wynik.saved", "ebr", 42, "Szarża 2026/42", None, "req-2"),
+        ("2026-04-03T10:00:00", "cert.generated", "cert", 7, "Świad. K40GLO", '{"path":"/x.pdf"}', "req-3"),
+    ]
+    for r in rows:
+        cur = db.execute(
+            """INSERT INTO audit_log
+               (dt, event_type, entity_type, entity_id, entity_label, payload_json, request_id, result)
+               VALUES (?, ?, ?, ?, ?, ?, ?, 'ok')""",
+            r,
+        )
+        db.execute(
+            "INSERT INTO audit_log_actors (audit_id, worker_id, actor_login, actor_rola) VALUES (?, NULL, 'tester', 'admin')",
+            (cur.lastrowid,),
+        )
+    db.commit()
+
+
+# ---------- /admin/audit panel ----------
+
+def test_admin_audit_panel_returns_200_for_admin(admin_client, db):
+    _seed_some_audit_rows(db)
+    resp = admin_client.get("/admin/audit")
+    assert resp.status_code == 200
+    body = resp.get_data(as_text=True)
+    assert "Audit trail" in body or "audit" in body.lower()
+    # All 3 seeded rows should appear in the rendered table
+    assert "auth.login" in body
+    assert "ebr.wynik.saved" in body
+    assert "cert.generated" in body
+
+
+def test_admin_audit_panel_forbidden_for_non_admin(laborant_client, db):
+    _seed_some_audit_rows(db)
+    resp = laborant_client.get("/admin/audit")
+    assert resp.status_code == 403
+
+
+def test_admin_audit_panel_filters_by_date(admin_client, db):
+    _seed_some_audit_rows(db)
+    resp = admin_client.get("/admin/audit?dt_from=2026-04-02&dt_to=2026-04-02")
+    assert resp.status_code == 200
+    body = resp.get_data(as_text=True)
+    # Only the 2026-04-02 row should be in the table
+    assert "ebr.wynik.saved" in body
+    assert "auth.login" not in body
+    assert "cert.generated" not in body
+
+
+def test_admin_audit_panel_filters_by_event_type_glob(admin_client, db):
+    _seed_some_audit_rows(db)
+    resp = admin_client.get("/admin/audit?event_type_glob=cert.*")
+    assert resp.status_code == 200
+    body = resp.get_data(as_text=True)
+    assert "cert.generated" in body
+    assert "ebr.wynik.saved" not in body
+    assert "auth.login" not in body
+
+
+def test_admin_audit_panel_filters_by_request_id(admin_client, db):
+    _seed_some_audit_rows(db)
+    resp = admin_client.get("/admin/audit?request_id=req-2")
+    assert resp.status_code == 200
+    body = resp.get_data(as_text=True)
+    assert "ebr.wynik.saved" in body
+    assert "auth.login" not in body
+    assert "cert.generated" not in body
+
+
+def test_admin_audit_panel_pagination(admin_client, db):
+    # Seed 150 rows so we get 2 pages
+    for i in range(150):
+        cur = db.execute(
+            "INSERT INTO audit_log (dt, event_type, result) VALUES (?, 'auth.login', 'ok')",
+            (f"2026-04-{(i % 28) + 1:02d}T08:00:00",),
+        )
+        db.execute(
+            "INSERT INTO audit_log_actors (audit_id, worker_id, actor_login, actor_rola) VALUES (?, NULL, 'tester', 'admin')",
+            (cur.lastrowid,),
+        )
+    db.commit()
+
+    resp1 = admin_client.get("/admin/audit?page=1")
+    body1 = resp1.get_data(as_text=True)
+    assert "Strona 1 / 2" in body1 or "Strona 1" in body1
+
+    resp2 = admin_client.get("/admin/audit?page=2")
+    body2 = resp2.get_data(as_text=True)
+    assert "Strona 2" in body2
