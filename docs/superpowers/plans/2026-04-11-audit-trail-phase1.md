@@ -271,7 +271,7 @@ CREATE TABLE audit_log_actors (
     worker_id       INTEGER,
     actor_login     TEXT NOT NULL,
     actor_rola      TEXT NOT NULL,
-    PRIMARY KEY (audit_id, worker_id, actor_login)
+    PRIMARY KEY (audit_id, actor_login)
 )
 """
 
@@ -1124,7 +1124,7 @@ def audit_db(workers_db):
             worker_id       INTEGER,
             actor_login     TEXT NOT NULL,
             actor_rola      TEXT NOT NULL,
-            PRIMARY KEY (audit_id, worker_id, actor_login)
+            PRIMARY KEY (audit_id, actor_login)
         );
     """)
     workers_db.commit()
