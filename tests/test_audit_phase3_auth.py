@@ -94,8 +94,9 @@ def test_change_password_logs_event(admin_client, db):
     payload = _json.loads(r["payload_json"])
     assert payload["target_user_id"] == target_id
     assert payload["target_user_login"] == "kowalski"
-    # CRITICAL: no password material in payload
-    assert "password" not in str(payload).lower() or "newpass" not in str(payload)
+    # CRITICAL: no password material anywhere in the payload
+    assert "password" not in str(payload).lower()
+    assert "newpass" not in str(payload).lower()
     assert "newpass2" not in r["payload_json"]
     assert "oldpass1" not in r["payload_json"]
 

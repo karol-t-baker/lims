@@ -38,6 +38,10 @@ def change_password(
 ) -> dict:
     """Hash and update password for an existing user.
 
+    The caller is responsible for db.commit() — this function stages the
+    UPDATE but does not commit, so the caller can wrap it in a single
+    transaction together with audit logging.
+
     Returns dict with user_id + login + rola (no password_hash).
     Raises ValueError if user not found or password is shorter than 6 chars.
     """
@@ -56,6 +60,5 @@ def change_password(
         "UPDATE mbr_users SET password_hash = ? WHERE user_id = ?",
         (password_hash, user_id),
     )
-    db.commit()
 
     return {"user_id": row["user_id"], "login": row["login"], "rola": row["rola"]}
