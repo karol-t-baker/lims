@@ -57,3 +57,174 @@ def test_schema_has_history_table(db):
         "SELECT name FROM sqlite_master WHERE type='table' AND name='ebr_uwagi_history'"
     ).fetchall()
     assert len(rows) == 1
+
+
+# ---------------------------------------------------------------------------
+# Task 3: get_uwagi — empty state
+# ---------------------------------------------------------------------------
+
+from mbr.laborant.models import get_uwagi, save_uwagi
+
+
+def test_get_uwagi_empty_for_new_batch(db, ebr_batch):
+    result = get_uwagi(db, ebr_batch)
+    assert result == {
+        "tekst": None,
+        "dt": None,
+        "autor": None,
+        "historia": [],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Task 4: save_uwagi — create
+# ---------------------------------------------------------------------------
+
+def test_save_uwagi_create(db, ebr_batch):
+    save_uwagi(db, ebr_batch, "Dodano 500 kg NaOH", "kowalski")
+    row = db.execute(
+        "SELECT uwagi_koncowe FROM ebr_batches WHERE ebr_id = ?", (ebr_batch,)
+    ).fetchone()
+    assert row["uwagi_koncowe"] == "Dodano 500 kg NaOH"
+    hist = db.execute(
+        "SELECT tekst, action, autor FROM ebr_uwagi_history WHERE ebr_id = ?",
+        (ebr_batch,),
+    ).fetchall()
+    assert len(hist) == 1
+    assert hist[0]["tekst"] is None
+    assert hist[0]["action"] == "create"
+    assert hist[0]["autor"] == "kowalski"
+
+
+# ---------------------------------------------------------------------------
+# Task 5: save_uwagi — update
+# ---------------------------------------------------------------------------
+
+def test_save_uwagi_update_stores_old_text(db, ebr_batch):
+    save_uwagi(db, ebr_batch, "wersja A", "kowalski")
+    save_uwagi(db, ebr_batch, "wersja B", "nowak")
+    row = db.execute(
+        "SELECT uwagi_koncowe FROM ebr_batches WHERE ebr_id = ?", (ebr_batch,)
+    ).fetchone()
+    assert row["uwagi_koncowe"] == "wersja B"
+    hist = db.execute(
+        "SELECT tekst, action, autor FROM ebr_uwagi_history "
+        "WHERE ebr_id = ? ORDER BY id",
+        (ebr_batch,),
+    ).fetchall()
+    assert len(hist) == 2
+    assert hist[0]["action"] == "create"
+    assert hist[0]["tekst"] is None
+    assert hist[1]["action"] == "update"
+    assert hist[1]["tekst"] == "wersja A"
+    assert hist[1]["autor"] == "nowak"
+
+
+# ---------------------------------------------------------------------------
+# Task 6: save_uwagi — delete + noop + whitespace
+# ---------------------------------------------------------------------------
+
+def test_save_uwagi_delete(db, ebr_batch):
+    save_uwagi(db, ebr_batch, "do skasowania", "kowalski")
+    save_uwagi(db, ebr_batch, "", "nowak")
+    row = db.execute(
+        "SELECT uwagi_koncowe FROM ebr_batches WHERE ebr_id = ?", (ebr_batch,)
+    ).fetchone()
+    assert row["uwagi_koncowe"] is None
+    hist = db.execute(
+        "SELECT tekst, action FROM ebr_uwagi_history "
+        "WHERE ebr_id = ? ORDER BY id",
+        (ebr_batch,),
+    ).fetchall()
+    assert len(hist) == 2
+    assert hist[1]["action"] == "delete"
+    assert hist[1]["tekst"] == "do skasowania"
+
+
+def test_save_uwagi_noop_on_null_to_empty(db, ebr_batch):
+    save_uwagi(db, ebr_batch, "   ", "kowalski")
+    row = db.execute(
+        "SELECT uwagi_koncowe FROM ebr_batches WHERE ebr_id = ?", (ebr_batch,)
+    ).fetchone()
+    assert row["uwagi_koncowe"] is None
+    hist = db.execute(
+        "SELECT * FROM ebr_uwagi_history WHERE ebr_id = ?", (ebr_batch,)
+    ).fetchall()
+    assert len(hist) == 0
+
+
+def test_save_uwagi_noop_on_same_text(db, ebr_batch):
+    save_uwagi(db, ebr_batch, "ten sam", "kowalski")
+    save_uwagi(db, ebr_batch, "ten sam", "nowak")
+    hist = db.execute(
+        "SELECT COUNT(*) as c FROM ebr_uwagi_history WHERE ebr_id = ?",
+        (ebr_batch,),
+    ).fetchone()
+    assert hist["c"] == 1
+
+
+def test_save_uwagi_strips_whitespace(db, ebr_batch):
+    save_uwagi(db, ebr_batch, "  z białymi znakami  ", "kowalski")
+    row = db.execute(
+        "SELECT uwagi_koncowe FROM ebr_batches WHERE ebr_id = ?", (ebr_batch,)
+    ).fetchone()
+    assert row["uwagi_koncowe"] == "z białymi znakami"
+
+
+# ---------------------------------------------------------------------------
+# Task 7: validation errors
+# ---------------------------------------------------------------------------
+
+def test_save_uwagi_rejects_too_long(db, ebr_batch):
+    with pytest.raises(ValueError, match="500"):
+        save_uwagi(db, ebr_batch, "a" * 501, "kowalski")
+
+
+def test_save_uwagi_allows_exactly_500(db, ebr_batch):
+    text = "a" * 500
+    save_uwagi(db, ebr_batch, text, "kowalski")
+    row = db.execute(
+        "SELECT uwagi_koncowe FROM ebr_batches WHERE ebr_id = ?", (ebr_batch,)
+    ).fetchone()
+    assert row["uwagi_koncowe"] == text
+
+
+def test_save_uwagi_rejects_cancelled_batch(db, ebr_batch):
+    db.execute(
+        "UPDATE ebr_batches SET status='cancelled' WHERE ebr_id = ?",
+        (ebr_batch,),
+    )
+    db.commit()
+    with pytest.raises(ValueError, match="anulowanej"):
+        save_uwagi(db, ebr_batch, "anything", "kowalski")
+
+
+def test_save_uwagi_rejects_missing_batch(db):
+    with pytest.raises(ValueError, match="not found"):
+        save_uwagi(db, 9999, "anything", "kowalski")
+
+
+# ---------------------------------------------------------------------------
+# Task 8: get_uwagi — populated state + after-delete
+# ---------------------------------------------------------------------------
+
+def test_get_uwagi_returns_current_meta_from_history(db, ebr_batch):
+    save_uwagi(db, ebr_batch, "pierwsza", "kowalski")
+    save_uwagi(db, ebr_batch, "druga", "nowak")
+    result = get_uwagi(db, ebr_batch)
+    assert result["tekst"] == "druga"
+    assert result["autor"] == "nowak"
+    assert result["dt"] is not None
+    assert len(result["historia"]) == 2
+    assert result["historia"][0]["action"] == "update"
+    assert result["historia"][1]["action"] == "create"
+
+
+def test_get_uwagi_after_delete(db, ebr_batch):
+    save_uwagi(db, ebr_batch, "temporary", "kowalski")
+    save_uwagi(db, ebr_batch, "", "nowak")
+    result = get_uwagi(db, ebr_batch)
+    assert result["tekst"] is None
+    assert result["autor"] is None
+    assert len(result["historia"]) == 2
+    assert result["historia"][0]["action"] == "delete"
