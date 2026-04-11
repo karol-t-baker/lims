@@ -307,3 +307,114 @@ def log_event(
         )
 
     return audit_id
+
+
+# =========================================================================
+# Read path — query helpers for the admin panel + per-record history
+# =========================================================================
+
+
+def _build_where_clauses(*, dt_from=None, dt_to=None, event_type_glob=None,
+                        entity_type=None, entity_id=None, worker_id=None,
+                        free_text=None, request_id=None) -> tuple:
+    """Translate filter args into a (where_sql, params) tuple."""
+    clauses = []
+    params = []
+    if dt_from:
+        clauses.append("dt >= ?")
+        params.append(dt_from)
+    if dt_to:
+        # Inclusive end-of-day for date strings
+        end = dt_to + "T23:59:59" if len(dt_to) == 10 else dt_to
+        clauses.append("dt <= ?")
+        params.append(end)
+    if event_type_glob:
+        if "*" in event_type_glob:
+            clauses.append("event_type LIKE ?")
+            params.append(event_type_glob.replace("*", "%"))
+        else:
+            clauses.append("event_type = ?")
+            params.append(event_type_glob)
+    if entity_type:
+        clauses.append("entity_type = ?")
+        params.append(entity_type)
+    if entity_id is not None:
+        clauses.append("entity_id = ?")
+        params.append(int(entity_id))
+    if worker_id is not None:
+        clauses.append(
+            "EXISTS (SELECT 1 FROM audit_log_actors a "
+            "WHERE a.audit_id = audit_log.id AND a.worker_id = ?)"
+        )
+        params.append(int(worker_id))
+    if free_text:
+        clauses.append("(entity_label LIKE ? OR payload_json LIKE ?)")
+        like = f"%{free_text}%"
+        params.extend([like, like])
+    if request_id:
+        clauses.append("request_id = ?")
+        params.append(request_id)
+    where_sql = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+    return where_sql, params
+
+
+def query_audit_log(
+    db,
+    *,
+    dt_from: str = None,
+    dt_to: str = None,
+    event_type_glob: str = None,
+    entity_type: str = None,
+    entity_id: int = None,
+    worker_id: int = None,
+    free_text: str = None,
+    request_id: str = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> tuple:
+    """Query the audit log with optional filters and pagination.
+
+    Returns (rows, total_count) where rows is a list of dicts (each augmented
+    with an 'actors' list) and total_count is the unpaginated row count.
+
+    Glob behavior: event_type_glob='auth.*' becomes SQL LIKE 'auth.%'.
+    Exact equality is used when no '*' is present.
+
+    Multi-actor filter (worker_id) uses EXISTS subquery so a row matches if
+    ANY of its actors equals worker_id.
+    """
+    where_sql, params = _build_where_clauses(
+        dt_from=dt_from, dt_to=dt_to, event_type_glob=event_type_glob,
+        entity_type=entity_type, entity_id=entity_id, worker_id=worker_id,
+        free_text=free_text, request_id=request_id,
+    )
+
+    # Total count first (cheap, same WHERE)
+    total_row = db.execute(
+        f"SELECT COUNT(*) FROM audit_log{where_sql}", params
+    ).fetchone()
+    total = total_row[0]
+
+    # Data page
+    data_sql = (
+        f"SELECT id, dt, event_type, entity_type, entity_id, entity_label, "
+        f"diff_json, payload_json, context_json, request_id, ip, user_agent, result "
+        f"FROM audit_log{where_sql} ORDER BY dt DESC, id DESC LIMIT ? OFFSET ?"
+    )
+    rows = [dict(r) for r in db.execute(data_sql, params + [limit, offset]).fetchall()]
+
+    # Bulk-load actors for the page (avoids N+1)
+    if rows:
+        ids = [r["id"] for r in rows]
+        placeholders = ",".join("?" * len(ids))
+        actor_rows = db.execute(
+            f"SELECT audit_id, worker_id, actor_login, actor_rola "
+            f"FROM audit_log_actors WHERE audit_id IN ({placeholders})",
+            ids,
+        ).fetchall()
+        by_audit = {}
+        for ar in actor_rows:
+            by_audit.setdefault(ar["audit_id"], []).append(dict(ar))
+        for r in rows:
+            r["actors"] = by_audit.get(r["id"], [])
+    return rows, total

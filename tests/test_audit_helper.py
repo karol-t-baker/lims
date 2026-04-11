@@ -485,3 +485,133 @@ def test_smoke_log_event_through_flask_route(monkeypatch, tmp_path):
         assert actors[0]["worker_id"] == worker_id
         assert actors[0]["actor_login"] == "tu"
         assert actors[0]["actor_rola"] == "technolog"
+
+
+# ---------- query_audit_log fixtures ----------
+
+@pytest.fixture
+def queryable_audit_db(audit_db):
+    """audit_db fixture with several seed events spanning event types and dates."""
+    import json as _json
+    rows = [
+        # (dt,                event_type,           entity_type, entity_id, entity_label,    diff_json,                              payload_json,        request_id)
+        ("2026-04-01T08:00:00", "auth.login",         None,        None,      None,            None,                                   '{"login":"alice"}', "req-1"),
+        ("2026-04-01T09:15:00", "ebr.wynik.saved",    "ebr",       42,        "Szarża 2026/42", '[{"pole":"sm","stara":85,"nowa":87}]', None,                "req-2"),
+        ("2026-04-02T10:30:00", "ebr.wynik.saved",    "ebr",       42,        "Szarża 2026/42", '[{"pole":"ph","stara":7,"nowa":7.2}]', None,                "req-3"),
+        ("2026-04-03T11:00:00", "cert.generated",     "cert",      7,         "Świad. K40GLO",  None,                                   '{"path":"/x.pdf"}', "req-4"),
+        ("2026-04-05T12:45:00", "auth.login",         None,        None,      None,            None,                                   '{"login":"bob"}',   "req-5"),
+        ("2026-04-08T13:00:00", "ebr.wynik.saved",    "ebr",       43,        "Szarża 2026/43", '[{"pole":"sm","stara":80,"nowa":82}]', None,                "req-6"),
+    ]
+    for r in rows:
+        cur = audit_db.execute(
+            """INSERT INTO audit_log
+               (dt, event_type, entity_type, entity_id, entity_label,
+                diff_json, payload_json, request_id, result)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ok')""",
+            r,
+        )
+        # Always at least one actor — alternate between worker 1 and worker 2
+        wid = 1 if cur.lastrowid % 2 == 1 else 2
+        login = "anna" if wid == 1 else "maria"
+        audit_db.execute(
+            "INSERT INTO audit_log_actors (audit_id, worker_id, actor_login, actor_rola) VALUES (?, ?, ?, 'laborant')",
+            (cur.lastrowid, wid, login),
+        )
+    audit_db.commit()
+    return audit_db
+
+
+# ---------- query_audit_log ----------
+
+def test_query_returns_empty_when_no_rows(audit_db):
+    rows, total = audit.query_audit_log(audit_db)
+    assert rows == []
+    assert total == 0
+
+
+def test_query_returns_all_rows_with_actors(queryable_audit_db):
+    rows, total = audit.query_audit_log(queryable_audit_db)
+    assert total == 6
+    assert len(rows) == 6
+    # Each row has an actors list (>=1 element)
+    for r in rows:
+        assert "actors" in r
+        assert len(r["actors"]) >= 1
+        assert "actor_login" in r["actors"][0]
+
+
+def test_query_filter_by_dt_range(queryable_audit_db):
+    rows, total = audit.query_audit_log(
+        queryable_audit_db,
+        dt_from="2026-04-02",
+        dt_to="2026-04-05",
+    )
+    assert total == 3  # 2026-04-02, 04-03, 04-05
+    assert all(r["dt"][:10] in ("2026-04-02", "2026-04-03", "2026-04-05") for r in rows)
+
+
+def test_query_filter_by_event_type_glob(queryable_audit_db):
+    rows, total = audit.query_audit_log(
+        queryable_audit_db, event_type_glob="auth.*"
+    )
+    assert total == 2
+    assert all(r["event_type"].startswith("auth.") for r in rows)
+
+
+def test_query_filter_by_event_type_exact(queryable_audit_db):
+    rows, total = audit.query_audit_log(
+        queryable_audit_db, event_type_glob="cert.generated"
+    )
+    assert total == 1
+    assert rows[0]["event_type"] == "cert.generated"
+
+
+def test_query_filter_by_entity(queryable_audit_db):
+    rows, total = audit.query_audit_log(
+        queryable_audit_db, entity_type="ebr", entity_id=42
+    )
+    assert total == 2
+    assert all(r["entity_id"] == 42 for r in rows)
+
+
+def test_query_filter_by_worker_id_uses_actors_table(queryable_audit_db):
+    rows, total = audit.query_audit_log(queryable_audit_db, worker_id=1)
+    assert total > 0
+    # Every returned row has worker 1 as one of its actors
+    for r in rows:
+        assert any(a["worker_id"] == 1 for a in r["actors"])
+
+
+def test_query_filter_by_free_text_searches_label_and_payload(queryable_audit_db):
+    # 'K40GLO' is in cert entity_label only
+    rows, total = audit.query_audit_log(queryable_audit_db, free_text="K40GLO")
+    assert total == 1
+    assert rows[0]["entity_label"] == "Świad. K40GLO"
+
+    # 'alice' is only in payload_json of one auth.login
+    rows, total = audit.query_audit_log(queryable_audit_db, free_text="alice")
+    assert total == 1
+    assert "alice" in rows[0]["payload_json"]
+
+
+def test_query_filter_by_request_id(queryable_audit_db):
+    rows, total = audit.query_audit_log(queryable_audit_db, request_id="req-3")
+    assert total == 1
+    assert rows[0]["request_id"] == "req-3"
+
+
+def test_query_pagination(queryable_audit_db):
+    # 6 seeded rows, page size 2
+    rows_page1, total = audit.query_audit_log(queryable_audit_db, limit=2, offset=0)
+    rows_page2, _ = audit.query_audit_log(queryable_audit_db, limit=2, offset=2)
+    rows_page3, _ = audit.query_audit_log(queryable_audit_db, limit=2, offset=4)
+    assert total == 6
+    assert len(rows_page1) == 2
+    assert len(rows_page2) == 2
+    assert len(rows_page3) == 2
+    # Pages are disjoint
+    ids1 = {r["id"] for r in rows_page1}
+    ids2 = {r["id"] for r in rows_page2}
+    ids3 = {r["id"] for r in rows_page3}
+    assert ids1.isdisjoint(ids2)
+    assert ids2.isdisjoint(ids3)
