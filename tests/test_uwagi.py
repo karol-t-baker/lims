@@ -352,3 +352,138 @@ def test_api_delete_uwagi_noop(client, ebr_batch):
     data = resp.get_json()
     assert data["tekst"] is None
     assert data["historia"] == []
+
+
+# ---------------------------------------------------------------------------
+# _resolve_actor_label — helper that picks the autor string for write routes
+# ---------------------------------------------------------------------------
+
+def _seed_workers(db):
+    db.execute("INSERT INTO workers (id, imie, nazwisko, inicjaly, nickname) VALUES (1, 'Anna', 'Kowalska', 'AK', 'AK')")
+    db.execute("INSERT INTO workers (id, imie, nazwisko, inicjaly, nickname) VALUES (2, 'Maria', 'Wojcik', 'MW', 'MW')")
+    db.commit()
+
+
+def test_resolve_actor_label_falls_back_to_login_when_no_shift(db):
+    """Empty shift_workers → autor = session login (existing behaviour kept for now)."""
+    from flask import Flask
+    from mbr.laborant.routes import _resolve_actor_label
+    app = Flask(__name__)
+    app.secret_key = "test"
+    with app.test_request_context():
+        from flask import session
+        session["user"] = {"login": "shared_lab", "rola": "laborant"}
+        assert _resolve_actor_label(db) == "shared_lab"
+
+
+def test_resolve_actor_label_uses_shift_when_set(db):
+    """Non-empty shift_workers → joined nicknames."""
+    _seed_workers(db)
+    from flask import Flask
+    from mbr.laborant.routes import _resolve_actor_label
+    app = Flask(__name__)
+    app.secret_key = "test"
+    with app.test_request_context():
+        from flask import session
+        session["user"] = {"login": "shared_lab", "rola": "laborant"}
+        session["shift_workers"] = [1, 2]
+        assert _resolve_actor_label(db) == "AK, MW"
+
+
+def test_resolve_actor_label_override_wins(db):
+    """Explicit override (e.g. from picker) takes precedence over shift."""
+    _seed_workers(db)
+    from flask import Flask
+    from mbr.laborant.routes import _resolve_actor_label
+    app = Flask(__name__)
+    app.secret_key = "test"
+    with app.test_request_context():
+        from flask import session
+        session["user"] = {"login": "shared_lab", "rola": "laborant"}
+        session["shift_workers"] = [1, 2]
+        assert _resolve_actor_label(db, override="AK") == "AK"
+
+
+def test_resolve_actor_label_empty_string_override_ignored(db):
+    """Override of '' or whitespace is ignored — falls through to shift."""
+    _seed_workers(db)
+    from flask import Flask
+    from mbr.laborant.routes import _resolve_actor_label
+    app = Flask(__name__)
+    app.secret_key = "test"
+    with app.test_request_context():
+        from flask import session
+        session["user"] = {"login": "shared_lab", "rola": "laborant"}
+        session["shift_workers"] = [1]
+        assert _resolve_actor_label(db, override="") == "AK"
+        assert _resolve_actor_label(db, override="   ") == "AK"
+
+
+def test_resolve_actor_label_nickname_falls_through_to_inicjaly(db):
+    """Worker with empty nickname uses inicjaly instead."""
+    db.execute("INSERT INTO workers (id, imie, nazwisko, inicjaly, nickname) VALUES (3, 'Jan', 'Nowak', 'JN', '')")
+    db.commit()
+    from flask import Flask
+    from mbr.laborant.routes import _resolve_actor_label
+    app = Flask(__name__)
+    app.secret_key = "test"
+    with app.test_request_context():
+        from flask import session
+        session["user"] = {"login": "x", "rola": "laborant"}
+        session["shift_workers"] = [3]
+        assert _resolve_actor_label(db) == "JN"
+
+
+# ---------------------------------------------------------------------------
+# uwagi PUT — autor override via body (UI picker)
+# ---------------------------------------------------------------------------
+
+def test_api_put_uwagi_uses_shift_when_no_override(monkeypatch, db, ebr_batch):
+    """When body lacks 'autor', the route resolves it from shift_workers."""
+    _seed_workers(db)
+
+    from contextlib import contextmanager
+    import mbr.db, mbr.laborant.routes
+    @contextmanager
+    def fake_db_session():
+        yield db
+    monkeypatch.setattr(mbr.db, "db_session", fake_db_session)
+    monkeypatch.setattr(mbr.laborant.routes, "db_session", fake_db_session)
+
+    from mbr.app import create_app
+    app = create_app()
+    app.config["TESTING"] = True
+    with app.test_client() as c:
+        with c.session_transaction() as sess:
+            sess["user"] = {"login": "shared_lab", "rola": "laborant"}
+            sess["shift_workers"] = [1, 2]
+        resp = c.put(f"/api/ebr/{ebr_batch}/uwagi", json={"tekst": "Praca pary"})
+        assert resp.status_code == 200
+        assert resp.get_json()["autor"] == "AK, MW"
+
+
+def test_api_put_uwagi_explicit_autor_overrides_shift(monkeypatch, db, ebr_batch):
+    """When body provides 'autor', it wins over shift workers."""
+    _seed_workers(db)
+
+    from contextlib import contextmanager
+    import mbr.db, mbr.laborant.routes
+    @contextmanager
+    def fake_db_session():
+        yield db
+    monkeypatch.setattr(mbr.db, "db_session", fake_db_session)
+    monkeypatch.setattr(mbr.laborant.routes, "db_session", fake_db_session)
+
+    from mbr.app import create_app
+    app = create_app()
+    app.config["TESTING"] = True
+    with app.test_client() as c:
+        with c.session_transaction() as sess:
+            sess["user"] = {"login": "shared_lab", "rola": "laborant"}
+            sess["shift_workers"] = [1, 2]
+        resp = c.put(
+            f"/api/ebr/{ebr_batch}/uwagi",
+            json={"tekst": "Tylko ja", "autor": "AK"},
+        )
+        assert resp.status_code == 200
+        assert resp.get_json()["autor"] == "AK"

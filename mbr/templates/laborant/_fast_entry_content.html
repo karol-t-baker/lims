@@ -601,6 +601,67 @@
     transition: all 0.14s;
 }
 .cv-notes-add-btn:hover { border-color: var(--teal); color: var(--teal); }
+.cv-notes-autor {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.cv-notes-autor strong { color: var(--text); font-weight: 600; }
+.cv-notes-autor-edit {
+    background: none;
+    border: none;
+    color: var(--teal);
+    font-size: 11px;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+}
+.cv-notes-autor-edit:hover { filter: brightness(0.85); }
+.cv-notes-autor-picker {
+    position: absolute;
+    z-index: 10000;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    padding: 12px 14px;
+    min-width: 220px;
+    font-size: 12px;
+}
+.cv-notes-autor-picker-title {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+}
+.cv-notes-autor-picker-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+.cv-notes-autor-picker-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 4px;
+}
+.cv-notes-autor-picker-item:hover { background: var(--surface-alt); }
+.cv-notes-autor-picker-item input[type=checkbox] { cursor: pointer; }
+.cv-notes-autor-picker-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+}
 
 .cv-p-input {
     font-family: var(--mono); font-size: 15px; font-weight: 700;
@@ -985,9 +1046,11 @@ function renderSections() {
 var _uwagiState = null;  // { tekst, dt, autor, historia }
 var _uwagiEditMode = false;
 var _uwagiCurrentEbrId = null;
+var _uwagiAutorOverride = null;  // null = use full shift; array of worker_ids = override
 
 async function loadUwagi(ebrId) {
     _uwagiCurrentEbrId = ebrId;
+    _uwagiAutorOverride = null;
     try {
         var resp = await fetch('/api/ebr/' + ebrId + '/uwagi');
         if (!resp.ok) throw new Error('fetch failed');
@@ -995,6 +1058,33 @@ async function loadUwagi(ebrId) {
     } catch (e) {
         _uwagiState = { tekst: null, dt: null, autor: null, historia: [] };
     }
+}
+
+function _uwagiActiveAutorIds() {
+    // Returns the worker_ids currently selected as authors (override or full shift).
+    if (_uwagiAutorOverride !== null) return _uwagiAutorOverride.slice();
+    return (typeof shiftWorkerIds !== 'undefined' && shiftWorkerIds) ? shiftWorkerIds.slice() : [];
+}
+
+function _uwagiAutorLabel() {
+    // Builds the human-readable autor string from current selection.
+    // Falls back to '(brak zmiany)' if shift not set; backend will use login fallback then.
+    var ids = _uwagiActiveAutorIds();
+    if (ids.length === 0 || typeof _shiftWorkers === 'undefined' || !_shiftWorkers.length) {
+        return '(brak zmiany)';
+    }
+    var parts = ids.map(function(id) {
+        var w = _shiftWorkers.find(function(x) { return x.id === id; });
+        return w ? (w.nickname || w.inicjaly) : null;
+    }).filter(Boolean);
+    return parts.length ? parts.join(', ') : '(brak zmiany)';
+}
+
+function _uwagiAutorOverrideString() {
+    // Returns the autor string to send in the PUT body, or null if we want
+    // the backend to default to the full shift (no override).
+    if (_uwagiAutorOverride === null) return null;
+    return _uwagiAutorLabel();
 }
 
 function _renderUwagiBlock(canEdit) {
@@ -1019,6 +1109,11 @@ function _renderUwagiBlock(canEdit) {
                 (readonly ? ' readonly' : '') +
                 ' oninput="_uwagiOnInput()">' + esc(tekst) + '</textarea>';
         if (canEdit && !readonly) {
+            var autorLabel = _uwagiAutorLabel();
+            html += '<div class="cv-notes-autor">' +
+                    'Edytujesz jako: <strong id="cv-notes-autor-label">' + esc(autorLabel) + '</strong>' +
+                    ' <button class="cv-notes-autor-edit" type="button" onclick="_uwagiOpenAutorPicker()">[zmień]</button>' +
+                    '</div>';
             html += '<div class="cv-notes-footer">' +
                     '<span class="cv-notes-counter" id="cv-notes-counter">' + tekst.length + ' / 500</span>' +
                     '<div class="cv-notes-actions">' +
@@ -1052,6 +1147,7 @@ function _renderUwagiBlock(canEdit) {
 
 function _uwagiStartAdd() {
     _uwagiEditMode = true;
+    _uwagiAutorOverride = null;
     var block = document.getElementById('cv-notes-block');
     if (block) block.outerHTML = _renderUwagiBlock(true);
     var ta = document.getElementById('cv-notes-text');
@@ -1060,12 +1156,92 @@ function _uwagiStartAdd() {
 
 function _uwagiToggleEdit() {
     _uwagiEditMode = !_uwagiEditMode;
+    if (_uwagiEditMode) _uwagiAutorOverride = null;
     var block = document.getElementById('cv-notes-block');
     if (block) block.outerHTML = _renderUwagiBlock(true);
     if (_uwagiEditMode) {
         var ta = document.getElementById('cv-notes-text');
         if (ta) ta.focus();
     }
+}
+
+function _uwagiOpenAutorPicker() {
+    // Build a small dropdown overlay anchored under the [zmień] button.
+    // Each shift worker is a checkbox; default state mirrors current selection.
+    _uwagiClosePicker();
+    if (typeof shiftWorkerIds === 'undefined' || !shiftWorkerIds.length) {
+        alert('Brak potwierdzonej zmiany — ustaw zmianę w nagłówku.');
+        return;
+    }
+    if (typeof _shiftWorkers === 'undefined' || !_shiftWorkers.length) {
+        alert('Lista laborantów jeszcze się ładuje — spróbuj za chwilę.');
+        return;
+    }
+    var selected = _uwagiActiveAutorIds();
+    var popover = document.createElement('div');
+    popover.id = 'cv-notes-autor-picker';
+    popover.className = 'cv-notes-autor-picker';
+    var inner = '<div class="cv-notes-autor-picker-title">Kto edytuje?</div>';
+    inner += '<div class="cv-notes-autor-picker-list">';
+    shiftWorkerIds.forEach(function(wid) {
+        var w = _shiftWorkers.find(function(x) { return x.id === wid; });
+        if (!w) return;
+        var label = w.nickname || w.inicjaly;
+        var checked = selected.indexOf(wid) !== -1 ? ' checked' : '';
+        inner += '<label class="cv-notes-autor-picker-item">' +
+                 '<input type="checkbox" value="' + wid + '"' + checked + '>' +
+                 ' ' + esc(label) +
+                 '</label>';
+    });
+    inner += '</div>';
+    inner += '<div class="cv-notes-autor-picker-actions">' +
+             '<button class="cv-notes-btn" onclick="_uwagiClosePicker()">Anuluj</button>' +
+             '<button class="cv-notes-btn primary" onclick="_uwagiApplyAutorPicker()">OK</button>' +
+             '</div>';
+    popover.innerHTML = inner;
+    var anchor = document.querySelector('.cv-notes-autor-edit');
+    if (anchor) {
+        var rect = anchor.getBoundingClientRect();
+        popover.style.top = (rect.bottom + window.scrollY + 4) + 'px';
+        popover.style.left = (rect.left + window.scrollX) + 'px';
+    }
+    document.body.appendChild(popover);
+    // Click-outside-to-close
+    setTimeout(function() {
+        document.addEventListener('mousedown', _uwagiPickerOutsideClick);
+    }, 0);
+}
+
+function _uwagiPickerOutsideClick(e) {
+    var popover = document.getElementById('cv-notes-autor-picker');
+    if (popover && !popover.contains(e.target)) _uwagiClosePicker();
+}
+
+function _uwagiClosePicker() {
+    var popover = document.getElementById('cv-notes-autor-picker');
+    if (popover) popover.remove();
+    document.removeEventListener('mousedown', _uwagiPickerOutsideClick);
+}
+
+function _uwagiApplyAutorPicker() {
+    var popover = document.getElementById('cv-notes-autor-picker');
+    if (!popover) return;
+    var picked = Array.from(popover.querySelectorAll('input[type=checkbox]:checked'))
+                      .map(function(cb) { return parseInt(cb.value, 10); });
+    if (picked.length === 0) {
+        alert('Wybierz przynajmniej jedną osobę.');
+        return;
+    }
+    // If user picked exactly the full shift, treat as no override (clearer state).
+    var fullShift = (typeof shiftWorkerIds !== 'undefined') ? shiftWorkerIds.slice().sort() : [];
+    var pickedSorted = picked.slice().sort();
+    var sameAsFull = fullShift.length === pickedSorted.length &&
+                     fullShift.every(function(id, i) { return id === pickedSorted[i]; });
+    _uwagiAutorOverride = sameAsFull ? null : picked;
+    _uwagiClosePicker();
+    // Update just the label without losing textarea state
+    var labelEl = document.getElementById('cv-notes-autor-label');
+    if (labelEl) labelEl.textContent = _uwagiAutorLabel();
 }
 
 function _uwagiOnInput() {
@@ -1084,11 +1260,14 @@ async function _uwagiSave() {
     if (!ta || !_uwagiCurrentEbrId) return;
     var tekst = ta.value;
     if (tekst.length > 500) return;
+    var body = { tekst: tekst };
+    var autorOverride = _uwagiAutorOverrideString();
+    if (autorOverride) body.autor = autorOverride;
     try {
         var resp = await fetch('/api/ebr/' + _uwagiCurrentEbrId + '/uwagi', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tekst: tekst }),
+            body: JSON.stringify(body),
         });
         if (!resp.ok) {
             var err = await resp.json().catch(function() { return { error: 'błąd' }; });
@@ -1097,6 +1276,7 @@ async function _uwagiSave() {
         }
         _uwagiState = await resp.json();
         _uwagiEditMode = false;
+        _uwagiAutorOverride = null;
         var block = document.getElementById('cv-notes-block');
         if (block) block.outerHTML = _renderUwagiBlock(typeof userRola !== 'undefined' && userRola !== 'technolog');
     } catch (e) {

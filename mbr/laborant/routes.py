@@ -20,6 +20,36 @@ from mbr.laborant.models import (
 )
 
 
+def _resolve_actor_label(db, override: str = None) -> str:
+    """Resolve a human-readable actor string for write operations.
+
+    Resolution order:
+      1. `override` if non-empty (form/body explicit pick — e.g. uwagi picker)
+      2. session['shift_workers'] joined by ', ' using nickname || inicjaly
+      3. session['user']['login'] (fallback for shared/single accounts)
+
+    Note: Phase 3 of audit trail will tighten this so empty shift blocks
+    laborant writes via ShiftRequiredError. For now we keep the login fallback
+    so existing flows don't break during the transition.
+    """
+    if override:
+        cleaned = override.strip()
+        if cleaned:
+            return cleaned
+
+    shift_ids = session.get("shift_workers", []) or []
+    if shift_ids:
+        placeholders = ",".join("?" * len(shift_ids))
+        rows = db.execute(
+            f"SELECT inicjaly, nickname FROM workers WHERE id IN ({placeholders})",
+            shift_ids,
+        ).fetchall()
+        if rows:
+            return ", ".join((r["nickname"] or r["inicjaly"]) for r in rows)
+
+    return session["user"]["login"]
+
+
 @laborant_bp.route("/laborant/szarze")
 @role_required("laborant", "laborant_kj", "laborant_coa", "admin")
 def szarze_list():
@@ -152,18 +182,8 @@ def save_entry(ebr_id):
         return jsonify({"error": "Invalid JSON"}), 400
     sekcja = data.get("sekcja", "")
     values = data.get("values", {})
-    # Use shift workers if set, otherwise fall back to login
-    shift_ids = session.get("shift_workers", [])
-    if shift_ids:
-        with db_session() as db_w:
-            placeholders = ",".join("?" * len(shift_ids))
-            workers = db_w.execute(
-                f"SELECT inicjaly, nickname FROM workers WHERE id IN ({placeholders})",
-                shift_ids
-            ).fetchall()
-            user = ", ".join(w["nickname"] or w["inicjaly"] for w in workers)
-    else:
-        user = session["user"]["login"]
+    with db_session() as db_w:
+        user = _resolve_actor_label(db_w)
 
     with db_session() as db:
         ebr = get_ebr(db, ebr_id)
@@ -296,12 +316,20 @@ def api_get_uwagi(ebr_id):
 @laborant_bp.route("/api/ebr/<int:ebr_id>/uwagi", methods=["PUT"])
 @role_required("laborant", "laborant_kj", "laborant_coa", "admin")
 def api_put_uwagi(ebr_id):
-    """Create or update uwagi_koncowe for an EBR batch."""
+    """Create or update uwagi_koncowe for an EBR batch.
+
+    Body: {"tekst": "...", "autor": "..."}
+    `autor` is optional; when omitted, defaults to the current shift workers
+    joined as 'AK, MW' (or login fallback). When provided, it overrides — used
+    by the front-end picker so a laborant can sign as a subset of the shift.
+    """
     body = request.get_json(silent=True) or {}
     tekst = body.get("tekst", "")
+    autor_override = body.get("autor")
     with db_session() as db:
+        autor = _resolve_actor_label(db, override=autor_override)
         try:
-            result = save_uwagi(db, ebr_id, tekst, autor=session["user"]["login"])
+            result = save_uwagi(db, ebr_id, tekst, autor=autor)
         except ValueError as e:
             msg = str(e)
             status = 404 if "not found" in msg.lower() else 400
@@ -313,9 +341,12 @@ def api_put_uwagi(ebr_id):
 @role_required("laborant", "laborant_kj", "laborant_coa", "admin")
 def api_delete_uwagi(ebr_id):
     """Clear uwagi_koncowe for an EBR batch (equivalent to PUT with tekst='')."""
+    body = request.get_json(silent=True) or {}
+    autor_override = body.get("autor")
     with db_session() as db:
+        autor = _resolve_actor_label(db, override=autor_override)
         try:
-            result = save_uwagi(db, ebr_id, "", autor=session["user"]["login"])
+            result = save_uwagi(db, ebr_id, "", autor=autor)
         except ValueError as e:
             msg = str(e)
             status = 404 if "not found" in msg.lower() else 400
