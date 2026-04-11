@@ -45,8 +45,21 @@ def short_product_filter(value):
     return str(value).replace('Chegina_', '').replace('Chegina ', '')
 
 
+def audit_actors_filter(audit_row):
+    """Render actors as comma-separated logins, '—' if empty/missing.
+
+    Used in admin/audit.html for the table column. Input is a dict from
+    audit.query_audit_log() — the 'actors' key contains a list of dicts.
+    """
+    actors = audit_row.get("actors") or []
+    if not actors:
+        return "\u2014"
+    return ", ".join(a["actor_login"] for a in actors)
+
+
 def register_filters(app):
     app.add_template_filter(pl_date_filter, 'pl_date')
     app.add_template_filter(pl_date_short_filter, 'pl_date_short')
     app.add_template_filter(fmt_kg_filter, 'fmt_kg')
     app.add_template_filter(short_product_filter, 'short_product')
+    app.add_template_filter(audit_actors_filter, 'audit_actors')

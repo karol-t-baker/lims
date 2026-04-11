@@ -771,3 +771,17 @@ def test_archive_empty_set_does_not_log_or_create_file(audit_db, tmp_path):
     assert rows[0] == 0
     # No file was created
     assert not (archive_dir / "audit_2026.jsonl.gz").exists()
+
+
+# ---------- audit_actors Jinja filter ----------
+
+def test_audit_actors_filter_joins_logins():
+    from mbr.shared.filters import audit_actors_filter
+    row = {"actors": [{"actor_login": "AK"}, {"actor_login": "MW"}]}
+    assert audit_actors_filter(row) == "AK, MW"
+
+
+def test_audit_actors_filter_handles_empty():
+    from mbr.shared.filters import audit_actors_filter
+    assert audit_actors_filter({"actors": []}) == "—"
+    assert audit_actors_filter({}) == "—"
