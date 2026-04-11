@@ -374,3 +374,19 @@ Test parametryzowany listą `[(url, method, payload)]`. Dla każdego: wyślij re
 | Gdzie żyje kod logujący | Jawny helper (A) | Dekorator (B) — słabo dla diffów; triggery SQLite (C) — nie widzą sesji |
 | `ebr_uwagi_history` | Zostawiamy, dublowanie OK | Migracja do audit_log — ryzyko regresji w świeżym feature |
 | Empty shift | Blokuje zapis laboranta | Fallback na login — istnieje dziś, usuwamy |
+
+---
+
+## Phase 1 Status (implementation)
+
+**Completed:** 2026-04-11
+
+- Schema: `audit_log` + `audit_log_actors` + 5 indexes in `init_mbr_tables()` (`c61f2ba`, fix `ba120e7`)
+- Migration script: `scripts/migrate_audit_log_v2.py` — idempotent, dry-run, recovery detection, transaction-safe (`10295b3`, hardening `b0d8d4f`)
+- Helper: `mbr/shared/audit.py` — 55 event_type constants, `ShiftRequiredError`, `diff_fields()`, `actors_system/_explicit/_from_request()`, `log_event()` (`7ebfabf`, `c102c97`, `eee4f8a`, `2f241fc`, `90efd8e`)
+- Flask wiring: `before_request` → `g.audit_request_id`, `errorhandler(ShiftRequiredError)` → 400 JSON (`0b60302`, `628813b`)
+- Tests: `tests/test_audit_helper.py` (25 tests: unit + integration + smoke), `tests/test_migrate_audit_log_v2.py` (7 migration tests)
+
+**Not yet integrated:** Zero call sites in blueprints. Next: Phase 2 (admin panel) or Phase 3 (auth + workers integration).
+
+**Test baseline:** 252 passed, 16 skipped, 0 failed.
