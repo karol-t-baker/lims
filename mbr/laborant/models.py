@@ -477,10 +477,7 @@ def save_wyniki(
             (ebr_id, sekcja, kod),
         ).fetchone()
         if old_row and old_row["wartosc"] is not None and old_row["wartosc"] != wartosc:
-            db.execute(
-                "INSERT INTO audit_log (dt, tabela, rekord_id, pole, stara_wartosc, nowa_wartosc, zmienil) VALUES (?,?,?,?,?,?,?)",
-                (now, "ebr_wyniki", old_row["wynik_id"], kod, str(old_row["wartosc"]), str(wartosc), user),
-            )
+            pass  # TODO(audit-phase-4): replace with log_event('ebr.wynik.updated', ...)
 
         tag = pole.get("tag", "")
         min_limit = pole.get("min")

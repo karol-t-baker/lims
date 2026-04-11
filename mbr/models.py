@@ -487,16 +487,35 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     """)
     db.execute("""
         CREATE TABLE IF NOT EXISTS audit_log (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            dt          TEXT NOT NULL,
-            tabela      TEXT NOT NULL,
-            rekord_id   INTEGER NOT NULL,
-            pole        TEXT NOT NULL,
-            stara_wartosc TEXT,
-            nowa_wartosc  TEXT,
-            zmienil     TEXT NOT NULL
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            dt              TEXT NOT NULL,
+            event_type      TEXT NOT NULL,
+            entity_type     TEXT,
+            entity_id       INTEGER,
+            entity_label    TEXT,
+            diff_json       TEXT,
+            payload_json    TEXT,
+            context_json    TEXT,
+            request_id      TEXT,
+            ip              TEXT,
+            user_agent      TEXT,
+            result          TEXT NOT NULL DEFAULT 'ok'
         )
     """)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS audit_log_actors (
+            audit_id        INTEGER NOT NULL REFERENCES audit_log(id) ON DELETE CASCADE,
+            worker_id       INTEGER,
+            actor_login     TEXT NOT NULL,
+            actor_rola      TEXT NOT NULL,
+            PRIMARY KEY (audit_id, worker_id, actor_login)
+        )
+    """)
+    db.execute("CREATE INDEX IF NOT EXISTS idx_audit_log_dt ON audit_log(dt DESC)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_audit_log_entity ON audit_log(entity_type, entity_id)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_audit_log_event_type ON audit_log(event_type)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_audit_log_request ON audit_log(request_id)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_audit_actors_worker ON audit_log_actors(worker_id)")
     db.execute("CREATE INDEX IF NOT EXISTS idx_wyniki_ebr_limicie ON ebr_wyniki(ebr_id, w_limicie, dt_wpisu)")
     db.execute(
         "CREATE INDEX IF NOT EXISTS idx_ebr_uwagi_history_ebr "

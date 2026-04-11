@@ -41,10 +41,7 @@ def save_etap_analizy(
             old_val = str(old["wartosc"]) if old["wartosc"] is not None else old["wartosc_text"] or ""
             new_val = str(val) if val is not None else val_text or ""
             if old_val != new_val:
-                db.execute(
-                    "INSERT INTO audit_log (dt, tabela, rekord_id, pole, stara_wartosc, nowa_wartosc, zmienil) VALUES (?,?,?,?,?,?,?)",
-                    (now, "ebr_etapy_analizy", old["id"], kod, old_val, new_val, user),
-                )
+                pass  # TODO(audit-phase-4): replace with log_event('ebr.etap.analiza.updated', ...)
 
         db.execute(
             """INSERT INTO ebr_etapy_analizy (ebr_id, etap, krok, runda, kod_parametru, wartosc, wartosc_text, dt_wpisu, wpisal)
