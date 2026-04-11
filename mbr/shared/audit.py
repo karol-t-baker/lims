@@ -120,3 +120,73 @@ def diff_fields(old: dict, new: dict, keys: list) -> list:
         if old_val != new_val:
             changes.append({"pole": key, "stara": old_val, "nowa": new_val})
     return changes
+
+
+# =========================================================================
+# Actor resolution
+# =========================================================================
+
+def actors_system() -> list:
+    """Single virtual actor for migrations, archival, startup tasks."""
+    return [{"worker_id": None, "actor_login": "system", "actor_rola": "system"}]
+
+
+def actors_explicit(db, worker_ids: list) -> list:
+    """Resolve an explicit list of worker_ids → actor dicts.
+
+    Used by COA (certs flow) where the form asks for a specific `wystawil`.
+    Snapshots login + rola at call time. Raises ValueError for unknown IDs.
+    """
+    if not worker_ids:
+        return []
+    placeholders = ",".join("?" * len(worker_ids))
+    rows = db.execute(
+        f"SELECT id, login, rola FROM workers WHERE id IN ({placeholders})",
+        list(worker_ids),
+    ).fetchall()
+    by_id = {r["id"]: r for r in rows}
+    missing = [wid for wid in worker_ids if wid not in by_id]
+    if missing:
+        raise ValueError(f"unknown worker ids: {missing}")
+    return [
+        {
+            "worker_id": wid,
+            "actor_login": by_id[wid]["login"],
+            "actor_rola": by_id[wid]["rola"],
+        }
+        for wid in worker_ids
+    ]
+
+
+def actors_from_request(db) -> list:
+    """Resolve actors for the current Flask request.
+
+    Rules (per spec):
+    - rola 'laborant' → all entries in session['shift_workers'];
+      empty/missing → ShiftRequiredError
+    - rola 'laborant_kj', 'technolog', 'admin' → single session user
+    - rola 'laborant_coa' → single session user (COA-specific routes
+      override this by passing actors= explicit to log_event)
+    - no session user → ValueError (this should never happen for
+      authenticated routes — login_required guards them)
+    """
+    from flask import session  # imported lazily so module works w/o app ctx
+
+    user = session.get("user")
+    if not user:
+        raise ValueError("actors_from_request() called outside authenticated session")
+
+    rola = user.get("rola")
+
+    if rola == "laborant":
+        shift_ids = session.get("shift_workers") or []
+        if not shift_ids:
+            raise ShiftRequiredError()
+        return actors_explicit(db, shift_ids)
+
+    # Single-actor roles: laborant_kj, laborant_coa, technolog, admin
+    return [{
+        "worker_id": user.get("worker_id"),
+        "actor_login": user["login"],
+        "actor_rola": rola,
+    }]
