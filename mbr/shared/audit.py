@@ -197,7 +197,7 @@ def actors_from_request(db) -> list:
 # =========================================================================
 
 import json as _json
-from datetime import datetime as _dt
+from datetime import datetime as _dt, timezone as _tz
 
 
 def log_event(
@@ -269,7 +269,7 @@ def log_event(
         # No Flask app / request context — e.g. migrations, startup
         pass
 
-    dt = _dt.utcnow().isoformat()
+    dt = _dt.now(_tz.utc).isoformat()
 
     cur = db.execute(
         """INSERT INTO audit_log
