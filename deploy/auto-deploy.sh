@@ -30,6 +30,10 @@ git pull origin main --quiet
 # Run pending migrations BEFORE restart (scripts must be idempotent — re-running is a no-op)
 /opt/lims/venv/bin/python scripts/migrate_audit_log_v2.py --db data/batch_db.sqlite
 
+# One-shot data backfills (idempotent — guarded by 'WHERE entity_label IS NULL'
+# inside the script, so subsequent cron runs are no-op).
+/opt/lims/venv/bin/python scripts/backfill_audit_legacy_to_ebr.py --db data/batch_db.sqlite
+
 # Restart app
 sudo systemctl restart lims
 
