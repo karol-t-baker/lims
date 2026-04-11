@@ -368,3 +368,52 @@ def test_log_event_writes_in_caller_transaction_rollback_removes_both(audit_db):
     ).fetchone()[0]
     assert rows == 0
     assert actors == 0
+
+
+# ---------- Flask wiring ----------
+
+def test_before_request_sets_unique_audit_request_id(monkeypatch, tmp_path):
+    """Each Flask request gets its own UUID in g.audit_request_id."""
+    # Point DB to a temp file so create_app() can init tables without clobbering real data
+    import mbr.db as mbr_db
+    monkeypatch.setattr(mbr_db, "DB_PATH", tmp_path / "test.sqlite")
+
+    from mbr.app import create_app
+    app = create_app()
+    app.config["TESTING"] = True
+
+    captured = []
+    @app.route("/__probe__")
+    def _probe():
+        from flask import g
+        captured.append(g.audit_request_id)
+        return "ok"
+
+    client = app.test_client()
+    client.get("/__probe__")
+    client.get("/__probe__")
+
+    assert len(captured) == 2
+    assert captured[0] is not None
+    assert captured[1] is not None
+    assert captured[0] != captured[1]  # unique per request
+
+
+def test_shift_required_error_returns_http_400_json(monkeypatch, tmp_path):
+    """ShiftRequiredError raised in a route → HTTP 400 with {"error": "shift_required"}."""
+    import mbr.db as mbr_db
+    monkeypatch.setattr(mbr_db, "DB_PATH", tmp_path / "test.sqlite")
+
+    from mbr.app import create_app
+    app = create_app()
+    app.config["TESTING"] = True
+
+    @app.route("/__probe_shift__")
+    def _probe_shift():
+        raise audit.ShiftRequiredError()
+
+    client = app.test_client()
+    resp = client.get("/__probe_shift__")
+    assert resp.status_code == 400
+    body = resp.get_json()
+    assert body == {"error": "shift_required"}
