@@ -98,3 +98,25 @@ class ShiftRequiredError(Exception):
 
     def __init__(self, message: str = "Brak potwierdzonej zmiany (shift_required)"):
         super().__init__(message)
+
+
+# =========================================================================
+# Diff utility — pure function, no Flask/DB deps
+# =========================================================================
+
+def diff_fields(old: dict, new: dict, keys: list) -> list:
+    """Compare two dicts on the given keys; return list of changes.
+
+    Each entry: {'pole': key, 'stara': old_value, 'nowa': new_value}.
+    Missing keys are treated as None. Returns [] when nothing changed.
+
+    Non-scalar values (dict/list) are returned as-is; log_event() serializes
+    the whole diff list with json.dumps() at write time.
+    """
+    changes = []
+    for key in keys:
+        old_val = old.get(key)
+        new_val = new.get(key)
+        if old_val != new_val:
+            changes.append({"pole": key, "stara": old_val, "nowa": new_val})
+    return changes
