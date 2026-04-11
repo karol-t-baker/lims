@@ -488,6 +488,120 @@
 .cv-param.cv-row-err .cv-p-val, .cv-param.cv-row-err .cv-p-input { color: var(--red); }
 .cv-val-err { color: var(--red); font-weight: 700; }
 .cv-p-norm { font-family: var(--mono); font-size: 10px; color: var(--text-dim); width: 75px; text-align: right; }
+
+/* ═══ UWAGI KOŃCOWE — final batch notes block ═══ */
+.cv-notes {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 12px;
+}
+.cv-notes-head {
+    padding: 9px 16px;
+    background: var(--surface-alt);
+    border-bottom: 1px solid var(--border);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.cv-notes-body { padding: 12px 16px; }
+.cv-notes-textarea {
+    width: 100%;
+    min-height: 42px;
+    font-family: var(--font);
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    background: white;
+    resize: vertical;
+    box-sizing: border-box;
+    transition: border-color 0.14s ease;
+}
+.cv-notes-textarea:focus { outline: none; border-color: var(--teal); }
+.cv-notes-textarea[readonly] {
+    background: transparent;
+    border-color: transparent;
+    resize: none;
+    padding: 4px 0;
+}
+.cv-notes-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 8px;
+}
+.cv-notes-counter {
+    font-size: 10px;
+    color: var(--text-dim);
+    font-family: var(--mono);
+}
+.cv-notes-counter.over { color: var(--red); font-weight: 700; }
+.cv-notes-actions { display: flex; gap: 6px; }
+.cv-notes-btn {
+    padding: 5px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: white;
+    color: var(--text-sec);
+    cursor: pointer;
+    transition: all 0.12s;
+}
+.cv-notes-btn:hover { border-color: var(--text-dim); color: var(--text); }
+.cv-notes-btn.primary { background: var(--teal); color: white; border-color: var(--teal); }
+.cv-notes-btn.primary:hover { filter: brightness(1.08); }
+.cv-notes-btn.danger { color: var(--red); border-color: var(--red); }
+.cv-notes-btn.danger:hover { background: var(--red); color: white; }
+.cv-notes-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.cv-notes-history {
+    border-top: 1px solid var(--border-subtle, #f0ece4);
+    padding: 10px 16px 12px;
+    background: var(--surface-alt);
+}
+.cv-notes-history-title {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+}
+.cv-notes-history-item {
+    font-size: 11px;
+    color: var(--text-sec);
+    padding: 3px 0;
+    line-height: 1.4;
+}
+.cv-notes-history-meta {
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 10px;
+    margin-right: 6px;
+}
+.cv-notes-add-btn {
+    border: 1px dashed var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.14s;
+}
+.cv-notes-add-btn:hover { border-color: var(--teal); color: var(--teal); }
+
 .cv-p-input {
     font-family: var(--mono); font-size: 15px; font-weight: 700;
     min-width: 60px; width: 80px; text-align: right; border: none;
@@ -843,7 +957,9 @@ function renderSections() {
     }
 
     if (ebrStatus === 'completed') {
-        renderCompletedView();
+        _uwagiState = null;
+        _uwagiEditMode = false;
+        loadUwagi(ebrId).then(function() { renderCompletedView(); });
         return;
     }
 
@@ -862,6 +978,151 @@ function renderSections() {
         renderCyclicSections();
     } else {
         renderLinearSections();
+    }
+}
+
+// ═══ UWAGI KOŃCOWE ═══
+var _uwagiState = null;  // { tekst, dt, autor, historia }
+var _uwagiSaveTimer = null;
+var _uwagiEditMode = false;
+var _uwagiCurrentEbrId = null;
+
+async function loadUwagi(ebrId) {
+    _uwagiCurrentEbrId = ebrId;
+    try {
+        var resp = await fetch('/api/ebr/' + ebrId + '/uwagi');
+        if (!resp.ok) throw new Error('fetch failed');
+        _uwagiState = await resp.json();
+    } catch (e) {
+        _uwagiState = { tekst: null, dt: null, autor: null, historia: [] };
+    }
+}
+
+function _renderUwagiBlock(canEdit) {
+    var html = '<div class="cv-notes" id="cv-notes-block">';
+    html += '<div class="cv-notes-head"><span>UWAGI KOŃCOWE</span>';
+    if (canEdit && _uwagiState && _uwagiState.tekst && !_uwagiEditMode) {
+        html += '<button class="cv-notes-btn" onclick="_uwagiToggleEdit()">edytuj</button>';
+    }
+    html += '</div>';
+    html += '<div class="cv-notes-body">';
+
+    var tekst = _uwagiState ? (_uwagiState.tekst || '') : '';
+    var isEmpty = !tekst;
+    var readonly = !canEdit || (isEmpty ? false : !_uwagiEditMode);
+
+    if (isEmpty && !canEdit) {
+        html += '<div style="color:var(--text-dim);font-style:italic;font-size:12px;">— brak notatek —</div>';
+    } else if (isEmpty && canEdit && !_uwagiEditMode) {
+        html += '<button class="cv-notes-add-btn" onclick="_uwagiStartAdd()">📝 + Dodaj notatkę</button>';
+    } else {
+        html += '<textarea class="cv-notes-textarea" id="cv-notes-text" maxlength="500"' +
+                (readonly ? ' readonly' : '') +
+                ' oninput="_uwagiOnInput()">' + esc(tekst) + '</textarea>';
+        if (canEdit && !readonly) {
+            html += '<div class="cv-notes-footer">' +
+                    '<span class="cv-notes-counter" id="cv-notes-counter">' + tekst.length + ' / 500</span>' +
+                    '<div class="cv-notes-actions">' +
+                    '<button class="cv-notes-btn danger" onclick="_uwagiClear()">Wyczyść</button>' +
+                    '<button class="cv-notes-btn primary" id="cv-notes-save-btn" onclick="_uwagiSave()">Zapisz</button>' +
+                    '</div></div>';
+        }
+    }
+    html += '</div>';
+
+    // Historia
+    if (_uwagiState && _uwagiState.historia && _uwagiState.historia.length > 0) {
+        html += '<div class="cv-notes-history">';
+        html += '<div class="cv-notes-history-title">Historia (' + _uwagiState.historia.length + ')</div>';
+        _uwagiState.historia.forEach(function(h) {
+            var dt = h.dt ? h.dt.substring(0, 16).replace('T', ' ') : '';
+            var label = h.action === 'create' ? '[pierwszy wpis]' :
+                       (h.action === 'delete' ? '[usunięto]' : '');
+            var preview = h.tekst ? esc(h.tekst.length > 60 ? h.tekst.slice(0, 57) + '…' : h.tekst) : '';
+            html += '<div class="cv-notes-history-item" title="' + esc(h.tekst || '') + '">' +
+                    '<span class="cv-notes-history-meta">' + dt + ' — ' + esc(h.autor) + '</span>' +
+                    ' ' + label + ' ' + preview +
+                    '</div>';
+        });
+        html += '</div>';
+    }
+
+    html += '</div>';
+    return html;
+}
+
+function _uwagiStartAdd() {
+    _uwagiEditMode = true;
+    var block = document.getElementById('cv-notes-block');
+    if (block) block.outerHTML = _renderUwagiBlock(true);
+    var ta = document.getElementById('cv-notes-text');
+    if (ta) ta.focus();
+}
+
+function _uwagiToggleEdit() {
+    _uwagiEditMode = !_uwagiEditMode;
+    var block = document.getElementById('cv-notes-block');
+    if (block) block.outerHTML = _renderUwagiBlock(true);
+    if (_uwagiEditMode) {
+        var ta = document.getElementById('cv-notes-text');
+        if (ta) ta.focus();
+    }
+}
+
+function _uwagiOnInput() {
+    var ta = document.getElementById('cv-notes-text');
+    var counter = document.getElementById('cv-notes-counter');
+    var saveBtn = document.getElementById('cv-notes-save-btn');
+    if (!ta || !counter) return;
+    var len = ta.value.length;
+    counter.textContent = len + ' / 500';
+    counter.classList.toggle('over', len > 500);
+    if (saveBtn) saveBtn.disabled = len > 500;
+    if (_uwagiSaveTimer) clearTimeout(_uwagiSaveTimer);
+    _uwagiSaveTimer = setTimeout(function() { _uwagiSave(); }, 800);
+}
+
+async function _uwagiSave() {
+    var ta = document.getElementById('cv-notes-text');
+    if (!ta || !_uwagiCurrentEbrId) return;
+    var tekst = ta.value;
+    if (tekst.length > 500) return;
+    try {
+        var resp = await fetch('/api/ebr/' + _uwagiCurrentEbrId + '/uwagi', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tekst: tekst }),
+        });
+        if (!resp.ok) {
+            var err = await resp.json().catch(function() { return { error: 'błąd' }; });
+            alert(err.error || 'Błąd zapisu notatki');
+            return;
+        }
+        _uwagiState = await resp.json();
+        _uwagiEditMode = false;
+        var block = document.getElementById('cv-notes-block');
+        if (block) block.outerHTML = _renderUwagiBlock(typeof userRola !== 'undefined' && userRola !== 'technolog');
+    } catch (e) {
+        alert('Błąd zapisu: ' + e.message);
+    }
+}
+
+async function _uwagiClear() {
+    if (!_uwagiCurrentEbrId) return;
+    if (!confirm('Na pewno usunąć notatkę?')) return;
+    try {
+        var resp = await fetch('/api/ebr/' + _uwagiCurrentEbrId + '/uwagi', { method: 'DELETE' });
+        if (!resp.ok) {
+            var err = await resp.json().catch(function() { return { error: 'błąd' }; });
+            alert(err.error || 'Błąd usuwania');
+            return;
+        }
+        _uwagiState = await resp.json();
+        _uwagiEditMode = false;
+        var block = document.getElementById('cv-notes-block');
+        if (block) block.outerHTML = _renderUwagiBlock(typeof userRola !== 'undefined' && userRola !== 'technolog');
+    } catch (e) {
+        alert('Błąd: ' + e.message);
     }
 }
 
@@ -962,6 +1223,12 @@ function renderCompletedView() {
     paramsHtml += '</div>';
 
     var html = heroHtml + paramsHtml;
+
+    // Render uwagi_koncowe block if loaded
+    if (_uwagiState !== null) {
+        var canEditUwagi = (typeof userRola !== 'undefined' && userRola !== 'technolog');
+        html += _renderUwagiBlock(canEditUwagi);
+    }
 
     if (!isZbiornik) {
         // Stage selector for szarża
