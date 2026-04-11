@@ -26,11 +26,10 @@ def _resolve_actor_label(db, override: str = None) -> str:
     Resolution order:
       1. `override` if non-empty (form/body explicit pick — e.g. uwagi picker)
       2. session['shift_workers'] joined by ', ' using nickname || inicjaly
-      3. session['user']['login'] (fallback for shared/single accounts)
-
-    Note: Phase 3 of audit trail will tighten this so empty shift blocks
-    laborant writes via ShiftRequiredError. For now we keep the login fallback
-    so existing flows don't break during the transition.
+      3. For role 'laborant' with empty shift → ShiftRequiredError (Phase 3
+         enforcement: laborant cannot write without a confirmed shift).
+      4. For other roles (admin/technolog/laborant_kj/laborant_coa) with empty
+         shift → fallback to session['user']['login'].
     """
     if override:
         cleaned = override.strip()
@@ -46,6 +45,11 @@ def _resolve_actor_label(db, override: str = None) -> str:
         ).fetchall()
         if rows:
             return ", ".join((r["nickname"] or r["inicjaly"]) for r in rows)
+
+    rola = session.get("user", {}).get("rola")
+    if rola == "laborant":
+        from mbr.shared.audit import ShiftRequiredError
+        raise ShiftRequiredError()
 
     return session["user"]["login"]
 
