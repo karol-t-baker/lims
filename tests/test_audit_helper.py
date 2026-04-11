@@ -650,3 +650,22 @@ def test_query_pagination(queryable_audit_db):
     ids3 = {r["id"] for r in rows_page3}
     assert ids1.isdisjoint(ids2)
     assert ids2.isdisjoint(ids3)
+
+
+# ---------- query_audit_history_for_entity ----------
+
+def test_history_for_entity_returns_only_matching(queryable_audit_db):
+    rows = audit.query_audit_history_for_entity(queryable_audit_db, "ebr", 42)
+    assert len(rows) == 2
+    assert all(r["entity_id"] == 42 for r in rows)
+    assert all(r["entity_type"] == "ebr" for r in rows)
+    # Sorted DESC by dt
+    assert rows[0]["dt"] >= rows[1]["dt"]
+
+
+def test_history_for_entity_includes_actors(queryable_audit_db):
+    rows = audit.query_audit_history_for_entity(queryable_audit_db, "cert", 7)
+    assert len(rows) == 1
+    assert "actors" in rows[0]
+    assert len(rows[0]["actors"]) >= 1
+    assert "actor_login" in rows[0]["actors"][0]

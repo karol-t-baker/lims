@@ -420,3 +420,19 @@ def query_audit_log(
         for r in rows:
             r["actors"] = by_audit.get(r["id"], [])
     return rows, total
+
+
+def query_audit_history_for_entity(db, entity_type: str, entity_id: int) -> list:
+    """Per-record history for entity views (EBR/MBR/cert).
+
+    Returns rows sorted dt DESC with actors joined. No pagination —
+    entity histories are bounded (a single batch typically generates <50 events).
+    """
+    rows, _total = query_audit_log(
+        db,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        limit=1000,  # safety cap
+        offset=0,
+    )
+    return rows
