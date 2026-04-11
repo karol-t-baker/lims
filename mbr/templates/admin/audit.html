@@ -111,9 +111,9 @@
   </table>
 
   <div class="audit-pager">
-    {% if page > 1 %}<a href="?page={{ page - 1 }}">← Poprzednia</a>{% endif %}
+    {% if page > 1 %}<a href="{{ pager_base }}{{ page - 1 }}">← Poprzednia</a>{% endif %}
     Strona {{ page }} / {{ page_count }}
-    {% if page < page_count %}<a href="?page={{ page + 1 }}">Następna →</a>{% endif %}
+    {% if page < page_count %}<a href="{{ pager_base }}{{ page + 1 }}">Następna →</a>{% endif %}
   </div>
 </div>
 

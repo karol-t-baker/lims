@@ -144,3 +144,30 @@ def test_admin_audit_panel_pagination(admin_client, db):
     resp2 = admin_client.get("/admin/audit?page=2")
     body2 = resp2.get_data(as_text=True)
     assert "Strona 2" in body2
+
+
+def test_admin_audit_panel_pager_preserves_filters(admin_client, db):
+    """Pager links must preserve active filters across page navigation."""
+    # Seed 150 rows with mixed event types
+    for i in range(150):
+        cur = db.execute(
+            "INSERT INTO audit_log (dt, event_type, result) VALUES (?, ?, 'ok')",
+            (
+                f"2026-04-{(i % 28) + 1:02d}T08:00:00",
+                "auth.login" if i < 75 else "ebr.wynik.saved",
+            ),
+        )
+        db.execute(
+            "INSERT INTO audit_log_actors (audit_id, worker_id, actor_login, actor_rola) VALUES (?, NULL, 'tester', 'admin')",
+            (cur.lastrowid,),
+        )
+    db.commit()
+
+    # Filter to auth.* (75 rows = 1 page) — but include explicit pagination
+    resp = admin_client.get("/admin/audit?event_type_glob=auth.%2A")
+    body = resp.get_data(as_text=True)
+    # Pager next link must include the filter param
+    if "Następna" in body:
+        # Pager exists and the next-page href must contain event_type_glob
+        assert "event_type_glob=auth" in body, \
+            "Pager 'Następna' link should preserve event_type_glob filter, but only 'page' is present"

@@ -12,8 +12,10 @@ docs/superpowers/specs/2026-04-11-audit-trail-phase2-design.md
 
 import csv
 import io
+import json as _json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from urllib.parse import urlencode
 
 from flask import (
     Response,
@@ -102,7 +104,6 @@ def audit_panel():
         ).fetchall()
 
     # Parse JSON columns inside rows for template rendering
-    import json as _json
     for r in rows:
         if r.get("diff_json"):
             try:
@@ -114,6 +115,14 @@ def audit_panel():
 
     page_count = max(1, (total + page_size - 1) // page_size)
 
+    # Build pager URL base — current query string minus 'page'
+    qs_no_page = {k: v for k, v in request.args.items() if k != "page"}
+    pager_base = "/admin/audit?" + urlencode(qs_no_page)
+    if qs_no_page:
+        pager_base += "&page="
+    else:
+        pager_base += "page="
+
     return render_template(
         "admin/audit.html",
         rows=rows,
@@ -124,4 +133,5 @@ def audit_panel():
         workers=workers,
         event_groups=_EVENT_TYPE_GROUPS,
         entity_types=_ENTITY_TYPES,
+        pager_base=pager_base,
     )
