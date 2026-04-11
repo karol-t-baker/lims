@@ -55,7 +55,8 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             typ                 TEXT NOT NULL DEFAULT 'szarza'
                                 CHECK(typ IN ('szarza', 'zbiornik', 'platkowanie')),
             nastaw              INTEGER,
-            przepompowanie_json TEXT
+            przepompowanie_json TEXT,
+            uwagi_koncowe       TEXT
         );
 
         CREATE TABLE IF NOT EXISTS ebr_wyniki (
@@ -109,6 +110,15 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             dt_end          TEXT,
             zatwierdzil     TEXT,
             UNIQUE(ebr_id, etap)
+        );
+
+        CREATE TABLE IF NOT EXISTS ebr_uwagi_history (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            ebr_id     INTEGER NOT NULL REFERENCES ebr_batches(ebr_id),
+            tekst      TEXT,
+            action     TEXT NOT NULL CHECK(action IN ('create', 'update', 'delete')),
+            autor      TEXT NOT NULL,
+            dt         TEXT NOT NULL
         );
 
         CREATE TABLE IF NOT EXISTS produkty (
@@ -488,6 +498,10 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
         )
     """)
     db.execute("CREATE INDEX IF NOT EXISTS idx_wyniki_ebr_limicie ON ebr_wyniki(ebr_id, w_limicie, dt_wpisu)")
+    db.execute(
+        "CREATE INDEX IF NOT EXISTS idx_ebr_uwagi_history_ebr "
+        "ON ebr_uwagi_history(ebr_id, dt DESC)"
+    )
     db.commit()
 
     # Migration: add typ column if missing (SQLite doesn't support ALTER TABLE ADD with CHECK)
@@ -644,6 +658,13 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
         db.commit()
     except Exception:
         pass
+
+    # Migration: add uwagi_koncowe column for final batch notes
+    try:
+        db.execute("ALTER TABLE ebr_batches ADD COLUMN uwagi_koncowe TEXT")
+        db.commit()
+    except Exception:
+        pass  # already exists
 
     # Migration: wartosc_text for hybrid fields (mętność: number or text like "mętna jasna")
     try:
