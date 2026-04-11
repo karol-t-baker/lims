@@ -26,7 +26,7 @@ from pathlib import Path
 
 
 _NEW_AUDIT_LOG_DDL = """
-CREATE TABLE audit_log (
+CREATE TABLE IF NOT EXISTS audit_log (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     dt              TEXT NOT NULL,
     event_type      TEXT NOT NULL,
@@ -44,7 +44,7 @@ CREATE TABLE audit_log (
 """
 
 _NEW_AUDIT_ACTORS_DDL = """
-CREATE TABLE audit_log_actors (
+CREATE TABLE IF NOT EXISTS audit_log_actors (
     audit_id        INTEGER NOT NULL REFERENCES audit_log(id) ON DELETE CASCADE,
     worker_id       INTEGER,
     actor_login     TEXT NOT NULL,
@@ -136,9 +136,22 @@ def migrate(db: sqlite3.Connection, dry_run: bool = False) -> dict:
     # isolation_level the caller configured. Restore at the end.
     prev_isolation_level = db.isolation_level
     db.isolation_level = None
+
+    # Disable FK enforcement during migration. Rationale: if audit_log_actors
+    # pre-exists (e.g. init_mbr_tables() ran against a half-migrated DB and
+    # created it as an empty table), its FK points at audit_log. The RENAME
+    # step updates that FK to audit_log_v1, so after we create the new empty
+    # audit_log, the stale FK makes every INSERT into audit_log_actors fail
+    # with "FOREIGN KEY constraint failed". Toggling foreign_keys=OFF is the
+    # standard SQLite migration pattern; PRAGMA foreign_key_check at the end
+    # verifies we didn't leave dangling references.
+    prev_fk = db.execute("PRAGMA foreign_keys").fetchone()[0]
+    db.execute("PRAGMA foreign_keys=OFF")
+
     try:
         return _migrate_inner(db, dry_run, summary)
     finally:
+        db.execute(f"PRAGMA foreign_keys={'ON' if prev_fk else 'OFF'}")
         db.isolation_level = prev_isolation_level
 
 
@@ -159,6 +172,8 @@ def _migrate_inner(db: sqlite3.Connection, dry_run: bool, summary: dict) -> dict
 
         try:
             db.execute("BEGIN IMMEDIATE")
+            # Drop any orphan actors table — same rationale as the happy path.
+            db.execute("DROP TABLE IF EXISTS audit_log_actors")
             db.execute(_NEW_AUDIT_LOG_DDL)
             db.execute(_NEW_AUDIT_ACTORS_DDL)
             for ddl in _INDEXES:
@@ -166,6 +181,7 @@ def _migrate_inner(db: sqlite3.Connection, dry_run: bool, summary: dict) -> dict
             summary["backfilled"] = _backfill_from_v1(db)
             summary["recovered"] = True
             summary["renamed"] = True
+            _check_no_fk_violations(db)
             db.execute("COMMIT")
         except Exception:
             db.execute("ROLLBACK")
@@ -185,6 +201,20 @@ def _migrate_inner(db: sqlite3.Connection, dry_run: bool, summary: dict) -> dict
         summary["renamed"] = True  # would be
         return summary
 
+    # Half-state guard: if audit_log_actors exists from a partial init_mbr_tables
+    # run, its FK is bound to the current audit_log table. After RENAME the FK
+    # would silently follow to audit_log_v1, leaving every backfilled actor
+    # row pointing at the wrong target. Drop and recreate the table so the new
+    # FK targets the new audit_log. Safe iff the table is empty (Phase 1 has no
+    # call sites yet); refuse to migrate if there is real data inside.
+    if _table_exists(db, "audit_log_actors"):
+        existing_actors = db.execute("SELECT COUNT(*) FROM audit_log_actors").fetchone()[0]
+        if existing_actors > 0:
+            raise RuntimeError(
+                f"audit_log_actors already has {existing_actors} rows — refusing "
+                "to migrate. This should not happen in Phase 1 (no call sites yet)."
+            )
+
     # Happy path: wrap everything in an explicit transaction so a crash
     # between RENAME and COMMIT cannot leave the DB in a wedged state.
     try:
@@ -192,18 +222,38 @@ def _migrate_inner(db: sqlite3.Connection, dry_run: bool, summary: dict) -> dict
         db.execute("ALTER TABLE audit_log RENAME TO audit_log_v1")
         summary["renamed"] = True
 
+        # Drop the orphan actors table (if any) AFTER the rename so its stale
+        # FK reference (now pointing at audit_log_v1) is gone before we recreate.
+        db.execute("DROP TABLE IF EXISTS audit_log_actors")
+
         db.execute(_NEW_AUDIT_LOG_DDL)
         db.execute(_NEW_AUDIT_ACTORS_DDL)
         for ddl in _INDEXES:
             db.execute(ddl)
 
         summary["backfilled"] = _backfill_from_v1(db)
+        _check_no_fk_violations(db)
         db.execute("COMMIT")
     except Exception:
         db.execute("ROLLBACK")
         raise
 
     return summary
+
+
+def _check_no_fk_violations(db: sqlite3.Connection) -> None:
+    """Run PRAGMA foreign_key_check on audit_log_actors inside the open
+    transaction; raise if any dangling FK references remain. Scoped to our
+    own table so legacy/orphan tables elsewhere in the DB don't cause false
+    positives. Must be called BEFORE COMMIT so the surrounding transaction
+    can ROLLBACK on failure."""
+    violations = db.execute("PRAGMA foreign_key_check(audit_log_actors)").fetchall()
+    if violations:
+        details = [(r[0], r[1], r[2], r[3]) for r in violations[:5]]
+        raise RuntimeError(
+            f"foreign_key_check reported {len(violations)} violations on "
+            f"audit_log_actors after migration. First few (table, rowid, parent, fkid): {details}"
+        )
 
 
 def main():

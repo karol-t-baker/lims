@@ -211,3 +211,57 @@ def test_migrate_dry_run_does_not_mutate():
     ).fetchone() is None
     cols = [r[1] for r in db.execute("PRAGMA table_info(audit_log)").fetchall()]
     assert "event_type" not in cols
+
+
+def test_migrate_with_orphan_empty_actors_table_drops_and_recreates():
+    """init_mbr_tables() may have created an empty audit_log_actors with FK on
+    audit_log. After RENAME the FK propagates to audit_log_v1 and would break
+    backfill. Migration must drop the orphan and recreate with fresh FK."""
+    db = _make_db_with_old_schema(rows=[
+        ("2026-04-01T10:00:00", "ebr_wyniki", 42, "temperatura", "85", "87", "AK"),
+    ])
+    db.execute("INSERT INTO workers (id, imie, nazwisko, inicjaly) VALUES (1,'Anna','Kowalska','AK')")
+    # Pre-create the orphan actors table exactly like init_mbr_tables would
+    db.execute("""
+        CREATE TABLE audit_log_actors (
+            audit_id INTEGER NOT NULL REFERENCES audit_log(id) ON DELETE CASCADE,
+            worker_id INTEGER, actor_login TEXT NOT NULL, actor_rola TEXT NOT NULL,
+            PRIMARY KEY (audit_id, actor_login)
+        )
+    """)
+    db.commit()
+
+    summary = migrate(db)
+
+    assert summary["backfilled"] == 1
+    # Actors table now points at the NEW audit_log, not v1
+    actors_ddl = db.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='audit_log_actors'"
+    ).fetchone()[0]
+    assert "REFERENCES audit_log(id)" in actors_ddl
+    assert "audit_log_v1" not in actors_ddl
+    # FK enforcement re-enabled and no violations
+    db.execute("PRAGMA foreign_keys=ON")
+    assert db.execute("PRAGMA foreign_key_check(audit_log_actors)").fetchall() == []
+
+
+def test_migrate_refuses_when_orphan_actors_has_real_data():
+    """Safety guard: if audit_log_actors has rows (e.g. Phase 3+ already
+    started writing there), refuse to migrate to avoid silently dropping data."""
+    import pytest as _pytest
+    db = _make_db_with_old_schema(rows=[
+        ("2026-04-01T10:00:00", "x", 1, "p", "a", "b", "AK"),
+    ])
+    db.execute("""
+        CREATE TABLE audit_log_actors (
+            audit_id INTEGER NOT NULL REFERENCES audit_log(id) ON DELETE CASCADE,
+            worker_id INTEGER, actor_login TEXT NOT NULL, actor_rola TEXT NOT NULL,
+            PRIMARY KEY (audit_id, actor_login)
+        )
+    """)
+    # Need a parent row in audit_log so the FK accepts the actor insert
+    db.execute("INSERT INTO audit_log_actors (audit_id, worker_id, actor_login, actor_rola) VALUES (1, NULL, 'x', 'unknown')")
+    db.commit()
+
+    with _pytest.raises(RuntimeError, match="audit_log_actors already has 1 rows"):
+        migrate(db)
