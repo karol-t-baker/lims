@@ -229,3 +229,53 @@ def test_admin_audit_export_csv_preserves_entity_id_zero(admin_client, db):
     # entity_id is column index 3 (dt, event_type, entity_type, entity_id, ...)
     fields = next(__import__("csv").reader([data_row]))
     assert fields[3] == "0", f"Expected entity_id=0 to be '0', got {fields[3]!r}"
+
+
+# ---------- /admin/audit/archive/preview ----------
+
+def test_admin_audit_archive_preview_returns_count(admin_client, db):
+    # Seed 3 old + 2 new rows
+    for dt in ("2020-01-01", "2020-02-01", "2020-03-01"):
+        cur = db.execute(
+            "INSERT INTO audit_log (dt, event_type, result) VALUES (?, 'auth.login', 'ok')",
+            (dt + "T08:00:00",),
+        )
+        db.execute(
+            "INSERT INTO audit_log_actors (audit_id, worker_id, actor_login, actor_rola) VALUES (?, NULL, 'x', 'unknown')",
+            (cur.lastrowid,),
+        )
+    for dt in ("2026-04-01", "2026-04-02"):
+        cur = db.execute(
+            "INSERT INTO audit_log (dt, event_type, result) VALUES (?, 'auth.login', 'ok')",
+            (dt + "T08:00:00",),
+        )
+        db.execute(
+            "INSERT INTO audit_log_actors (audit_id, worker_id, actor_login, actor_rola) VALUES (?, NULL, 'x', 'unknown')",
+            (cur.lastrowid,),
+        )
+    db.commit()
+
+    resp = admin_client.post(
+        "/admin/audit/archive/preview",
+        json={"cutoff_iso": "2024-01-01T00:00:00"},
+    )
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["count"] == 3
+    assert data["cutoff"] == "2024-01-01T00:00:00"
+
+    # Preview must NOT mutate
+    remaining = db.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0]
+    assert remaining == 5
+
+
+def test_admin_audit_archive_preview_forbidden_for_non_admin(laborant_client, db):
+    resp = laborant_client.post(
+        "/admin/audit/archive/preview", json={"cutoff_iso": "2024-01-01T00:00:00"}
+    )
+    assert resp.status_code == 403
+
+
+def test_admin_audit_archive_preview_missing_cutoff_returns_400(admin_client, db):
+    resp = admin_client.post("/admin/audit/archive/preview", json={})
+    assert resp.status_code == 400

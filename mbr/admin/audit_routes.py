@@ -198,3 +198,21 @@ def audit_export_csv():
         mimetype="text/csv",
         headers={"Content-Disposition": "attachment; filename=audit_log.csv"},
     )
+
+
+@admin_bp.route("/admin/audit/archive/preview", methods=["POST"])
+@role_required("admin")
+def audit_archive_preview():
+    """Return count of audit_log rows that would be archived for the given cutoff.
+
+    No mutation. Used by the modal confirmation dialog.
+    """
+    body = request.get_json(silent=True) or {}
+    cutoff = body.get("cutoff_iso")
+    if not cutoff:
+        return jsonify({"error": "cutoff_iso required"}), 400
+    with db_session() as db:
+        count = db.execute(
+            "SELECT COUNT(*) FROM audit_log WHERE dt < ?", (cutoff,)
+        ).fetchone()[0]
+    return jsonify({"count": count, "cutoff": cutoff})
