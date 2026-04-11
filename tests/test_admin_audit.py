@@ -279,3 +279,53 @@ def test_admin_audit_archive_preview_forbidden_for_non_admin(laborant_client, db
 def test_admin_audit_archive_preview_missing_cutoff_returns_400(admin_client, db):
     resp = admin_client.post("/admin/audit/archive/preview", json={})
     assert resp.status_code == 400
+
+
+# ---------- /admin/audit/archive (apply) ----------
+
+def test_admin_audit_archive_apply_runs_archive(admin_client, db, tmp_path, monkeypatch):
+    import mbr.admin.audit_routes
+    # Override the archive_dir resolution to use tmp_path
+    monkeypatch.setattr(
+        mbr.admin.audit_routes, "_resolve_archive_dir", lambda: tmp_path
+    )
+
+    # Seed 2 old rows
+    for dt in ("2020-01-01", "2020-02-01"):
+        cur = db.execute(
+            "INSERT INTO audit_log (dt, event_type, result) VALUES (?, 'auth.login', 'ok')",
+            (dt + "T08:00:00",),
+        )
+        db.execute(
+            "INSERT INTO audit_log_actors (audit_id, worker_id, actor_login, actor_rola) VALUES (?, NULL, 'x', 'unknown')",
+            (cur.lastrowid,),
+        )
+    db.commit()
+
+    resp = admin_client.post(
+        "/admin/audit/archive", json={"cutoff_iso": "2024-01-01T00:00:00"}
+    )
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["archived"] == 2
+
+    # Active DB now has 0 originals + 1 system.audit.archived = 1
+    rows = db.execute("SELECT event_type FROM audit_log").fetchall()
+    assert len(rows) == 1
+    assert rows[0]["event_type"] == "system.audit.archived"
+
+    # Archive file exists (named by cutoff year, not row year)
+    archive_file = tmp_path / "audit_2024.jsonl.gz"
+    assert archive_file.exists()
+
+
+def test_admin_audit_archive_apply_forbidden_for_non_admin(laborant_client, db):
+    resp = laborant_client.post(
+        "/admin/audit/archive", json={"cutoff_iso": "2024-01-01T00:00:00"}
+    )
+    assert resp.status_code == 403
+
+
+def test_admin_audit_archive_apply_missing_cutoff_returns_400(admin_client, db):
+    resp = admin_client.post("/admin/audit/archive", json={})
+    assert resp.status_code == 400

@@ -216,3 +216,30 @@ def audit_archive_preview():
             "SELECT COUNT(*) FROM audit_log WHERE dt < ?", (cutoff,)
         ).fetchone()[0]
     return jsonify({"count": count, "cutoff": cutoff})
+
+
+def _resolve_archive_dir() -> Path:
+    """Default archive location: <project_root>/data/audit_archive/.
+
+    Extracted into a helper so tests can monkey-patch it.
+    """
+    project_root = Path(current_app.root_path).parent
+    return project_root / "data" / "audit_archive"
+
+
+@admin_bp.route("/admin/audit/archive", methods=["POST"])
+@role_required("admin")
+def audit_archive_do():
+    """Run the actual archival: dump old rows to JSONL.gz, delete from DB,
+    log system.audit.archived. See audit.archive_old_entries() for details.
+    """
+    body = request.get_json(silent=True) or {}
+    cutoff = body.get("cutoff_iso")
+    if not cutoff:
+        return jsonify({"error": "cutoff_iso required"}), 400
+
+    archive_dir = _resolve_archive_dir()
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    with db_session() as db:
+        result = audit.archive_old_entries(db, cutoff, archive_dir)
+    return jsonify(result)
