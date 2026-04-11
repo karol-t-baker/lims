@@ -15,13 +15,38 @@ def login():
         password = request.form.get("password", "")
         with db_session() as db:
             user = verify_user(db, login_val, password)
-        if user:
-            session["user"] = {
-                "login": user["login"],
-                "rola": user["rola"],
-                "imie_nazwisko": user.get("imie_nazwisko"),
-            }
-            return redirect(url_for("auth.index"))
+            if user:
+                session["user"] = {
+                    "login": user["login"],
+                    "rola": user["rola"],
+                    "imie_nazwisko": user.get("imie_nazwisko"),
+                }
+                audit.log_event(
+                    audit.EVENT_AUTH_LOGIN,
+                    payload={"attempted_login": login_val},
+                    actors=[{
+                        "worker_id": None,
+                        "actor_login": user["login"],
+                        "actor_rola": user["rola"],
+                    }],
+                    db=db,
+                )
+                db.commit()
+                return redirect(url_for("auth.index"))
+
+            # Failure path: log with explicit unknown actor
+            audit.log_event(
+                audit.EVENT_AUTH_LOGIN,
+                payload={"attempted_login": login_val},
+                actors=[{
+                    "worker_id": None,
+                    "actor_login": login_val,
+                    "actor_rola": "unknown",
+                }],
+                result="error",
+                db=db,
+            )
+            db.commit()
         error = "Nieprawidłowy login lub hasło"
     return render_template("login.html", error=error)
 

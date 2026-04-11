@@ -115,3 +115,74 @@ def test_change_password_forbidden_for_non_admin(laborant_client, db):
         "SELECT COUNT(*) FROM audit_log WHERE event_type='auth.password_changed'"
     ).fetchone()[0]
     assert count == 0
+
+
+# ---------- POST /login ----------
+
+def test_login_success_logs_auth_login_ok(anon_client, db):
+    """Successful login → audit entry with result='ok' and session user as actor."""
+    create_user(db, login="anna", password="goodpass", rola="laborant")
+
+    resp = anon_client.post("/login", data={"login": "anna", "password": "goodpass"})
+    assert resp.status_code in (302, 303)  # redirect after successful login
+
+    rows = db.execute(
+        "SELECT id, event_type, result, payload_json FROM audit_log WHERE event_type='auth.login'"
+    ).fetchall()
+    assert len(rows) == 1
+    assert rows[0]["result"] == "ok"
+
+    actors = db.execute(
+        "SELECT actor_login, actor_rola FROM audit_log_actors WHERE audit_id=?",
+        (rows[0]["id"],),
+    ).fetchall()
+    assert len(actors) == 1
+    assert actors[0]["actor_login"] == "anna"
+    assert actors[0]["actor_rola"] == "laborant"
+
+
+def test_login_failure_logs_auth_login_error(anon_client, db):
+    """Failed login → audit entry with result='error', actor_login='attempted',
+    actor_rola='unknown', payload contains attempted_login."""
+    create_user(db, login="anna", password="goodpass", rola="laborant")
+
+    resp = anon_client.post("/login", data={"login": "anna", "password": "wrongpass"})
+    # Login page re-renders on failure, no redirect
+    assert resp.status_code == 200
+
+    rows = db.execute(
+        "SELECT id, event_type, result, payload_json FROM audit_log WHERE event_type='auth.login'"
+    ).fetchall()
+    assert len(rows) == 1
+    assert rows[0]["result"] == "error"
+
+    import json as _json
+    payload = _json.loads(rows[0]["payload_json"])
+    assert payload["attempted_login"] == "anna"
+
+    actors = db.execute(
+        "SELECT worker_id, actor_login, actor_rola FROM audit_log_actors WHERE audit_id=?",
+        (rows[0]["id"],),
+    ).fetchall()
+    assert len(actors) == 1
+    assert actors[0]["worker_id"] is None
+    assert actors[0]["actor_login"] == "anna"
+    assert actors[0]["actor_rola"] == "unknown"
+
+
+def test_login_failure_with_unknown_user_still_logs(anon_client, db):
+    """Login attempt with completely unknown login → still produces an audit
+    entry (result=error). Doesn't crash."""
+    resp = anon_client.post(
+        "/login", data={"login": "ghost_user", "password": "anything"}
+    )
+    assert resp.status_code == 200
+
+    rows = db.execute(
+        "SELECT id, payload_json FROM audit_log WHERE event_type='auth.login'"
+    ).fetchall()
+    assert len(rows) == 1
+
+    import json as _json
+    payload = _json.loads(rows[0]["payload_json"])
+    assert payload["attempted_login"] == "ghost_user"
