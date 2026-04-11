@@ -348,8 +348,10 @@ def _build_where_clauses(*, dt_from=None, dt_to=None, event_type_glob=None,
         )
         params.append(int(worker_id))
     if free_text:
-        clauses.append("(entity_label LIKE ? OR payload_json LIKE ?)")
-        like = f"%{free_text}%"
+        # Escape LIKE metacharacters: backslash first (escape char), then % and _
+        escaped = free_text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        clauses.append("(entity_label LIKE ? ESCAPE '\\' OR payload_json LIKE ? ESCAPE '\\')")
+        like = f"%{escaped}%"
         params.extend([like, like])
     if request_id:
         clauses.append("request_id = ?")

@@ -594,6 +594,41 @@ def test_query_filter_by_free_text_searches_label_and_payload(queryable_audit_db
     assert "alice" in rows[0]["payload_json"]
 
 
+def test_query_filter_by_free_text_escapes_like_metacharacters(audit_db):
+    """User searching for '100%' or 'foo_bar' should NOT trigger LIKE wildcard expansion."""
+    # Seed two rows: one with literal '100%' in label, one with '1009' (would match if % were a wildcard)
+    audit_db.execute(
+        """INSERT INTO audit_log (dt, event_type, entity_type, entity_id, entity_label, result)
+           VALUES ('2026-04-01T08:00:00', 'x.y.z', 'ebr', 1, 'sm 100%', 'ok')"""
+    )
+    audit_db.execute(
+        """INSERT INTO audit_log (dt, event_type, entity_type, entity_id, entity_label, result)
+           VALUES ('2026-04-01T09:00:00', 'x.y.z', 'ebr', 2, 'sm 1009', 'ok')"""
+    )
+    audit_db.commit()
+
+    rows, total = audit.query_audit_log(audit_db, free_text="100%")
+    # Only 'sm 100%' must match — not 'sm 1009'
+    assert total == 1
+    assert rows[0]["entity_label"] == "sm 100%"
+
+    # Underscore literal: search '_bar' should not match '1bar'
+    audit_db.execute(
+        """INSERT INTO audit_log (dt, event_type, entity_type, entity_id, entity_label, result)
+           VALUES ('2026-04-02T08:00:00', 'x.y.z', 'ebr', 3, 'foo_bar', 'ok')"""
+    )
+    audit_db.execute(
+        """INSERT INTO audit_log (dt, event_type, entity_type, entity_id, entity_label, result)
+           VALUES ('2026-04-02T09:00:00', 'x.y.z', 'ebr', 4, 'foo1bar', 'ok')"""
+    )
+    audit_db.commit()
+
+    rows, total = audit.query_audit_log(audit_db, free_text="_bar")
+    # Only 'foo_bar' matches; 'foo1bar' does NOT (underscore literal, not wildcard)
+    assert total == 1
+    assert rows[0]["entity_label"] == "foo_bar"
+
+
 def test_query_filter_by_request_id(queryable_audit_db):
     rows, total = audit.query_audit_log(queryable_audit_db, request_id="req-3")
     assert total == 1
