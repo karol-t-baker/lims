@@ -228,3 +228,127 @@ def test_get_uwagi_after_delete(db, ebr_batch):
     assert result["autor"] is None
     assert len(result["historia"]) == 2
     assert result["historia"][0]["action"] == "delete"
+
+
+# ---------------------------------------------------------------------------
+# Tasks 9-11: Flask HTTP API tests
+# ---------------------------------------------------------------------------
+
+def _make_client(monkeypatch, db, rola="laborant"):
+    """Build a Flask test client whose db_session yields the given in-memory db."""
+    from contextlib import contextmanager
+    import mbr.db
+    import mbr.laborant.routes
+
+    @contextmanager
+    def fake_db_session():
+        yield db
+
+    monkeypatch.setattr(mbr.db, "db_session", fake_db_session)
+    monkeypatch.setattr(mbr.laborant.routes, "db_session", fake_db_session)
+
+    from mbr.app import create_app
+    app = create_app()
+    app.config["TESTING"] = True
+
+    with app.test_client() as c:
+        with c.session_transaction() as sess:
+            sess["user"] = {"login": "testuser", "rola": rola}
+        yield c
+
+
+@pytest.fixture
+def client(monkeypatch, db, ebr_batch):
+    yield from _make_client(monkeypatch, db, rola="laborant")
+
+
+@pytest.fixture
+def client_technolog(monkeypatch, db, ebr_batch):
+    yield from _make_client(monkeypatch, db, rola="technolog")
+
+
+# GET tests
+
+def test_api_get_uwagi_empty(client, ebr_batch):
+    resp = client.get(f"/api/ebr/{ebr_batch}/uwagi")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data == {"tekst": None, "dt": None, "autor": None, "historia": []}
+
+
+def test_api_get_accessible_to_technolog(client_technolog, ebr_batch):
+    resp = client_technolog.get(f"/api/ebr/{ebr_batch}/uwagi")
+    assert resp.status_code == 200
+
+
+# PUT tests
+
+def test_api_put_uwagi_create(client, ebr_batch):
+    resp = client.put(
+        f"/api/ebr/{ebr_batch}/uwagi",
+        json={"tekst": "Dodano 500 kg NaOH"},
+    )
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["tekst"] == "Dodano 500 kg NaOH"
+    assert data["autor"] == "testuser"
+    assert len(data["historia"]) == 1
+    assert data["historia"][0]["action"] == "create"
+
+
+def test_api_put_uwagi_too_long(client, ebr_batch):
+    resp = client.put(
+        f"/api/ebr/{ebr_batch}/uwagi",
+        json={"tekst": "a" * 501},
+    )
+    assert resp.status_code == 400
+    assert "500" in resp.get_json()["error"]
+
+
+def test_api_put_uwagi_cancelled_batch(client, db, ebr_batch):
+    db.execute(
+        "UPDATE ebr_batches SET status='cancelled' WHERE ebr_id = ?",
+        (ebr_batch,),
+    )
+    db.commit()
+    resp = client.put(
+        f"/api/ebr/{ebr_batch}/uwagi",
+        json={"tekst": "anything"},
+    )
+    assert resp.status_code == 400
+    assert "anulowanej" in resp.get_json()["error"]
+
+
+def test_api_put_uwagi_missing_batch(client):
+    resp = client.put(
+        "/api/ebr/99999/uwagi",
+        json={"tekst": "whatever"},
+    )
+    assert resp.status_code == 404
+
+
+def test_api_put_forbidden_for_technolog(client_technolog, ebr_batch):
+    resp = client_technolog.put(
+        f"/api/ebr/{ebr_batch}/uwagi",
+        json={"tekst": "nope"},
+    )
+    assert resp.status_code in (403, 302)
+
+
+# DELETE tests
+
+def test_api_delete_uwagi(client, ebr_batch):
+    client.put(f"/api/ebr/{ebr_batch}/uwagi", json={"tekst": "to delete"})
+    resp = client.delete(f"/api/ebr/{ebr_batch}/uwagi")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["tekst"] is None
+    assert len(data["historia"]) == 2
+
+
+def test_api_delete_uwagi_noop(client, ebr_batch):
+    resp = client.delete(f"/api/ebr/{ebr_batch}/uwagi")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["tekst"] is None
+    assert data["historia"] == []
