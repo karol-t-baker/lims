@@ -54,11 +54,11 @@ CREATE TABLE audit_log_actors (
 """
 
 _INDEXES = [
-    "CREATE INDEX idx_audit_log_dt ON audit_log(dt DESC)",
-    "CREATE INDEX idx_audit_log_entity ON audit_log(entity_type, entity_id)",
-    "CREATE INDEX idx_audit_log_event_type ON audit_log(event_type)",
-    "CREATE INDEX idx_audit_log_request ON audit_log(request_id)",
-    "CREATE INDEX idx_audit_actors_worker ON audit_log_actors(worker_id)",
+    "CREATE INDEX IF NOT EXISTS idx_audit_log_dt ON audit_log(dt DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_audit_log_entity ON audit_log(entity_type, entity_id)",
+    "CREATE INDEX IF NOT EXISTS idx_audit_log_event_type ON audit_log(event_type)",
+    "CREATE INDEX IF NOT EXISTS idx_audit_log_request ON audit_log(request_id)",
+    "CREATE INDEX IF NOT EXISTS idx_audit_actors_worker ON audit_log_actors(worker_id)",
 ]
 
 
@@ -91,34 +91,13 @@ def _resolve_worker(db: sqlite3.Connection, zmienil: str):
     return (None, zmienil, "unknown")
 
 
-def migrate(db: sqlite3.Connection, dry_run: bool = False) -> dict:
-    summary = {"renamed": False, "backfilled": 0, "skipped_already_migrated": False}
-
-    if not _table_exists(db, "audit_log"):
-        return summary
-
-    if _has_new_columns(db):
-        summary["skipped_already_migrated"] = True
-        return summary
-
-    if dry_run:
-        count = db.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0]
-        summary["backfilled"] = count
-        summary["renamed"] = True  # would be
-        return summary
-
-    db.execute("ALTER TABLE audit_log RENAME TO audit_log_v1")
-    summary["renamed"] = True
-
-    db.execute(_NEW_AUDIT_LOG_DDL)
-    db.execute(_NEW_AUDIT_ACTORS_DDL)
-    for ddl in _INDEXES:
-        db.execute(ddl)
-
+def _backfill_from_v1(db: sqlite3.Connection) -> int:
+    """Copy rows from audit_log_v1 into audit_log + audit_log_actors. Returns count."""
     old_rows = db.execute(
         "SELECT id, dt, tabela, rekord_id, pole, stara_wartosc, nowa_wartosc, zmienil FROM audit_log_v1"
     ).fetchall()
 
+    backfilled = 0
     for old in old_rows:
         diff = [{"pole": old[4], "stara": old[5], "nowa": old[6]}]
         cur = db.execute(
@@ -133,7 +112,7 @@ def migrate(db: sqlite3.Connection, dry_run: bool = False) -> dict:
             "INSERT INTO audit_log_actors (audit_id, worker_id, actor_login, actor_rola) VALUES (?, ?, ?, ?)",
             (new_id, worker_id, actor_login, actor_rola),
         )
-        summary["backfilled"] += 1
+        backfilled += 1
 
     old_count = db.execute("SELECT COUNT(*) FROM audit_log_v1").fetchone()[0]
     new_count = db.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0]
@@ -141,8 +120,89 @@ def migrate(db: sqlite3.Connection, dry_run: bool = False) -> dict:
         raise RuntimeError(
             f"Backfill count mismatch: old={old_count}, new={new_count}"
         )
+    return backfilled
 
-    db.commit()
+
+def migrate(db: sqlite3.Connection, dry_run: bool = False) -> dict:
+    summary = {
+        "renamed": False,
+        "backfilled": 0,
+        "skipped_already_migrated": False,
+        "recovered": False,
+    }
+
+    # Force manual transaction control for the duration of this call so that
+    # BEGIN IMMEDIATE / COMMIT / ROLLBACK work reliably regardless of what
+    # isolation_level the caller configured. Restore at the end.
+    prev_isolation_level = db.isolation_level
+    db.isolation_level = None
+    try:
+        return _migrate_inner(db, dry_run, summary)
+    finally:
+        db.isolation_level = prev_isolation_level
+
+
+def _migrate_inner(db: sqlite3.Connection, dry_run: bool, summary: dict) -> dict:
+    has_audit_log = _table_exists(db, "audit_log")
+    has_audit_log_v1 = _table_exists(db, "audit_log_v1")
+
+    # Recovery path: previous run crashed between RENAME and COMMIT.
+    # audit_log_v1 has the old data, but audit_log + actors were never created
+    # (or were created but not committed). Rebuild from v1.
+    if has_audit_log_v1 and not has_audit_log:
+        if dry_run:
+            count = db.execute("SELECT COUNT(*) FROM audit_log_v1").fetchone()[0]
+            summary["backfilled"] = count
+            summary["recovered"] = True
+            summary["renamed"] = True
+            return summary
+
+        try:
+            db.execute("BEGIN IMMEDIATE")
+            db.execute(_NEW_AUDIT_LOG_DDL)
+            db.execute(_NEW_AUDIT_ACTORS_DDL)
+            for ddl in _INDEXES:
+                db.execute(ddl)
+            summary["backfilled"] = _backfill_from_v1(db)
+            summary["recovered"] = True
+            summary["renamed"] = True
+            db.execute("COMMIT")
+        except Exception:
+            db.execute("ROLLBACK")
+            raise
+        return summary
+
+    if not has_audit_log:
+        return summary
+
+    if _has_new_columns(db):
+        summary["skipped_already_migrated"] = True
+        return summary
+
+    if dry_run:
+        count = db.execute("SELECT COUNT(*) FROM audit_log").fetchone()[0]
+        summary["backfilled"] = count
+        summary["renamed"] = True  # would be
+        return summary
+
+    # Happy path: wrap everything in an explicit transaction so a crash
+    # between RENAME and COMMIT cannot leave the DB in a wedged state.
+    try:
+        db.execute("BEGIN IMMEDIATE")
+        db.execute("ALTER TABLE audit_log RENAME TO audit_log_v1")
+        summary["renamed"] = True
+
+        db.execute(_NEW_AUDIT_LOG_DDL)
+        db.execute(_NEW_AUDIT_ACTORS_DDL)
+        for ddl in _INDEXES:
+            db.execute(ddl)
+
+        summary["backfilled"] = _backfill_from_v1(db)
+        db.execute("COMMIT")
+    except Exception:
+        db.execute("ROLLBACK")
+        raise
+
     return summary
 
 
@@ -159,9 +219,15 @@ def main():
 
     db = sqlite3.connect(db_path)
     db.row_factory = sqlite3.Row
+    # Manual transaction control — see migrate() for BEGIN IMMEDIATE/COMMIT/ROLLBACK.
+    db.isolation_level = None
     db.execute("PRAGMA foreign_keys=ON")
+    summary = None
     try:
         summary = migrate(db, dry_run=args.dry_run)
+    except Exception as e:
+        print(f"ERROR: migration failed: {e}", file=sys.stderr)
+        sys.exit(1)
     finally:
         db.close()
 
