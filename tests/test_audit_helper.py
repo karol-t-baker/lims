@@ -752,3 +752,22 @@ def test_archive_logs_system_audit_archived_event(queryable_audit_db, tmp_path):
     assert actors[0]["actor_login"] == "system"
     assert actors[0]["actor_rola"] == "system"
     assert actors[0]["worker_id"] is None
+
+
+def test_archive_empty_set_does_not_log_or_create_file(audit_db, tmp_path):
+    """When zero rows match the cutoff, no system event is logged and no file is created.
+    Prevents scheduled archival jobs from littering audit_log with no-op events."""
+    archive_dir = tmp_path / "audit_archive"
+    archive_dir.mkdir()
+    # No seed rows — audit_log is empty
+    summary = audit.archive_old_entries(audit_db, "2026-04-04T00:00:00", archive_dir)
+    assert summary["archived"] == 0
+    assert summary["file"] is None
+    assert summary["cutoff"] == "2026-04-04T00:00:00"
+    # No system.audit.archived event was logged
+    rows = audit_db.execute(
+        "SELECT COUNT(*) FROM audit_log WHERE event_type='system.audit.archived'"
+    ).fetchone()
+    assert rows[0] == 0
+    # No file was created
+    assert not (archive_dir / "audit_2026.jsonl.gz").exists()

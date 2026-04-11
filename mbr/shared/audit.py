@@ -495,26 +495,26 @@ def archive_old_entries(db, cutoff_iso: str, archive_dir) -> dict:
             # 3. Delete archived rows from the DB
             db.execute(f"DELETE FROM audit_log{where_sql}", (cutoff_iso,))
 
-        # 4. Log the archive event itself (system actor) AFTER delete so
-        # the fresh event cannot be swept by the same call.
-        log_event(
-            EVENT_SYSTEM_AUDIT_ARCHIVED,
-            payload={
-                "count": archived_count,
-                "file": str(archive_path),
-                "cutoff": cutoff_iso,
-            },
-            actors=actors_system(),
-            db=db,
-        )
+            # 4. Log the archive event itself (system actor) AFTER delete so
+            # the fresh event cannot be swept by the same call.
+            log_event(
+                EVENT_SYSTEM_AUDIT_ARCHIVED,
+                payload={
+                    "count": archived_count,
+                    "file": str(archive_path),
+                    "cutoff": cutoff_iso,
+                },
+                actors=actors_system(),
+                db=db,
+            )
 
-        db.commit()
+            db.commit()
     except Exception:
         db.rollback()
         raise
 
     return {
         "archived": archived_count,
-        "file": str(archive_path),
+        "file": str(archive_path) if rows_to_archive else None,
         "cutoff": cutoff_iso,
     }
