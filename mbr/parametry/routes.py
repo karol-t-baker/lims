@@ -481,7 +481,7 @@ def api_produkty_delete(pid):
 
 
 @parametry_bp.route("/parametry")
-@login_required
+@role_required("admin", "technolog")
 def parametry_editor():
     """Parameter editor page."""
     rola = session.get("user", {}).get("rola", "")
