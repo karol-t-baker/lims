@@ -4,6 +4,7 @@ from flask import request, session, jsonify
 
 from mbr.workers import workers_bp
 from mbr.shared.decorators import login_required
+from mbr.shared import audit
 from mbr.db import db_session
 from mbr.workers.models import list_workers, update_worker_profile
 
@@ -24,12 +25,34 @@ def api_shift():
     if request.method == "POST":
         data = request.get_json(silent=True) or {}
         worker_ids = [int(x) for x in data.get("worker_ids", []) if isinstance(x, (int, float))]
-        session["shift_workers"] = worker_ids
         with db_session() as db:
+            # Read old value for the audit diff
+            old_row = db.execute(
+                "SELECT value FROM user_settings WHERE login='_system_' AND key='current_shift'"
+            ).fetchone()
+            old_ids = _json.loads(old_row["value"]) if old_row and old_row["value"] else []
+
+            session["shift_workers"] = worker_ids
             db.execute(
                 """INSERT INTO user_settings (login, key, value) VALUES ('_system_', 'current_shift', ?)
                    ON CONFLICT(login, key) DO UPDATE SET value=excluded.value""",
                 (_json.dumps(worker_ids),),
+            )
+            # Explicit actor — never use actors_from_request here, because
+            # session['shift_workers'] is what's being SET right now and would
+            # crash actors_from_request for rola='laborant' even if shift is
+            # empty before this call.
+            user = session.get("user", {})
+            audit.log_event(
+                audit.EVENT_SHIFT_CHANGED,
+                entity_type="shift",
+                payload={"old": old_ids, "new": worker_ids},
+                actors=[{
+                    "worker_id": None,
+                    "actor_login": user.get("login", "unknown"),
+                    "actor_rola": user.get("rola", "unknown"),
+                }],
+                db=db,
             )
             db.commit()
         return jsonify({"ok": True})
