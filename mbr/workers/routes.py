@@ -172,11 +172,40 @@ def api_add_worker():
 @workers_bp.route("/api/workers/<int:worker_id>/toggle", methods=["POST"])
 @login_required
 def api_toggle_worker(worker_id):
-    from mbr.workers.models import toggle_worker_active
     with db_session() as db:
-        new_val = toggle_worker_active(db, worker_id)
-    if new_val is None:
-        return jsonify({"error": "not found"}), 404
+        # Snapshot before for the diff + entity_label
+        before_row = db.execute(
+            "SELECT imie, nazwisko, aktywny FROM workers WHERE id=?",
+            (worker_id,),
+        ).fetchone()
+        if before_row is None:
+            return jsonify({"error": "not found"}), 404
+        old_aktywny = before_row["aktywny"]
+        new_val = 0 if old_aktywny else 1
+
+        # Inline UPDATE (don't call toggle_worker_active model helper, which
+        # commits internally — would split UPDATE and audit INSERT across two
+        # separate transactions). Same pattern as api_worker_profile.
+        db.execute(
+            "UPDATE workers SET aktywny=? WHERE id=?",
+            (new_val, worker_id),
+        )
+
+        user = session.get("user", {})
+        audit.log_event(
+            audit.EVENT_WORKER_UPDATED,
+            entity_type="worker",
+            entity_id=worker_id,
+            entity_label=f"{before_row['imie']} {before_row['nazwisko']}",
+            diff=[{"pole": "aktywny", "stara": old_aktywny, "nowa": new_val}],
+            actors=[{
+                "worker_id": None,
+                "actor_login": user.get("login", "unknown"),
+                "actor_rola": user.get("rola", "unknown"),
+            }],
+            db=db,
+        )
+        db.commit()
     return jsonify({"ok": True, "aktywny": new_val})
 
 

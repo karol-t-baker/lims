@@ -171,3 +171,31 @@ def test_worker_created_logs_event(admin_client, db):
     assert payload["nazwisko"] == "Nowak"
     assert payload["inicjaly"] == "JN"
     assert payload["nickname"] == "Janek"
+
+
+# ---------- POST /api/workers/<id>/toggle ----------
+
+def test_worker_toggled_logs_event(admin_client, db):
+    resp = admin_client.post("/api/workers/1/toggle")
+    assert resp.status_code == 200
+    new_val = resp.get_json()["aktywny"]
+    assert new_val == 0  # was 1, now 0
+
+    rows = db.execute(
+        "SELECT id, entity_type, entity_id, entity_label, diff_json FROM audit_log "
+        "WHERE event_type='worker.updated' AND entity_id=1"
+    ).fetchall()
+    assert len(rows) == 1
+
+    import json as _json
+    diff = _json.loads(rows[0]["diff_json"])
+    assert diff == [{"pole": "aktywny", "stara": 1, "nowa": 0}]
+
+
+def test_worker_toggled_unknown_returns_404_no_log(admin_client, db):
+    resp = admin_client.post("/api/workers/999/toggle")
+    assert resp.status_code == 404
+    count = db.execute(
+        "SELECT COUNT(*) FROM audit_log WHERE event_type='worker.updated'"
+    ).fetchone()[0]
+    assert count == 0
