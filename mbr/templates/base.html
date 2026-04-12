@@ -101,19 +101,9 @@
   {% block footer %}{% endblock %}
 </div>
 
-{# ═══ SHIFT GATE — blocks laborant UI until shift is confirmed ═══ #}
+{# ═══ SHIFT GATE — marker for JS, no visible UI ═══ #}
 {% if session.get('user', {}).get('rola') in ('lab', 'cert') %}
-<div id="shift-gate" style="display:none; position:fixed; inset:0; z-index:400;
-  background:rgba(0,0,0,0.45); backdrop-filter:blur(2px);
-  align-items:center; justify-content:center;">
-  <div style="background:var(--surface, #fff); border-radius:12px; padding:32px 40px;
-    text-align:center; max-width:380px; box-shadow:0 8px 32px rgba(0,0,0,0.2);">
-    <svg viewBox="0 0 24 24" fill="none" stroke="#92400e" stroke-width="1.75" stroke-linecap="round" style="width:40px;height:40px;margin-bottom:12px;"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-    <div style="font-size:15px;font-weight:600;color:var(--text, #1a1a1a);margin-bottom:6px;">Potwierdź zmianę</div>
-    <div style="font-size:12px;color:var(--text-dim, #888);margin-bottom:18px;">Wybierz osoby na zmianie, aby odblokować edycję i dodawanie.</div>
-    <button class="m-btn m-btn-p" onclick="openShiftModal()" style="width:100%;">Wybierz osoby zmiany</button>
-  </div>
-</div>
+<div id="shift-gate" style="display:none;"></div>
 {% endif %}
 
 <script src="{{ url_for('static', filename='lab_common.js') }}?v={{ v }}"></script>
@@ -574,9 +564,7 @@ var _shiftGate = document.getElementById('shift-gate');
 function updateShiftGate() {
   if (!_shiftGate) return;
   if (shiftWorkerIds.length === 0) {
-    _shiftGate.style.display = 'flex';
-  } else {
-    _shiftGate.style.display = 'none';
+    openShiftModal();
   }
 }
 updateShiftGate();
