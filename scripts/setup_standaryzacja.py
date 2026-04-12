@@ -147,9 +147,18 @@ def setup_standaryzacja(db: sqlite3.Connection) -> dict:
         if dod_id:
             remove_pipeline_etap(db, produkt, dod_id[0])
 
+        # Ensure utlenienie is in pipeline
+        utl_id = db.execute("SELECT id FROM etapy_analityczne WHERE kod='utlenienie'").fetchone()
+        pipeline = get_produkt_pipeline(db, produkt)
+        etap_kody = [p["kod"] for p in pipeline]
+        if utl_id and "utlenienie" not in etap_kody:
+            max_kol = max((p["kolejnosc"] for p in pipeline), default=0)
+            set_produkt_pipeline(db, produkt, utl_id[0], kolejnosc=max_kol + 1)
+
         # Add standaryzacja at the end if not present
+        pipeline = get_produkt_pipeline(db, produkt)
+        etap_kody = [p["kod"] for p in pipeline]
         if "standaryzacja" not in etap_kody:
-            pipeline = get_produkt_pipeline(db, produkt)
             max_kol = max((p["kolejnosc"] for p in pipeline), default=0)
             set_produkt_pipeline(db, produkt, etap_id, kolejnosc=max_kol + 1)
             stats["pipelines"] += 1
