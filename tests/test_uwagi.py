@@ -357,13 +357,13 @@ def _seed_workers(db):
 
 
 def test_resolve_actor_label_falls_back_to_login_for_non_laborant_roles(db):
-    """Empty shift_workers → autor = session login for admin/technolog/laborant_kj.
-    For role 'laborant'/'laborant_coa', see test_resolve_actor_label_laborant_empty_shift_raises."""
+    """Empty shift_workers → autor = session login for admin/technolog.
+    For lab roles, see test_resolve_actor_label_laborant_empty_shift_raises."""
     from flask import Flask
     from mbr.laborant.routes import _resolve_actor_label
     app = Flask(__name__)
     app.secret_key = "test"
-    for rola in ("admin", "technolog", "laborant_kj"):
+    for rola in ("admin", "technolog"):
         with app.test_request_context():
             from flask import session
             session["user"] = {"login": "shared_lab", "rola": rola}
@@ -371,14 +371,14 @@ def test_resolve_actor_label_falls_back_to_login_for_non_laborant_roles(db):
 
 
 def test_resolve_actor_label_laborant_empty_shift_raises(db):
-    """Empty shift_workers + role='laborant'/'laborant_coa' → ShiftRequiredError."""
+    """Empty shift_workers + lab roles → ShiftRequiredError."""
     from flask import Flask
     from mbr.laborant.routes import _resolve_actor_label
     from mbr.shared.audit import ShiftRequiredError
     import pytest as _pytest
     app = Flask(__name__)
     app.secret_key = "test"
-    for rola in ("laborant", "laborant_coa"):
+    for rola in ("laborant", "laborant_kj", "laborant_coa"):
         with app.test_request_context():
             from flask import session
             session["user"] = {"login": "shared_lab", "rola": rola}

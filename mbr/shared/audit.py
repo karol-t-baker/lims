@@ -184,13 +184,13 @@ def actors_from_request(db) -> list:
 
     rola = user.get("rola")
 
-    if rola in ("laborant", "laborant_coa"):
+    if rola in ("laborant", "laborant_kj", "laborant_coa"):
         shift_ids = session.get("shift_workers") or []
         if not shift_ids:
             raise ShiftRequiredError()
         return actors_explicit(db, shift_ids)
 
-    # Single-actor roles: laborant_kj, technolog, admin
+    # Single-actor roles: technolog, admin
     return [{
         "worker_id": user.get("worker_id"),
         "actor_login": user["login"],

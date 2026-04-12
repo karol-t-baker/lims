@@ -48,7 +48,7 @@ def _resolve_actor_label(db, override: str = None) -> str:
             return ", ".join((r["nickname"] or r["inicjaly"]) for r in rows)
 
     rola = session.get("user", {}).get("rola")
-    if rola in ("laborant", "laborant_coa"):
+    if rola in ("laborant", "laborant_kj", "laborant_coa"):
         from mbr.shared.audit import ShiftRequiredError
         raise ShiftRequiredError()
 

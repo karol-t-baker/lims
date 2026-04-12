@@ -195,15 +195,14 @@ def test_actors_from_request_laborant_with_missing_shift_key_raises(app_with_wor
             audit.actors_from_request(workers_db)
 
 
-def test_actors_from_request_laborant_kj_ignores_shift_returns_single(app_with_workers, workers_db):
+def test_actors_from_request_laborant_kj_uses_shift(app_with_workers, workers_db):
     with app_with_workers.test_request_context():
         from flask import session
         session["user"] = {"login": "anna", "rola": "laborant_kj", "worker_id": 1}
         session["shift_workers"] = [1, 2, 3]
         result = audit.actors_from_request(workers_db)
-    assert len(result) == 1
-    assert result[0]["worker_id"] == 1
-    assert result[0]["actor_rola"] == "laborant_kj"
+    assert len(result) == 3
+    assert all(r["actor_rola"] == "laborant" for r in result)
 
 
 # ---------- log_event ----------
