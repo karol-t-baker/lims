@@ -118,6 +118,42 @@ def migrate_parametry_etapy(db: sqlite3.Connection) -> dict:
     db.commit()
 
     # ------------------------------------------------------------------
+    # Step 2b: etap_parametry — synthesize from product rows where no
+    #          shared (NULL) rows exist. For each kontekst that has
+    #          product-specific rows but no shared rows, create a global
+    #          entry per unique parametr_id (with NULL limits — products
+    #          will supply their own via produkt_etap_limity).
+    # ------------------------------------------------------------------
+    for kontekst, etap_id in etap_ids.items():
+        has_shared = db.execute(
+            "SELECT 1 FROM etap_parametry WHERE etap_id = ? LIMIT 1",
+            (etap_id,),
+        ).fetchone()
+        if has_shared:
+            continue
+
+        product_params = db.execute(
+            """SELECT DISTINCT parametr_id, MIN(kolejnosc) as kol,
+                      grupa, formula, sa_bias, krok
+               FROM parametry_etapy
+               WHERE kontekst = ? AND produkt IS NOT NULL
+                     AND kontekst != 'cert_variant'
+               GROUP BY parametr_id""",
+            (kontekst,),
+        ).fetchall()
+
+        for row in product_params:
+            cur = db.execute(
+                """INSERT OR IGNORE INTO etap_parametry
+                   (etap_id, parametr_id, kolejnosc, grupa, formula, sa_bias, krok)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (etap_id, row[0], row[1], row[2], row[3], row[4], row[5]),
+            )
+            stats["etap_parametry"] += cur.rowcount
+
+    db.commit()
+
+    # ------------------------------------------------------------------
     # Step 3: produkt_pipeline — one row per unique (produkt, kontekst)
     # ------------------------------------------------------------------
     product_pairs = db.execute(
