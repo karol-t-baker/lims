@@ -295,14 +295,16 @@ def reorder_pipeline(produkt):
 def set_limity(produkt, etap_id):
     data = request.get_json(force=True) or {}
     overrides = data.get("overrides", [])
+    remove = data.get("remove", [])
     db = get_db()
     try:
         for ovr in overrides:
             kwargs = {k: v for k, v in ovr.items() if k != "parametr_id"}
             pm.set_produkt_etap_limit(db, produkt, etap_id, ovr["parametr_id"], **kwargs)
+        for parametr_id in remove:
+            pm.remove_produkt_etap_limit(db, produkt, etap_id, parametr_id)
         db.commit()
-        rows = pm.get_produkt_etap_limity(db, produkt, etap_id)
-        return jsonify(rows)
+        return jsonify({"ok": True})
     finally:
         db.close()
 

@@ -307,37 +307,92 @@ function loadLimits(etapId) {
 
 function renderLimits(etapId, data) {
   var panel = document.getElementById('limits-panel-' + etapId);
-  if (!data.length) {
-    panel.innerHTML = '<div style="text-align:center;color:var(--text-dim);font-size:11px;padding:12px;">Brak parametrow w tym etapie. Najpierw dodaj parametry w katalogu etapu.</div>';
-    return;
+  var html = '<p style="font-size:10px;color:var(--text-dim);margin:0 0 8px;">Parametry tego produktu w etapie. Edytuj limity lub dodaj/usun parametry.</p>';
+
+  if (data.length) {
+    html += '<table class="pa-table">' +
+      '<thead><tr>' +
+        '<th>Parametr</th>' +
+        '<th style="width:70px;">Min</th>' +
+        '<th style="width:70px;">Max</th>' +
+        '<th style="width:65px;">Nawazka</th>' +
+        '<th style="width:65px;">Target</th>' +
+        '<th style="width:30px;"></th>' +
+      '</tr></thead><tbody>';
+
+    data.forEach(function(r) {
+      html += '<tr>' +
+        '<td><span class="pa-kod" style="font-size:10px;">' + esc(r.kod) + '</span> <span style="font-size:10px;">' + esc(r.skrot || r.label || '') + '</span></td>' +
+        '<td><input class="pa-input" type="text" inputmode="decimal" data-pid="' + r.parametr_id + '" data-field="min_limit" value="' + fmtNum(r.min_limit) + '" style="width:60px;text-align:center;font-size:10px;"></td>' +
+        '<td><input class="pa-input" type="text" inputmode="decimal" data-pid="' + r.parametr_id + '" data-field="max_limit" value="' + fmtNum(r.max_limit) + '" style="width:60px;text-align:center;font-size:10px;"></td>' +
+        '<td><input class="pa-input" type="text" inputmode="decimal" data-pid="' + r.parametr_id + '" data-field="nawazka_g" value="' + fmtNum(r.nawazka_g) + '" style="width:55px;text-align:center;font-size:10px;"></td>' +
+        '<td><input class="pa-input" type="text" inputmode="decimal" data-pid="' + r.parametr_id + '" data-field="target" value="' + fmtNum(r.target) + '" style="width:55px;text-align:center;font-size:10px;"></td>' +
+        '<td><button class="pe-del" onclick="removeProductParam(' + etapId + ',' + r.parametr_id + ')" title="Usun parametr">&times;</button></td>' +
+      '</tr>';
+    });
+
+    html += '</tbody></table>';
+    html += '<button class="limits-save" onclick="saveLimits(' + etapId + ')">Zapisz limity</button>';
+  } else {
+    html += '<div style="text-align:center;color:var(--text-dim);font-size:11px;padding:8px;">Brak parametrow. Dodaj ponizej.</div>';
   }
-  var html = '<p style="font-size:10px;color:var(--text-dim);margin:0 0 8px;">Wpisz wartosci, aby nadpisac domyslne limity z katalogu. Puste pole = wartosc z katalogu.</p>';
-  html += '<table class="pa-table">' +
-    '<thead><tr>' +
-      '<th>Parametr</th>' +
-      '<th style="width:65px;">Min (aktualny)</th>' +
-      '<th style="width:65px;">Max (aktualny)</th>' +
-      '<th style="width:70px;">Min (nadpisz)</th>' +
-      '<th style="width:70px;">Max (nadpisz)</th>' +
-      '<th style="width:65px;">Nawazka</th>' +
-      '<th style="width:65px;">Target</th>' +
-    '</tr></thead><tbody>';
 
-  data.forEach(function(r) {
-    html += '<tr>' +
-      '<td><span class="pa-kod" style="font-size:10px;">' + esc(r.kod) + '</span> <span style="font-size:10px;">' + esc(r.label || '') + '</span></td>' +
-      '<td class="readonly-val">' + fmtNum(r.min_limit) + '</td>' +
-      '<td class="readonly-val">' + fmtNum(r.max_limit) + '</td>' +
-      '<td><input class="pa-input" type="text" inputmode="decimal" step="any" data-pid="' + r.parametr_id + '" data-field="min_limit" value="" placeholder="' + fmtNum(r.min_limit) + '" style="width:60px;text-align:center;font-size:10px;"></td>' +
-      '<td><input class="pa-input" type="text" inputmode="decimal" step="any" data-pid="' + r.parametr_id + '" data-field="max_limit" value="" placeholder="' + fmtNum(r.max_limit) + '" style="width:60px;text-align:center;font-size:10px;"></td>' +
-      '<td><input class="pa-input" type="text" inputmode="decimal" step="any" data-pid="' + r.parametr_id + '" data-field="nawazka_g" value="" placeholder="' + fmtNum(r.nawazka_g) + '" style="width:55px;text-align:center;font-size:10px;"></td>' +
-      '<td><input class="pa-input" type="text" inputmode="decimal" step="any" data-pid="' + r.parametr_id + '" data-field="target" value="" placeholder="' + fmtNum(r.target) + '" style="width:55px;text-align:center;font-size:10px;"></td>' +
-    '</tr>';
-  });
+  // Add parameter picker
+  html += '<div style="display:flex;gap:6px;align-items:center;margin-top:10px;flex-wrap:wrap;">' +
+    '<span style="font-size:8px;font-weight:800;color:var(--text-dim);text-transform:uppercase;">Dodaj parametr</span>' +
+    '<select id="add-param-sel-' + etapId + '" style="padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-size:11px;background:#fff;width:220px;"></select>' +
+    '<button class="limits-save" onclick="addProductParam(' + etapId + ')" style="margin-top:0;">+ Dodaj</button>' +
+  '</div>';
 
-  html += '</tbody></table>';
-  html += '<button class="limits-save" onclick="saveLimits(' + etapId + ')">Zapisz limity</button>';
   panel.innerHTML = html;
+
+  // Populate param picker (exclude already added)
+  var usedPids = data.map(function(r){return r.parametr_id;});
+  fetch('/api/parametry/list').then(function(r){return r.json();}).then(function(allParams) {
+    var sel = document.getElementById('add-param-sel-' + etapId);
+    var optHtml = '<option value="">— wybierz —</option>';
+    allParams.forEach(function(p) {
+      if (!p.aktywny || usedPids.indexOf(p.id) >= 0) return;
+      optHtml += '<option value="' + p.id + '">' + esc(p.kod) + ' — ' + esc(p.skrot || p.label) + '</option>';
+    });
+    sel.innerHTML = optHtml;
+  });
+}
+
+function addProductParam(etapId) {
+  var sel = document.getElementById('add-param-sel-' + etapId);
+  if (!sel || !sel.value) { alert('Wybierz parametr'); return; }
+  var paramId = parseInt(sel.value);
+
+  // Create binding via parametry API (it detects pipeline automatically)
+  fetch('/api/parametry/etapy', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({parametr_id: paramId, kontekst: 'analiza_koncowa', produkt: PRODUKT})
+  }).then(function(r) {
+    if (!r.ok) return r.json().then(function(d){alert(d.error || 'Blad');});
+    loadLimits(etapId);
+  });
+}
+
+function removeProductParam(etapId, parametrId) {
+  if (!confirm('Usunac parametr z tego produktu?')) return;
+  // Find the produkt_etap_limity id
+  fetch('/api/pipeline/produkt/' + encodeURIComponent(PRODUKT) + '/etapy/' + etapId + '/resolved')
+    .then(function(r){return r.json();})
+    .then(function(data) {
+      var param = data.find(function(p){return p.parametr_id === parametrId;});
+      if (!param) return;
+      // Delete via parametry API (detects pipeline)
+      // We need the produkt_etap_limity id — query it
+      fetch('/api/pipeline/produkt/' + encodeURIComponent(PRODUKT) + '/etapy/' + etapId + '/limity', {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({remove: [parametrId]})
+      }).then(function(r) {
+        if (r.ok) loadLimits(etapId);
+      });
+    });
 }
 
 function saveLimits(etapId) {

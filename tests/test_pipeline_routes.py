@@ -429,9 +429,7 @@ def test_produkt_etap_limity(admin_client, db):
         json={"overrides": [{"parametr_id": 9001, "min_limit": 6.5, "max_limit": 7.5}]},
     )
     assert resp.status_code == 200
-    overrides = resp.get_json()
-    assert len(overrides) == 1
-    assert overrides[0]["min_limit"] == 6.5
+    assert resp.get_json()["ok"] is True
 
     # Get resolved limits: product override wins
     resp = admin_client.get(f"/api/pipeline/produkt/K7/etapy/{etap_id}/resolved")
