@@ -297,7 +297,8 @@ function renderSections() {
         let fieldsHtml = '<div class="fg wide">';
         pola.forEach(pole => {
             const existing = sekWyniki[pole.kod];
-            const val = existing ? String(existing.wartosc).replace('.', ',') : '';
+            const prec = pole.precision != null ? pole.precision : 2;
+            const val = existing && existing.wartosc != null ? parseFloat(existing.wartosc).toFixed(prec).replace('.', ',') : '';
             const komentarzVal = existing ? (existing.komentarz || '') : '';
             const isTitr = pole.measurement_type === 'titracja' || TITR_TAGS_LEGACY.includes(pole.kod);
             const isObl = pole.measurement_type === 'obliczeniowy';
