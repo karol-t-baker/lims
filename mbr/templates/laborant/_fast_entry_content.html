@@ -56,12 +56,6 @@
   </div>
 </div>
 
-<div style="padding: 0 24px 16px;">
-  {% with entity_type='ebr', entity_id=ebr.ebr_id %}
-    {% include "_audit_history_section.html" %}
-  {% endwith %}
-</div>
-
 {% if ebr.status == 'open' %}
 <div id="detail-footer" class="footer">
   <span class="f-hint">Pola zapisuja sie automatycznie po wpisaniu wartosci.</span>
