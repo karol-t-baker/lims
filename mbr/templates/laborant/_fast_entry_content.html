@@ -2271,6 +2271,7 @@ function renderOneSection(container, opts) {
                     ' data-min="' + (pole.min != null ? pole.min : '') + '"' +
                     ' data-max="' + (pole.max != null ? pole.max : '') + '"' +
                     ' data-measurement-type="' + esc(pole.measurement_type || '') + '"' +
+                    ' data-precision="' + (pole.precision != null ? pole.precision : 2) + '"' +
                     (pole.metoda_id ? ' data-metoda-id="' + pole.metoda_id + '"' : '') +
                     (pole.calc_method && pole.calc_method.suggested_mass ? ' data-nawazka="' + pole.calc_method.suggested_mass + '"' : '') +
                     (isObl && pole.formula ? ' data-formula="' + esc(pole.formula) + '"' : '') +
@@ -2363,6 +2364,14 @@ function doSaveField(input, sekcja, kod) {
     var key = sekcja + '__' + kod;
     if (_saveTimers[key]) { clearTimeout(_saveTimers[key]); delete _saveTimers[key]; }
     if (input.value === '') return;
+
+    // Auto-round to parameter precision on blur
+    var rawVal = input.value.replace(',', '.');
+    if (!isNaN(rawVal) && rawVal !== '') {
+        var prec = parseInt(input.dataset.precision || '2', 10);
+        input.value = parseFloat(rawVal).toFixed(prec).replace('.', ',');
+    }
+
     var komentarz = document.querySelector('textarea[data-komentarz="' + kod + '"][data-sekcja="' + sekcja + '"]');
     var values = {};
     values[kod] = {
