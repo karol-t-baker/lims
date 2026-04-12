@@ -185,6 +185,15 @@ def fast_entry_partial(ebr_id):
         if ebr is None:
             return "Nie znaleziono", 404
 
+        # Pipeline adapter: if product has pipeline, override etapy_json + parametry_lab
+        from mbr.pipeline.adapter import build_pipeline_context
+        import json as _json
+        pipeline_ctx = build_pipeline_context(db, ebr["produkt"])
+        if pipeline_ctx:
+            ebr = dict(ebr)  # make mutable copy (sqlite3.Row is read-only)
+            ebr["etapy_json"] = _json.dumps(pipeline_ctx["etapy_json"])
+            ebr["parametry_lab"] = _json.dumps(pipeline_ctx["parametry_lab"])
+
         wyniki = get_ebr_wyniki(db, ebr_id)
         round_state = get_round_state(wyniki)
         etapy_status = get_etapy_status(db, ebr_id)
@@ -263,11 +272,32 @@ def save_entry(ebr_id):
 
         sync_ebr_to_v4(db, ebr_id, ebr=ebr)
 
+        # Pipeline dual-write: save to ebr_pomiar + evaluate gate
+        gate_result = None
+        try:
+            from mbr.pipeline.adapter import pipeline_dual_write
+            from mbr.shared.filters import parse_decimal as _parse_decimal
+            parsed_values = {}
+            for kod, entry in values.items():
+                v = entry.get("wartosc", "")
+                try:
+                    parsed_values[kod] = _parse_decimal(v) if v != "" else None
+                except (ValueError, TypeError):
+                    pass
+            gate_result = pipeline_dual_write(db, ebr_id, sekcja, parsed_values, user)
+            if gate_result is not None:
+                db.commit()
+        except Exception:
+            pass  # pipeline dual-write is non-critical
+
         if values_changed:
             from mbr.certs.models import mark_swiadectwa_outdated
             mark_swiadectwa_outdated(db, ebr_id)
 
-    return jsonify({"ok": True})
+    resp = {"ok": True}
+    if gate_result is not None:
+        resp["gate"] = gate_result
+    return jsonify(resp)
 
 
 @laborant_bp.route("/api/ebr/<int:ebr_id>/golden", methods=["POST"])
