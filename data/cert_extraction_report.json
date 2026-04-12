@@ -1,0 +1,2089 @@
+{
+  "products": {
+    "Alkinol": {
+      "variants_found": [
+        "base"
+      ],
+      "parameters": [
+        {
+          "name_pl": "Barwa w skali jodowej",
+          "name_en": "Colour (Iodine scale)",
+          "requirement": "max 2",
+          "method": "L928",
+          "qualitative_result": null,
+          "matched_kod": "barwa_jod",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Zapach",
+          "name_en": "Odour",
+          "requirement": "charakterystyczny\n/characteristic",
+          "method": "organoleptycznie\n/organoleptic",
+          "qualitative_result": "zgodny\n/right",
+          "matched_kod": "odour",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Wygląd",
+          "name_en": "Appearance",
+          "requirement": "wosk\n/wax",
+          "method": "P801",
+          "qualitative_result": "zgodny\n/right",
+          "matched_kod": "appearance",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Liczba kwasowa [mg KOH/g]",
+          "name_en": "Acid value [mg KOH/g]",
+          "requirement": "max 2,00",
+          "method": "PN-EN ISO 660:2021-03",
+          "qualitative_result": "<0,01",
+          "matched_kod": "lk",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Liczba zmydlania [mg KOH/g]",
+          "name_en": "Saponification value [mg KOH/g]",
+          "requirement": "max 2,00",
+          "method": "PN-EN ISO 3657:2024-01",
+          "qualitative_result": null,
+          "matched_kod": "lz",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Temperatura kroplenia [C]",
+          "name_en": "Dropping point [C]",
+          "requirement": "47,0-55,0",
+          "method": "L934",
+          "qualitative_result": null,
+          "matched_kod": "t_kropl",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Liczba hydroksylowa [mg KOH/g]",
+          "name_en": "Hydroxyl value [mg KOH/g]",
+          "requirement": "135-160",
+          "method": "L929",
+          "qualitative_result": null,
+          "matched_kod": "lh",
+          "in_cert_config": true
+        }
+      ]
+    },
+    "Alkinol_B": {
+      "variants_found": [
+        "AVON MB",
+        "MB",
+        "base"
+      ],
+      "parameters": [
+        {
+          "name_pl": "Barwa w skali jodowej",
+          "name_en": "Colour (Iodine scale)",
+          "requirement": "max 2",
+          "method": "L928",
+          "qualitative_result": null,
+          "matched_kod": "barwa_jod",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Zapach",
+          "name_en": "Odour",
+          "requirement": "charakterystyczny\n/characteristic",
+          "method": "organoleptycznie\n/organoleptic",
+          "qualitative_result": "zgodny \n/right",
+          "matched_kod": "odour",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Wygląd",
+          "name_en": "Appearance",
+          "requirement": "substancja woskowa\n/waxy substance",
+          "method": "P801",
+          "qualitative_result": "zgodny \n/right",
+          "matched_kod": "appearance",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Liczba kwasowa [mgKOH/g]",
+          "name_en": "Acid value [mg KOH/g]",
+          "requirement": "max 2,00",
+          "method": "PN-EN ISO 660:2021-03",
+          "qualitative_result": "<0,01",
+          "matched_kod": "lk",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Liczba zmydlania [mg KOH/g]",
+          "name_en": "Saponification value\n[mg KOH/g]",
+          "requirement": "max 2,00",
+          "method": "PN-EN ISO 3657:2024-01",
+          "qualitative_result": "<0,01",
+          "matched_kod": "lz",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Temperatura kroplenia [C]",
+          "name_en": "Dropping point [C]",
+          "requirement": "47,0-55,0",
+          "method": "L934",
+          "qualitative_result": null,
+          "matched_kod": "t_kropl",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Liczba hydroksylowa \n[mg KOH/g]",
+          "name_en": "Hydroxyl value [mg KOH/g]",
+          "requirement": "155-180",
+          "method": "L929",
+          "qualitative_result": null,
+          "matched_kod": "lh",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Liczba jodowa [g I2/100 g]",
+          "name_en": "Iodine value [g I2/100 g]",
+          "requirement": "max 2,00",
+          "method": "PN-EN ISO 3961:2018-09",
+          "qualitative_result": "<0,20",
+          "matched_kod": "li",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Liczba zmydlania [mgKOH/g[",
+          "name_en": "Saponification value [mg KOH/g]",
+          "requirement": "max 2,00",
+          "method": "PN-EN ISO 3657:2024-01",
+          "qualitative_result": "<0,01",
+          "matched_kod": "lz",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Temperatura kroplenia [C]",
+          "name_en": "Dropping point [C]",
+          "requirement": "47,0-55,0",
+          "method": "L934",
+          "qualitative_result": null,
+          "matched_kod": "t_kropl",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Liczba hydroksylowa [mg KOH/g]",
+          "name_en": "Hydroxyl value [mg KOH/g]",
+          "requirement": "155-180",
+          "method": "L929",
+          "qualitative_result": null,
+          "matched_kod": "lh",
+          "in_cert_config": true
+        }
+      ]
+    },
+    "Alstermid_K": {
+      "variants_found": [
+        "base"
+      ],
+      "parameters": [
+        {
+          "name_pl": "Liczba kwasowa [mg KOH/g]",
+          "name_en": "Acid value [mg KOH/g]",
+          "requirement": "max 15,0",
+          "method": "PN-EN ISO 660:2021-03",
+          "qualitative_result": null,
+          "matched_kod": "lk",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Liczba aminowa [mg KOH/g]",
+          "name_en": "Amine value [mg/KOH/g]",
+          "requirement": "130-160",
+          "method": "L914",
+          "qualitative_result": null,
+          "matched_kod": "la",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Wolne kwasy tłuszczowe \n(kwasy kokosowe, MW=220) [%]",
+          "name_en": "Free fatty acids \n(Coconut fatty acids, MW=220) [%]",
+          "requirement": "max 1,60",
+          "method": "L925",
+          "qualitative_result": null,
+          "matched_kod": "wkt",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Barwa w skali jodowej",
+          "name_en": "Colour (Iodine scale)",
+          "requirement": "max 4",
+          "method": "L928",
+          "qualitative_result": null,
+          "matched_kod": "barwa_jod",
+          "in_cert_config": true
+        }
+      ]
+    },
+    "Chegina_CC": {
+      "variants_found": [
+        "base"
+      ],
+      "parameters": [
+        {
+          "name_pl": "Wygląd",
+          "name_en": "Appearance",
+          "requirement": "klarowna ciecz\n/clear liquid",
+          "method": "organoleptycznie\n/organoleptic",
+          "qualitative_result": null,
+          "matched_kod": "appearance",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Barwa w skali Hazena",
+          "name_en": "Colour (Hazen scale)",
+          "requirement": "max 250",
+          "method": "L928",
+          "qualitative_result": null,
+          "matched_kod": "barwa_hz",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Zapach",
+          "name_en": "Odour",
+          "requirement": "charakterystyczny, słaby\n/faint, characteristic",
+          "method": "organoleptycznie\n/organoleptic",
+          "qualitative_result": null,
+          "matched_kod": "odour",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "pH (5%, aq, 25°C)",
+          "name_en": "",
+          "requirement": "6,00 – 8,00",
+          "method": "L905",
+          "qualitative_result": null,
+          "matched_kod": "ph",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "H2O [%]",
+          "name_en": "",
+          "requirement": "60,0 - 64,0",
+          "method": "L903",
+          "qualitative_result": null,
+          "matched_kod": "h2o",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "NaCl [%]",
+          "name_en": "",
+          "requirement": "6,5 - 7,5",
+          "method": "L941",
+          "qualitative_result": null,
+          "matched_kod": "nacl",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Substancja aktywna [%]",
+          "name_en": "Active matter [%]",
+          "requirement": "29,0 - 33,0",
+          "method": "L932",
+          "qualitative_result": null,
+          "matched_kod": "active_matter",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Alkaliczność [meq/g]",
+          "name_en": "Total alkalinity [meq/g]",
+          "requirement": "1,15 – 1,30",
+          "method": "L921",
+          "qualitative_result": null,
+          "matched_kod": "alkalinity",
+          "in_cert_config": true
+        }
+      ]
+    },
+    "Chegina_CCR": {
+      "variants_found": [
+        "base"
+      ],
+      "parameters": [
+        {
+          "name_pl": "Wygląd",
+          "name_en": "Appearance",
+          "requirement": "klarowna ciecz\n/clear liquid",
+          "method": "organoleptycznie\n/organoleptic",
+          "qualitative_result": "zgodny\n/right",
+          "matched_kod": "appearance",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Barwa w skali Hazena",
+          "name_en": "Color (Hazen scale)",
+          "requirement": "max 250",
+          "method": "L928",
+          "qualitative_result": null,
+          "matched_kod": "barwa_hz",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Zapach",
+          "name_en": "Odour",
+          "requirement": "charakterystyczny słaby\n/faint characteristic",
+          "method": "organoleptycznie\n/organoleptic",
+          "qualitative_result": "zgodny\n/right",
+          "matched_kod": "odour",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "pH (5%, aq, 25°C)",
+          "name_en": "",
+          "requirement": "6,00 – 8,00",
+          "method": "L905",
+          "qualitative_result": null,
+          "matched_kod": "ph",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "NaCl [%]",
+          "name_en": "",
+          "requirement": "6,2-7,2",
+          "method": "L941",
+          "qualitative_result": null,
+          "matched_kod": "nacl",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Substancja aktywna [%]",
+          "name_en": "Active matter [%]",
+          "requirement": "29,0-31,5",
+          "method": "L932",
+          "qualitative_result": null,
+          "matched_kod": "active_matter",
+          "in_cert_config": true
+        }
+      ]
+    },
+    "Chegina_GLOL40": {
+      "variants_found": [
+        "MB",
+        "MB OQEMA",
+        "NR ZAMÓWIENIA",
+        "base"
+      ],
+      "parameters": [
+        {
+          "name_pl": "Barwa",
+          "name_en": "Colour",
+          "requirement": "jasnożółty\n/pale yellow",
+          "method": "organoleptycznie\n/organoleptic",
+          "qualitative_result": "zgodny\n/right",
+          "matched_kod": "colour",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Zapach",
+          "name_en": "Odour",
+          "requirement": "charakterystycznysłaby\n/characteristic faint",
+          "method": "organoleptycznie\n/organoleptic",
+          "qualitative_result": "zgodny\n/right",
+          "matched_kod": "odour",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Wygląd",
+          "name_en": "Appearance",
+          "requirement": "klarowna ciecz\n/clear liquid",
+          "method": "organoleptycznie\n/organoleptic",
+          "qualitative_result": "zgodny\n/right",
+          "matched_kod": "appearance",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "pH",
+          "name_en": "",
+          "requirement": "4,50-5,50",
+          "method": "L905",
+          "qualitative_result": null,
+          "matched_kod": "ph",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Substancja aktywna [%]",
+          "name_en": "Active matter [%]",
+          "requirement": "37,0-42,0",
+          "method": "L932",
+          "qualitative_result": null,
+          "matched_kod": "active_matter",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "NaCl [%]",
+          "name_en": "",
+          "requirement": "5,8–7,3",
+          "method": "L941",
+          "qualitative_result": null,
+          "matched_kod": "nacl",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "H2O [%]",
+          "name_en": "",
+          "requirement": "52,0-56,0",
+          "method": "L903",
+          "qualitative_result": null,
+          "matched_kod": "h2o",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Wolna kokamidopropylodimetyloamina [%]",
+          "name_en": "Free cocamidopropyldimethylamine [%]",
+          "requirement": "max 0,30",
+          "method": "L904",
+          "qualitative_result": null,
+          "matched_kod": "free_amine",
+          "in_cert_config": true
+        }
+      ]
+    },
+    "Chegina_K40GL": {
+      "variants_found": [
+        "ADAM&PARTNER",
+        "MB",
+        "NR ZAM",
+        "NUMER ZAMÓWIENIA",
+        "base"
+      ],
+      "parameters": [
+        {
+          "name_pl": "Sucha masa [%]",
+          "name_en": "Dry matter [%]",
+          "requirement": "min 44,0",
+          "method": "L903",
+          "qualitative_result": null,
+          "matched_kod": "dry_matter",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "NaCl [%]",
+          "name_en": "",
+          "requirement": "5,8-7,3",
+          "method": "L941",
+          "qualitative_result": null,
+          "matched_kod": "nacl",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Bawa w skali Hazena",
+          "name_en": "Colour (Hazen scale)",
+          "requirement": "max 150",
+          "method": "L928",
+          "qualitative_result": null,
+          "matched_kod": "barwa_hz",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "pH (10%, aq)",
+          "name_en": "",
+          "requirement": "4,50-5,50",
+          "method": "L905",
+          "qualitative_result": null,
+          "matched_kod": "ph",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Substancja aktywna [%]",
+          "name_en": "Active matter [%]",
+          "requirement": "min 37,0",
+          "method": "L932",
+          "qualitative_result": null,
+          "matched_kod": "active_matter",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Nadtlenki w przeliczeniu na H2O2 [%]",
+          "name_en": "Peroxides as H2O2 [%]",
+          "requirement": "max 0,00",
+          "method": "L901",
+          "qualitative_result": "0,00",
+          "matched_kod": "h2o2",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Barwa w skali Hazena",
+          "name_en": "Colour (Hazen scale)",
+          "requirement": "max 150",
+          "method": "L928",
+          "qualitative_result": null,
+          "matched_kod": "barwa_hz",
+          "in_cert_config": true
+        }
+      ]
+    },
+    "Chegina_K40GLN": {
+      "variants_found": [
+        "MB",
+        "base"
+      ],
+      "parameters": [
+        {
+          "name_pl": "Barwa w skali Hazena",
+          "name_en": "Colour (Hazen scale)",
+          "requirement": "max 150",
+          "method": "L928",
+          "qualitative_result": null,
+          "matched_kod": "barwa_hz",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Zapach",
+          "name_en": "Odour",
+          "requirement": "słaby\n/faint",
+          "method": "organoleptycznie\n/organoleptic",
+          "qualitative_result": "zgodny\n/right",
+          "matched_kod": "odour",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Wygląd",
+          "name_en": "Appearance",
+          "requirement": "klarowna ciecz /clear liquid,",
+          "method": "organoleptycznie\n/organoleptic",
+          "qualitative_result": "zgodny\n/right",
+          "matched_kod": "appearance",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "pH (20°C)",
+          "name_en": "",
+          "requirement": "4,50-5,50",
+          "method": "L905",
+          "qualitative_result": null,
+          "matched_kod": "ph",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Substancja aktywna [%]",
+          "name_en": "Active matter [%]",
+          "requirement": "37,6-40,0",
+          "method": "L932",
+          "qualitative_result": null,
+          "matched_kod": "active_matter",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "NaCl [%]",
+          "name_en": "",
+          "requirement": "5,8-7,3",
+          "method": "L941",
+          "qualitative_result": null,
+          "matched_kod": "nacl",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Sucha masa [%]",
+          "name_en": "Dry matter [%]",
+          "requirement": "min 44,0",
+          "method": "L903",
+          "qualitative_result": null,
+          "matched_kod": "dry_matter",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "H2O [%]",
+          "name_en": "",
+          "requirement": "max. 56,0",
+          "method": "L903",
+          "qualitative_result": null,
+          "matched_kod": "h2o",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Zawartość wolnego aminoamidu [%]",
+          "name_en": "Free aminoamide [%]",
+          "requirement": "max 0,30",
+          "method": "L904",
+          "qualitative_result": null,
+          "matched_kod": "free_aminoamide",
+          "in_cert_config": true
+        }
+      ]
+    },
+    "Chegina_K40GLO": {
+      "variants_found": [
+        "MB",
+        "MB NR ZAMÓWIENIA",
+        "Z NR ZAMÓWIENIA",
+        "base"
+      ],
+      "parameters": [
+        {
+          "name_pl": "Sucha masa [%]",
+          "name_en": "Dry matter [%]",
+          "requirement": "min 44,0",
+          "method": "L903",
+          "qualitative_result": null,
+          "matched_kod": "dry_matter",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "NaCl [%]",
+          "name_en": "",
+          "requirement": "5,8-7,3",
+          "method": "L941",
+          "qualitative_result": null,
+          "matched_kod": "nacl",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Barwa w skali Hazena",
+          "name_en": "Colour (Hazen scale)",
+          "requirement": "max 200",
+          "method": "L928",
+          "qualitative_result": null,
+          "matched_kod": "barwa_hz",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "pH (10%, aq)",
+          "name_en": "",
+          "requirement": "5,00-7,00",
+          "method": "L905",
+          "qualitative_result": null,
+          "matched_kod": "ph",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Substancja aktywna [%]",
+          "name_en": "Active matter [%]",
+          "requirement": "min 37,0",
+          "method": "L932",
+          "qualitative_result": null,
+          "matched_kod": "active_matter",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Gęstość (20°C) [g/cm3]",
+          "name_en": "Density (20°C) [g/cm3]",
+          "requirement": "1,05-1,09",
+          "method": "L917",
+          "qualitative_result": null,
+          "matched_kod": "density",
+          "in_cert_config": true
+        }
+      ]
+    },
+    "Chegina_K40GLOL": {
+      "variants_found": [
+        "HQ",
+        "KOSMEPOL MB",
+        "LOREAL BELGIA MB",
+        "LOREAL MB",
+        "LOREAL WŁOCHY MB"
+      ],
+      "parameters": [
+        {
+          "name_pl": "Barwa w skali Hazena",
+          "name_en": "Colour (Hazen scale)",
+          "requirement": "max 150",
+          "method": "L928",
+          "qualitative_result": null,
+          "matched_kod": "barwa_hz",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Zapach",
+          "name_en": "Odour",
+          "requirement": "słaby\n/faint",
+          "method": "organoleptycznie\n/organoleptic",
+          "qualitative_result": "zgodny\n/right",
+          "matched_kod": "odour",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Wygląd",
+          "name_en": "Appearance",
+          "requirement": "klarowna ciecz\n/clear liquid",
+          "method": "organoleptycznie\n/organoleptic",
+          "qualitative_result": "zgodny\n/right",
+          "matched_kod": "appearance",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "pH (20°C)",
+          "name_en": "",
+          "requirement": "4,50-5,50",
+          "method": "L905",
+          "qualitative_result": null,
+          "matched_kod": "ph",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Substancja aktywna [%]",
+          "name_en": "Active matter [%]",
+          "requirement": "37,0-42,0",
+          "method": "L932",
+          "qualitative_result": null,
+          "matched_kod": "active_matter",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "NaCl [%]",
+          "name_en": "",
+          "requirement": "5,8–7,3",
+          "method": "L941",
+          "qualitative_result": null,
+          "matched_kod": "nacl",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Sucha masa [%]",
+          "name_en": "Dry matter [%]",
+          "requirement": "min. 44,0",
+          "method": "L903",
+          "qualitative_result": null,
+          "matched_kod": "dry_matter",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "H2O [%]",
+          "name_en": "",
+          "requirement": "52,0 – 56,0",
+          "method": "L903",
+          "qualitative_result": null,
+          "matched_kod": "h2o",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Wolna kokamidopropylodimetyloamina [%]",
+          "name_en": "Free cocamidopropyldimethylamine [%]",
+          "requirement": "max 0,30",
+          "method": "L904",
+          "qualitative_result": null,
+          "matched_kod": "free_amine",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Barwa",
+          "name_en": "Colour",
+          "requirement": "jasnożółty\n/pale yellow",
+          "method": "organoleptycznie\n/organoleptic",
+          "qualitative_result": "zgodny\n/right",
+          "matched_kod": "colour",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "pH",
+          "name_en": "",
+          "requirement": "4,50-5,50",
+          "method": "L905",
+          "qualitative_result": null,
+          "matched_kod": "ph",
+          "in_cert_config": true
+        }
+      ]
+    },
+    "Chegina_K40GLOS": {
+      "variants_found": [
+        "MB",
+        "base"
+      ],
+      "parameters": [
+        {
+          "name_pl": "Barwa w skali Hazena",
+          "name_en": "Colour (Hazen scale)",
+          "requirement": "max 150",
+          "method": "L928",
+          "qualitative_result": null,
+          "matched_kod": "barwa_hz",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Zapach",
+          "name_en": "Odour",
+          "requirement": "słaby\n/faint",
+          "method": "organoleptycznie\n/organoleptic",
+          "qualitative_result": "zgodny\n/right",
+          "matched_kod": "odour",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Wygląd",
+          "name_en": "Appearance",
+          "requirement": "klarowna ciecz\n/clear liquid",
+          "method": "organoleptycznie\n/organoleptic",
+          "qualitative_result": "zgodny\n/right",
+          "matched_kod": "appearance",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "pH (20°C)",
+          "name_en": "",
+          "requirement": "4,50-5,50",
+          "method": "L905",
+          "qualitative_result": null,
+          "matched_kod": "ph",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Substancja aktywna [%]",
+          "name_en": "Active matter [%]",
+          "requirement": "39,0-42,0",
+          "method": "L932",
+          "qualitative_result": null,
+          "matched_kod": "active_matter",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "NaCl [%]",
+          "name_en": "",
+          "requirement": "5,8-7,3",
+          "method": "L941",
+          "qualitative_result": null,
+          "matched_kod": "nacl",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Sucha masa [%]",
+          "name_en": "Dry matter [%]",
+          "requirement": "min 44,8",
+          "method": "L903",
+          "qualitative_result": null,
+          "matched_kod": "dry_matter",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "H2O [%]",
+          "name_en": "",
+          "requirement": "52,0-55,2",
+          "method": "L903",
+          "qualitative_result": null,
+          "matched_kod": "h2o",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Wolna kokamidopropylodimetyloamina [%]",
+          "name_en": "Free cocamidopropyldimethylamine [%]",
+          "requirement": "max 0,30",
+          "method": "L904",
+          "qualitative_result": null,
+          "matched_kod": "free_amine",
+          "in_cert_config": true
+        }
+      ]
+    },
+    "Chegina_K7": {
+      "variants_found": [
+        "ADAM&PARTNER",
+        "ADAM&PARTNER MB",
+        "DR. MIELE MB",
+        "GLOBAL_DR. MIELE",
+        "MB",
+        "NR ZAMÓWIENIA",
+        "base"
+      ],
+      "parameters": [
+        {
+          "name_pl": "Sucha masa [%]",
+          "name_en": "Dry matter [%]",
+          "requirement": "min 35,5",
+          "method": "L903",
+          "qualitative_result": null,
+          "matched_kod": "dry_matter",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "NaCl [%]",
+          "name_en": "",
+          "requirement": "max 5,5",
+          "method": "L941",
+          "qualitative_result": null,
+          "matched_kod": "nacl",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Wsp. załamania światła (nD20)",
+          "name_en": "Refraction (nD20)",
+          "requirement": "1,3800-1,3950",
+          "method": "PN-EN ISO 6320:2017-04",
+          "qualitative_result": null,
+          "matched_kod": "nd20",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Barwa w skali jodowej",
+          "name_en": "Colour (Iodine scale)",
+          "requirement": "max 3",
+          "method": "L928",
+          "qualitative_result": null,
+          "matched_kod": "barwa_jod",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "pH (10%, aq)",
+          "name_en": "",
+          "requirement": "4,50-7,50",
+          "method": "L905",
+          "qualitative_result": null,
+          "matched_kod": "ph",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Substancja aktywna [%]",
+          "name_en": "Active matter [%]",
+          "requirement": "30,0-32,0",
+          "method": "L932",
+          "qualitative_result": null,
+          "matched_kod": "active_matter",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Nadtlenki w przeliczeniu na H2O2 [%]",
+          "name_en": "Peroxides as H2O2 [%]",
+          "requirement": "max 0,00",
+          "method": "L901",
+          "qualitative_result": "<0,00",
+          "matched_kod": "h2o2",
+          "in_cert_config": true
+        }
+      ]
+    },
+    "Chegina_K7B": {
+      "variants_found": [
+        "MB",
+        "NR ZAMOWIENIA",
+        "base"
+      ],
+      "parameters": [
+        {
+          "name_pl": "Sucha masa [%]",
+          "name_en": "Dry matter [%]",
+          "requirement": "36-38",
+          "method": "L903",
+          "qualitative_result": null,
+          "matched_kod": "dry_matter",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Barwa w skali jodowej",
+          "name_en": "Colour (Iodine scale)",
+          "requirement": "max 2",
+          "method": "L928",
+          "qualitative_result": null,
+          "matched_kod": "barwa_jod",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "pH (10%, aq)",
+          "name_en": "",
+          "requirement": "4,20-5,20",
+          "method": "L905",
+          "qualitative_result": null,
+          "matched_kod": "ph",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Substancja aktywna [%]",
+          "name_en": "Active matter [%]",
+          "requirement": "29-31",
+          "method": "L932",
+          "qualitative_result": null,
+          "matched_kod": "active_matter",
+          "in_cert_config": true
+        }
+      ]
+    },
+    "Chegina_KK": {
+      "variants_found": [
+        "AVON MB",
+        "BEZ KODU",
+        "LEHVOSS",
+        "MB PRIME",
+        "NR ZAMÓWIENIA",
+        "PRIME",
+        "REVADA",
+        "SKINCHEM",
+        "base"
+      ],
+      "parameters": [
+        {
+          "name_pl": "Zapach",
+          "name_en": "Odour",
+          "requirement": "charakterystyczny, słaby „tłuszczowo-amidowy”\n/ characteristic,\nweak soapy",
+          "method": "organoleptycznie\n/organoleptic",
+          "qualitative_result": "zgodny\n/right",
+          "matched_kod": "odour",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Wygląd",
+          "name_en": "Appearance",
+          "requirement": "klarowna ciecz\n/clear liquid",
+          "method": "organoleptycznie\n/organoleptic",
+          "qualitative_result": "Z zgodny\n/right",
+          "matched_kod": "appearance",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "pH (10%, 25 C)",
+          "name_en": "",
+          "requirement": "5,00-7,00",
+          "method": "L905",
+          "qualitative_result": null,
+          "matched_kod": "ph",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "NaCl [%]",
+          "name_en": "",
+          "requirement": "4,0-6,0",
+          "method": "L941",
+          "qualitative_result": null,
+          "matched_kod": "nacl",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Substancja aktywna [%]",
+          "name_en": "Active matter [%]",
+          "requirement": "29,0-32,0",
+          "method": "L932",
+          "qualitative_result": null,
+          "matched_kod": "active_matter",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Zawartość wolnego aminoamidu [%]",
+          "name_en": "Free aminoamide [%]",
+          "requirement": "max 0,50",
+          "method": "L904",
+          "qualitative_result": null,
+          "matched_kod": "free_aminoamide",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Barwa w skali jodowej",
+          "name_en": "Colour (Iodine scale)",
+          "requirement": "max 1",
+          "method": "L928",
+          "qualitative_result": null,
+          "matched_kod": "barwa_jod",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "MCA [ppm]",
+          "name_en": "",
+          "requirement": "max 3000",
+          "method": "metoda zew.\n/external method",
+          "qualitative_result": "< 3000",
+          "matched_kod": "mca",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "DCA [ppm]",
+          "name_en": "",
+          "requirement": "max 400",
+          "method": "metoda zew.\n/external method",
+          "qualitative_result": "< 400",
+          "matched_kod": "dca",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "DMAPA [ppm]",
+          "name_en": "",
+          "requirement": "max 100",
+          "method": "metoda zew.\n/ external method",
+          "qualitative_result": "< 100",
+          "matched_kod": "dmapa",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Zapach",
+          "name_en": "Odour",
+          "requirement": "charakterystyczny, słaby „tłuszczowo-amidowy”\n/ characteristic,\nweak soapy",
+          "method": "organoleptycznie\n/ organoleptic",
+          "qualitative_result": "zgodny\n/right",
+          "matched_kod": "odour",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Wygląd",
+          "name_en": "Appearance",
+          "requirement": "klarowna ciecz\n/clear liquid",
+          "method": "organoleptycznie\n/ organoleptic",
+          "qualitative_result": "Z zgodny\n/right",
+          "matched_kod": "appearance",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Sucha masa [%]",
+          "name_en": "Dry matter [%]",
+          "requirement": "min 35,5",
+          "method": "L903",
+          "qualitative_result": null,
+          "matched_kod": "dry_matter",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Wsp. załamania światła (nD20)",
+          "name_en": "Refraction (nD20)",
+          "requirement": "1,3800-1,3950",
+          "method": "PN-EN ISO 6320:2017-04",
+          "qualitative_result": null,
+          "matched_kod": "nd20",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "pH (10%, aq)",
+          "name_en": "",
+          "requirement": "4,50-7,50",
+          "method": "L905",
+          "qualitative_result": null,
+          "matched_kod": "ph",
+          "in_cert_config": true
+        }
+      ]
+    },
+    "Chelamid_DK": {
+      "variants_found": [
+        "ELIN MB",
+        "MB",
+        "MB NR ZAM.",
+        "NR ZAM.",
+        "PEŁNA",
+        "PEŁNA NR ZAM",
+        "base"
+      ],
+      "parameters": [
+        {
+          "name_pl": "DEA  [%]",
+          "name_en": "",
+          "requirement": "< 3,00",
+          "method": "L910",
+          "qualitative_result": null,
+          "matched_kod": "dea",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Barwa w skali jodowej",
+          "name_en": "Colour (Iodine scale)",
+          "requirement": "max 6",
+          "method": "L928",
+          "qualitative_result": null,
+          "matched_kod": "barwa_jod",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "pH (1%, aq)",
+          "name_en": "",
+          "requirement": "max 11,00",
+          "method": "L905",
+          "qualitative_result": null,
+          "matched_kod": "ph",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Dietanoloamid [%]",
+          "name_en": "Diethanoloamide [%]",
+          "requirement": "80,0 – 90,0",
+          "method": "L910",
+          "qualitative_result": null,
+          "matched_kod": "dietanolamide",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Glicerol [%]",
+          "name_en": "Glycerol [%]",
+          "requirement": "max 9,50",
+          "method": "L911",
+          "qualitative_result": null,
+          "matched_kod": null,
+          "in_cert_config": false
+        },
+        {
+          "name_pl": "Postać",
+          "name_en": "Form",
+          "requirement": "klarowna żółta ciecz \n/clear yellow liquid",
+          "method": "organoleptycznie\n/organoleptic",
+          "qualitative_result": "zgodny\n/right",
+          "matched_kod": "form",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "DEA [%]",
+          "name_en": "",
+          "requirement": "< 3,00",
+          "method": "L910",
+          "qualitative_result": "<1,0",
+          "matched_kod": "dea",
+          "in_cert_config": true
+        }
+      ]
+    },
+    "Chemal_CS_3070": {
+      "variants_found": [
+        "MB",
+        "NUMER ZAMÓWIENIA",
+        "base"
+      ],
+      "parameters": [
+        {
+          "name_pl": "Liczba hydroksylowa [mg KOH/g]",
+          "name_en": "Hydroxyl number [mg KOH/g]",
+          "requirement": "210-220",
+          "method": "L955",
+          "qualitative_result": null,
+          "matched_kod": "lh",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Liczba kwasowa [mg KOH/g]",
+          "name_en": "Acid value [mg KOH/g]",
+          "requirement": "max 0,2",
+          "method": "zgodnie z świadectwem dostawcy/according to supplier’s CoA",
+          "qualitative_result": "<0,1",
+          "matched_kod": "lk",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Liczba zmydlenia [mg KOH/g]",
+          "name_en": "Saponification value [mg KOH/g]",
+          "requirement": "max 1,2",
+          "method": "zgodnie z świadectwem dostawcy/according to supplier’s CoA",
+          "qualitative_result": null,
+          "matched_kod": null,
+          "in_cert_config": false
+        },
+        {
+          "name_pl": "Liczba jodowa [g I2/100g]",
+          "name_en": "Iodine value [g I2/100g]",
+          "requirement": "max 1,0",
+          "method": "zgodnie z świadectwem dostawcy/according to supplier’s CoA",
+          "qualitative_result": "<0,1",
+          "matched_kod": "li",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "%C16",
+          "name_en": "",
+          "requirement": "25 – 35",
+          "method": "zgodnie z świadectwem dostawcy/according to supplier’s CoA",
+          "qualitative_result": null,
+          "matched_kod": "c16",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "%C18",
+          "name_en": "",
+          "requirement": "60 - 75",
+          "method": "zgodnie z świadectwem dostawcy/according to supplier’s CoA",
+          "qualitative_result": null,
+          "matched_kod": "c18",
+          "in_cert_config": true
+        }
+      ]
+    },
+    "Chemal_CS_5050": {
+      "variants_found": [
+        "MB"
+      ],
+      "parameters": [
+        {
+          "name_pl": "Liczba hydroksylowa [mg KOH/g]",
+          "name_en": "Hydroxyl number [mg KOH/g]",
+          "requirement": "210-225",
+          "method": "L955",
+          "qualitative_result": null,
+          "matched_kod": "lh",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Liczba kwasowa [mg KOH/g]",
+          "name_en": "Acid value [mg KOH/g]",
+          "requirement": "max 0,2",
+          "method": "zgodnie z świadectwem dostawcy/according to supplier’s CoA",
+          "qualitative_result": "<0,1",
+          "matched_kod": "lk",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Liczba zmydlenia [mg KOH/g]",
+          "name_en": "Saponification value [mg KOH/g]",
+          "requirement": "max 1,2",
+          "method": "zgodnie z świadectwem dostawcy/according to supplier’s CoA",
+          "qualitative_result": null,
+          "matched_kod": null,
+          "in_cert_config": false
+        },
+        {
+          "name_pl": "Liczba jodowa [g I2/100g]",
+          "name_en": "Iodine value [g I2/100g]",
+          "requirement": "max 1,0",
+          "method": "zgodnie z świadectwem dostawcy/according to supplier’s CoA",
+          "qualitative_result": "<0,1",
+          "matched_kod": "li",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "%C16",
+          "name_en": "",
+          "requirement": "45 – 55",
+          "method": "zgodnie z świadectwem dostawcy/according to supplier’s CoA",
+          "qualitative_result": null,
+          "matched_kod": "c16",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "%C18",
+          "name_en": "",
+          "requirement": "45 - 55",
+          "method": "zgodnie z świadectwem dostawcy/according to supplier’s CoA",
+          "qualitative_result": null,
+          "matched_kod": "c18",
+          "in_cert_config": true
+        }
+      ]
+    },
+    "Cheminox_K": {
+      "variants_found": [
+        "MB",
+        "NR ZAM.",
+        "base"
+      ],
+      "parameters": [
+        {
+          "name_pl": "Sucha masa [%]",
+          "name_en": "Dry matter [%]",
+          "requirement": "30,0-35,0",
+          "method": "L903",
+          "qualitative_result": null,
+          "matched_kod": "dry_matter",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Substancja aktywna [%]",
+          "name_en": "Active matter [%]",
+          "requirement": "30,0-35,0",
+          "method": "L903",
+          "qualitative_result": null,
+          "matched_kod": "active_matter",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "pH (10%, aq)",
+          "name_en": "",
+          "requirement": "5,00-8,00",
+          "method": "L905",
+          "qualitative_result": null,
+          "matched_kod": "ph",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "H2O2 [%]",
+          "name_en": "",
+          "requirement": "max 0,2",
+          "method": "L901",
+          "qualitative_result": "≤ 0,2",
+          "matched_kod": "h2o2",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Barwa w skali jodowej",
+          "name_en": "Colour (Iodine scale)",
+          "requirement": "max 2",
+          "method": "L928",
+          "qualitative_result": null,
+          "matched_kod": "barwa_jod",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Gęstość (20°C) [g/cm3]",
+          "name_en": "Density (20°C) [g/cm3]",
+          "requirement": "0,990-1,000",
+          "method": "L917",
+          "qualitative_result": null,
+          "matched_kod": "density",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Subsancja aktywna [%]",
+          "name_en": "Active matter [%]",
+          "requirement": "30,0-35,0",
+          "method": "L903",
+          "qualitative_result": null,
+          "matched_kod": "active_matter",
+          "in_cert_config": true
+        }
+      ]
+    },
+    "Cheminox_K35": {
+      "variants_found": [
+        "NR ZAMÓWIENIA",
+        "base"
+      ],
+      "parameters": [
+        {
+          "name_pl": "Sucha masa [%]",
+          "name_en": "Dry matter [%]",
+          "requirement": "34,0-36,0",
+          "method": "L903",
+          "qualitative_result": null,
+          "matched_kod": "dry_matter",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Substancja aktywna [%]",
+          "name_en": "Active matter [%]",
+          "requirement": "34,0-36,0",
+          "method": "L903",
+          "qualitative_result": null,
+          "matched_kod": "active_matter",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "pH (10%, aq)",
+          "name_en": "",
+          "requirement": "5,00-8,00",
+          "method": "L905",
+          "qualitative_result": null,
+          "matched_kod": "ph",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "H2O2 [%]",
+          "name_en": "",
+          "requirement": "max 0,2",
+          "method": "L901",
+          "qualitative_result": "≤ 0,2",
+          "matched_kod": "h2o2",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Barwa w skali jodowej",
+          "name_en": "Colour (Iodine scale)",
+          "requirement": "max 2",
+          "method": "L928",
+          "qualitative_result": null,
+          "matched_kod": "barwa_jod",
+          "in_cert_config": true
+        }
+      ]
+    },
+    "Citrowax": {
+      "variants_found": [
+        "base"
+      ],
+      "parameters": [
+        {
+          "name_pl": "Liczba kwasowa [mg KOH/g]",
+          "name_en": "Acid value [mg KOH/g]",
+          "requirement": "max 1,00",
+          "method": "PN-EN ISO 660:2021-03",
+          "qualitative_result": null,
+          "matched_kod": "lk",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Temperatura kroplenia [0C]",
+          "name_en": "Dropping point [0C]",
+          "requirement": "48,0-52,0",
+          "method": "L934",
+          "qualitative_result": null,
+          "matched_kod": "t_kropl",
+          "in_cert_config": true
+        }
+      ]
+    },
+    "Dister_E": {
+      "variants_found": [
+        "base"
+      ],
+      "parameters": [
+        {
+          "name_pl": "Liczba kwasowa [mg KOH/g]",
+          "name_en": "Acid value [mg KOH/g]",
+          "requirement": "max 6,00",
+          "method": "PN-EN ISO 660:2021-03",
+          "qualitative_result": null,
+          "matched_kod": "lk",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Wolny glikol etylenowy [%]",
+          "name_en": "Free ethylene glycol [%]",
+          "requirement": "<1,00",
+          "method": "L909",
+          "qualitative_result": null,
+          "matched_kod": "wolny_glikol",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Liczba hydroksylowa [mg KOH/g]",
+          "name_en": "Hydroxyl value [mg KOH/g]",
+          "requirement": "max 54,0",
+          "method": "L929",
+          "qualitative_result": null,
+          "matched_kod": "lh",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Liczba zmydlenia [mg KOH/g]",
+          "name_en": "Saponification value [mg KOH/g]",
+          "requirement": "188÷200",
+          "method": "PN-EN ISO 3657:2024-01",
+          "qualitative_result": null,
+          "matched_kod": "lz",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Temperatura topnienia [°C]",
+          "name_en": "Melting point [°C]",
+          "requirement": "58,0÷64,0",
+          "method": "L934",
+          "qualitative_result": null,
+          "matched_kod": "t_topn",
+          "in_cert_config": true
+        }
+      ]
+    },
+    "Glikoster_P": {
+      "variants_found": [
+        "AVON",
+        "base"
+      ],
+      "parameters": [
+        {
+          "name_pl": "Barwa w skali jodowej",
+          "name_en": "Colour (Iodine scale)",
+          "requirement": "max 2",
+          "method": "L928",
+          "qualitative_result": null,
+          "matched_kod": "barwa_jod",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Zapach",
+          "name_en": "Odour",
+          "requirement": "charakterystyczny\n/characteristic",
+          "method": "organoleptycznie\n/organoleptic",
+          "qualitative_result": "zgodny\n/right",
+          "matched_kod": "odour",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Wygląd",
+          "name_en": "Appearance",
+          "requirement": "substancja woskowa\n/wax",
+          "method": "P804",
+          "qualitative_result": "zgodny\n/right",
+          "matched_kod": "appearance",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Liczba kwasowa [mg KOH/g]",
+          "name_en": "Acid value [mg KOH/g]",
+          "requirement": "max 3,0",
+          "method": "PN-EN ISO 660:2021-03",
+          "qualitative_result": null,
+          "matched_kod": "lk",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Wolny glikol [%]",
+          "name_en": "Free glycol [%]",
+          "requirement": "max 3,0",
+          "method": "L909",
+          "qualitative_result": null,
+          "matched_kod": "wolny_glikol",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Liczba hydroksylowa\n[mg KOH/g]",
+          "name_en": "Hydroxyl value [mg KOH/g]",
+          "requirement": "70,0-130,0",
+          "method": "L929",
+          "qualitative_result": null,
+          "matched_kod": "lh",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Monoestry [%]",
+          "name_en": "Monoesters [%]",
+          "requirement": "47,0-55,0",
+          "method": "L930",
+          "qualitative_result": null,
+          "matched_kod": "monoestry",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "%C14:0",
+          "name_en": "%C16:0\n%C18:0&C18:1",
+          "requirement": "max 5\n47-55\n41-51",
+          "method": "metoda dostawcy\nsurowca\n/according to supplier’s CoA",
+          "qualitative_result": null,
+          "matched_kod": null,
+          "in_cert_config": false
+        }
+      ]
+    },
+    "HSH_CS_3070": {
+      "variants_found": [
+        "MB",
+        "base"
+      ],
+      "parameters": [
+        {
+          "name_pl": "Liczba hydroksylowa [mg KOH/g]",
+          "name_en": "Hydroxyl number [mg KOH/g]",
+          "requirement": "210-220",
+          "method": "L955",
+          "qualitative_result": null,
+          "matched_kod": "lh",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Liczba kwasowa [mg KOH/g]",
+          "name_en": "Acid value [mg KOH/g]",
+          "requirement": "max 0,1",
+          "method": "60064737*",
+          "qualitative_result": "<0,1",
+          "matched_kod": "lh",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Liczba zmydlenia [mg KOH/g]",
+          "name_en": "Saponification value [mg KOH/g]",
+          "requirement": "max 1,0",
+          "method": "60065250*",
+          "qualitative_result": null,
+          "matched_kod": "lz",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Liczba jodowa [g I2/100g]",
+          "name_en": "Iodine value [g I2/100g]",
+          "requirement": "max 1,0",
+          "method": "60064690*",
+          "qualitative_result": "<0,1",
+          "matched_kod": "li",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "%C16",
+          "name_en": "",
+          "requirement": "25 – 32",
+          "method": "60065138*",
+          "qualitative_result": null,
+          "matched_kod": "c16",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "%C18",
+          "name_en": "",
+          "requirement": "65 - 75",
+          "method": "60065138*",
+          "qualitative_result": null,
+          "matched_kod": "c18",
+          "in_cert_config": true
+        }
+      ]
+    },
+    "Kwas_Stearynowy": {
+      "variants_found": [
+        "base"
+      ],
+      "parameters": [
+        {
+          "name_pl": "Liczba kwasowa [mg KOH/g]",
+          "name_en": "Acid value [mg KOH/g]",
+          "requirement": "206 – 212",
+          "method": "PN-EN ISO 660:2021-03",
+          "qualitative_result": null,
+          "matched_kod": "lk",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Temperatura kroplenia [C]",
+          "name_en": "Dropping point [C]",
+          "requirement": "54,0 – 56,5",
+          "method": "metoda dostawcy surowca/ according to supplier’s CoA",
+          "qualitative_result": null,
+          "matched_kod": "t_kropl",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Liczba jodowa, [g I2/100 g]",
+          "name_en": "Iodine value [g I2/100 g]",
+          "requirement": "max 0,50",
+          "method": "metoda dostawcy surowca/ according to supplier’s CoA",
+          "qualitative_result": null,
+          "matched_kod": null,
+          "in_cert_config": false
+        }
+      ]
+    },
+    "Monamid_K": {
+      "variants_found": [
+        "base"
+      ],
+      "parameters": [
+        {
+          "name_pl": "Barwa w skali jodowej",
+          "name_en": "Colour (Iodine scale)",
+          "requirement": "max 5",
+          "method": "L928",
+          "qualitative_result": null,
+          "matched_kod": "barwa_jod",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Wolne kwasy tłuszczowe [%]\nw przeliczeniu na kwas laurynowy \n(MW = 200,3 g/mol)",
+          "name_en": "Free fatty acids [%] as lauric acid, (MW = 200,3 g/mol)",
+          "requirement": "max 1,0",
+          "method": "L925",
+          "qualitative_result": "<1,0",
+          "matched_kod": "wkt",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "MEA [%] (MW = 61,1 g",
+          "name_en": "mol)",
+          "requirement": "max 1,5",
+          "method": "L933",
+          "qualitative_result": null,
+          "matched_kod": "mea",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Estry [%] w przeliczeniu na laurynian metylu",
+          "name_en": "Esters [%] as methyl laurate,\n(MW=214 g/mol)",
+          "requirement": "max 6,0",
+          "method": "L952",
+          "qualitative_result": "<1,0",
+          "matched_kod": "estry",
+          "in_cert_config": true
+        }
+      ]
+    },
+    "Monamid_KO": {
+      "variants_found": [
+        "AVON",
+        "GHP",
+        "NR ZAM",
+        "base"
+      ],
+      "parameters": [
+        {
+          "name_pl": "Barwa w skali Gardnera",
+          "name_en": "Colour (Gardner scale)",
+          "requirement": "max 5",
+          "method": "L948",
+          "qualitative_result": null,
+          "matched_kod": "barwa_gardner",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Zapach",
+          "name_en": "Odour",
+          "requirement": "charakterystyczny aminowy\n/characteristic, amine-like",
+          "method": "organoleptycznie /organoleptic",
+          "qualitative_result": "zgodny\n/right",
+          "matched_kod": "odour",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Wygląd",
+          "name_en": "Appearance",
+          "requirement": "substancja stała, woskowa \n/flakes, waxy",
+          "method": "organoleptycznie /organoleptic",
+          "qualitative_result": "zgodny\n/right",
+          "matched_kod": "appearance",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Wolne kwasy tłuszczowe [%]\nw przeliczeniu na kwas laurynowy \n(M = 200,3 g/mol)",
+          "name_en": "Free fatty acids [%] as lauric acid, (MW = 200,3 g/mol)",
+          "requirement": "max 0,5",
+          "method": "L925",
+          "qualitative_result": "<0,1",
+          "matched_kod": "wkt",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "MEA [%]  (M",
+          "name_en": "MW = 61,1 g/mol)",
+          "requirement": "max 1,5",
+          "method": "L953",
+          "qualitative_result": null,
+          "matched_kod": "mea",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Estry [%]",
+          "name_en": "Esters [%]",
+          "requirement": "max 6,0",
+          "method": "L952",
+          "qualitative_result": "<1,0",
+          "matched_kod": "estry",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Gliceryna [%]",
+          "name_en": "Glycerine [%]",
+          "requirement": "max 11,0",
+          "method": "L954",
+          "qualitative_result": null,
+          "matched_kod": "wolny_glikol",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Rozkład kwasów tłuszczowych [%]",
+          "name_en": "Fatty acid distribution [%]\n≤C6:0\nC8:0\nC10:0\nC12:0\nC14:0\nC16:0\nC18:0\nC18:1\nC18:2",
+          "requirement": "max 1,0\nmax 11,0\nmax 9,0\n43,0-54,0\n15,0-22,0\nmax 12,0\nmax 5,0\nmax 10,0\nmax 3,0",
+          "method": "metoda dostawcy surowca/ according to supplier’s CoA",
+          "qualitative_result": "≤1,0",
+          "matched_kod": null,
+          "in_cert_config": false
+        },
+        {
+          "name_pl": "MEA [%]  (M = 61,1 g",
+          "name_en": "mol)",
+          "requirement": "max 1,5",
+          "method": "L953",
+          "qualitative_result": null,
+          "matched_kod": "mea",
+          "in_cert_config": true
+        }
+      ]
+    },
+    "Monester_O": {
+      "variants_found": [
+        "base"
+      ],
+      "parameters": [
+        {
+          "name_pl": "Liczba kwasowa [mg KOH/g]",
+          "name_en": "Acid value [mg KOH/g]",
+          "requirement": "max 3,00",
+          "method": "PN-EN ISO 660:2021-03",
+          "qualitative_result": null,
+          "matched_kod": "lk",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Liczba zmydlania [mg KOH/g]",
+          "name_en": "Saponification value [mg KOH/g]",
+          "requirement": "150-170",
+          "method": "PN-EN ISO 3657:2024-01",
+          "qualitative_result": null,
+          "matched_kod": "lz",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Wsp. załamania światła nD20",
+          "name_en": "Refraction index nD20",
+          "requirement": "1,4680-1,4730",
+          "method": "PN-EN ISO 6320:2017-04",
+          "qualitative_result": null,
+          "matched_kod": "nd20",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Liczba jodowa [g J2/100g]",
+          "name_en": "Iodine value [g J2/100g]",
+          "requirement": "63,0-83,0",
+          "method": "PN-EN ISO 3961:2018-09",
+          "qualitative_result": null,
+          "matched_kod": "li",
+          "in_cert_config": true
+        }
+      ]
+    },
+    "Monester_S": {
+      "variants_found": [
+        "base"
+      ],
+      "parameters": [
+        {
+          "name_pl": "Liczba kwasowa [mg KOH/g]",
+          "name_en": "Acid value [mg KOH/g]",
+          "requirement": "max 3",
+          "method": "PN-EN ISO 660:2021-03",
+          "qualitative_result": null,
+          "matched_kod": "lk",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Temperatura kroplenia [°C]",
+          "name_en": "Dropping point [°C]",
+          "requirement": "54,0-60,0",
+          "method": "L934",
+          "qualitative_result": null,
+          "matched_kod": "t_kropl",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Liczba zmydlania [mg KOH/g]",
+          "name_en": "Saponification value [mg KOH/g]",
+          "requirement": "145-185",
+          "method": "PN-EN ISO 3657:2024-01",
+          "qualitative_result": null,
+          "matched_kod": "lz",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Liczba jodowa [g I2/100g]",
+          "name_en": "Iodine value [g I2/100g]",
+          "requirement": "max 5,00",
+          "method": "PN-EN ISO 3961:2018-09",
+          "qualitative_result": null,
+          "matched_kod": "li",
+          "in_cert_config": true
+        }
+      ]
+    },
+    "Perlico_45": {
+      "variants_found": [
+        "NR. ZAMÓWIENIA",
+        "REUSE",
+        "base"
+      ],
+      "parameters": [
+        {
+          "name_pl": "Sucha masa [%]",
+          "name_en": "Dry matter [%]",
+          "requirement": "43,0-45,0",
+          "method": "L903",
+          "qualitative_result": null,
+          "matched_kod": "dry_matter",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "pH (10%, aq, 20°C)",
+          "name_en": "",
+          "requirement": "5,00-9,00",
+          "method": "L905",
+          "qualitative_result": null,
+          "matched_kod": "ph",
+          "in_cert_config": true
+        }
+      ]
+    },
+    "SLES": {
+      "variants_found": [
+        "base"
+      ],
+      "parameters": [
+        {
+          "name_pl": "Barwa",
+          "name_en": "Colour",
+          "requirement": "bezbarwna-jasnożółta/\nclear to light yellow",
+          "method": "organoleptycznie\n/organoleptic",
+          "qualitative_result": "zgodny\n/right",
+          "matched_kod": "colour",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "pH (3%, aq)",
+          "name_en": "",
+          "requirement": "6,50-7,50",
+          "method": "L905",
+          "qualitative_result": null,
+          "matched_kod": "ph",
+          "in_cert_config": true
+        },
+        {
+          "name_pl": "Substancja aktywna",
+          "name_en": "Active matter [%]",
+          "requirement": "25,0-28,0",
+          "method": "L920",
+          "qualitative_result": null,
+          "matched_kod": "active_matter",
+          "in_cert_config": true
+        }
+      ]
+    }
+  },
+  "unmatched_params": [
+    {
+      "name_pl": "%C14:0",
+      "name_en": "%C16:0\n%C18:0&C18:1",
+      "method": "metoda dostawcy\nsurowca\n/according to supplier’s CoA",
+      "requirement": "max 5\n47-55\n41-51",
+      "products": [
+        "Glikoster_P"
+      ]
+    },
+    {
+      "name_pl": "Liczba zmydlenia [mg KOH/g]",
+      "name_en": "Saponification value [mg KOH/g]",
+      "method": "zgodnie z świadectwem dostawcy/according to supplier’s CoA",
+      "requirement": "max 1,2",
+      "products": [
+        "Chemal_CS_3070",
+        "Chemal_CS_5050"
+      ]
+    },
+    {
+      "name_pl": "Glicerol [%]",
+      "name_en": "Glycerol [%]",
+      "method": "L911",
+      "requirement": "max 9,50",
+      "products": [
+        "Chelamid_DK"
+      ]
+    },
+    {
+      "name_pl": "Liczba jodowa, [g I2/100 g]",
+      "name_en": "Iodine value [g I2/100 g]",
+      "method": "metoda dostawcy surowca/ according to supplier’s CoA",
+      "requirement": "max 0,50",
+      "products": [
+        "Kwas_Stearynowy"
+      ]
+    },
+    {
+      "name_pl": "Rozkład kwasów tłuszczowych [%]",
+      "name_en": "Fatty acid distribution [%]\n≤C6:0\nC8:0\nC10:0\nC12:0\nC14:0\nC16:0\nC18:0\nC18:1\nC18:2",
+      "method": "metoda dostawcy surowca/ according to supplier’s CoA",
+      "requirement": "max 1,0\nmax 11,0\nmax 9,0\n43,0-54,0\n15,0-22,0\nmax 12,0\nmax 5,0\nmax 10,0\nmax 3,0",
+      "products": [
+        "Monamid_KO"
+      ]
+    }
+  ],
+  "missing_name_en": [],
+  "stats": {
+    "files_parsed": 86,
+    "files_skipped": 27,
+    "unique_products": 30,
+    "unique_parameters": 84,
+    "matched_to_db": 187,
+    "unmatched": 5,
+    "skip_reasons": [
+      "AVON Świadectwo_Certificate-Alkinol B  MB WZÓR.doc: file '/Users/tbk/Desktop/aa/data/wzory/AVON Świadectwo_Certificate-Alkinol B  MB WZÓR.doc' is not a Word file, content type is 'application/vnd.openxmlformats-officedocument.themeManager+xml'",
+      "Świadectwo-Certificate - SLES WZÓR.doc: file '/Users/tbk/Desktop/aa/data/wzory/Świadectwo-Certificate - SLES WZÓR.doc' is not a Word file, content type is 'application/vnd.openxmlformats-officedocument.themeManager+xml'",
+      "Świadectwo-Certificate -Glikoster P WZÓR.doc: file '/Users/tbk/Desktop/aa/data/wzory/Świadectwo-Certificate -Glikoster P WZÓR.doc' is not a Word file, content type is 'application/vnd.openxmlformats-officedocument.themeManager+xml'",
+      "Świadectwo_Certificate - Chegina GLOL40     WZÓR.doc: file '/Users/tbk/Desktop/aa/data/wzory/Świadectwo_Certificate - Chegina GLOL40     WZÓR.doc' is not a Word file, content type is 'application/vnd.openxmlformats-officedocument.themeManager+xml'",
+      "Świadectwo_Certificate- Chegina K40GLOL MB   Kosmepol               WZÓR.doc: file '/Users/tbk/Desktop/aa/data/wzory/Świadectwo_Certificate- Chegina K40GLOL MB   Kosmepol               WZÓR.doc' is not a Word file, content type is 'application/vnd.openxmlformats-officedocument.themeManager+xml'",
+      "Świadectwo_Certificate-Alstermid K WZÓR.doc: file '/Users/tbk/Desktop/aa/data/wzory/Świadectwo_Certificate-Alstermid K WZÓR.doc' is not a Word file, content type is 'application/vnd.openxmlformats-officedocument.themeManager+xml'",
+      "Świadectwo_Certificate-Chegina K7 MB -WZÓR.doc: file '/Users/tbk/Desktop/aa/data/wzory/Świadectwo_Certificate-Chegina K7 MB -WZÓR.doc' is not a Word file, content type is 'application/vnd.openxmlformats-officedocument.themeManager+xml'",
+      "Świadectwo_Certificate-Chegina K7 MB WZÓR  ADAM&PARTNER.doc: file '/Users/tbk/Desktop/aa/data/wzory/Świadectwo_Certificate-Chegina K7 MB WZÓR  ADAM&PARTNER.doc' is not a Word file, content type is 'application/vnd.openxmlformats-officedocument.themeManager+xml'",
+      "Świadectwo_Certificate-Chegina K7 MB WZÓR DR. MIELE.doc: file '/Users/tbk/Desktop/aa/data/wzory/Świadectwo_Certificate-Chegina K7 MB WZÓR DR. MIELE.doc' is not a Word file, content type is 'application/vnd.openxmlformats-officedocument.themeManager+xml'",
+      "Świadectwo_Certificate-Chegina K7 WZÓR ADAM&PARTNER.doc: file '/Users/tbk/Desktop/aa/data/wzory/Świadectwo_Certificate-Chegina K7 WZÓR ADAM&PARTNER.doc' is not a Word file, content type is 'application/vnd.openxmlformats-officedocument.themeManager+xml'",
+      "Świadectwo_Certificate-Chegina K7 WZÓR GLOBAL_DR. MIELE.doc: file '/Users/tbk/Desktop/aa/data/wzory/Świadectwo_Certificate-Chegina K7 WZÓR GLOBAL_DR. MIELE.doc' is not a Word file, content type is 'application/vnd.openxmlformats-officedocument.themeManager+xml'",
+      "Świadectwo_Certificate-Chegina K7 WZÓR nr zamówienia.doc: file '/Users/tbk/Desktop/aa/data/wzory/Świadectwo_Certificate-Chegina K7 WZÓR nr zamówienia.doc' is not a Word file, content type is 'application/vnd.openxmlformats-officedocument.themeManager+xml'",
+      "Świadectwo_Certificate-Chegina K7 WZÓR.doc: file '/Users/tbk/Desktop/aa/data/wzory/Świadectwo_Certificate-Chegina K7 WZÓR.doc' is not a Word file, content type is 'application/vnd.openxmlformats-officedocument.themeManager+xml'",
+      "Świadectwo_Certificate-Chegina K7B MB -WZÓR.doc: file '/Users/tbk/Desktop/aa/data/wzory/Świadectwo_Certificate-Chegina K7B MB -WZÓR.doc' is not a Word file, content type is 'application/vnd.openxmlformats-officedocument.themeManager+xml'",
+      "Świadectwo_Certificate-Chegina K7B WZÓR nr zamowienia.doc: file '/Users/tbk/Desktop/aa/data/wzory/Świadectwo_Certificate-Chegina K7B WZÓR nr zamowienia.doc' is not a Word file, content type is 'application/vnd.openxmlformats-officedocument.themeManager+xml'",
+      "Świadectwo_Certificate-Chegina K7B WZÓR.doc: file '/Users/tbk/Desktop/aa/data/wzory/Świadectwo_Certificate-Chegina K7B WZÓR.doc' is not a Word file, content type is 'application/vnd.openxmlformats-officedocument.themeManager+xml'",
+      "Świadectwo_Certificate-Cheminox K 35- WZÓR.doc: file '/Users/tbk/Desktop/aa/data/wzory/Świadectwo_Certificate-Cheminox K 35- WZÓR.doc' is not a Word file, content type is 'application/vnd.openxmlformats-officedocument.themeManager+xml'",
+      "Świadectwo_Certificate-Cheminox K 35- WZÓR_nr zamówienia.doc: file '/Users/tbk/Desktop/aa/data/wzory/Świadectwo_Certificate-Cheminox K 35- WZÓR_nr zamówienia.doc' is not a Word file, content type is 'application/vnd.openxmlformats-officedocument.themeManager+xml'",
+      "Świadectwo_Certificate-Cheminox K MB - WZÓR.doc: file '/Users/tbk/Desktop/aa/data/wzory/Świadectwo_Certificate-Cheminox K MB - WZÓR.doc' is not a Word file, content type is 'application/vnd.openxmlformats-officedocument.themeManager+xml'",
+      "Świadectwo_Certificate-Cheminox K-                         WZÓR.doc: file '/Users/tbk/Desktop/aa/data/wzory/Świadectwo_Certificate-Cheminox K-                         WZÓR.doc' is not a Word file, content type is 'application/vnd.openxmlformats-officedocument.themeManager+xml'",
+      "Świadectwo_Certificate-Cheminox K- WZÓR NR ZAM..doc: file '/Users/tbk/Desktop/aa/data/wzory/Świadectwo_Certificate-Cheminox K- WZÓR NR ZAM..doc' is not a Word file, content type is 'application/vnd.openxmlformats-officedocument.themeManager+xml'",
+      "Świadectwo_Certificate-Cheminox K- WZÓR.doc: file '/Users/tbk/Desktop/aa/data/wzory/Świadectwo_Certificate-Cheminox K- WZÓR.doc' is not a Word file, content type is 'application/vnd.openxmlformats-officedocument.themeManager+xml'",
+      "Świadectwo_Certificate-Monamid KO GHP WZÓR.doc: file '/Users/tbk/Desktop/aa/data/wzory/Świadectwo_Certificate-Monamid KO GHP WZÓR.doc' is not a Word file, content type is 'application/vnd.openxmlformats-officedocument.themeManager+xml'",
+      "Świadectwo_Certificate-Monamid KO WZÓR NR ZAM.doc: file '/Users/tbk/Desktop/aa/data/wzory/Świadectwo_Certificate-Monamid KO WZÓR NR ZAM.doc' is not a Word file, content type is 'application/vnd.openxmlformats-officedocument.themeManager+xml'",
+      "Świadectwo_Certificate-Monamid KO WZÓR.doc: file '/Users/tbk/Desktop/aa/data/wzory/Świadectwo_Certificate-Monamid KO WZÓR.doc' is not a Word file, content type is 'application/vnd.openxmlformats-officedocument.themeManager+xml'",
+      "Świadectwo_Certificate_Chegina CC - WZÓR.doc: file '/Users/tbk/Desktop/aa/data/wzory/Świadectwo_Certificate_Chegina CC - WZÓR.doc' is not a Word file, content type is 'application/vnd.openxmlformats-officedocument.themeManager+xml'",
+      "Świadectwo_Certificate_Chegina CCR WZÓR.doc: file '/Users/tbk/Desktop/aa/data/wzory/Świadectwo_Certificate_Chegina CCR WZÓR.doc' is not a Word file, content type is 'application/vnd.openxmlformats-officedocument.themeManager+xml'"
+    ]
+  }
+}
