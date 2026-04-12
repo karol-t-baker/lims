@@ -603,6 +603,10 @@ function resetTopbar() {
 // ═══ SPA NAVIGATION ═══
 
 async function loadBatch(ebrId) {
+  // Reset pipeline state from previous batch
+  window._activePipelineStage = null;
+  window._activePipelineReadonly = false;
+
   // Cleanup + race condition guard
   const gen = ++_loadGen;
   if (_heroObserver) { _heroObserver.disconnect(); _heroObserver = null; }
