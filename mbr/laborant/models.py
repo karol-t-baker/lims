@@ -477,6 +477,7 @@ def save_wyniki(
             wartosc = float(wartosc_raw)
         except (ValueError, TypeError):
             continue
+        prec = pole.get("precision", 2)
 
         # Check existing row for diff tracking
         old_row = db.execute(
@@ -507,8 +508,12 @@ def save_wyniki(
             if db_pole:
                 min_limit = db_pole["min"]
                 max_limit = db_pole["max"]
+                if db_pole.get("precision") is not None:
+                    prec = db_pole["precision"]
         except Exception:
             pass  # Fallback to JSON blob limits
+
+        wartosc = round(wartosc, prec)
 
         # Compute w_limicie
         w_limicie = 1
