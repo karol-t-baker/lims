@@ -260,3 +260,134 @@ def test_etap_korekty_order_by_kolejnosc(db):
     assert rows[0]["substancja"] == "A"
     assert rows[1]["substancja"] == "B"
 
+
+# ---------------------------------------------------------------------------
+# Task 3: Product pipeline CRUD
+# ---------------------------------------------------------------------------
+
+def test_set_get_remove_produkt_pipeline(db):
+    from mbr.pipeline.models import (
+        create_etap, set_produkt_pipeline, get_produkt_pipeline, remove_pipeline_etap,
+    )
+    eid1 = create_etap(db, kod="amid", nazwa="Amidowanie")
+    eid2 = create_etap(db, kod="czwart", nazwa="Czwartorzędowanie")
+
+    set_produkt_pipeline(db, "K7", eid1, kolejnosc=1)
+    set_produkt_pipeline(db, "K7", eid2, kolejnosc=2)
+
+    rows = get_produkt_pipeline(db, "K7")
+    assert len(rows) == 2
+    assert rows[0]["kod"] == "amid"
+    assert rows[1]["kod"] == "czwart"
+
+    remove_pipeline_etap(db, "K7", eid1)
+    rows = get_produkt_pipeline(db, "K7")
+    assert len(rows) == 1
+    assert rows[0]["kod"] == "czwart"
+
+
+def test_set_produkt_pipeline_upsert(db):
+    from mbr.pipeline.models import create_etap, set_produkt_pipeline, get_produkt_pipeline
+    eid = create_etap(db, kod="amid", nazwa="Amidowanie")
+    set_produkt_pipeline(db, "K7", eid, kolejnosc=1)
+    set_produkt_pipeline(db, "K7", eid, kolejnosc=5)  # update kolejnosc
+    rows = get_produkt_pipeline(db, "K7")
+    assert rows[0]["kolejnosc"] == 5
+
+
+def test_reorder_pipeline(db):
+    from mbr.pipeline.models import (
+        create_etap, set_produkt_pipeline, reorder_pipeline, get_produkt_pipeline,
+    )
+    eid1 = create_etap(db, kod="amid", nazwa="Amidowanie")
+    eid2 = create_etap(db, kod="czwart", nazwa="Czwartorzędowanie")
+    eid3 = create_etap(db, kod="sulf", nazwa="Sulfonowanie")
+    set_produkt_pipeline(db, "K7", eid1, kolejnosc=1)
+    set_produkt_pipeline(db, "K7", eid2, kolejnosc=2)
+    set_produkt_pipeline(db, "K7", eid3, kolejnosc=3)
+
+    # Reverse order
+    reorder_pipeline(db, "K7", [eid3, eid2, eid1])
+    rows = get_produkt_pipeline(db, "K7")
+    assert rows[0]["kod"] == "sulf"
+    assert rows[1]["kod"] == "czwart"
+    assert rows[2]["kod"] == "amid"
+
+
+def test_set_get_remove_produkt_etap_limit(db):
+    from mbr.pipeline.models import (
+        create_etap, set_produkt_pipeline, set_produkt_etap_limit,
+        get_produkt_etap_limity, remove_produkt_etap_limit,
+    )
+    eid = create_etap(db, kod="amid", nazwa="Amidowanie")
+    _seed_param(db, pid=9001, kod="ph", label="pH")
+    set_produkt_pipeline(db, "K7", eid, kolejnosc=1)
+
+    set_produkt_etap_limit(db, "K7", eid, 9001, min_limit=6.5, max_limit=7.5)
+    rows = get_produkt_etap_limity(db, "K7", eid)
+    assert len(rows) == 1
+    assert rows[0]["min_limit"] == 6.5
+    assert rows[0]["max_limit"] == 7.5
+    assert rows[0]["kod"] == "ph"
+
+    remove_produkt_etap_limit(db, "K7", eid, 9001)
+    assert get_produkt_etap_limity(db, "K7", eid) == []
+
+
+def test_set_produkt_etap_limit_upsert(db):
+    from mbr.pipeline.models import (
+        create_etap, set_produkt_pipeline, set_produkt_etap_limit, get_produkt_etap_limity,
+    )
+    eid = create_etap(db, kod="amid", nazwa="Amidowanie")
+    _seed_param(db, pid=9001, kod="ph", label="pH")
+    set_produkt_pipeline(db, "K7", eid, kolejnosc=1)
+
+    set_produkt_etap_limit(db, "K7", eid, 9001, min_limit=6.0, max_limit=8.0)
+    set_produkt_etap_limit(db, "K7", eid, 9001, min_limit=6.5)  # partial update
+    rows = get_produkt_etap_limity(db, "K7", eid)
+    assert rows[0]["min_limit"] == 6.5
+
+
+def test_resolve_limity_no_overrides(db):
+    from mbr.pipeline.models import (
+        create_etap, add_etap_parametr, resolve_limity,
+    )
+    eid = create_etap(db, kod="amid", nazwa="Amidowanie")
+    _seed_param(db, pid=9001, kod="ph", label="pH")
+    add_etap_parametr(db, eid, 9001, min_limit=6.0, max_limit=8.0)
+
+    rows = resolve_limity(db, "K7", eid)
+    assert len(rows) == 1
+    assert rows[0]["kod"] == "ph"
+    assert rows[0]["min_limit"] == 6.0
+    assert rows[0]["max_limit"] == 8.0
+
+
+def test_resolve_limity_with_overrides(db):
+    from mbr.pipeline.models import (
+        create_etap, add_etap_parametr, set_produkt_etap_limit, resolve_limity,
+    )
+    eid = create_etap(db, kod="amid", nazwa="Amidowanie")
+    _seed_param(db, pid=9001, kod="ph", label="pH")
+    add_etap_parametr(db, eid, 9001, min_limit=6.0, max_limit=8.0)
+    set_produkt_etap_limit(db, "K7", eid, 9001, min_limit=6.5, max_limit=7.5)
+
+    rows = resolve_limity(db, "K7", eid)
+    assert rows[0]["min_limit"] == 6.5   # product override wins
+    assert rows[0]["max_limit"] == 7.5
+
+
+def test_resolve_limity_partial_override(db):
+    """Product override with only min_limit set — max_limit falls back to catalog."""
+    from mbr.pipeline.models import (
+        create_etap, add_etap_parametr, set_produkt_etap_limit, resolve_limity,
+    )
+    eid = create_etap(db, kod="amid", nazwa="Amidowanie")
+    _seed_param(db, pid=9001, kod="ph", label="pH")
+    add_etap_parametr(db, eid, 9001, min_limit=6.0, max_limit=8.0)
+    # Set only min override
+    set_produkt_etap_limit(db, "K7", eid, 9001, min_limit=6.5)
+
+    rows = resolve_limity(db, "K7", eid)
+    assert rows[0]["min_limit"] == 6.5   # override
+    assert rows[0]["max_limit"] == 8.0   # falls back to catalog

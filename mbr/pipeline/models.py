@@ -208,3 +208,187 @@ def list_etap_korekty(db: sqlite3.Connection, etap_id: int) -> list[dict]:
 
 def remove_etap_korekta(db: sqlite3.Connection, korekta_id: int) -> None:
     db.execute("DELETE FROM etap_korekty_katalog WHERE id = ?", (korekta_id,))
+
+
+# ---------------------------------------------------------------------------
+# Task 3: produkt_pipeline CRUD
+# ---------------------------------------------------------------------------
+
+def set_produkt_pipeline(
+    db: sqlite3.Connection,
+    produkt: str,
+    etap_id: int,
+    kolejnosc: int,
+) -> int:
+    """Assign (or update kolejnosc for) a stage in a product's pipeline. Returns row id."""
+    cur = db.execute(
+        """INSERT INTO produkt_pipeline (produkt, etap_id, kolejnosc)
+           VALUES (?, ?, ?)
+           ON CONFLICT(produkt, etap_id) DO UPDATE SET kolejnosc = excluded.kolejnosc""",
+        (produkt, etap_id, kolejnosc),
+    )
+    return cur.lastrowid
+
+
+def get_produkt_pipeline(db: sqlite3.Connection, produkt: str) -> list[dict]:
+    """Return ordered pipeline stages for a product, JOINed with etapy_analityczne."""
+    rows = db.execute(
+        """
+        SELECT
+            pp.id, pp.produkt, pp.etap_id, pp.kolejnosc,
+            ea.kod, ea.nazwa, ea.typ_cyklu
+        FROM produkt_pipeline pp
+        JOIN etapy_analityczne ea ON ea.id = pp.etap_id
+        WHERE pp.produkt = ?
+        ORDER BY pp.kolejnosc
+        """,
+        (produkt,),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def remove_pipeline_etap(db: sqlite3.Connection, produkt: str, etap_id: int) -> None:
+    db.execute(
+        "DELETE FROM produkt_pipeline WHERE produkt = ? AND etap_id = ?",
+        (produkt, etap_id),
+    )
+
+
+def reorder_pipeline(db: sqlite3.Connection, produkt: str, etap_ids: list[int]) -> None:
+    """Set kolejnosc = position (1-indexed) for each etap_id in etap_ids."""
+    for i, etap_id in enumerate(etap_ids, start=1):
+        db.execute(
+            "UPDATE produkt_pipeline SET kolejnosc = ? WHERE produkt = ? AND etap_id = ?",
+            (i, produkt, etap_id),
+        )
+
+
+# ---------------------------------------------------------------------------
+# Task 3: produkt_etap_limity CRUD
+# ---------------------------------------------------------------------------
+
+_PEL_ALLOWED_FIELDS = {"min_limit", "max_limit", "nawazka_g", "precision", "target"}
+
+
+def set_produkt_etap_limit(
+    db: sqlite3.Connection,
+    produkt: str,
+    etap_id: int,
+    parametr_id: int,
+    **kwargs,
+) -> int:
+    """INSERT or UPDATE product-level limit overrides for a stage+parameter."""
+    # Collect known fields
+    data = {k: v for k, v in kwargs.items() if k in _PEL_ALLOWED_FIELDS}
+
+    if not data:
+        # Just ensure the row exists with nulls
+        cur = db.execute(
+            """INSERT INTO produkt_etap_limity (produkt, etap_id, parametr_id)
+               VALUES (?, ?, ?)
+               ON CONFLICT(produkt, etap_id, parametr_id) DO NOTHING""",
+            (produkt, etap_id, parametr_id),
+        )
+        return cur.lastrowid or 0
+
+    cols = ["produkt", "etap_id", "parametr_id"] + list(data.keys())
+    vals = [produkt, etap_id, parametr_id] + list(data.values())
+    placeholders = ", ".join("?" * len(cols))
+    col_clause = ", ".join(cols)
+    set_clause = ", ".join(f"{k} = excluded.{k}" for k in data.keys())
+
+    cur = db.execute(
+        f"""INSERT INTO produkt_etap_limity ({col_clause})
+               VALUES ({placeholders})
+               ON CONFLICT(produkt, etap_id, parametr_id)
+               DO UPDATE SET {set_clause}""",
+        vals,
+    )
+    return cur.lastrowid
+
+
+def get_produkt_etap_limity(
+    db: sqlite3.Connection, produkt: str, etap_id: int
+) -> list[dict]:
+    """Return product-level limit overrides, JOINed with parametry_analityczne."""
+    rows = db.execute(
+        """
+        SELECT
+            pel.id, pel.produkt, pel.etap_id, pel.parametr_id,
+            pel.min_limit, pel.max_limit, pel.nawazka_g, pel.precision, pel.target,
+            pa.kod, pa.label
+        FROM produkt_etap_limity pel
+        JOIN parametry_analityczne pa ON pa.id = pel.parametr_id
+        WHERE pel.produkt = ? AND pel.etap_id = ?
+        ORDER BY pel.id
+        """,
+        (produkt, etap_id),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def remove_produkt_etap_limit(
+    db: sqlite3.Connection, produkt: str, etap_id: int, parametr_id: int
+) -> None:
+    db.execute(
+        "DELETE FROM produkt_etap_limity WHERE produkt = ? AND etap_id = ? AND parametr_id = ?",
+        (produkt, etap_id, parametr_id),
+    )
+
+
+def resolve_limity(db: sqlite3.Connection, produkt: str, etap_id: int) -> list[dict]:
+    """Merge catalog limits with product-level overrides.
+
+    For each parameter in the stage catalog (etap_parametry), overlay
+    produkt_etap_limity for (produkt, etap_id, parametr_id).
+    Product-specific value wins when it is non-NULL; catalog value is fallback.
+
+    Returns list[dict] ordered by ep.kolejnosc.
+    """
+    rows = db.execute(
+        """
+        SELECT
+            ep.id AS ep_id, ep.parametr_id, ep.kolejnosc,
+            ep.min_limit  AS cat_min, ep.max_limit  AS cat_max,
+            ep.nawazka_g  AS cat_nawazka, ep.precision AS cat_precision,
+            ep.target     AS cat_target,
+            ep.wymagany, ep.grupa, ep.formula, ep.sa_bias, ep.krok,
+            pa.kod, pa.label, pa.typ, pa.skrot, pa.jednostka,
+            pel.min_limit  AS ovr_min, pel.max_limit  AS ovr_max,
+            pel.nawazka_g  AS ovr_nawazka, pel.precision AS ovr_precision,
+            pel.target     AS ovr_target
+        FROM etap_parametry ep
+        JOIN parametry_analityczne pa ON pa.id = ep.parametr_id
+        LEFT JOIN produkt_etap_limity pel
+               ON pel.produkt = ?
+              AND pel.etap_id = ep.etap_id
+              AND pel.parametr_id = ep.parametr_id
+        WHERE ep.etap_id = ?
+        ORDER BY ep.kolejnosc
+        """,
+        (produkt, etap_id),
+    ).fetchall()
+
+    result = []
+    for r in rows:
+        result.append({
+            "ep_id": r["ep_id"],
+            "parametr_id": r["parametr_id"],
+            "kolejnosc": r["kolejnosc"],
+            "kod": r["kod"],
+            "label": r["label"],
+            "typ": r["typ"],
+            "skrot": r["skrot"],
+            "jednostka": r["jednostka"],
+            "min_limit": r["ovr_min"] if r["ovr_min"] is not None else r["cat_min"],
+            "max_limit": r["ovr_max"] if r["ovr_max"] is not None else r["cat_max"],
+            "nawazka_g": r["ovr_nawazka"] if r["ovr_nawazka"] is not None else r["cat_nawazka"],
+            "precision": r["ovr_precision"] if r["ovr_precision"] is not None else r["cat_precision"],
+            "target": r["ovr_target"] if r["ovr_target"] is not None else r["cat_target"],
+            "wymagany": r["wymagany"],
+            "grupa": r["grupa"],
+            "formula": r["formula"],
+            "sa_bias": r["sa_bias"],
+            "krok": r["krok"],
+        })
+    return result
