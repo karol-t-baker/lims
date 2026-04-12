@@ -162,24 +162,7 @@ def szarze_new():
 @laborant_bp.route("/laborant/ebr/<int:ebr_id>")
 @login_required
 def fast_entry(ebr_id):
-    from mbr.registry.models import list_completed_products
-    with db_session() as db:
-        ebr = get_ebr(db, ebr_id)
-        if ebr is None:
-            return "Nie znaleziono szarzy", 404
-
-        # If product has a pipeline, redirect to pipeline fast entry v2
-        from mbr.pipeline.models import get_produkt_pipeline
-        pipeline = get_produkt_pipeline(db, ebr["produkt"])
-        if pipeline:
-            return redirect(url_for("pipeline.fast_entry_v2", ebr_id=ebr_id))
-
-        # Serve the SPA shell — JS will detect URL and load partial via AJAX
-        batches = list_ebr_open(db)
-        recent = list_ebr_recent(db, days=7)
-        completed_products = list_completed_products(db)
-    return render_template("laborant/szarze_list.html", batches=batches, recent=recent,
-                           products=PRODUCTS, completed_products=completed_products)
+    return redirect(url_for("pipeline.fast_entry_v2", ebr_id=ebr_id))
 
 
 @laborant_bp.route("/laborant/ebr/<int:ebr_id>/partial")
@@ -192,6 +175,7 @@ def fast_entry_partial(ebr_id):
         ebr = get_ebr(db, ebr_id)
         if ebr is None:
             return "Nie znaleziono", 404
+
         wyniki = get_ebr_wyniki(db, ebr_id)
         round_state = get_round_state(wyniki)
         etapy_status = get_etapy_status(db, ebr_id)
