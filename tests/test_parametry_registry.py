@@ -227,3 +227,32 @@ def test_precision_cascade_null_fallback(db):
     params = get_parametry_for_kontekst(db, "Chegina_K7", "analiza_koncowa")
     ph = next(p for p in params if p["kod"] == "ph_10proc")
     assert ph["precision"] == 2
+
+
+def test_build_parametry_lab_uses_resolved_precision(db):
+    """build_parametry_lab() includes resolved precision (binding > global)."""
+    plab = build_parametry_lab(db, "Chegina_K7")
+    # Chegina_K7 is a full pipeline product, so uses "analiza" key
+    sekcja = plab.get("analiza", {})
+    pola = sekcja.get("pola", [])
+    # ph_10proc is bound to analiza_koncowa for Chegina_K7
+    ph = next((p for p in pola if p["kod"] == "ph_10proc"), None)
+    assert ph is not None, "ph_10proc should be in analiza for Chegina_K7"
+    assert ph["precision"] == 2  # global default
+
+    # Now override in binding
+    pa_id = db.execute("SELECT id FROM parametry_analityczne WHERE kod='ph_10proc'").fetchone()[0]
+    binding = db.execute(
+        "SELECT id FROM parametry_etapy WHERE parametr_id=? AND kontekst='analiza_koncowa' AND produkt='Chegina_K7'",
+        (pa_id,),
+    ).fetchone()
+    assert binding is not None, "ph_10proc binding for Chegina_K7 not found"
+    db.execute("UPDATE parametry_etapy SET precision=4 WHERE id=?", (binding["id"],))
+    db.commit()
+
+    plab2 = build_parametry_lab(db, "Chegina_K7")
+    sekcja2 = plab2.get("analiza", {})
+    pola2 = sekcja2.get("pola", [])
+    ph2 = next((p for p in pola2 if p["kod"] == "ph_10proc"), None)
+    assert ph2 is not None
+    assert ph2["precision"] == 4  # binding override
