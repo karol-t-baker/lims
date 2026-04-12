@@ -2942,12 +2942,10 @@ if (window._panelFocusBridge) document.removeEventListener('focusin', window._pa
 window._panelFocusBridge = function(e) {
     var input = e.target;
     if (input.tagName !== 'INPUT' && input.tagName !== 'SELECT') return;
-    // Inside right panel — don't switch
     if (input.closest('.col-right')) return;
 
     var ff = input.closest('.ff.titr');
     if (ff) {
-        // Titr field focused → open calculator
         var kod = input.dataset.kod || (ff.querySelector('input[data-kod]') ? ff.querySelector('input[data-kod]').dataset.kod : '');
         var sekcja = input.dataset.sekcja;
         if (!sekcja && input.dataset.etap) {
@@ -4191,4 +4189,10 @@ loadBatchZbiorniki();
   </div>
 </div>
 
-<script src="/static/calculator.js?v=4"></script>
+<script>
+if (typeof window.openCalculator === 'undefined') {
+    var s = document.createElement('script');
+    s.src = '/static/calculator.js?v=5';
+    document.body.appendChild(s);
+}
+</script>
