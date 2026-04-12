@@ -394,8 +394,11 @@ def api_cert_config_product_put(key):
                 plab = _json.loads(mbr.get("parametry_lab") or "{}")
             except Exception:
                 plab = {}
-            pola = ((plab.get("analiza_koncowa") or {}).get("pola")) or []
-            analiza_kody = {p.get("kod") for p in pola if p.get("kod")}
+            for sekcja in plab.values():
+                for p in (sekcja.get("pola") or []):
+                    kod = p.get("kod")
+                    if kod:
+                        analiza_kody.add(kod)
 
         def _reject_if_not_in_analiza(df: str, context: str):
             if not df:
