@@ -145,7 +145,7 @@ def api_parametry_etapy_create():
 def api_parametry_etapy_update(binding_id):
     """Update binding fields."""
     data = request.get_json(silent=True) or {}
-    allowed = {"nawazka_g", "min_limit", "max_limit", "target", "kolejnosc", "formula", "sa_bias"}
+    allowed = {"nawazka_g", "min_limit", "max_limit", "target", "kolejnosc", "formula", "sa_bias", "precision"}
     updates = {k: v for k, v in data.items() if k in allowed}
     if not updates:
         return jsonify({"error": "No valid fields"}), 400
@@ -284,7 +284,9 @@ def api_parametry_etapy_list(produkt, kontekst):
     """List raw etapy bindings for product+kontekst, with parameter info."""
     with db_session() as db:
         rows = db.execute(
-            "SELECT pe.*, pa.kod, pa.label, pa.skrot, pa.typ "
+            "SELECT pe.id, pe.parametr_id, pe.produkt, pe.kontekst, pe.min_limit, pe.max_limit, "
+            "pe.target, pe.nawazka_g, pe.kolejnosc, pe.formula, pe.sa_bias, pe.precision, "
+            "pa.kod, pa.label, pa.skrot, pa.typ "
             "FROM parametry_etapy pe "
             "JOIN parametry_analityczne pa ON pa.id = pe.parametr_id "
             "WHERE (pe.produkt = ? OR pe.produkt IS NULL) AND pe.kontekst = ? "
