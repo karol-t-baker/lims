@@ -391,3 +391,91 @@ def test_resolve_limity_partial_override(db):
     rows = resolve_limity(db, "K7", eid)
     assert rows[0]["min_limit"] == 6.5   # override
     assert rows[0]["max_limit"] == 8.0   # falls back to catalog
+
+
+# ---------------------------------------------------------------------------
+# Task 5: Migration Script — parametry_etapy -> pipeline tables
+# ---------------------------------------------------------------------------
+
+from scripts.migrate_parametry_etapy import migrate_parametry_etapy
+
+
+def _seed_old_data(db):
+    """Seed parametry_analityczne + parametry_etapy like the existing system."""
+    db.execute("INSERT OR IGNORE INTO parametry_analityczne (id, kod, label, typ) VALUES (9001, 'ph', 'pH', 'bezposredni')")
+    db.execute("INSERT OR IGNORE INTO parametry_analityczne (id, kod, label, typ) VALUES (9002, 'sm', 'SM', 'bezposredni')")
+    db.execute("INSERT OR IGNORE INTO parametry_analityczne (id, kod, label, typ) VALUES (9003, 'nacl', 'NaCl', 'titracja')")
+
+    # Shared (produkt=NULL) bindings
+    db.execute("""INSERT INTO parametry_etapy (produkt, kontekst, parametr_id, kolejnosc, min_limit, max_limit)
+                  VALUES (NULL, 'amidowanie', 9001, 1, 3.0, 9.0)""")
+    db.execute("""INSERT INTO parametry_etapy (produkt, kontekst, parametr_id, kolejnosc, min_limit, max_limit)
+                  VALUES (NULL, 'amidowanie', 9002, 2, 40.0, 50.0)""")
+
+    # Product-specific binding (overrides shared)
+    db.execute("""INSERT INTO parametry_etapy (produkt, kontekst, parametr_id, kolejnosc, min_limit, max_limit)
+                  VALUES ('Chegina_K7', 'amidowanie', 9001, 1, 4.0, 8.0)""")
+
+    # analiza_koncowa context
+    db.execute("""INSERT INTO parametry_etapy (produkt, kontekst, parametr_id, kolejnosc, min_limit, max_limit)
+                  VALUES ('Chegina_K7', 'analiza_koncowa', 9002, 1, 44.0, 48.0)""")
+    db.execute("""INSERT INTO parametry_etapy (produkt, kontekst, parametr_id, kolejnosc, min_limit, max_limit)
+                  VALUES ('Chegina_K7', 'analiza_koncowa', 9003, 2, 5.0, 8.0)""")
+
+
+def test_migrate_creates_etapy(db):
+    _seed_old_data(db)
+    migrate_parametry_etapy(db)
+    rows = db.execute(
+        "SELECT kod FROM etapy_analityczne ORDER BY kod"
+    ).fetchall()
+    kody = [r[0] for r in rows]
+    assert "amidowanie" in kody
+    assert "analiza_koncowa" in kody
+
+
+def test_migrate_creates_etap_parametry(db):
+    _seed_old_data(db)
+    migrate_parametry_etapy(db)
+    etap = db.execute(
+        "SELECT id FROM etapy_analityczne WHERE kod='amidowanie'"
+    ).fetchone()
+    assert etap is not None
+    count = db.execute(
+        "SELECT COUNT(*) FROM etap_parametry WHERE etap_id=?", (etap[0],)
+    ).fetchone()[0]
+    assert count == 2  # two shared rows for amidowanie
+
+
+def test_migrate_creates_pipeline(db):
+    _seed_old_data(db)
+    migrate_parametry_etapy(db)
+    rows = db.execute(
+        "SELECT etap_id FROM produkt_pipeline WHERE produkt='Chegina_K7'"
+    ).fetchall()
+    assert len(rows) == 2  # amidowanie + analiza_koncowa
+
+
+def test_migrate_creates_product_limits(db):
+    _seed_old_data(db)
+    migrate_parametry_etapy(db)
+    etap = db.execute(
+        "SELECT id FROM etapy_analityczne WHERE kod='amidowanie'"
+    ).fetchone()
+    row = db.execute(
+        """SELECT min_limit FROM produkt_etap_limity
+           WHERE produkt='Chegina_K7' AND etap_id=? AND parametr_id=9001""",
+        (etap[0],),
+    ).fetchone()
+    assert row is not None
+    assert row[0] == 4.0
+
+
+def test_migrate_is_idempotent(db):
+    _seed_old_data(db)
+    migrate_parametry_etapy(db)
+    migrate_parametry_etapy(db)  # second run must not fail or duplicate
+    count = db.execute(
+        "SELECT COUNT(*) FROM etapy_analityczne"
+    ).fetchone()[0]
+    assert count == 2  # still just amidowanie + analiza_koncowa
