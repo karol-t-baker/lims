@@ -125,6 +125,11 @@ def szarze_new():
             except Exception:
                 pass
 
+            # Initialize pipeline session (first analytical stage)
+            from mbr.pipeline.models import init_pipeline_sesje
+            init_pipeline_sesje(db, ebr_id, request.form["produkt"],
+                                laborant=session["user"]["login"])
+
             # Audit: log batch creation
             audit.log_event(
                 audit.EVENT_EBR_BATCH_CREATED,
