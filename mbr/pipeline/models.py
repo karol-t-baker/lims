@@ -11,6 +11,7 @@ Tables:
 """
 
 import sqlite3
+from datetime import datetime
 
 
 # ---------------------------------------------------------------------------
@@ -333,6 +334,289 @@ def remove_produkt_etap_limit(
     db.execute(
         "DELETE FROM produkt_etap_limity WHERE produkt = ? AND etap_id = ? AND parametr_id = ?",
         (produkt, etap_id, parametr_id),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Task 4: ebr_etap_sesja — analysis sessions/rounds
+# ---------------------------------------------------------------------------
+
+def create_sesja(
+    db: sqlite3.Connection,
+    ebr_id: int,
+    etap_id: int,
+    runda: int = 1,
+    laborant: str | None = None,
+) -> int:
+    """Insert a new analysis session. Returns new id."""
+    now = datetime.now().isoformat(timespec="seconds")
+    cur = db.execute(
+        """INSERT INTO ebr_etap_sesja (ebr_id, etap_id, runda, laborant, dt_start)
+           VALUES (?, ?, ?, ?, ?)""",
+        (ebr_id, etap_id, runda, laborant, now),
+    )
+    return cur.lastrowid
+
+
+def get_sesja(db: sqlite3.Connection, sesja_id: int) -> dict | None:
+    row = db.execute(
+        "SELECT * FROM ebr_etap_sesja WHERE id = ?", (sesja_id,)
+    ).fetchone()
+    return dict(row) if row else None
+
+
+def list_sesje(
+    db: sqlite3.Connection,
+    ebr_id: int,
+    etap_id: int | None = None,
+) -> list[dict]:
+    """Return sessions for an EBR, ordered by etap_id, runda. Optionally filter by etap_id."""
+    if etap_id is not None:
+        rows = db.execute(
+            """SELECT * FROM ebr_etap_sesja
+               WHERE ebr_id = ? AND etap_id = ?
+               ORDER BY etap_id, runda""",
+            (ebr_id, etap_id),
+        ).fetchall()
+    else:
+        rows = db.execute(
+            """SELECT * FROM ebr_etap_sesja
+               WHERE ebr_id = ?
+               ORDER BY etap_id, runda""",
+            (ebr_id,),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def close_sesja(db: sqlite3.Connection, sesja_id: int, decyzja: str) -> None:
+    """Close a session. decyzja='przejscie' => status='ok', else status='oczekuje_korekty'."""
+    now = datetime.now().isoformat(timespec="seconds")
+    status = "ok" if decyzja == "przejscie" else "oczekuje_korekty"
+    db.execute(
+        """UPDATE ebr_etap_sesja
+           SET status = ?, decyzja = ?, dt_end = ?
+           WHERE id = ?""",
+        (status, decyzja, now, sesja_id),
+    )
+
+
+def init_pipeline_sesje(
+    db: sqlite3.Connection,
+    ebr_id: int,
+    produkt: str,
+    laborant: str | None = None,
+) -> int | None:
+    """Create a session for the first pipeline stage of the product. Returns sesja_id or None."""
+    pipeline = get_produkt_pipeline(db, produkt)
+    if not pipeline:
+        return None
+    first_etap_id = pipeline[0]["etap_id"]
+    return create_sesja(db, ebr_id, first_etap_id, runda=1, laborant=laborant)
+
+
+# ---------------------------------------------------------------------------
+# Task 4: ebr_pomiar — measurements
+# ---------------------------------------------------------------------------
+
+def _compute_w_limicie(
+    wartosc: float | None,
+    min_limit: float | None,
+    max_limit: float | None,
+) -> int | None:
+    """Return 1 if in range, 0 if out, None if no limits or no value."""
+    if wartosc is None:
+        return None
+    if min_limit is None and max_limit is None:
+        return None
+    if min_limit is not None and wartosc < min_limit:
+        return 0
+    if max_limit is not None and wartosc > max_limit:
+        return 0
+    return 1
+
+
+def save_pomiar(
+    db: sqlite3.Connection,
+    sesja_id: int,
+    parametr_id: int,
+    wartosc: float | None,
+    min_limit: float | None,
+    max_limit: float | None,
+    wpisal: str,
+    is_manual: int = 1,
+) -> int:
+    """Upsert a measurement for (sesja_id, parametr_id). Returns row id."""
+    now = datetime.now().isoformat(timespec="seconds")
+    w_limicie = _compute_w_limicie(wartosc, min_limit, max_limit)
+    cur = db.execute(
+        """INSERT INTO ebr_pomiar
+               (sesja_id, parametr_id, wartosc, min_limit, max_limit,
+                w_limicie, is_manual, dt_wpisu, wpisal)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(sesja_id, parametr_id) DO UPDATE SET
+               wartosc    = excluded.wartosc,
+               min_limit  = excluded.min_limit,
+               max_limit  = excluded.max_limit,
+               w_limicie  = excluded.w_limicie,
+               is_manual  = excluded.is_manual,
+               dt_wpisu   = excluded.dt_wpisu,
+               wpisal     = excluded.wpisal""",
+        (sesja_id, parametr_id, wartosc, min_limit, max_limit,
+         w_limicie, is_manual, now, wpisal),
+    )
+    return cur.lastrowid
+
+
+def get_pomiary(db: sqlite3.Connection, sesja_id: int) -> list[dict]:
+    """Return measurements for a session, JOINed with parametry_analityczne. ORDER BY id."""
+    rows = db.execute(
+        """
+        SELECT
+            ep.id, ep.sesja_id, ep.parametr_id,
+            ep.wartosc, ep.min_limit, ep.max_limit, ep.w_limicie,
+            ep.is_manual, ep.dt_wpisu, ep.wpisal,
+            pa.kod, pa.label, pa.typ, pa.skrot
+        FROM ebr_pomiar ep
+        JOIN parametry_analityczne pa ON pa.id = ep.parametr_id
+        WHERE ep.sesja_id = ?
+        ORDER BY ep.id
+        """,
+        (sesja_id,),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+# ---------------------------------------------------------------------------
+# Task 4: gate evaluation
+# ---------------------------------------------------------------------------
+
+_GATE_OPERATORS = {
+    "<": lambda v, w, wmax: v < w,
+    "<=": lambda v, w, wmax: v <= w,
+    ">": lambda v, w, wmax: v > w,
+    ">=": lambda v, w, wmax: v >= w,
+    "=": lambda v, w, wmax: v == w,
+    "between": lambda v, w, wmax: (wmax is not None) and (w <= v <= wmax),
+}
+
+
+def evaluate_gate(
+    db: sqlite3.Connection,
+    etap_id: int,
+    sesja_id: int,
+) -> dict:
+    """Evaluate gate conditions for a stage against measurements in a session.
+
+    Returns {"passed": bool, "failures": list[dict]}.
+    Each failure has keys: kod, reason, warunek (dict with operator/wartosc/wartosc_max).
+    """
+    warunki = list_etap_warunki(db, etap_id)
+    if not warunki:
+        return {"passed": True, "failures": []}
+
+    # Build pomiar lookup: parametr_id -> wartosc
+    pomiary = {p["parametr_id"]: p for p in get_pomiary(db, sesja_id)}
+
+    failures = []
+    for w in warunki:
+        pid = w["parametr_id"]
+        if pid not in pomiary:
+            failures.append({
+                "kod": w["kod"],
+                "reason": "brak_pomiaru",
+                "warunek": {
+                    "operator": w["operator"],
+                    "wartosc": w["wartosc"],
+                    "wartosc_max": w["wartosc_max"],
+                    "opis_warunku": w["opis_warunku"],
+                },
+            })
+            continue
+
+        wartosc = pomiary[pid]["wartosc"]
+        if wartosc is None:
+            failures.append({
+                "kod": w["kod"],
+                "reason": "brak_wartosci",
+                "warunek": {
+                    "operator": w["operator"],
+                    "wartosc": w["wartosc"],
+                    "wartosc_max": w["wartosc_max"],
+                    "opis_warunku": w["opis_warunku"],
+                },
+            })
+            continue
+
+        op_fn = _GATE_OPERATORS.get(w["operator"])
+        ok = op_fn(wartosc, w["wartosc"], w["wartosc_max"]) if op_fn else True
+        if not ok:
+            failures.append({
+                "kod": w["kod"],
+                "reason": f"warunek_niespelniony: {wartosc} {w['operator']} {w['wartosc']}",
+                "warunek": {
+                    "operator": w["operator"],
+                    "wartosc": w["wartosc"],
+                    "wartosc_max": w["wartosc_max"],
+                    "opis_warunku": w["opis_warunku"],
+                },
+            })
+
+    return {"passed": len(failures) == 0, "failures": failures}
+
+
+# ---------------------------------------------------------------------------
+# Task 4: ebr_korekta_v2 — corrections
+# ---------------------------------------------------------------------------
+
+def create_ebr_korekta(
+    db: sqlite3.Connection,
+    sesja_id: int,
+    korekta_typ_id: int,
+    ilosc: float | None,
+    zalecil: str | None,
+) -> int:
+    """Insert a correction recommendation. Returns new id."""
+    now = datetime.now().isoformat(timespec="seconds")
+    cur = db.execute(
+        """INSERT INTO ebr_korekta_v2
+               (sesja_id, korekta_typ_id, ilosc, zalecil, dt_zalecenia)
+           VALUES (?, ?, ?, ?, ?)""",
+        (sesja_id, korekta_typ_id, ilosc, zalecil, now),
+    )
+    return cur.lastrowid
+
+
+def list_ebr_korekty(db: sqlite3.Connection, sesja_id: int) -> list[dict]:
+    """Return corrections for a session, JOINed with etap_korekty_katalog."""
+    rows = db.execute(
+        """
+        SELECT
+            k.id, k.sesja_id, k.korekta_typ_id, k.ilosc, k.zalecil,
+            k.wykonawca_info, k.dt_zalecenia, k.dt_wykonania, k.status,
+            ek.substancja, ek.jednostka, ek.wykonawca
+        FROM ebr_korekta_v2 k
+        JOIN etap_korekty_katalog ek ON ek.id = k.korekta_typ_id
+        WHERE k.sesja_id = ?
+        ORDER BY k.id
+        """,
+        (sesja_id,),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def update_ebr_korekta_status(
+    db: sqlite3.Connection,
+    korekta_id: int,
+    status: str,
+    wykonawca_info: str | None = None,
+) -> None:
+    """Update correction status and optionally record executor info. Sets dt_wykonania=now."""
+    now = datetime.now().isoformat(timespec="seconds")
+    db.execute(
+        """UPDATE ebr_korekta_v2
+           SET status = ?, wykonawca_info = ?, dt_wykonania = ?
+           WHERE id = ?""",
+        (status, wykonawca_info, now, korekta_id),
     )
 
 
