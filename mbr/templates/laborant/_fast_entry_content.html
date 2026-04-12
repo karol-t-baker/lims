@@ -3963,7 +3963,9 @@ function renderParamEditor() {
     var precVal = b && b.precision != null ? b.precision : '';
     var precPlaceholder = p.precision != null ? p.precision : 2;
 
-    html += '<div class="ped-row' + disabledCls + '">' +
+    html += '<div class="ped-row' + disabledCls + '"' +
+      (checked ? ' draggable="true" data-param-id="' + p.id + '"' : '') + '>' +
+      (checked ? '<span class="ped-grip" title="Przeciągnij aby zmienić kolejność">⠿</span>' : '<span style="width:20px;flex-shrink:0;"></span>') +
       '<input type="checkbox" class="ped-check" ' + (checked ? 'checked' : '') +
         ' onchange="peToggle(' + p.id + ', this.checked)">' +
       '<span class="ped-kod">' + esc(p.kod) + '</span>' +
@@ -3983,6 +3985,82 @@ function renderParamEditor() {
   });
 
   document.getElementById('pe-list').innerHTML = html || '<div style="color:var(--text-dim);font-size:11px;padding:8px;">Brak parametrów</div>';
+  _peSetupDragDrop();
+}
+
+// ═══ PARAM DRAG & DROP ═══
+
+var _peDragParamId = null;
+
+function _peSetupDragDrop() {
+  document.querySelectorAll('.ped-row[draggable]').forEach(function(row) {
+    row.addEventListener('dragstart', function(e) {
+      _peDragParamId = parseInt(row.dataset.paramId);
+      row.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    row.addEventListener('dragend', function() {
+      row.classList.remove('dragging');
+      document.querySelectorAll('.ped-row').forEach(function(r) { r.classList.remove('drag-over'); });
+    });
+    row.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    });
+    row.addEventListener('dragenter', function(e) {
+      e.preventDefault();
+      document.querySelectorAll('.ped-row').forEach(function(r) { r.classList.remove('drag-over'); });
+      if (row.dataset.paramId && parseInt(row.dataset.paramId) !== _peDragParamId) {
+        row.classList.add('drag-over');
+      }
+    });
+    row.addEventListener('dragleave', function() {
+      row.classList.remove('drag-over');
+    });
+    row.addEventListener('drop', function(e) {
+      e.preventDefault();
+      row.classList.remove('drag-over');
+      var dropParamId = parseInt(row.dataset.paramId);
+      if (!_peDragParamId || _peDragParamId === dropParamId) return;
+
+      // Get current bound order
+      var boundIds = [];
+      _peAllParams.forEach(function(p) {
+        if (_peBindingMap[p.id]) boundIds.push(p.id);
+      });
+      boundIds.sort(function(a, b) {
+        return (_peBindingMap[a].kolejnosc || 0) - (_peBindingMap[b].kolejnosc || 0);
+      });
+
+      // Move dragged item to drop position
+      var fromIdx = boundIds.indexOf(_peDragParamId);
+      var toIdx = boundIds.indexOf(dropParamId);
+      if (fromIdx === -1 || toIdx === -1) return;
+      boundIds.splice(fromIdx, 1);
+      boundIds.splice(toIdx, 0, _peDragParamId);
+
+      // Update kolejnosc in map and save
+      var promises = [];
+      boundIds.forEach(function(pid, i) {
+        _peBindingMap[pid].kolejnosc = i + 1;
+        promises.push(fetch('/api/parametry/etapy/' + _peBindingMap[pid].id, {
+          method: 'PUT',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({kolejnosc: i + 1})
+        }));
+      });
+      Promise.all(promises).then(function() {
+        fetch('/api/parametry/rebuild-mbr', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({produkt: window._batchProdukt})
+        });
+      });
+
+      _peDragParamId = null;
+      renderParamEditor();
+    });
+  });
 }
 
 function peToggle(paramId, checked) {
