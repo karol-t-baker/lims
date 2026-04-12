@@ -488,6 +488,7 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             cert_kolejnosc         INTEGER,
             on_cert                INTEGER DEFAULT 0,
             cert_variant_id        INTEGER,
+            precision              INTEGER,
             UNIQUE(produkt, kontekst, parametr_id)
         )
     """)

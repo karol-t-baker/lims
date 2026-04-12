@@ -42,7 +42,7 @@ def get_parametry_for_kontekst(
             pa.typ,
             pe.min_limit   AS min,
             pe.max_limit   AS max,
-            pa.precision,
+            COALESCE(pe.precision, pa.precision, 2) AS precision,
             pe.nawazka_g,
             pe.target,
             pa.formula     AS global_formula,

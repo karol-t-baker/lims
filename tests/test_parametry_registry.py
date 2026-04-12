@@ -189,3 +189,41 @@ def test_nadtlenki_replaces_h2o2_in_analiza_koncowa(db):
             (prod, h2o2_id),
         ).fetchone()
         assert old_bound is None, f"{prod}: h2o2 still bound to analiza_koncowa"
+
+
+# ---------------------------------------------------------------------------
+# Precision cascade tests
+# ---------------------------------------------------------------------------
+
+def test_precision_cascade_global_default(db):
+    """Without per-product override, precision comes from parametry_analityczne."""
+    params = get_parametry_for_kontekst(db, "Chegina_K7", "analiza_koncowa")
+    ph = next(p for p in params if p["kod"] == "ph_10proc")
+    assert ph["precision"] == 2  # from parametry_analityczne seed
+
+
+def test_precision_cascade_binding_override(db):
+    """Per-product precision in parametry_etapy overrides global."""
+    pa_id = db.execute(
+        "SELECT id FROM parametry_analityczne WHERE kod='ph_10proc'"
+    ).fetchone()[0]
+    binding = db.execute(
+        "SELECT id FROM parametry_etapy WHERE parametr_id=? AND kontekst='analiza_koncowa' AND produkt='Chegina_K7'",
+        (pa_id,),
+    ).fetchone()
+    db.execute(
+        "UPDATE parametry_etapy SET precision=4 WHERE id=?", (binding["id"],)
+    )
+    db.commit()
+    params = get_parametry_for_kontekst(db, "Chegina_K7", "analiza_koncowa")
+    ph = next(p for p in params if p["kod"] == "ph_10proc")
+    assert ph["precision"] == 4
+
+
+def test_precision_cascade_null_fallback(db):
+    """When both are NULL, default to 2."""
+    db.execute("UPDATE parametry_analityczne SET precision=NULL WHERE kod='ph_10proc'")
+    db.commit()
+    params = get_parametry_for_kontekst(db, "Chegina_K7", "analiza_koncowa")
+    ph = next(p for p in params if p["kod"] == "ph_10proc")
+    assert ph["precision"] == 2
