@@ -7,7 +7,7 @@
 <style>
 /* ═══ Layout ═══ */
 .workspace { overflow: auto !important; }
-.wc-page { padding: 20px 28px; max-width: 960px; }
+.wc-page { padding: 20px 28px; }
 .wc-flash { padding: 10px 16px; border-radius: 8px; font-size: 12px; font-weight: 600; margin-bottom: 16px; display: none; }
 .wc-flash.ok { background: #dcfce7; color: var(--green); }
 .wc-flash.err { background: #fef2f2; color: var(--red); }
@@ -19,7 +19,9 @@
 .wc-search:focus { border-color: var(--teal); outline: none; }
 .wc-search::placeholder { color: var(--text-dim); }
 .wc-search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-dim); pointer-events: none; }
-.wc-grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.wc-grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.wc-list-head { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+.wc-list-head .wc-title { margin-bottom: 0; white-space: nowrap; }
 .wc-card { display: flex; flex-direction: column; justify-content: space-between; padding: 16px; background: var(--surface); border: 1.5px solid var(--border); border-radius: 10px; cursor: pointer; transition: border-color .15s, box-shadow .15s; min-height: 100px; }
 .wc-card:hover { border-color: var(--teal); box-shadow: 0 2px 8px rgba(13,115,119,.08); }
 .wc-card-top { flex: 1; }
@@ -140,13 +142,13 @@
 
   <!-- ═══ Product List ═══ -->
   <div id="wc-list">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+    <div class="wc-list-head">
       <div class="wc-title">Wzory świadectw</div>
+      <div class="wc-search-wrap" style="flex:1;max-width:360px;">
+        <svg class="wc-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input class="wc-search" id="wc-search" type="text" placeholder="Szukaj produktu..." oninput="filterProducts()">
+      </div>
       <button class="wc-btn wc-btn-p" onclick="showNewForm()">+ Nowy produkt</button>
-    </div>
-    <div class="wc-search-wrap">
-      <svg class="wc-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      <input class="wc-search" id="wc-search" type="text" placeholder="Szukaj produktu..." oninput="filterProducts()">
     </div>
     <div class="wc-grid-cards" id="wc-cards"></div>
   </div>
