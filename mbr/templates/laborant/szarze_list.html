@@ -1358,7 +1358,9 @@ function _buildRegistryRow(columns, b) {
       html += '<td style="color:var(--text-dim)">\u2014</td>';
     }
   });
-  html += '<td class="td-who" style="font-size:11px;color:var(--text-sec);">' + (b.zatwierdzil || '\u2014') + '</td>';
+  var whoShort = b.zatwierdzil_short || '\u2014';
+  var whoFull = b.zatwierdzil_full || '';
+  html += '<td class="td-who" style="font-size:11px;color:var(--text-sec);"' + (whoFull ? ' title="' + whoFull.replace(/"/g, '&quot;') + '"' : '') + '>' + whoShort + '</td>';
   var uwagi = b.uwagi_koncowe || '';
   var uwagiShort = uwagi.length > 50 ? uwagi.slice(0, 47) + '…' : uwagi;
   if (uwagi) {

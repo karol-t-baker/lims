@@ -185,22 +185,27 @@ def fast_entry_partial(ebr_id):
         etapy_analizy = get_etap_analizy(db, ebr_id)
         etapy_korekty = get_korekty(db, ebr_id)
         etapy_config = get_etapy_config(db, ebr.get("produkt", ""))
-        zatwierdzil = ""
+        zatwierdzil_short = ""
+        zatwierdzil_full = ""
         if ebr.get("status") == "completed":
             row = db.execute("""
-                SELECT GROUP_CONCAT(COALESCE(aa.actor_name, aa.actor_login), ', ') AS who
+                SELECT GROUP_CONCAT(COALESCE(w.inicjaly, aa.actor_login), ', ') AS who_short,
+                       GROUP_CONCAT(COALESCE(aa.actor_name, aa.actor_login), ', ') AS who_full
                 FROM audit_log al
                 JOIN audit_log_actors aa ON aa.audit_id = al.id
+                LEFT JOIN workers w ON w.id = aa.worker_id
                 WHERE al.event_type = 'ebr.batch.status_changed' AND al.entity_id = ?
             """, (ebr_id,)).fetchone()
-            zatwierdzil = row["who"] if row and row["who"] else ""
+            zatwierdzil_short = row["who_short"] if row and row["who_short"] else ""
+            zatwierdzil_full = row["who_full"] if row and row["who_full"] else ""
     return render_template("laborant/_fast_entry_content.html",
                            ebr=ebr, wyniki=wyniki, round_state=round_state,
                            etapy_status=etapy_status,
                            etapy_analizy=etapy_analizy,
                            etapy_korekty=etapy_korekty,
                            etapy_config=etapy_config,
-                           zatwierdzil=zatwierdzil)
+                           zatwierdzil_short=zatwierdzil_short,
+                           zatwierdzil_full=zatwierdzil_full)
 
 
 @laborant_bp.route("/laborant/ebr/<int:ebr_id>/save", methods=["POST"])

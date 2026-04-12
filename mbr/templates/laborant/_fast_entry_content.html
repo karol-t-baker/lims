@@ -24,7 +24,7 @@
       <span class="en-badge b-wait">otwarta</span>
     {% else %}
       <span class="en-badge b-ok">zakończona</span>
-      {% if zatwierdzil %}<span style="font-size:11px;color:var(--text-sec);margin-left:8px;">Zatwierdził: {{ zatwierdzil }}</span>{% endif %}
+      {% if zatwierdzil_short %}<span style="font-size:11px;color:var(--text-sec);margin-left:8px;" title="{{ zatwierdzil_full }}">Zatwierdził: {{ zatwierdzil_short }}</span>{% endif %}
     {% endif %}
   </span>
 </div>

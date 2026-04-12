@@ -55,16 +55,21 @@ def list_completed_registry(
     if result:
         placeholders = ",".join("?" * len(ebr_ids))
         approval_rows = db.execute(f"""
-            SELECT al.entity_id, GROUP_CONCAT(COALESCE(aa.actor_name, aa.actor_login), ', ') AS zatwierdzil
+            SELECT al.entity_id,
+                   GROUP_CONCAT(COALESCE(w.inicjaly, aa.actor_login), ', ') AS zatwierdzil_short,
+                   GROUP_CONCAT(COALESCE(aa.actor_name, aa.actor_login), ', ') AS zatwierdzil_full
             FROM audit_log al
             JOIN audit_log_actors aa ON aa.audit_id = al.id
+            LEFT JOIN workers w ON w.id = aa.worker_id
             WHERE al.event_type = 'ebr.batch.status_changed'
               AND al.entity_id IN ({placeholders})
             GROUP BY al.entity_id
         """, ebr_ids).fetchall()
-        approval_map = {r["entity_id"]: r["zatwierdzil"] for r in approval_rows}
+        approval_map = {r["entity_id"]: {"short": r["zatwierdzil_short"], "full": r["zatwierdzil_full"]} for r in approval_rows}
         for r in result:
-            r["zatwierdzil"] = approval_map.get(r["ebr_id"], "")
+            ap = approval_map.get(r["ebr_id"], {})
+            r["zatwierdzil_short"] = ap.get("short", "")
+            r["zatwierdzil_full"] = ap.get("full", "")
 
     return result
 
