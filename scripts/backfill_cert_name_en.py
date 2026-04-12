@@ -39,7 +39,7 @@ def backfill(db_path=None):
         if k not in kod_lookup:
             kod_lookup[k] = {"name_en": row["name_en"], "method": row["method"] or ""}
 
-    # 3. Update gaps
+    # 3. Update parametry_cert gaps
     gaps = db.execute("""
         SELECT pc.rowid as rid, pa.kod as kod
         FROM parametry_cert pc
@@ -55,10 +55,24 @@ def backfill(db_path=None):
                        (info["name_en"], info["method"], row["rid"]))
             updated += 1
 
+    # 4. Update parametry_analityczne gaps
+    pa_gaps = db.execute("""
+        SELECT id, kod FROM parametry_analityczne
+        WHERE (name_en IS NULL OR name_en = '')
+    """).fetchall()
+
+    pa_updated = 0
+    for row in pa_gaps:
+        info = kod_lookup.get(row["kod"])
+        if info:
+            db.execute("UPDATE parametry_analityczne SET name_en=?, method_code=? WHERE id=?",
+                       (info["name_en"], info["method"], row["id"]))
+            pa_updated += 1
+
     db.commit()
     db.close()
-    print(f"backfill_cert_name_en: {updated} rows updated, {len(gaps) - updated} unfillable")
-    return updated
+    print(f"backfill_cert_name_en: parametry_cert {updated}/{len(gaps)}, parametry_analityczne {pa_updated}/{len(pa_gaps)}")
+    return updated + pa_updated
 
 if __name__ == "__main__":
     db_path = None
