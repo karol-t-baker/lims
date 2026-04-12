@@ -6,30 +6,30 @@
 {% block head %}
 <style>
 /* ═══ Layout ═══ */
-.workspace { overflow: auto !important; }
-.wc-page { padding: 20px 28px; }
+.workspace { overflow: auto !important; display: block !important; }
+.wc-page { padding: 20px 28px; width: 100%; box-sizing: border-box; }
 .wc-flash { padding: 10px 16px; border-radius: 8px; font-size: 12px; font-weight: 600; margin-bottom: 16px; display: none; }
 .wc-flash.ok { background: #dcfce7; color: var(--green); }
 .wc-flash.err { background: #fef2f2; color: var(--red); }
 
 /* ═══ Product List ═══ */
-.wc-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; color: var(--text); }
-.wc-search-wrap { position: relative; margin-bottom: 16px; }
-.wc-search { width: 100%; padding: 10px 14px 10px 38px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; font-family: var(--font); background: var(--surface); }
+.wc-title { font-size: 18px; font-weight: 700; color: var(--text); }
+.wc-list-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.wc-list-head .wc-title { margin: 0; white-space: nowrap; }
+.wc-search-wrap { position: relative; flex: 1; min-width: 180px; max-width: 320px; }
+.wc-search { width: 100%; padding: 8px 12px 8px 34px; border: 1.5px solid var(--border); border-radius: 6px; font-size: 12px; font-family: var(--font); background: var(--surface); box-sizing: border-box; }
 .wc-search:focus { border-color: var(--teal); outline: none; }
 .wc-search::placeholder { color: var(--text-dim); }
-.wc-search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-dim); pointer-events: none; }
-.wc-grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
-.wc-list-head { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
-.wc-list-head .wc-title { margin-bottom: 0; white-space: nowrap; }
-.wc-card { display: flex; flex-direction: column; justify-content: space-between; padding: 16px; background: var(--surface); border: 1.5px solid var(--border); border-radius: 10px; cursor: pointer; transition: border-color .15s, box-shadow .15s; min-height: 100px; }
+.wc-search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--text-dim); pointer-events: none; }
+.wc-grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+.wc-card { display: flex; flex-direction: column; justify-content: space-between; padding: 14px; background: var(--surface); border: 1.5px solid var(--border); border-radius: 8px; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
 .wc-card:hover { border-color: var(--teal); box-shadow: 0 2px 8px rgba(13,115,119,.08); }
 .wc-card-top { flex: 1; }
-.wc-card-name { font-weight: 700; font-size: 13px; margin-bottom: 4px; line-height: 1.3; }
-.wc-card-key { font-family: var(--mono); font-size: 10px; color: var(--text-dim); margin-bottom: 8px; }
-.wc-card-stats { display: flex; gap: 12px; font-size: 10px; color: var(--text-sec); }
+.wc-card-name { font-weight: 700; font-size: 12px; margin-bottom: 3px; line-height: 1.3; }
+.wc-card-key { font-family: var(--mono); font-size: 9px; color: var(--text-dim); margin-bottom: 6px; }
+.wc-card-stats { display: flex; gap: 10px; font-size: 9px; color: var(--text-sec); }
 .wc-card-stat { display: flex; align-items: center; gap: 3px; }
-.wc-card-bottom { display: flex; justify-content: flex-end; margin-top: 10px; }
+.wc-card-bottom { display: flex; justify-content: flex-end; margin-top: 8px; }
 
 /* ═══ Buttons ═══ */
 .wc-btn { padding: 7px 16px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: var(--font); transition: opacity .15s; }
@@ -144,7 +144,7 @@
   <div id="wc-list">
     <div class="wc-list-head">
       <div class="wc-title">Wzory świadectw</div>
-      <div class="wc-search-wrap" style="flex:1;max-width:360px;">
+      <div class="wc-search-wrap">
         <svg class="wc-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
         <input class="wc-search" id="wc-search" type="text" placeholder="Szukaj produktu..." oninput="filterProducts()">
       </div>
