@@ -94,7 +94,7 @@ function buildStatsHtml(results) {
     return '';
 }
 
-let _calcState = {
+var _calcState = _calcState || {
     tag: null,
     kod: null,
     sekcja: null,
@@ -104,8 +104,8 @@ let _calcState = {
     loading: false,
 };
 
-let _saveTimeout = null;
-let _saveIndicatorTimeout = null;
+var _saveTimeout = _saveTimeout || null;
+var _saveIndicatorTimeout = _saveIndicatorTimeout || null;
 
 function scheduleSave() {
     clearTimeout(_saveTimeout);
