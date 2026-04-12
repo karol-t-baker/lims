@@ -479,20 +479,6 @@ def save_wyniki(
             continue
         prec = pole.get("precision", 2)
 
-        # Check existing row for diff tracking
-        old_row = db.execute(
-            "SELECT wynik_id, wartosc FROM ebr_wyniki WHERE ebr_id=? AND sekcja=? AND kod_parametru=?",
-            (ebr_id, sekcja, kod),
-        ).fetchone()
-        if old_row:
-            has_updates = True
-            old_val = old_row["wartosc"]
-            if old_val != wartosc:
-                diffs.append({"pole": kod, "stara": old_val, "nowa": wartosc})
-        else:
-            has_inserts = True
-            diffs.append({"pole": kod, "stara": None, "nowa": wartosc})
-
         tag = pole.get("tag", "")
         min_limit = pole.get("min")
         max_limit = pole.get("max")
@@ -514,6 +500,20 @@ def save_wyniki(
             pass  # Fallback to JSON blob limits
 
         wartosc = round(wartosc, prec)
+
+        # Check existing row for diff tracking (after rounding)
+        old_row = db.execute(
+            "SELECT wynik_id, wartosc FROM ebr_wyniki WHERE ebr_id=? AND sekcja=? AND kod_parametru=?",
+            (ebr_id, sekcja, kod),
+        ).fetchone()
+        if old_row:
+            has_updates = True
+            old_val = old_row["wartosc"]
+            if old_val != wartosc:
+                diffs.append({"pole": kod, "stara": old_val, "nowa": wartosc})
+        else:
+            has_inserts = True
+            diffs.append({"pole": kod, "stara": None, "nowa": wartosc})
 
         # Compute w_limicie
         w_limicie = 1

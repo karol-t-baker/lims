@@ -698,6 +698,7 @@ async function toggleBinding(paramId, checked) {
                 produkt: produkt
             })
         });
+        if (!res.ok) { alert('Błąd dodawania parametru'); return; }
         const data = await res.json();
         if (data.ok) {
             _pmBindings[paramId] = {id: data.id, precision: null, kolejnosc: 0};
@@ -705,7 +706,8 @@ async function toggleBinding(paramId, checked) {
     } else {
         const binding = _pmBindings[paramId];
         if (binding) {
-            await fetch(`/api/parametry/etapy/${binding.id}`, {method: 'DELETE'});
+            const res = await fetch(`/api/parametry/etapy/${binding.id}`, {method: 'DELETE'});
+            if (!res.ok) { alert('Błąd usuwania parametru'); return; }
             delete _pmBindings[paramId];
         }
     }
@@ -715,11 +717,12 @@ async function toggleBinding(paramId, checked) {
 async function updateBinding(paramId, field, value) {
     const binding = _pmBindings[paramId];
     if (!binding) return;
-    await fetch(`/api/parametry/etapy/${binding.id}`, {
+    const res = await fetch(`/api/parametry/etapy/${binding.id}`, {
         method: 'PUT',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({[field]: value})
     });
+    if (!res.ok) { alert('Błąd zapisu'); return; }
     binding[field] = value;
 }
 </script>
