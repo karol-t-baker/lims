@@ -1,6 +1,381 @@
 {% extends "base.html" %}
-{% block title %}Edycja pipeline — {{ produkt }}{% endblock %}
+{% block nav_pipeline %}active{% endblock %}
+{% block title %}Pipeline — {{ produkt }}{% endblock %}
+
+{% block head %}
+<style>
+.pe-wrap { padding: 20px 28px; max-width: 1100px; overflow-y: auto; max-height: calc(100vh - 52px); }
+.pe-section-label {
+  font-size: 9px; font-weight: 800; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 1.2px;
+  margin-bottom: 12px; padding-left: 2px;
+}
+.pa-table {
+  width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px;
+}
+.pa-table thead { position: sticky; top: 0; z-index: 2; }
+.pa-table th {
+  text-align: left; padding: 9px 12px;
+  font-size: 9px; font-weight: 800; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 0.8px;
+  background: var(--surface); border-bottom: 2px solid var(--border);
+}
+.pa-table td {
+  padding: 7px 12px; border-bottom: 1px solid var(--border-subtle); vertical-align: middle;
+}
+.pa-table tr:hover td { background: var(--surface-alt); }
+.pa-kod {
+  font-family: var(--mono); font-size: 11px; font-weight: 600;
+  color: var(--text); background: var(--surface-alt);
+  padding: 2px 6px; border-radius: 4px; display: inline-block;
+}
+.pa-input {
+  padding: 4px 8px; border: 1.5px solid transparent;
+  border-radius: 5px; font-size: 11px; font-family: var(--mono);
+  background: transparent; width: 100%; box-sizing: border-box;
+  transition: border-color 0.15s, background 0.15s;
+}
+.pa-input:hover { border-color: var(--border); background: #fff; }
+.pa-input:focus { border-color: var(--teal); background: #fff; box-shadow: 0 0 0 2px var(--teal-bg); outline: none; }
+.pa-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 10px;
+  font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.pa-badge-cycle { background: #e0f2fe; color: #0369a1; }
+.pa-badge-once { background: var(--surface-alt); color: var(--text-dim); }
+.pa-add {
+  display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+  padding: 10px 12px; margin-top: 12px;
+  background: #fafaf7; border: 1.5px dashed var(--border); border-radius: 8px;
+}
+.pa-add select {
+  padding: 5px 8px; border: 1px solid var(--border);
+  border-radius: 5px; font-size: 11px; background: #fff; font-family: var(--font);
+}
+.pa-add select:focus {
+  border-color: var(--teal); box-shadow: 0 0 0 2px var(--teal-bg); outline: none;
+}
+.pa-add button, .pa-btn {
+  padding: 6px 14px; background: var(--teal); color: #fff;
+  border: none; border-radius: 6px;
+  font-size: 10px; font-weight: 700; cursor: pointer;
+  font-family: var(--font); letter-spacing: 0.3px; transition: background 0.15s;
+}
+.pa-add button:hover, .pa-btn:hover { background: var(--teal-dark); }
+.pe-del {
+  background: none; border: none; cursor: pointer;
+  width: 22px; height: 22px; border-radius: 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--text-dim); transition: all 0.15s; font-size: 13px;
+}
+.pe-del:hover { background: var(--red-bg, #fef2f2); color: var(--red); }
+.pe-arrow {
+  background: none; border: none; cursor: pointer;
+  width: 22px; height: 22px; border-radius: 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--text-dim); transition: all 0.15s; font-size: 12px;
+}
+.pe-arrow:hover { background: var(--surface-alt); color: var(--teal); }
+.pe-arrow:disabled { opacity: 0.2; cursor: default; }
+.pe-arrow:disabled:hover { background: transparent; color: var(--text-dim); }
+.pe-edit-btn {
+  background: none; border: none; cursor: pointer;
+  width: 22px; height: 22px; border-radius: 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--text-dim); transition: all 0.15s; font-size: 11px;
+}
+.pe-edit-btn:hover { background: var(--teal-bg); color: var(--teal); }
+.pa-back {
+  font-size: 11px; color: var(--text-dim); text-decoration: none;
+  display: inline-flex; align-items: center; gap: 4px; margin-bottom: 12px;
+}
+.pa-back:hover { color: var(--teal); }
+.limits-panel {
+  background: #fafaf7; border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px; margin: 4px 0 8px;
+}
+.limits-panel .pa-table { font-size: 11px; }
+.limits-panel .pa-table th { font-size: 8px; padding: 6px 8px; }
+.limits-panel .pa-table td { padding: 5px 8px; }
+.limits-save {
+  padding: 5px 12px; background: var(--teal); color: #fff;
+  border: none; border-radius: 5px; font-size: 10px; font-weight: 700;
+  cursor: pointer; font-family: var(--font); margin-top: 8px;
+  transition: background 0.15s;
+}
+.limits-save:hover { background: var(--teal-dark); }
+.readonly-val {
+  color: var(--text-dim); font-family: var(--mono); font-size: 10px; text-align: center;
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<h1>Pipeline: {{ produkt }}</h1>
-<p>Strona w budowie.</p>
+<div class="pe-wrap">
+  <a class="pa-back" href="/admin/pipeline">&larr; Katalog etapow</a>
+
+  <h2 style="margin:0 0 4px;font-size:16px;font-weight:800;">Pipeline: {{ produkt | replace('_', ' ') }}</h2>
+  <p style="margin:0 0 20px;font-size:11px;color:var(--text-dim);">Kolejnosc etapow analitycznych dla produktu</p>
+
+  <div class="pe-section-label">Etapy w pipeline</div>
+  <table class="pa-table" id="pipe-table">
+    <thead>
+      <tr>
+        <th style="width:30px;">#</th>
+        <th>Etap</th>
+        <th>Typ cyklu</th>
+        <th style="width:90px;">Kolejnosc</th>
+        <th style="width:30px;"></th>
+      </tr>
+    </thead>
+    <tbody id="pipe-body">
+      <tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:32px;font-size:11px;">Ladowanie...</td></tr>
+    </tbody>
+  </table>
+
+  <div class="pa-add" id="pipe-add">
+    <span style="font-size:8px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Dodaj etap z katalogu</span>
+    <select id="add-etap-sel" style="width:280px;">
+      <option value="">— wybierz etap —</option>
+    </select>
+    <button onclick="addEtapToPipeline()">+ Dodaj</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var PRODUKT = {{ produkt | tojson }};
+var _pipeline = [];
+var _allEtapy = [];
+var _openLimits = null;  // etap_id of currently expanded limits panel
+
+function esc(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function parseNum(v) { if (v === '' || v == null) return null; return parseFloat(String(v).replace(',', '.')); }
+function fmtNum(v) { return v != null ? String(v).replace('.', ',') : ''; }
+
+function cycleBadge(typ) {
+  if (typ === 'cykliczny') return '<span class="pa-badge pa-badge-cycle">cykliczny</span>';
+  return '<span class="pa-badge pa-badge-once">jednorazowy</span>';
+}
+
+// ═══ LOAD ═══
+
+function loadPipeline() {
+  fetch('/api/pipeline/produkt/' + encodeURIComponent(PRODUKT))
+    .then(function(r){return r.json();})
+    .then(function(data) {
+      _pipeline = data;
+      renderPipeline(data);
+      loadEtapyForSelect();
+    });
+}
+
+function loadEtapyForSelect() {
+  fetch('/api/pipeline/etapy').then(function(r){return r.json();}).then(function(data) {
+    _allEtapy = data.filter(function(e){ return e.aktywny; });
+    updateEtapSelect();
+  });
+}
+
+function updateEtapSelect() {
+  var usedIds = _pipeline.map(function(p){return p.etap_id;});
+  var sel = document.getElementById('add-etap-sel');
+  var html = '<option value="">— wybierz etap —</option>';
+  _allEtapy.forEach(function(e) {
+    if (usedIds.indexOf(e.id) >= 0) return;
+    html += '<option value="' + e.id + '">' + esc(e.kod) + ' — ' + esc(e.nazwa) + '</option>';
+  });
+  sel.innerHTML = html;
+}
+
+// ═══ RENDER ═══
+
+function renderPipeline(data) {
+  var html = '';
+  data.forEach(function(p, idx) {
+    var isFirst = idx === 0;
+    var isLast = idx === data.length - 1;
+    html += '<tr id="row-' + p.etap_id + '">' +
+      '<td style="color:var(--text-dim);font-size:10px;text-align:center;">' + (idx + 1) + '</td>' +
+      '<td>' +
+        '<span class="pa-kod">' + esc(p.kod) + '</span> ' +
+        '<span style="font-weight:600;font-size:12px;">' + esc(p.nazwa) + '</span>' +
+      '</td>' +
+      '<td>' + cycleBadge(p.typ_cyklu) + '</td>' +
+      '<td style="white-space:nowrap;">' +
+        '<button class="pe-arrow" onclick="moveUp(' + idx + ')" ' + (isFirst ? 'disabled' : '') + ' title="W gore">&uarr;</button>' +
+        '<button class="pe-arrow" onclick="moveDown(' + idx + ')" ' + (isLast ? 'disabled' : '') + ' title="W dol">&darr;</button>' +
+        '<button class="pe-edit-btn" onclick="toggleLimits(' + p.etap_id + ')" title="Edytuj limity">&#9998;</button>' +
+      '</td>' +
+      '<td><button class="pe-del" onclick="removeEtap(' + p.etap_id + ')" title="Usun">&times;</button></td>' +
+    '</tr>';
+    // Limits panel row (hidden by default)
+    html += '<tr id="limits-' + p.etap_id + '" style="display:none;">' +
+      '<td colspan="5" style="padding:0 12px 8px;border-bottom:1px solid var(--border);">' +
+        '<div class="limits-panel" id="limits-panel-' + p.etap_id + '">' +
+          '<div style="text-align:center;color:var(--text-dim);font-size:11px;padding:12px;">Ladowanie limitow...</div>' +
+        '</div>' +
+      '</td>' +
+    '</tr>';
+  });
+  document.getElementById('pipe-body').innerHTML = html ||
+    '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:20px;font-size:11px;">Brak etapow w pipeline</td></tr>';
+}
+
+// ═══ REORDER ═══
+
+function moveUp(idx) {
+  if (idx <= 0) return;
+  var item = _pipeline.splice(idx, 1)[0];
+  _pipeline.splice(idx - 1, 0, item);
+  saveOrder();
+}
+
+function moveDown(idx) {
+  if (idx >= _pipeline.length - 1) return;
+  var item = _pipeline.splice(idx, 1)[0];
+  _pipeline.splice(idx + 1, 0, item);
+  saveOrder();
+}
+
+function saveOrder() {
+  var etapIds = _pipeline.map(function(p){return p.etap_id;});
+  renderPipeline(_pipeline);
+  fetch('/api/pipeline/produkt/' + encodeURIComponent(PRODUKT) + '/reorder', {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({etap_ids: etapIds})
+  });
+}
+
+// ═══ ADD / REMOVE ═══
+
+function addEtapToPipeline() {
+  var sel = document.getElementById('add-etap-sel');
+  var etapId = sel.value;
+  if (!etapId) return;
+  var nextKolejnosc = _pipeline.length + 1;
+  fetch('/api/pipeline/produkt/' + encodeURIComponent(PRODUKT) + '/etapy', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({etap_id: parseInt(etapId), kolejnosc: nextKolejnosc})
+  }).then(function(r) {
+    if (!r.ok) return r.json().then(function(d){alert(d.error || 'Blad');});
+    loadPipeline();
+  });
+}
+
+function removeEtap(etapId) {
+  if (!confirm('Usunac etap z pipeline?')) return;
+  fetch('/api/pipeline/produkt/' + encodeURIComponent(PRODUKT) + '/etapy/' + etapId, {
+    method: 'DELETE'
+  }).then(function(r) {
+    if (r.ok) loadPipeline();
+  });
+}
+
+// ═══ LIMITS INLINE PANEL ═══
+
+function toggleLimits(etapId) {
+  var row = document.getElementById('limits-' + etapId);
+  if (!row) return;
+  var isVisible = row.style.display !== 'none';
+  // Hide all
+  _pipeline.forEach(function(p) {
+    var r = document.getElementById('limits-' + p.etap_id);
+    if (r) r.style.display = 'none';
+  });
+  if (isVisible) {
+    _openLimits = null;
+    return;
+  }
+  _openLimits = etapId;
+  row.style.display = '';
+  loadLimits(etapId);
+}
+
+function loadLimits(etapId) {
+  var panel = document.getElementById('limits-panel-' + etapId);
+  panel.innerHTML = '<div style="text-align:center;color:var(--text-dim);font-size:11px;padding:12px;">Ladowanie...</div>';
+  fetch('/api/pipeline/produkt/' + encodeURIComponent(PRODUKT) + '/etapy/' + etapId + '/resolved')
+    .then(function(r){return r.json();})
+    .then(function(data) {
+      renderLimits(etapId, data);
+    });
+}
+
+function renderLimits(etapId, data) {
+  var panel = document.getElementById('limits-panel-' + etapId);
+  if (!data.length) {
+    panel.innerHTML = '<div style="text-align:center;color:var(--text-dim);font-size:11px;padding:12px;">Brak parametrow w tym etapie. Najpierw dodaj parametry w katalogu etapu.</div>';
+    return;
+  }
+  var html = '<p style="font-size:10px;color:var(--text-dim);margin:0 0 8px;">Wpisz wartosci, aby nadpisac domyslne limity z katalogu. Puste pole = wartosc z katalogu.</p>';
+  html += '<table class="pa-table">' +
+    '<thead><tr>' +
+      '<th>Parametr</th>' +
+      '<th style="width:65px;">Min (aktualny)</th>' +
+      '<th style="width:65px;">Max (aktualny)</th>' +
+      '<th style="width:70px;">Min (nadpisz)</th>' +
+      '<th style="width:70px;">Max (nadpisz)</th>' +
+      '<th style="width:65px;">Nawazka</th>' +
+      '<th style="width:65px;">Target</th>' +
+    '</tr></thead><tbody>';
+
+  data.forEach(function(r) {
+    html += '<tr>' +
+      '<td><span class="pa-kod" style="font-size:10px;">' + esc(r.kod) + '</span> <span style="font-size:10px;">' + esc(r.label || '') + '</span></td>' +
+      '<td class="readonly-val">' + fmtNum(r.min_limit) + '</td>' +
+      '<td class="readonly-val">' + fmtNum(r.max_limit) + '</td>' +
+      '<td><input class="pa-input" type="text" inputmode="decimal" step="any" data-pid="' + r.parametr_id + '" data-field="min_limit" value="" placeholder="' + fmtNum(r.min_limit) + '" style="width:60px;text-align:center;font-size:10px;"></td>' +
+      '<td><input class="pa-input" type="text" inputmode="decimal" step="any" data-pid="' + r.parametr_id + '" data-field="max_limit" value="" placeholder="' + fmtNum(r.max_limit) + '" style="width:60px;text-align:center;font-size:10px;"></td>' +
+      '<td><input class="pa-input" type="text" inputmode="decimal" step="any" data-pid="' + r.parametr_id + '" data-field="nawazka_g" value="" placeholder="' + fmtNum(r.nawazka_g) + '" style="width:55px;text-align:center;font-size:10px;"></td>' +
+      '<td><input class="pa-input" type="text" inputmode="decimal" step="any" data-pid="' + r.parametr_id + '" data-field="target" value="" placeholder="' + fmtNum(r.target) + '" style="width:55px;text-align:center;font-size:10px;"></td>' +
+    '</tr>';
+  });
+
+  html += '</tbody></table>';
+  html += '<button class="limits-save" onclick="saveLimits(' + etapId + ')">Zapisz limity</button>';
+  panel.innerHTML = html;
+}
+
+function saveLimits(etapId) {
+  var panel = document.getElementById('limits-panel-' + etapId);
+  var inputs = panel.querySelectorAll('input[data-pid]');
+  var overridesMap = {};
+  inputs.forEach(function(inp) {
+    var pid = parseInt(inp.dataset.pid);
+    var field = inp.dataset.field;
+    if (!overridesMap[pid]) overridesMap[pid] = {parametr_id: pid};
+    overridesMap[pid][field] = parseNum(inp.value);
+  });
+  var overrides = Object.values(overridesMap);
+
+  var btn = panel.querySelector('.limits-save');
+  btn.disabled = true;
+  btn.textContent = 'Zapisywanie...';
+
+  fetch('/api/pipeline/produkt/' + encodeURIComponent(PRODUKT) + '/etapy/' + etapId + '/limity', {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({overrides: overrides})
+  }).then(function(r) {
+    btn.disabled = false;
+    if (r.ok) {
+      btn.textContent = 'Zapisano!';
+      setTimeout(function() { btn.textContent = 'Zapisz limity'; }, 1500);
+    } else {
+      btn.textContent = 'Blad!';
+      setTimeout(function() { btn.textContent = 'Zapisz limity'; }, 1500);
+    }
+  }).catch(function() {
+    btn.disabled = false;
+    btn.textContent = 'Zapisz limity';
+  });
+}
+
+// Init
+loadPipeline();
+</script>
 {% endblock %}

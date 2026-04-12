@@ -1,6 +1,191 @@
 {% extends "base.html" %}
-{% block title %}Katalog etapów analitycznych{% endblock %}
+{% block nav_pipeline %}active{% endblock %}
+{% block title %}Katalog etapow analitycznych{% endblock %}
+
+{% block head %}
+<style>
+.pe-wrap { padding: 20px 28px; max-width: 1100px; overflow-y: auto; max-height: calc(100vh - 52px); }
+.pe-section-label {
+  font-size: 9px; font-weight: 800; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 1.2px;
+  margin-bottom: 12px; padding-left: 2px;
+}
+.pa-table {
+  width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px;
+}
+.pa-table thead { position: sticky; top: 0; z-index: 2; }
+.pa-table th {
+  text-align: left; padding: 9px 12px;
+  font-size: 9px; font-weight: 800; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 0.8px;
+  background: var(--surface); border-bottom: 2px solid var(--border);
+}
+.pa-table td {
+  padding: 7px 12px; border-bottom: 1px solid var(--border-subtle); vertical-align: middle;
+}
+.pa-table tr:hover td { background: var(--surface-alt); }
+.pa-kod {
+  font-family: var(--mono); font-size: 11px; font-weight: 600;
+  color: var(--text); background: var(--surface-alt);
+  padding: 2px 6px; border-radius: 4px; display: inline-block;
+}
+.pa-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 10px;
+  font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.pa-badge-cycle { background: #e0f2fe; color: #0369a1; }
+.pa-badge-once { background: var(--surface-alt); color: var(--text-dim); }
+.pa-badge-active { background: var(--teal-bg); color: var(--teal); }
+.pa-badge-inactive { background: #fef2f2; color: #dc2626; }
+.pa-add {
+  display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+  padding: 10px 12px; margin-top: 12px;
+  background: #fafaf7; border: 1.5px dashed var(--border); border-radius: 8px;
+}
+.pa-add input, .pa-add select {
+  padding: 5px 8px; border: 1px solid var(--border);
+  border-radius: 5px; font-size: 11px; background: #fff; font-family: var(--font);
+}
+.pa-add input { font-family: var(--mono); }
+.pa-add input:focus, .pa-add select:focus {
+  border-color: var(--teal); box-shadow: 0 0 0 2px var(--teal-bg); outline: none;
+}
+.pa-add button {
+  padding: 6px 14px; background: var(--teal); color: #fff;
+  border: none; border-radius: 6px;
+  font-size: 10px; font-weight: 700; cursor: pointer;
+  font-family: var(--font); letter-spacing: 0.3px; transition: background 0.15s;
+}
+.pa-add button:hover { background: var(--teal-dark); }
+.pa-link {
+  color: var(--teal); text-decoration: none; font-weight: 600; font-size: 12px;
+}
+.pa-link:hover { text-decoration: underline; }
+</style>
+{% endblock %}
+
 {% block content %}
-<h1>Katalog etapów analitycznych</h1>
-<p>Strona w budowie.</p>
+<div class="pe-wrap">
+  <h2 style="margin:0 0 4px;font-size:16px;font-weight:800;">Etapy analityczne — katalog</h2>
+  <p style="margin:0 0 20px;font-size:11px;color:var(--text-dim);">Definicje etapow analitycznych i przypisanie do produktow</p>
+
+  <!-- Stage catalog table -->
+  <div class="pe-section-label">Katalog etapow</div>
+  <table class="pa-table" id="etapy-table">
+    <thead>
+      <tr>
+        <th>Kod</th>
+        <th>Nazwa</th>
+        <th>Typ cyklu</th>
+        <th>Status</th>
+        <th style="width:60px;"></th>
+      </tr>
+    </thead>
+    <tbody id="etapy-body">
+      <tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:32px;font-size:11px;">Ladowanie...</td></tr>
+    </tbody>
+  </table>
+
+  <!-- Add stage form -->
+  <div class="pa-add" id="etapy-add">
+    <span style="font-size:8px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Dodaj etap</span>
+    <input id="add-kod" type="text" placeholder="Kod (np. pH_1)" style="width:120px;">
+    <input id="add-nazwa" type="text" placeholder="Nazwa etapu" style="width:200px;">
+    <select id="add-typ">
+      <option value="jednorazowy">jednorazowy</option>
+      <option value="cykliczny">cykliczny</option>
+    </select>
+    <button onclick="addEtap()" id="btn-add-etap">+ Dodaj</button>
+  </div>
+
+  <!-- Products section -->
+  <div style="margin-top:36px;">
+    <div class="pe-section-label">Produkty — pipeline</div>
+    <p style="font-size:11px;color:var(--text-dim);margin:0 0 12px;">Kliknij produkt, aby edytowac jego pipeline etapow analitycznych.</p>
+    <table class="pa-table" id="prod-table">
+      <thead>
+        <tr>
+          <th>Produkt</th>
+          <th>Akcja</th>
+        </tr>
+      </thead>
+      <tbody id="prod-body">
+        <tr><td colspan="2" style="text-align:center;color:var(--text-dim);padding:24px;font-size:11px;">Ladowanie...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function esc(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function cycleBadge(typ) {
+  if (typ === 'cykliczny') return '<span class="pa-badge pa-badge-cycle">cykliczny</span>';
+  return '<span class="pa-badge pa-badge-once">jednorazowy</span>';
+}
+
+function statusBadge(aktywny) {
+  if (aktywny) return '<span class="pa-badge pa-badge-active">aktywny</span>';
+  return '<span class="pa-badge pa-badge-inactive">nieaktywny</span>';
+}
+
+function loadEtapy() {
+  fetch('/api/pipeline/etapy').then(function(r){return r.json();}).then(function(data) {
+    var html = '';
+    data.forEach(function(e) {
+      html += '<tr>' +
+        '<td><a class="pa-link" href="/admin/pipeline/etap/' + e.id + '"><span class="pa-kod">' + esc(e.kod) + '</span></a></td>' +
+        '<td><a class="pa-link" href="/admin/pipeline/etap/' + e.id + '">' + esc(e.nazwa) + '</a></td>' +
+        '<td>' + cycleBadge(e.typ_cyklu) + '</td>' +
+        '<td>' + statusBadge(e.aktywny) + '</td>' +
+        '<td><a class="pa-link" href="/admin/pipeline/etap/' + e.id + '" style="font-size:10px;">Edytuj</a></td>' +
+      '</tr>';
+    });
+    document.getElementById('etapy-body').innerHTML = html ||
+      '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:20px;">Brak etapow w katalogu</td></tr>';
+  });
+}
+
+function addEtap() {
+  var kod = document.getElementById('add-kod').value.trim();
+  var nazwa = document.getElementById('add-nazwa').value.trim();
+  var typ = document.getElementById('add-typ').value;
+  if (!kod || !nazwa) { alert('Kod i nazwa sa wymagane'); return; }
+  var btn = document.getElementById('btn-add-etap');
+  btn.disabled = true;
+  fetch('/api/pipeline/etapy', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({kod: kod, nazwa: nazwa, typ_cyklu: typ})
+  }).then(function(r){
+    btn.disabled = false;
+    if (!r.ok) return r.json().then(function(d){alert(d.error || 'Blad');});
+    document.getElementById('add-kod').value = '';
+    document.getElementById('add-nazwa').value = '';
+    loadEtapy();
+  }).catch(function(){btn.disabled = false;});
+}
+
+function loadProdukty() {
+  fetch('/api/produkty').then(function(r){return r.json();}).then(function(data) {
+    var html = '';
+    data.forEach(function(p) {
+      var nazwa = p.nazwa || p;
+      var display = p.display_name || (typeof nazwa === 'string' ? nazwa.replace(/_/g, ' ') : nazwa);
+      html += '<tr>' +
+        '<td style="font-weight:600;">' + esc(display) + '</td>' +
+        '<td><a class="pa-link" href="/admin/pipeline/produkt/' + encodeURIComponent(nazwa) + '">Edytuj pipeline</a></td>' +
+      '</tr>';
+    });
+    document.getElementById('prod-body').innerHTML = html ||
+      '<tr><td colspan="2" style="text-align:center;color:var(--text-dim);padding:20px;">Brak produktow</td></tr>';
+  });
+}
+
+// Init
+loadEtapy();
+loadProdukty();
+</script>
 {% endblock %}

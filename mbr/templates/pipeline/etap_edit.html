@@ -1,6 +1,429 @@
 {% extends "base.html" %}
+{% block nav_pipeline %}active{% endblock %}
 {% block title %}Edycja etapu{% endblock %}
+
+{% block head %}
+<style>
+.pe-wrap { padding: 20px 28px; max-width: 1200px; overflow-y: auto; max-height: calc(100vh - 52px); }
+.pe-section-label {
+  font-size: 9px; font-weight: 800; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 1.2px;
+  margin-bottom: 12px; padding-left: 2px; margin-top: 28px;
+}
+.pa-table {
+  width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px;
+}
+.pa-table thead { position: sticky; top: 0; z-index: 2; }
+.pa-table th {
+  text-align: left; padding: 9px 12px;
+  font-size: 9px; font-weight: 800; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: 0.8px;
+  background: var(--surface); border-bottom: 2px solid var(--border);
+}
+.pa-table td {
+  padding: 7px 12px; border-bottom: 1px solid var(--border-subtle); vertical-align: middle;
+}
+.pa-table tr:hover td { background: var(--surface-alt); }
+.pa-kod {
+  font-family: var(--mono); font-size: 11px; font-weight: 600;
+  color: var(--text); background: var(--surface-alt);
+  padding: 2px 6px; border-radius: 4px; display: inline-block;
+}
+.pa-input {
+  padding: 4px 8px; border: 1.5px solid transparent;
+  border-radius: 5px; font-size: 11px; font-family: var(--mono);
+  background: transparent; width: 100%; box-sizing: border-box;
+  transition: border-color 0.15s, background 0.15s;
+}
+.pa-input:hover { border-color: var(--border); background: #fff; }
+.pa-input:focus { border-color: var(--teal); background: #fff; box-shadow: 0 0 0 2px var(--teal-bg); outline: none; }
+.pa-select {
+  padding: 4px 6px; border: 1.5px solid transparent;
+  border-radius: 5px; font-size: 11px; font-family: var(--font);
+  background: transparent; cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.pa-select:hover { border-color: var(--border); background: #fff; }
+.pa-select:focus { border-color: var(--teal); background: #fff; outline: none; }
+.pa-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 10px;
+  font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.pa-badge-cycle { background: #e0f2fe; color: #0369a1; }
+.pa-badge-once { background: var(--surface-alt); color: var(--text-dim); }
+.pa-add {
+  display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+  padding: 10px 12px; margin-top: 12px;
+  background: #fafaf7; border: 1.5px dashed var(--border); border-radius: 8px;
+}
+.pa-add input, .pa-add select {
+  padding: 5px 8px; border: 1px solid var(--border);
+  border-radius: 5px; font-size: 11px; background: #fff; font-family: var(--font);
+}
+.pa-add input { font-family: var(--mono); }
+.pa-add input:focus, .pa-add select:focus {
+  border-color: var(--teal); box-shadow: 0 0 0 2px var(--teal-bg); outline: none;
+}
+.pa-add button, .pa-btn {
+  padding: 6px 14px; background: var(--teal); color: #fff;
+  border: none; border-radius: 6px;
+  font-size: 10px; font-weight: 700; cursor: pointer;
+  font-family: var(--font); letter-spacing: 0.3px; transition: background 0.15s;
+}
+.pa-add button:hover, .pa-btn:hover { background: var(--teal-dark); }
+.pe-del {
+  background: none; border: none; cursor: pointer;
+  width: 22px; height: 22px; border-radius: 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--text-dim); transition: all 0.15s; font-size: 13px;
+}
+.pe-del:hover { background: var(--red-bg, #fef2f2); color: var(--red); }
+.pa-back {
+  font-size: 11px; color: var(--text-dim); text-decoration: none;
+  display: inline-flex; align-items: center; gap: 4px; margin-bottom: 12px;
+}
+.pa-back:hover { color: var(--teal); }
+.pa-chk { width: 15px; height: 15px; cursor: pointer; }
+</style>
+{% endblock %}
+
 {% block content %}
-<h1>Edycja etapu #{{ etap_id }}</h1>
-<p>Strona w budowie.</p>
+<div class="pe-wrap">
+  <a class="pa-back" href="/admin/pipeline">&larr; Katalog etapow</a>
+
+  <div id="header-area">
+    <h2 style="margin:0 0 4px;font-size:16px;font-weight:800;">Etap #{{ etap_id }}</h2>
+    <p style="margin:0;font-size:11px;color:var(--text-dim);">Ladowanie...</p>
+  </div>
+
+  <!-- Panel 1: Parametry domyslne -->
+  <div class="pe-section-label">Parametry domyslne</div>
+  <table class="pa-table" id="param-table">
+    <thead>
+      <tr>
+        <th style="width:30px;">#</th>
+        <th>Parametr</th>
+        <th style="width:75px;">Min</th>
+        <th style="width:75px;">Max</th>
+        <th style="width:75px;">Nawazka</th>
+        <th style="width:55px;">Precyzja</th>
+        <th style="width:75px;">Target</th>
+        <th style="width:55px;">Bramka</th>
+        <th style="width:30px;"></th>
+      </tr>
+    </thead>
+    <tbody id="param-body">
+      <tr><td colspan="9" style="text-align:center;color:var(--text-dim);padding:24px;font-size:11px;">Ladowanie...</td></tr>
+    </tbody>
+  </table>
+
+  <div class="pa-add" id="param-add">
+    <span style="font-size:8px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Dodaj parametr</span>
+    <select id="pa-sel" style="width:220px;">
+      <option value="">— wybierz parametr —</option>
+    </select>
+    <input id="pa-min" type="text" placeholder="Min" style="width:65px;" inputmode="decimal" step="any">
+    <input id="pa-max" type="text" placeholder="Max" style="width:65px;" inputmode="decimal" step="any">
+    <input id="pa-naw" type="text" placeholder="Nawazka" style="width:70px;" inputmode="decimal" step="any">
+    <input id="pa-prec" type="number" placeholder="Prec." style="width:50px;" step="1" value="2">
+    <input id="pa-target" type="text" placeholder="Target" style="width:65px;" inputmode="decimal" step="any">
+    <button onclick="addParam()">+ Dodaj</button>
+  </div>
+
+  <!-- Panel 2: Warunki przejscia -->
+  <div class="pe-section-label">Warunki przejscia (bramka)</div>
+  <table class="pa-table" id="war-table">
+    <thead>
+      <tr>
+        <th>Parametr</th>
+        <th style="width:90px;">Operator</th>
+        <th style="width:80px;">Wartosc</th>
+        <th style="width:80px;">Wartosc max</th>
+        <th>Opis</th>
+        <th style="width:30px;"></th>
+      </tr>
+    </thead>
+    <tbody id="war-body">
+      <tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:24px;font-size:11px;">Ladowanie...</td></tr>
+    </tbody>
+  </table>
+
+  <div class="pa-add" id="war-add">
+    <span style="font-size:8px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Dodaj warunek</span>
+    <select id="wa-param" style="width:180px;">
+      <option value="">— parametr —</option>
+    </select>
+    <select id="wa-op" style="width:80px;">
+      <option value="<">&lt;</option>
+      <option value="<=">&lt;=</option>
+      <option value=">">&gt;</option>
+      <option value=">=">&gt;=</option>
+      <option value="between">between</option>
+      <option value="=">=</option>
+    </select>
+    <input id="wa-val" type="text" placeholder="Wartosc" style="width:70px;" inputmode="decimal" step="any">
+    <input id="wa-valmax" type="text" placeholder="Max (between)" style="width:80px;" inputmode="decimal" step="any">
+    <input id="wa-opis" type="text" placeholder="Opis" style="width:140px;">
+    <button onclick="addWarunek()">+ Dodaj</button>
+  </div>
+
+  <!-- Panel 3: Dozwolone korekty -->
+  <div class="pe-section-label">Dozwolone korekty</div>
+  <table class="pa-table" id="kor-table">
+    <thead>
+      <tr>
+        <th style="width:30px;">#</th>
+        <th>Substancja</th>
+        <th style="width:80px;">Jednostka</th>
+        <th style="width:110px;">Wykonawca</th>
+        <th style="width:30px;"></th>
+      </tr>
+    </thead>
+    <tbody id="kor-body">
+      <tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:24px;font-size:11px;">Ladowanie...</td></tr>
+    </tbody>
+  </table>
+
+  <div class="pa-add" id="kor-add">
+    <span style="font-size:8px;font-weight:800;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;">Dodaj korekta</span>
+    <input id="ko-sub" type="text" placeholder="Substancja" style="width:180px;">
+    <select id="ko-jedn" style="width:70px;">
+      <option value="kg">kg</option>
+      <option value="l">l</option>
+    </select>
+    <select id="ko-wyk" style="width:110px;">
+      <option value="laborant">laborant</option>
+      <option value="produkcja">produkcja</option>
+    </select>
+    <button onclick="addKorekta()">+ Dodaj</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+var ETAP_ID = {{ etap_id }};
+var _etapData = null;
+var _parametry = [];  // stage params for warunki dropdown
+var _allParams = [];  // global param list for add-param dropdown
+
+function esc(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function parseNum(v) { if (v === '' || v == null) return null; return parseFloat(String(v).replace(',', '.')); }
+function fmtNum(v) { return v != null ? String(v).replace('.', ',') : ''; }
+
+function flashField(input, ok) {
+  input.style.outline = '2px solid var(--' + (ok ? 'green' : 'red') + ')';
+  setTimeout(function() { input.style.outline = ''; }, 800);
+}
+
+function cycleBadge(typ) {
+  if (typ === 'cykliczny') return '<span class="pa-badge pa-badge-cycle">cykliczny</span>';
+  return '<span class="pa-badge pa-badge-once">jednorazowy</span>';
+}
+
+// ═══ LOAD ALL DATA ═══
+
+function loadAll() {
+  fetch('/api/pipeline/etapy/' + ETAP_ID).then(function(r){
+    if (!r.ok) { document.getElementById('header-area').innerHTML = '<h2 style="color:var(--red);">Etap nie znaleziony</h2>'; return; }
+    return r.json();
+  }).then(function(data) {
+    if (!data) return;
+    _etapData = data;
+    renderHeader(data.etap);
+    renderParametry(data.parametry);
+    renderWarunki(data.warunki);
+    renderKorekty(data.korekty);
+    updateWarunkiParamSelect(data.parametry);
+  });
+
+  // Load global param list for add-param dropdown
+  fetch('/api/parametry/list').then(function(r){return r.json();}).then(function(data) {
+    _allParams = data;
+    var sel = document.getElementById('pa-sel');
+    var html = '<option value="">— wybierz parametr —</option>';
+    data.forEach(function(p) {
+      if (!p.aktywny) return;
+      html += '<option value="' + p.id + '">' + esc(p.kod) + ' — ' + esc(p.skrot || p.label) + '</option>';
+    });
+    sel.innerHTML = html;
+  });
+}
+
+// ═══ HEADER ═══
+
+function renderHeader(etap) {
+  document.getElementById('header-area').innerHTML =
+    '<h2 style="margin:0 0 4px;font-size:16px;font-weight:800;">' +
+    '<span class="pa-kod" style="font-size:13px;margin-right:8px;">' + esc(etap.kod) + '</span>' +
+    esc(etap.nazwa) + ' ' + cycleBadge(etap.typ_cyklu) +
+    '</h2>' +
+    '<p style="margin:0;font-size:11px;color:var(--text-dim);">' + esc(etap.opis || '') + '</p>';
+}
+
+// ═══ PANEL 1: PARAMETRY ═══
+
+function renderParametry(data) {
+  _parametry = data;
+  var html = '';
+  data.forEach(function(p, idx) {
+    html += '<tr>' +
+      '<td style="color:var(--text-dim);font-size:10px;text-align:center;">' + (idx + 1) + '</td>' +
+      '<td><span class="pa-kod">' + esc(p.kod) + '</span> <span style="font-size:11px;color:var(--text-sec);">' + esc(p.label || '') + '</span></td>' +
+      '<td><input class="pa-input" type="text" inputmode="decimal" step="any" value="' + fmtNum(p.min_limit) + '" onblur="saveEP(' + p.id + ',\'min_limit\',this)" style="width:65px;text-align:center;"></td>' +
+      '<td><input class="pa-input" type="text" inputmode="decimal" step="any" value="' + fmtNum(p.max_limit) + '" onblur="saveEP(' + p.id + ',\'max_limit\',this)" style="width:65px;text-align:center;"></td>' +
+      '<td><input class="pa-input" type="text" inputmode="decimal" step="any" value="' + fmtNum(p.nawazka_g) + '" onblur="saveEP(' + p.id + ',\'nawazka_g\',this)" style="width:65px;text-align:center;"></td>' +
+      '<td><input class="pa-input" type="number" step="1" value="' + (p.precision != null ? p.precision : '') + '" onblur="saveEP(' + p.id + ',\'precision\',this)" style="width:45px;text-align:center;"></td>' +
+      '<td><input class="pa-input" type="text" inputmode="decimal" step="any" value="' + fmtNum(p.target) + '" onblur="saveEP(' + p.id + ',\'target\',this)" style="width:65px;text-align:center;"></td>' +
+      '<td style="text-align:center;"><input type="checkbox" class="pa-chk" ' + (p.wymagany ? 'checked' : '') + ' onchange="saveEP(' + p.id + ',\'wymagany\',this)"></td>' +
+      '<td><button class="pe-del" onclick="deleteParam(' + p.id + ')">&times;</button></td>' +
+    '</tr>';
+  });
+  document.getElementById('param-body').innerHTML = html ||
+    '<tr><td colspan="9" style="text-align:center;color:var(--text-dim);padding:20px;font-size:11px;">Brak parametrow</td></tr>';
+}
+
+function saveEP(epId, field, input) {
+  var val;
+  if (field === 'wymagany') val = input.checked ? 1 : 0;
+  else if (field === 'precision') val = parseNum(input.value);
+  else val = parseNum(input.value);
+  var body = {}; body[field] = val;
+  fetch('/api/pipeline/etapy/' + ETAP_ID + '/parametry/' + epId, {
+    method: 'PUT', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  }).then(function(r) { if (input.type !== 'checkbox') flashField(input, r.ok); });
+}
+
+function addParam() {
+  var paramId = document.getElementById('pa-sel').value;
+  if (!paramId) { alert('Wybierz parametr'); return; }
+  var body = {
+    parametr_id: parseInt(paramId),
+    kolejnosc: _parametry.length,
+    min_limit: parseNum(document.getElementById('pa-min').value),
+    max_limit: parseNum(document.getElementById('pa-max').value),
+    nawazka_g: parseNum(document.getElementById('pa-naw').value),
+    precision: parseNum(document.getElementById('pa-prec').value),
+    target: parseNum(document.getElementById('pa-target').value),
+  };
+  fetch('/api/pipeline/etapy/' + ETAP_ID + '/parametry', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  }).then(function(r) {
+    if (!r.ok) return r.json().then(function(d){alert(d.error || 'Blad');});
+    ['pa-min','pa-max','pa-naw','pa-target'].forEach(function(id){document.getElementById(id).value='';});
+    document.getElementById('pa-prec').value = '2';
+    document.getElementById('pa-sel').value = '';
+    loadAll();
+  });
+}
+
+function deleteParam(epId) {
+  if (!confirm('Usunac parametr z etapu?')) return;
+  fetch('/api/pipeline/etapy/' + ETAP_ID + '/parametry/' + epId, {method: 'DELETE'})
+    .then(function(r) { if (r.ok) loadAll(); });
+}
+
+// ═══ PANEL 2: WARUNKI ═══
+
+function updateWarunkiParamSelect(params) {
+  var sel = document.getElementById('wa-param');
+  var html = '<option value="">— parametr —</option>';
+  params.forEach(function(p) {
+    html += '<option value="' + p.parametr_id + '">' + esc(p.kod) + '</option>';
+  });
+  sel.innerHTML = html;
+}
+
+function renderWarunki(data) {
+  var html = '';
+  data.forEach(function(w) {
+    var maxCell = w.operator === 'between' ? fmtNum(w.wartosc_max) : '—';
+    html += '<tr>' +
+      '<td><span class="pa-kod">' + esc(w.kod) + '</span> <span style="font-size:10px;color:var(--text-dim);">' + esc(w.label || '') + '</span></td>' +
+      '<td style="font-family:var(--mono);font-size:11px;text-align:center;">' + esc(w.operator) + '</td>' +
+      '<td style="text-align:center;font-family:var(--mono);">' + fmtNum(w.wartosc) + '</td>' +
+      '<td style="text-align:center;font-family:var(--mono);">' + maxCell + '</td>' +
+      '<td style="font-size:11px;color:var(--text-sec);">' + esc(w.opis_warunku || '') + '</td>' +
+      '<td><button class="pe-del" onclick="deleteWarunek(' + w.id + ')">&times;</button></td>' +
+    '</tr>';
+  });
+  document.getElementById('war-body').innerHTML = html ||
+    '<tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:20px;font-size:11px;">Brak warunkow</td></tr>';
+}
+
+function addWarunek() {
+  var paramId = document.getElementById('wa-param').value;
+  var op = document.getElementById('wa-op').value;
+  var val = parseNum(document.getElementById('wa-val').value);
+  if (!paramId || val == null) { alert('Parametr i wartosc sa wymagane'); return; }
+  var body = {
+    parametr_id: parseInt(paramId),
+    operator: op,
+    wartosc: val,
+    wartosc_max: op === 'between' ? parseNum(document.getElementById('wa-valmax').value) : null,
+    opis_warunku: document.getElementById('wa-opis').value.trim() || null,
+  };
+  fetch('/api/pipeline/etapy/' + ETAP_ID + '/warunki', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  }).then(function(r) {
+    if (!r.ok) return r.json().then(function(d){alert(d.error || 'Blad');});
+    ['wa-val','wa-valmax','wa-opis'].forEach(function(id){document.getElementById(id).value='';});
+    document.getElementById('wa-param').value = '';
+    loadAll();
+  });
+}
+
+function deleteWarunek(wId) {
+  if (!confirm('Usunac warunek?')) return;
+  fetch('/api/pipeline/warunki/' + wId, {method: 'DELETE'})
+    .then(function(r) { if (r.ok) loadAll(); });
+}
+
+// ═══ PANEL 3: KOREKTY ═══
+
+function renderKorekty(data) {
+  var html = '';
+  data.forEach(function(k, idx) {
+    html += '<tr>' +
+      '<td style="color:var(--text-dim);font-size:10px;text-align:center;">' + (idx + 1) + '</td>' +
+      '<td style="font-weight:600;">' + esc(k.substancja) + '</td>' +
+      '<td style="text-align:center;">' + esc(k.jednostka) + '</td>' +
+      '<td>' + esc(k.wykonawca) + '</td>' +
+      '<td><button class="pe-del" onclick="deleteKorekta(' + k.id + ')">&times;</button></td>' +
+    '</tr>';
+  });
+  document.getElementById('kor-body').innerHTML = html ||
+    '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:20px;font-size:11px;">Brak korekt</td></tr>';
+}
+
+function addKorekta() {
+  var sub = document.getElementById('ko-sub').value.trim();
+  if (!sub) { alert('Substancja jest wymagana'); return; }
+  var body = {
+    substancja: sub,
+    jednostka: document.getElementById('ko-jedn').value,
+    wykonawca: document.getElementById('ko-wyk').value,
+  };
+  fetch('/api/pipeline/etapy/' + ETAP_ID + '/korekty', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  }).then(function(r) {
+    if (!r.ok) return r.json().then(function(d){alert(d.error || 'Blad');});
+    document.getElementById('ko-sub').value = '';
+    loadAll();
+  });
+}
+
+function deleteKorekta(kId) {
+  if (!confirm('Usunac korekta?')) return;
+  fetch('/api/pipeline/korekty/' + kId, {method: 'DELETE'})
+    .then(function(r) { if (r.ok) loadAll(); });
+}
+
+// Init
+loadAll();
+</script>
 {% endblock %}
