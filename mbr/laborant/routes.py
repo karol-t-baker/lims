@@ -231,7 +231,28 @@ def save_entry(ebr_id):
                     values_changed = True
                     break
 
-        save_wyniki(db, ebr_id, sekcja, values, user, ebr=ebr)
+        result = save_wyniki(db, ebr_id, sekcja, values, user, ebr=ebr)
+
+        # Audit: log wynik saved/updated if there were actual changes
+        if result["diffs"]:
+            # If only updates (no inserts) → updated; otherwise → saved
+            event = audit.EVENT_EBR_WYNIK_UPDATED if (result["has_updates"] and not result["has_inserts"]) else audit.EVENT_EBR_WYNIK_SAVED
+            sess_user = session.get("user", {})
+            audit.log_event(
+                event,
+                entity_type="ebr",
+                entity_id=ebr_id,
+                diff=result["diffs"],
+                payload={"sekcja": sekcja},
+                actors=[{
+                    "worker_id": None,
+                    "actor_login": sess_user.get("login", "unknown"),
+                    "actor_rola": sess_user.get("rola", "unknown"),
+                }],
+                db=db,
+            )
+        db.commit()
+
         sync_ebr_to_v4(db, ebr_id, ebr=ebr)
 
         if values_changed:

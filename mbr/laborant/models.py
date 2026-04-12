@@ -437,15 +437,19 @@ def save_wyniki(
     values: dict,
     user: str,
     ebr: dict | None = None,
-) -> None:
+) -> dict:
     """Save lab results. values = {kod: {wartosc, komentarz}}.
     Looks up pole definition from MBR parametry_lab to get tag, min, max.
     Uses INSERT ... ON CONFLICT ... DO UPDATE for upsert.
-    Auto-computes w_limicie."""
+    Auto-computes w_limicie.
+
+    Returns dict with diff metadata for audit:
+        {"diffs": [...], "has_inserts": bool, "has_updates": bool}
+    """
     if ebr is None:
         ebr = get_ebr(db, ebr_id)
     if ebr is None:
-        return
+        return {"diffs": [], "has_inserts": False, "has_updates": False}
     parametry = json.loads(ebr["parametry_lab"]) if isinstance(ebr["parametry_lab"], str) else ebr["parametry_lab"]
     # Resolve base sekcja: "analiza__2" → "analiza", "analiza_koncowa" → "analiza_koncowa"
     base_sekcja = sekcja.split("__")[0] if "__" in sekcja else sekcja
@@ -459,6 +463,10 @@ def save_wyniki(
     pola_map = {p["kod"]: p for p in pola if isinstance(p, dict) and "kod" in p}
     now = datetime.now().isoformat(timespec="seconds")
 
+    diffs = []
+    has_inserts = False
+    has_updates = False
+
     for kod, entry in values.items():
         pole = pola_map.get(kod)
         if pole is None:
@@ -470,13 +478,19 @@ def save_wyniki(
         except (ValueError, TypeError):
             continue
 
-        # Audit: log old value before overwrite
+        # Check existing row for diff tracking
         old_row = db.execute(
             "SELECT wynik_id, wartosc FROM ebr_wyniki WHERE ebr_id=? AND sekcja=? AND kod_parametru=?",
             (ebr_id, sekcja, kod),
         ).fetchone()
-        if old_row and old_row["wartosc"] is not None and old_row["wartosc"] != wartosc:
-            pass  # TODO(audit-phase-4): replace with log_event('ebr.wynik.updated', ...)
+        if old_row:
+            has_updates = True
+            old_val = old_row["wartosc"]
+            if old_val != wartosc:
+                diffs.append({"pole": kod, "stara": old_val, "nowa": wartosc})
+        else:
+            has_inserts = True
+            diffs.append({"pole": kod, "stara": None, "nowa": wartosc})
 
         tag = pole.get("tag", "")
         min_limit = pole.get("min")
@@ -518,13 +532,13 @@ def save_wyniki(
                 -- samples_json intentionally NOT overwritten here
         """, (ebr_id, sekcja, kod, tag, wartosc, min_limit, max_limit,
               w_limicie, komentarz, now, user))
-    db.commit()
 
     # Bump sync_seq so COA picks up the change
     if ebr and ebr.get("status") == "completed":
         next_seq = db.execute("SELECT COALESCE(MAX(sync_seq), 0) + 1 FROM ebr_batches").fetchone()[0]
         db.execute("UPDATE ebr_batches SET sync_seq = ? WHERE ebr_id = ?", (next_seq, ebr_id))
-        db.commit()
+
+    return {"diffs": diffs, "has_inserts": has_inserts, "has_updates": has_updates}
 
 
 def complete_ebr(db: sqlite3.Connection, ebr_id: int, zbiorniki: list | None = None) -> None:
