@@ -54,7 +54,6 @@ def api_etapy_analizy_save(ebr_id):
             audit.EVENT_EBR_STAGE_EVENT_ADDED,
             entity_type="ebr", entity_id=ebr_id,
             payload={"type": "analizy", "etap": etap, "runda": runda, "krok": krok},
-            actors=[{"worker_id": None, "actor_login": user_dict.get("login", "unknown"), "actor_rola": user_dict.get("rola", "unknown")}],
             db=db,
         )
         db.commit()
@@ -88,7 +87,6 @@ def api_korekty_add(ebr_id):
             audit.EVENT_EBR_STAGE_EVENT_ADDED,
             entity_type="ebr", entity_id=ebr_id,
             payload={"type": "korekta", "etap": etap, "substancja": substancja, "ilosc_kg": ilosc_kg, "korekta_id": kid},
-            actors=[{"worker_id": None, "actor_login": user_dict.get("login", "unknown"), "actor_rola": user_dict.get("rola", "unknown")}],
             db=db,
         )
         db.commit()
@@ -105,7 +103,6 @@ def api_korekty_confirm(ebr_id, kid):
             audit.EVENT_EBR_STAGE_EVENT_UPDATED,
             entity_type="ebr", entity_id=ebr_id,
             payload={"type": "korekta_confirm", "korekta_id": kid},
-            actors=[{"worker_id": None, "actor_login": user.get("login", "unknown"), "actor_rola": user.get("rola", "unknown")}],
             db=db,
         )
         db.commit()
@@ -138,7 +135,6 @@ def api_etapy_zatwierdz(ebr_id):
             audit.EVENT_EBR_STAGE_EVENT_ADDED,
             entity_type="ebr", entity_id=ebr_id,
             payload={"type": "zatwierdz", "etap": etap, "next_etap": next_etap},
-            actors=[{"worker_id": None, "actor_login": user_dict.get("login", "unknown"), "actor_rola": user_dict.get("rola", "unknown")}],
             db=db,
         )
         db.commit()
@@ -163,7 +159,6 @@ def api_etapy_skip(ebr_id):
             audit.EVENT_EBR_STAGE_EVENT_ADDED,
             entity_type="ebr", entity_id=ebr_id,
             payload={"type": "skip", "etap": etap, "next_etap": next_etap},
-            actors=[{"worker_id": None, "actor_login": user_dict.get("login", "unknown"), "actor_rola": user_dict.get("rola", "unknown")}],
             db=db,
         )
         db.commit()

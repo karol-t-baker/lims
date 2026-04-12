@@ -125,7 +125,6 @@ def szarze_new():
                 pass
 
             # Audit: log batch creation
-            user = session.get("user", {})
             audit.log_event(
                 audit.EVENT_EBR_BATCH_CREATED,
                 entity_type="ebr",
@@ -139,11 +138,6 @@ def szarze_new():
                     "wielkosc_kg": wielkosc_kg,
                     "typ": typ,
                 },
-                actors=[{
-                    "worker_id": None,
-                    "actor_login": user.get("login", "unknown"),
-                    "actor_rola": user.get("rola", "unknown"),
-                }],
                 db=db,
             )
             db.commit()
@@ -236,18 +230,12 @@ def save_entry(ebr_id):
         if result["diffs"]:
             # If only updates (no inserts) → updated; otherwise → saved
             event = audit.EVENT_EBR_WYNIK_UPDATED if (result["has_updates"] and not result["has_inserts"]) else audit.EVENT_EBR_WYNIK_SAVED
-            sess_user = session.get("user", {})
             audit.log_event(
                 event,
                 entity_type="ebr",
                 entity_id=ebr_id,
                 diff=result["diffs"],
                 payload={"sekcja": sekcja},
-                actors=[{
-                    "worker_id": None,
-                    "actor_login": sess_user.get("login", "unknown"),
-                    "actor_rola": sess_user.get("rola", "unknown"),
-                }],
                 db=db,
             )
         db.commit()
@@ -272,17 +260,11 @@ def toggle_golden(ebr_id):
         new_val = 0 if old_val else 1
         db.execute("UPDATE ebr_batches SET is_golden=? WHERE ebr_id=?", (new_val, ebr_id))
 
-        user = session.get("user", {})
         audit.log_event(
             audit.EVENT_EBR_BATCH_UPDATED,
             entity_type="ebr",
             entity_id=ebr_id,
             diff=[{"pole": "is_golden", "stara": old_val, "nowa": new_val}],
-            actors=[{
-                "worker_id": None,
-                "actor_login": user.get("login", "unknown"),
-                "actor_rola": user.get("rola", "unknown"),
-            }],
             db=db,
         )
         db.commit()
@@ -312,7 +294,6 @@ def complete_entry(ebr_id):
         complete_ebr(db, ebr_id, zbiorniki=zbiorniki)
 
         # Audit: log status change
-        user = session.get("user", {})
         payload = {"old_status": old_status, "new_status": "completed"}
         if zbiorniki:
             payload["przepompowanie_json"] = zbiorniki
@@ -321,11 +302,6 @@ def complete_entry(ebr_id):
             entity_type="ebr",
             entity_id=ebr_id,
             payload=payload,
-            actors=[{
-                "worker_id": None,
-                "actor_login": user.get("login", "unknown"),
-                "actor_rola": user.get("rola", "unknown"),
-            }],
             db=db,
         )
         db.commit()
@@ -371,17 +347,11 @@ def save_samples(ebr_id):
               samples_json, now, session["user"]["login"]))
 
         # Audit: log samples update
-        user = session.get("user", {})
         audit.log_event(
             audit.EVENT_EBR_WYNIK_UPDATED,
             entity_type="ebr",
             entity_id=ebr_id,
             payload={"sekcja": sekcja, "kod": kod, "type": "samples"},
-            actors=[{
-                "worker_id": None,
-                "actor_login": user.get("login", "unknown"),
-                "actor_rola": user.get("rola", "unknown"),
-            }],
             db=db,
         )
         db.commit()
@@ -443,17 +413,11 @@ def api_put_uwagi(ebr_id):
         action = result.pop("_action", None)
         old_text = result.pop("_old_text", None)
         if action:
-            sess_user = session.get("user", {})
             audit.log_event(
                 audit.EVENT_EBR_UWAGI_UPDATED,
                 entity_type="ebr",
                 entity_id=ebr_id,
                 payload={"action": action, "tekst": old_text, "autor": autor},
-                actors=[{
-                    "worker_id": None,
-                    "actor_login": sess_user.get("login", "unknown"),
-                    "actor_rola": sess_user.get("rola", "unknown"),
-                }],
                 db=db,
             )
         db.commit()
@@ -482,17 +446,11 @@ def api_delete_uwagi(ebr_id):
         action = result.pop("_action", None)
         old_text = result.pop("_old_text", None)
         if action:
-            sess_user = session.get("user", {})
             audit.log_event(
                 audit.EVENT_EBR_UWAGI_UPDATED,
                 entity_type="ebr",
                 entity_id=ebr_id,
                 payload={"action": action, "tekst": old_text, "autor": autor},
-                actors=[{
-                    "worker_id": None,
-                    "actor_login": sess_user.get("login", "unknown"),
-                    "actor_rola": sess_user.get("rola", "unknown"),
-                }],
                 db=db,
             )
         db.commit()
