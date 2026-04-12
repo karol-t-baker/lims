@@ -57,6 +57,22 @@
   font-family: var(--font); letter-spacing: 0.3px; transition: background 0.15s;
 }
 .pa-add button:hover { background: var(--teal-dark); }
+.pa-input {
+  padding: 4px 8px; border: 1.5px solid transparent;
+  border-radius: 5px; font-size: 11px; font-family: var(--mono);
+  background: transparent; width: 100%; box-sizing: border-box;
+  transition: border-color 0.15s, background 0.15s;
+}
+.pa-input:hover { border-color: var(--border); background: #fff; }
+.pa-input:focus { border-color: var(--teal); background: #fff; box-shadow: 0 0 0 2px var(--teal-bg); outline: none; }
+.pa-select {
+  padding: 4px 6px; border: 1.5px solid transparent;
+  border-radius: 5px; font-size: 11px; font-family: var(--font);
+  background: transparent; cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.pa-select:hover { border-color: var(--border); background: #fff; }
+.pa-select:focus { border-color: var(--teal); background: #fff; outline: none; }
 .pa-link {
   color: var(--teal); text-decoration: none; font-weight: 600; font-size: 12px;
 }
@@ -131,14 +147,34 @@ function statusBadge(aktywny) {
   return '<span class="pa-badge pa-badge-inactive">nieaktywny</span>';
 }
 
+function flashField(input, ok) {
+  input.style.outline = '2px solid var(--' + (ok ? 'green' : 'red') + ')';
+  setTimeout(function() { input.style.outline = ''; }, 800);
+}
+
+function saveEtapField(etapId, field, input) {
+  var val = input.tagName === 'SELECT' ? input.value : input.value.trim();
+  var body = {};
+  body[field] = val || null;
+  fetch('/api/pipeline/etapy/' + etapId, {
+    method: 'PUT', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  }).then(function(r) { flashField(input, r.ok); });
+}
+
 function loadEtapy() {
   fetch('/api/pipeline/etapy').then(function(r){return r.json();}).then(function(data) {
     var html = '';
     data.forEach(function(e) {
       html += '<tr>' +
         '<td><a class="pa-link" href="/admin/pipeline/etap/' + e.id + '"><span class="pa-kod">' + esc(e.kod) + '</span></a></td>' +
-        '<td><a class="pa-link" href="/admin/pipeline/etap/' + e.id + '">' + esc(e.nazwa) + '</a></td>' +
-        '<td>' + cycleBadge(e.typ_cyklu) + '</td>' +
+        '<td><input class="pa-input" type="text" value="' + esc(e.nazwa) + '" ' +
+          'style="font-size:12px;font-weight:600;font-family:var(--font);width:220px;" ' +
+          'onblur="saveEtapField(' + e.id + ',\'nazwa\',this)"></td>' +
+        '<td><select class="pa-select" style="font-size:11px;" onchange="saveEtapField(' + e.id + ',\'typ_cyklu\',this)">' +
+          '<option value="jednorazowy"' + (e.typ_cyklu !== 'cykliczny' ? ' selected' : '') + '>jednorazowy</option>' +
+          '<option value="cykliczny"' + (e.typ_cyklu === 'cykliczny' ? ' selected' : '') + '>cykliczny</option>' +
+        '</select></td>' +
         '<td>' + statusBadge(e.aktywny) + '</td>' +
         '<td><a class="pa-link" href="/admin/pipeline/etap/' + e.id + '" style="font-size:10px;">Edytuj</a></td>' +
       '</tr>';

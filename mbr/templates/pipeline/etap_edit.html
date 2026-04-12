@@ -254,11 +254,30 @@ function loadAll() {
 
 function renderHeader(etap) {
   document.getElementById('header-area').innerHTML =
-    '<h2 style="margin:0 0 4px;font-size:16px;font-weight:800;">' +
-    '<span class="pa-kod" style="font-size:13px;margin-right:8px;">' + esc(etap.kod) + '</span>' +
-    esc(etap.nazwa) + ' ' + cycleBadge(etap.typ_cyklu) +
-    '</h2>' +
-    '<p style="margin:0;font-size:11px;color:var(--text-dim);">' + esc(etap.opis || '') + '</p>';
+    '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px;">' +
+      '<span class="pa-kod" style="font-size:13px;">' + esc(etap.kod) + '</span>' +
+      '<input class="pa-input" id="hdr-nazwa" type="text" value="' + esc(etap.nazwa) + '" ' +
+        'style="font-size:15px;font-weight:800;font-family:var(--font);width:300px;" ' +
+        'onblur="saveHeader(\'nazwa\',this)">' +
+      '<select class="pa-select" id="hdr-typ" style="font-size:11px;" onchange="saveHeader(\'typ_cyklu\',this)">' +
+        '<option value="jednorazowy"' + (etap.typ_cyklu !== 'cykliczny' ? ' selected' : '') + '>jednorazowy</option>' +
+        '<option value="cykliczny"' + (etap.typ_cyklu === 'cykliczny' ? ' selected' : '') + '>cykliczny</option>' +
+      '</select>' +
+    '</div>' +
+    '<input class="pa-input" id="hdr-opis" type="text" value="' + esc(etap.opis || '') + '" ' +
+      'placeholder="Opis (opcjonalny)" ' +
+      'style="font-size:11px;color:var(--text-dim);width:500px;font-family:var(--font);" ' +
+      'onblur="saveHeader(\'opis\',this)">';
+}
+
+function saveHeader(field, input) {
+  var val = input.tagName === 'SELECT' ? input.value : input.value.trim();
+  var body = {};
+  body[field] = val || null;
+  fetch('/api/pipeline/etapy/' + ETAP_ID, {
+    method: 'PUT', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  }).then(function(r) { flashField(input, r.ok); });
 }
 
 // ═══ PANEL 1: PARAMETRY ═══
