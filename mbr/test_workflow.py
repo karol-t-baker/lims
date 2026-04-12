@@ -36,7 +36,7 @@ def test_cyclic_standaryzacja():
         "ph_10proc": {"wartosc": 5.2, "komentarz": ""},
         "nd20": {"wartosc": 1.4050, "komentarz": ""},
         "sa": {"wartosc": 38.6, "komentarz": ""},
-        "barwa_fau": {"wartosc": 80, "komentarz": ""},
+        "barwa_I2": {"wartosc": 80, "komentarz": ""},
         "barwa_hz": {"wartosc": 30, "komentarz": ""},
     }, "test_laborant")
     wyniki = get_ebr_wyniki(db, ebr_id)
@@ -66,7 +66,7 @@ def test_cyclic_standaryzacja():
         "ph_10proc": {"wartosc": 5.0, "komentarz": ""},
         "nd20": {"wartosc": 1.4020, "komentarz": ""},
         "sa": {"wartosc": 37.9, "komentarz": ""},
-        "barwa_fau": {"wartosc": 70, "komentarz": ""},
+        "barwa_I2": {"wartosc": 70, "komentarz": ""},
         "barwa_hz": {"wartosc": 25, "komentarz": ""},
     }, "test_laborant")
     wyniki = get_ebr_wyniki(db, ebr_id)

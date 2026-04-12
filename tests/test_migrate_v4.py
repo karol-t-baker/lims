@@ -57,7 +57,7 @@ SAMPLE_V3 = {
                         "lk_liczba_kwasowa": 11.78,
                         "le_liczba_estrowa": None,
                         "la_liczba_kwasowa": None,
-                        "barwa": None, "barwa_fau": None, "barwa_hz": None, "barwa_opis": None,
+                        "barwa": None, "barwa_I2": None, "barwa_hz": None, "barwa_opis": None,
                         "ocr_pewnosc": 0.8
                     },
                     {
@@ -154,7 +154,7 @@ SAMPLE_V3 = {
             "procent_h2o2": None,
             "le_liczba_kwasowa": None,
             "barwa": "0,54",
-            "barwa_fau": None,
+            "barwa_I2": None,
             "barwa_hz": 40,
             "barwa_opis": "400u",
             "jakosc_ocena": "zgodna",

@@ -577,7 +577,7 @@ _KOD_TO_EVENT_COL = {
     "nacl": "procent_nacl", "aa": "procent_aa",
     "so3": "procent_so3", "h2o2": "procent_h2o2",
     "lk": "lk", "le_liczba_kwasowa": "lk",
-    "barwa_fau": "barwa_fau", "barwa_hz": "barwa_hz",
+    "barwa_I2": "barwa_I2", "barwa_hz": "barwa_hz",
     "gestosc": "gestosc",
     # Legacy kods (procent_ prefix from old OCR data)
     "procent_sm": "procent_sm", "procent_sa": "procent_sa",
@@ -592,7 +592,7 @@ _KOD_TO_AK_COL = {
     "sm": "ak_procent_sm", "sa": "ak_procent_sa",
     "nacl": "ak_procent_nacl", "aa": "ak_procent_aa",
     "so3": "ak_procent_so3", "h2o2": "ak_procent_h2o2",
-    "barwa_fau": "ak_barwa_fau", "barwa_hz": "ak_barwa_hz",
+    "barwa_I2": "ak_barwa_I2", "barwa_hz": "ak_barwa_hz",
     # Legacy kods
     "procent_sm": "ak_procent_sm", "procent_sa": "ak_procent_sa",
     "procent_nacl": "ak_procent_nacl", "procent_aa": "ak_procent_aa",

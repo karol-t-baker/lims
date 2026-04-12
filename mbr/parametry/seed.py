@@ -27,7 +27,7 @@ PARAMETRY = [
     {"kod": "nd20",       "label": "Współczynnik załamania nD20", "skrot": "nD20", "typ": "bezposredni", "precision": 4, "name_en": "Refraction index nD20",        "method_code": "PN-EN ISO 6320:2017-04"},
     {"kod": "sm",         "label": "Sucha masa",           "skrot": "SM",       "typ": "bezposredni", "precision": 1,  "name_en": "Dry matter [%]",                "method_code": "L903"},
     {"kod": "le",         "label": "Liczba estrowa",       "skrot": "LE",       "typ": "bezposredni", "precision": 2,  "name_en": "Ether volatile [%]",            "method_code": ""},
-    {"kod": "barwa_fau",  "label": "Barwa jodowa",         "skrot": "Barwa I₂", "typ": "bezposredni", "precision": 0,  "name_en": "Colour (Iodine scale)",         "method_code": "L928"},
+    {"kod": "barwa_I2",  "label": "Barwa jodowa",         "skrot": "Barwa I₂", "typ": "bezposredni", "precision": 0,  "name_en": "Colour (Iodine scale)",         "method_code": "L928"},
     {"kod": "barwa_hz",   "label": "Barwa wg Hazen",       "skrot": "Barwa Hz", "typ": "bezposredni", "precision": 0,  "name_en": "Colour (Hazen scale)",          "method_code": "L928"},
     {"kod": "gestosc",    "label": "Gęstość",              "skrot": "d",        "typ": "bezposredni", "precision": 3,  "name_en": "Density (20°C) [g/cm3]",        "method_code": "L917"},
     {"kod": "h2o",        "label": "Zawartość wody",       "skrot": "H₂O",      "typ": "bezposredni", "precision": 1,  "name_en": "H2O [%]",                       "method_code": "L903"},
@@ -220,21 +220,21 @@ ETAPY_BINDINGS = [
     # rozjasnianie — K40GLOL only
     _b("Chegina_K40GLOL", "rozjasnianie", "ph_10proc",  1, None,  None),
     _b("Chegina_K40GLOL", "rozjasnianie", "h2o2",       2, 0.005, 0.050),
-    _b("Chegina_K40GLOL", "rozjasnianie", "barwa_fau",  3, None,  5),
+    _b("Chegina_K40GLOL", "rozjasnianie", "barwa_I2",  3, None,  5),
     _b("Chegina_K40GLOL", "rozjasnianie", "barwa_hz",   4, None,  150),
 
-    # barwa_fau in amidowanie
-    _b(None, "amidowanie", "barwa_fau",  5, None,  None),
-    # barwa_fau + barwa_hz + metnosc in czwartorzedowanie
-    _b(None, "czwartorzedowanie", "barwa_fau",  4, None,  None),
+    # barwa_I2 in amidowanie
+    _b(None, "amidowanie", "barwa_I2",  5, None,  None),
+    # barwa_I2 + barwa_hz + metnosc in czwartorzedowanie
+    _b(None, "czwartorzedowanie", "barwa_I2",  4, None,  None),
     _b(None, "czwartorzedowanie", "barwa_hz",   5, None,  None),
     _b(None, "czwartorzedowanie", "metnosc_fau",    6, None,  None),
-    # barwa_fau + barwa_hz + metnosc in sulfonowanie
-    _b(None, "sulfonowanie", "barwa_fau",  4, None,  None),
+    # barwa_I2 + barwa_hz + metnosc in sulfonowanie
+    _b(None, "sulfonowanie", "barwa_I2",  4, None,  None),
     _b(None, "sulfonowanie", "barwa_hz",   5, None,  None),
     _b(None, "sulfonowanie", "metnosc_fau",    6, None,  None),
-    # barwa_fau + barwa_hz + metnosc + nacl in utlenienie
-    _b(None, "utlenienie", "barwa_fau",    5, None,  None),
+    # barwa_I2 + barwa_hz + metnosc + nacl in utlenienie
+    _b(None, "utlenienie", "barwa_I2",    5, None,  None),
     _b(None, "utlenienie", "barwa_hz",     6, None,  None),
     _b(None, "utlenienie", "metnosc_fau",      7, None,  None),
     _b(None, "utlenienie", "nacl",         8, None,  2.0),
@@ -252,7 +252,7 @@ ETAPY_BINDINGS = [
     _b("Chegina_K40GL", "analiza_koncowa", "nd20",      4,  1.39,  1.42),
     _b("Chegina_K40GL", "analiza_koncowa", "sa",        5,  37,    42),
     _b("Chegina_K40GL", "analiza_koncowa", "aa",        6,  0,     0.5),
-    _b("Chegina_K40GL", "analiza_koncowa", "barwa_fau", 7,  0,     200),
+    _b("Chegina_K40GL", "analiza_koncowa", "barwa_I2", 7,  0,     200),
     _b("Chegina_K40GL", "analiza_koncowa", "barwa_hz",  8,  0,     100),
     _b("Chegina_K40GL", "analiza_koncowa", "so3",       9,  0,     0.030),
 
@@ -264,7 +264,7 @@ ETAPY_BINDINGS = [
     _b("Chegina_K40GLO", "analiza_koncowa", "sa",        5,  37,    9999),
     _b("Chegina_K40GLO", "analiza_koncowa", "aa",        6,  0,     0.5),
     _b("Chegina_K40GLO", "analiza_koncowa", "gestosc",   7,  1.05,  1.09),
-    _b("Chegina_K40GLO", "analiza_koncowa", "barwa_fau", 8,  0,     200),
+    _b("Chegina_K40GLO", "analiza_koncowa", "barwa_I2", 8,  0,     200),
     _b("Chegina_K40GLO", "analiza_koncowa", "so3",       9,  0,     0.030),
     _b("Chegina_K40GLO", "analiza_koncowa", "barwa_hz",  10, 0,     500),
 
@@ -277,7 +277,7 @@ ETAPY_BINDINGS = [
     _b("Chegina_K40GLOL", "analiza_koncowa", "aa",          6,  0,     0.3),
     _b("Chegina_K40GLOL", "analiza_koncowa", "nadtlenki",   7,  0,     0.010, nawazka=10.0),
     _b("Chegina_K40GLOL", "analiza_koncowa", "so3",         8,  0,     0.030),
-    _b("Chegina_K40GLOL", "analiza_koncowa", "barwa_fau",   9,  0,     200),
+    _b("Chegina_K40GLOL", "analiza_koncowa", "barwa_I2",   9,  0,     200),
     _b("Chegina_K40GLOL", "analiza_koncowa", "barwa_hz",    10, 0,     500),
     _b("Chegina_K40GLOL", "analiza_koncowa", "wolna_amina", 11, 0,     0.5),
     _b("Chegina_K40GLOL", "analiza_koncowa", "h2o",         12, 50,    58),
@@ -288,7 +288,7 @@ ETAPY_BINDINGS = [
     _b("Chegina_K7", "analiza_koncowa", "ph_10proc", 3,  4.0,   6.0),
     _b("Chegina_K7", "analiza_koncowa", "nd20",      4,  1.39,  1.42),
     _b("Chegina_K7", "analiza_koncowa", "sa",        5,  30,    42),
-    _b("Chegina_K7", "analiza_koncowa", "barwa_fau", 6,  0,     200),
+    _b("Chegina_K7", "analiza_koncowa", "barwa_I2", 6,  0,     200),
     _b("Chegina_K7", "analiza_koncowa", "barwa_hz",  7,  0,     100),
 
     # =========================================================

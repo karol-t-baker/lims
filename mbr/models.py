@@ -797,10 +797,10 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     db.commit()
 
     # Migration: deduplicate parameter codes
-    # woda → h2o, barwa_I2 → barwa_fau, dea → dietanolamina, siarczynow → so3
+    # woda → h2o, dea → dietanolamina, siarczynow → so3
     _PARAM_RENAMES = [
         ("woda", "h2o"),
-        ("barwa_I2", "barwa_fau"),
+        ("barwa_fau", "barwa_I2"),
         ("dea", "dietanolamina"),
         ("siarczynow", "so3"),
     ]

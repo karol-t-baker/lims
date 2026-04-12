@@ -27,7 +27,7 @@ def test_amidowanie_defaults(db):
     params = get_parametry_for_kontekst(db, "Chegina_K7", "amidowanie")
     assert len(params) == 5
     kods = [p["kod"] for p in params]
-    assert kods == ["le", "la", "lk", "nd20", "barwa_fau"]
+    assert kods == ["le", "la", "lk", "nd20", "barwa_I2"]
 
 
 def test_amidowanie_nawazka(db):
