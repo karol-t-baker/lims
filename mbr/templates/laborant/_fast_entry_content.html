@@ -2357,8 +2357,11 @@ function renderOneSection(container, opts) {
     }
 
     var editBtn = '';
-    if (sekcja === 'analiza_koncowa' && userRola !== 'cert' && !isReadonly) {
-        editBtn = '<button class="sec-edit-btn" onclick="openParamEditor()" title="Edytuj parametry">' +
+    var baseSekcja = sekcja.split('__')[0];
+    var isPipelineSection = etapy.some(function(e) { return e.pipeline_etap_id; });
+    if ((sekcja === 'analiza_koncowa' || isPipelineSection) && userRola !== 'cert' && !isReadonly) {
+        var editorKontekst = baseSekcja === 'analiza' ? 'analiza_koncowa' : baseSekcja;
+        editBtn = '<button class="sec-edit-btn" onclick="openParamEditor(\'' + editorKontekst + '\')" title="Edytuj parametry">' +
             '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>' +
         '</button>';
     }
@@ -2462,6 +2465,8 @@ function renderOneSection(container, opts) {
     }
 
     section.innerHTML = headHtml + '<div class="sec-body">' + fieldsHtml + '</div>' + legendHtml;
+    // Add gate banner placeholder for pipeline stages
+    section.innerHTML += '<div class="gate-banner" id="gate-' + sekcja + '"></div>';
     container.appendChild(section);
 }
 
@@ -2518,6 +2523,260 @@ function autoSaveField(input) {
     }, 1500);
 }
 
+// ═══ PIPELINE GATE + DECISIONS ═══
+
+function renderGateBanner(sekcja, gate) {
+    var banner = document.getElementById('gate-' + sekcja);
+    if (!banner) {
+        var baseSekcja = sekcja.split('__')[0];
+        banner = document.getElementById('gate-' + baseSekcja);
+    }
+    if (!banner) return;
+
+    window._lastGate = gate;
+
+    if (gate.passed) {
+        var activeEtap = etapy.find(function(e) { return e.sekcja_lab === sekcja.split('__')[0]; });
+        var isCyclic = activeEtap && activeEtap.typ_cyklu === 'cykliczny';
+        var isMainCyclic = isCyclic && (activeEtap.sekcja_lab === 'analiza');
+
+        var buttonsHtml = '';
+        if (isMainCyclic) {
+            buttonsHtml =
+                '<button class="btn-success" onclick="completePompuj()">Przepompuj na zbiornik</button>' +
+                '<button class="btn-secondary" onclick="openSmallCorrectionDialog()">Mała korekta + przepompuj</button>';
+        } else {
+            buttonsHtml =
+                '<button class="btn-success" onclick="closePipelineStage(\'' + sekcja + '\')">Zatwierdź etap &rarr;</button>';
+        }
+
+        banner.innerHTML =
+            '<div class="decision-bar" style="background:var(--green-bg, #f0fdf4);border:1px solid var(--green);border-radius:8px;padding:12px 16px;margin-top:12px;">' +
+                '<span style="color:var(--green);font-weight:600;font-size:13px;">&#10003; Warunek spełniony</span>' +
+                '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">' + buttonsHtml + '</div>' +
+            '</div>';
+    } else {
+        var failList = (gate.failures || []).map(function(f) {
+            return f.kod || f.reason || 'nieznany';
+        }).join(', ');
+
+        banner.innerHTML =
+            '<div class="decision-bar" style="background:var(--red-bg, #fef2f2);border:1px solid var(--red);border-radius:8px;padding:12px 16px;margin-top:12px;">' +
+                '<span style="color:var(--red);font-weight:600;font-size:13px;">&#9888; Warunek niespełniony: ' + failList + '</span>' +
+                '<div id="correction-panel-' + sekcja + '" style="margin-top:10px;">' +
+                    '<div style="color:var(--text-dim);font-size:11px;">Ładowanie korekt...</div>' +
+                '</div>' +
+            '</div>';
+
+        if (gate.etap_id) {
+            loadCorrectionPanel(sekcja, gate);
+        }
+    }
+}
+
+function evalCorrectionFormula(formulaStr, sekcja, korekta) {
+    var nastaw = ebrNastaw || 0;
+    var Meff = nastaw > 6600 ? nastaw - 1000 : nastaw - 500;
+    if (Meff <= 0) return null;
+
+    var vars = { Meff: Meff, wielkosc_szarzy_kg: nastaw };
+
+    // Collect pomiary from current round
+    var baseSekcja = sekcja.split('__')[0];
+    var latestWyniki = {};
+    if (baseSekcja === 'analiza' && roundState) {
+        var lastN = roundState.last_analiza || 1;
+        latestWyniki = wyniki['analiza__' + lastN] || wyniki[sekcja] || {};
+    } else {
+        latestWyniki = wyniki[sekcja] || wyniki[baseSekcja] || {};
+    }
+
+    Object.keys(latestWyniki).forEach(function(kod) {
+        var w = latestWyniki[kod];
+        if (w && w.wartosc != null) {
+            vars['C_' + kod] = w.wartosc;
+            vars[kod] = w.wartosc;
+        }
+    });
+
+    // Collect targets from parametry pola
+    ['utlenienie', 'analiza', baseSekcja].forEach(function(sek) {
+        var pola = (parametry[sek] || {}).pola || [];
+        pola.forEach(function(p) {
+            if (p.target != null && !vars['target_' + p.kod]) {
+                vars['target_' + p.kod] = p.target;
+            }
+        });
+    });
+
+    // Convenience aliases
+    if (vars.nd20 != null) vars.R0 = vars.nd20;
+    if (vars.target_nd20 != null) vars.Rk = vars.target_nd20;
+    if (vars.nacl != null) vars.Ccl = vars.nacl;
+    if (vars.target_nacl != null) vars.Ck = vars.target_nacl;
+    if (vars.so3 != null) vars.C_so3 = vars.so3;
+    if (vars.target_so3 == null) vars.target_so3 = 0;
+    if (vars.target_nadtlenki == null) vars.target_nadtlenki = 0;
+
+    try {
+        var keys = Object.keys(vars);
+        var vals = keys.map(function(k) { return vars[k]; });
+        var fn = new Function(keys.join(','), 'return ' + formulaStr);
+        var result = fn.apply(null, vals);
+        if (isNaN(result) || !isFinite(result) || result < 0) return null;
+        return Math.round(result * 100) / 100;
+    } catch(e) {
+        return null;
+    }
+}
+
+async function loadCorrectionPanel(sekcja, gate) {
+    var panel = document.getElementById('correction-panel-' + sekcja);
+    if (!panel) return;
+
+    try {
+        var resp = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + gate.etap_id);
+        if (!resp.ok) { panel.innerHTML = '<div style="color:var(--red);">Błąd ładowania korekt</div>'; return; }
+        var data = await resp.json();
+        var korekty = data.korekty_katalog || [];
+
+        if (korekty.length === 0) {
+            panel.innerHTML = '<div style="font-size:11px;color:var(--text-dim);">Brak zdefiniowanych korekt dla tego etapu.</div>';
+            return;
+        }
+
+        var html = '<div style="font-size:11px;font-weight:600;margin-bottom:6px;">Zalecenie korekty:</div>';
+        korekty.forEach(function(k) {
+            var preCalc = '';
+            var preVal = '';
+            if (k.formula_ilosc) {
+                var calc = evalCorrectionFormula(k.formula_ilosc, sekcja, k);
+                if (calc !== null) {
+                    preVal = calc.toFixed(1);
+                    preCalc = '<div style="font-size:9px;color:var(--teal);margin-top:2px;">obliczono: ' + preVal.replace('.', ',') + ' ' + (k.jednostka || 'kg') + '</div>';
+                }
+            }
+            html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:12px;">' +
+                '<span style="min-width:120px;font-weight:500;">' + (k.substancja || '') + '</span>' +
+                '<span style="color:var(--text-dim);font-size:10px;">[' + (k.jednostka || 'kg') + ']</span>' +
+                '<span class="pa-badge" style="font-size:8px;">' + (k.wykonawca || '') + '</span>' +
+                '<div><input type="number" step="any" class="pa-input" data-korekta-id="' + k.id + '" ' +
+                  'value="' + preVal + '" placeholder="Ilość" ' +
+                  'style="width:80px;font-size:11px;text-align:center;">' +
+                preCalc + '</div>' +
+            '</div>';
+        });
+        html += '<div style="display:flex;gap:8px;margin-top:10px;">' +
+            '<button class="btn-warn" onclick="submitCorrections(\'' + sekcja + '\')" id="btn-submit-corr-' + sekcja + '">Zaleć korektę</button>' +
+            '<button class="btn-secondary" onclick="startNewPipelineRound(\'' + sekcja + '\')" id="btn-new-round-' + sekcja + '" style="display:none;">Nowa runda</button>' +
+        '</div>';
+        panel.innerHTML = html;
+    } catch(e) {
+        panel.innerHTML = '<div style="color:var(--red);">Błąd: ' + e.message + '</div>';
+    }
+}
+
+async function submitCorrections(sekcja) {
+    var gate = window._lastGate;
+    if (!gate || !gate.sesja_id) return;
+
+    var panel = document.getElementById('correction-panel-' + sekcja);
+    if (!panel) return;
+
+    var inputs = panel.querySelectorAll('input[data-korekta-id]');
+    var anySet = false;
+
+    for (var i = 0; i < inputs.length; i++) {
+        var inp = inputs[i];
+        if (inp.value && parseFloat(inp.value) > 0) {
+            anySet = true;
+            await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    sesja_id: gate.sesja_id,
+                    korekta_typ_id: parseInt(inp.dataset.korektaId),
+                    ilosc: parseFloat(inp.value)
+                })
+            });
+        }
+    }
+
+    if (!anySet) { alert('Wpisz ilość dla przynajmniej jednej korekty.'); return; }
+
+    await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + gate.etap_id + '/close', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({sesja_id: gate.sesja_id, decyzja: 'korekta'})
+    });
+
+    inputs.forEach(function(inp) { inp.disabled = true; });
+    var submitBtn = document.getElementById('btn-submit-corr-' + sekcja);
+    var roundBtn = document.getElementById('btn-new-round-' + sekcja);
+    if (submitBtn) submitBtn.style.display = 'none';
+    if (roundBtn) roundBtn.style.display = '';
+}
+
+async function startNewPipelineRound(sekcja) {
+    var gate = window._lastGate;
+    if (!gate || !gate.etap_id) return;
+
+    var resp = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + gate.etap_id + '/start', {
+        method: 'POST'
+    });
+    if (!resp.ok) { alert('Błąd rozpoczęcia nowej rundy'); return; }
+
+    var baseSekcja = sekcja.split('__')[0];
+    if (baseSekcja === 'analiza' || baseSekcja === sekcja) {
+        repeatAnalizaCyclic();
+    } else {
+        if (typeof loadBatch === 'function') loadBatch(ebrId);
+        else location.reload();
+    }
+}
+
+async function closePipelineStage(sekcja) {
+    var gate = window._lastGate;
+    if (!gate || !gate.sesja_id || !gate.etap_id) return;
+
+    await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + gate.etap_id + '/close', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({sesja_id: gate.sesja_id, decyzja: 'przejscie'})
+    });
+
+    var stages = etapy.filter(function(e) { return e.pipeline_etap_id; });
+    var currentIdx = stages.findIndex(function(e) { return e.pipeline_etap_id === gate.etap_id; });
+    var nextStage = stages[currentIdx + 1];
+
+    if (nextStage) {
+        showPipelineStage(nextStage.sekcja_lab, false);
+    } else {
+        if (typeof loadBatch === 'function') loadBatch(ebrId);
+        else location.reload();
+    }
+}
+
+function openSmallCorrectionDialog() {
+    var gate = window._lastGate;
+    if (!gate || !gate.sesja_id) return;
+
+    var komentarz = prompt('Opisz małą korektę (np. "dodatek 50kg wody"):');
+    if (komentarz === null) return;
+
+    fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + gate.etap_id + '/close', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            sesja_id: gate.sesja_id,
+            decyzja: 'korekta_i_przejscie',
+            komentarz: komentarz
+        })
+    }).then(function(resp) {
+        if (resp.ok) completePompuj();
+    });
+}
+
 function doSaveField(input, sekcja, kod) {
     // Clear pending debounce to prevent double-save
     var key = sekcja + '__' + kod;
@@ -2547,6 +2806,9 @@ function doSaveField(input, sekcja, kod) {
     }).then(async function(resp) {
         if (await _handleShiftRequired(resp)) return;
         if (resp.ok) {
+            var data = {};
+            try { data = await resp.json(); } catch(e) {}
+
             input.style.outline = '2px solid var(--green, #16a34a)';
             setTimeout(function() { input.style.outline = ''; }, 800);
             // Update local wyniki so repeatAnaliza sees current values
@@ -2566,6 +2828,11 @@ function doSaveField(input, sekcja, kod) {
                 w_limicie: inLimit,
                 tag: kod
             };
+
+            // Pipeline gate evaluation
+            if (data.gate) {
+                renderGateBanner(sekcja, data.gate);
+            }
         } else {
             input.style.outline = '2px solid var(--red, #dc2626)';
             setTimeout(function() { input.style.outline = ''; }, 2000);
@@ -4146,10 +4413,12 @@ function psSkipStage(etap) {
 var _peBindingMap = {};  // parametr_id → {id, min, max, precision, kolejnosc, nawazka_g}
 var _peAllParams = [];   // [{id, kod, label, skrot, typ, precision, jednostka}]
 
-function openParamEditor() {
+function openParamEditor(kontekst) {
+  kontekst = kontekst || 'analiza_koncowa';
+  window._peEditKontekst = kontekst;
   // Fetch current bindings + all available params in parallel
   Promise.all([
-    fetch('/api/parametry/etapy/' + encodeURIComponent(window._batchProdukt) + '/analiza_koncowa').then(function(r){return r.json();}),
+    fetch('/api/parametry/etapy/' + encodeURIComponent(window._batchProdukt) + '/' + encodeURIComponent(kontekst)).then(function(r){return r.json();}),
     fetch('/api/parametry/available').then(function(r){return r.json();})
   ]).then(function(results) {
     var bindings = results[0];  // current bindings for this product
@@ -4319,7 +4588,7 @@ function peToggle(paramId, checked) {
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
         parametr_id: paramId,
-        kontekst: 'analiza_koncowa',
+        kontekst: window._peEditKontekst || 'analiza_koncowa',
         produkt: window._batchProdukt,
         kolejnosc: nextOrder
       })
