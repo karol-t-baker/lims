@@ -439,6 +439,28 @@ def api_put_uwagi(ebr_id):
             msg = str(e)
             status = 404 if "not found" in msg.lower() else 400
             return jsonify({"error": msg}), status
+
+        # Audit log (if save_uwagi actually did something)
+        action = result.pop("_action", None)
+        old_text = result.pop("_old_text", None)
+        if action:
+            sess_user = session.get("user", {})
+            audit.log_event(
+                audit.EVENT_EBR_UWAGI_UPDATED,
+                entity_type="ebr",
+                entity_id=ebr_id,
+                payload={"action": action, "tekst": old_text, "autor": autor},
+                actors=[{
+                    "worker_id": None,
+                    "actor_login": sess_user.get("login", "unknown"),
+                    "actor_rola": sess_user.get("rola", "unknown"),
+                }],
+                db=db,
+            )
+        db.commit()
+
+        # Re-read after commit so historia includes the just-logged entry
+        result = get_uwagi(db, ebr_id)
     return jsonify(result)
 
 
@@ -456,4 +478,26 @@ def api_delete_uwagi(ebr_id):
             msg = str(e)
             status = 404 if "not found" in msg.lower() else 400
             return jsonify({"error": msg}), status
+
+        # Audit log (if save_uwagi actually did something)
+        action = result.pop("_action", None)
+        old_text = result.pop("_old_text", None)
+        if action:
+            sess_user = session.get("user", {})
+            audit.log_event(
+                audit.EVENT_EBR_UWAGI_UPDATED,
+                entity_type="ebr",
+                entity_id=ebr_id,
+                payload={"action": action, "tekst": old_text, "autor": autor},
+                actors=[{
+                    "worker_id": None,
+                    "actor_login": sess_user.get("login", "unknown"),
+                    "actor_rola": sess_user.get("rola", "unknown"),
+                }],
+                db=db,
+            )
+        db.commit()
+
+        # Re-read after commit so historia includes the just-logged entry
+        result = get_uwagi(db, ebr_id)
     return jsonify(result)

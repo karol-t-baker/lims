@@ -81,19 +81,14 @@ def test_get_uwagi_empty_for_new_batch(db, ebr_batch):
 # ---------------------------------------------------------------------------
 
 def test_save_uwagi_create(db, ebr_batch):
-    save_uwagi(db, ebr_batch, "Dodano 500 kg NaOH", "kowalski")
+    result = save_uwagi(db, ebr_batch, "Dodano 500 kg NaOH", "kowalski")
     row = db.execute(
         "SELECT uwagi_koncowe FROM ebr_batches WHERE ebr_id = ?", (ebr_batch,)
     ).fetchone()
     assert row["uwagi_koncowe"] == "Dodano 500 kg NaOH"
-    hist = db.execute(
-        "SELECT tekst, action, autor FROM ebr_uwagi_history WHERE ebr_id = ?",
-        (ebr_batch,),
-    ).fetchall()
-    assert len(hist) == 1
-    assert hist[0]["tekst"] is None
-    assert hist[0]["action"] == "create"
-    assert hist[0]["autor"] == "kowalski"
+    # save_uwagi no longer writes to ebr_uwagi_history (audit_log is SSOT)
+    assert result["_action"] == "create"
+    assert result["_old_text"] is None
 
 
 # ---------------------------------------------------------------------------
@@ -101,23 +96,17 @@ def test_save_uwagi_create(db, ebr_batch):
 # ---------------------------------------------------------------------------
 
 def test_save_uwagi_update_stores_old_text(db, ebr_batch):
-    save_uwagi(db, ebr_batch, "wersja A", "kowalski")
-    save_uwagi(db, ebr_batch, "wersja B", "nowak")
+    result1 = save_uwagi(db, ebr_batch, "wersja A", "kowalski")
+    result2 = save_uwagi(db, ebr_batch, "wersja B", "nowak")
     row = db.execute(
         "SELECT uwagi_koncowe FROM ebr_batches WHERE ebr_id = ?", (ebr_batch,)
     ).fetchone()
     assert row["uwagi_koncowe"] == "wersja B"
-    hist = db.execute(
-        "SELECT tekst, action, autor FROM ebr_uwagi_history "
-        "WHERE ebr_id = ? ORDER BY id",
-        (ebr_batch,),
-    ).fetchall()
-    assert len(hist) == 2
-    assert hist[0]["action"] == "create"
-    assert hist[0]["tekst"] is None
-    assert hist[1]["action"] == "update"
-    assert hist[1]["tekst"] == "wersja A"
-    assert hist[1]["autor"] == "nowak"
+    # save_uwagi returns metadata for the route to build audit entry
+    assert result1["_action"] == "create"
+    assert result1["_old_text"] is None
+    assert result2["_action"] == "update"
+    assert result2["_old_text"] == "wersja A"
 
 
 # ---------------------------------------------------------------------------
@@ -126,19 +115,14 @@ def test_save_uwagi_update_stores_old_text(db, ebr_batch):
 
 def test_save_uwagi_delete(db, ebr_batch):
     save_uwagi(db, ebr_batch, "do skasowania", "kowalski")
-    save_uwagi(db, ebr_batch, "", "nowak")
+    result = save_uwagi(db, ebr_batch, "", "nowak")
     row = db.execute(
         "SELECT uwagi_koncowe FROM ebr_batches WHERE ebr_id = ?", (ebr_batch,)
     ).fetchone()
     assert row["uwagi_koncowe"] is None
-    hist = db.execute(
-        "SELECT tekst, action FROM ebr_uwagi_history "
-        "WHERE ebr_id = ? ORDER BY id",
-        (ebr_batch,),
-    ).fetchall()
-    assert len(hist) == 2
-    assert hist[1]["action"] == "delete"
-    assert hist[1]["tekst"] == "do skasowania"
+    # save_uwagi returns metadata for the route to build audit entry
+    assert result["_action"] == "delete"
+    assert result["_old_text"] == "do skasowania"
 
 
 def test_save_uwagi_noop_on_null_to_empty(db, ebr_batch):
@@ -154,13 +138,11 @@ def test_save_uwagi_noop_on_null_to_empty(db, ebr_batch):
 
 
 def test_save_uwagi_noop_on_same_text(db, ebr_batch):
-    save_uwagi(db, ebr_batch, "ten sam", "kowalski")
-    save_uwagi(db, ebr_batch, "ten sam", "nowak")
-    hist = db.execute(
-        "SELECT COUNT(*) as c FROM ebr_uwagi_history WHERE ebr_id = ?",
-        (ebr_batch,),
-    ).fetchone()
-    assert hist["c"] == 1
+    result1 = save_uwagi(db, ebr_batch, "ten sam", "kowalski")
+    result2 = save_uwagi(db, ebr_batch, "ten sam", "nowak")
+    # First call is a create, second is a no-op (same text)
+    assert result1["_action"] == "create"
+    assert "_action" not in result2  # no-op returns plain get_uwagi result
 
 
 def test_save_uwagi_strips_whitespace(db, ebr_batch):
@@ -208,26 +190,26 @@ def test_save_uwagi_rejects_missing_batch(db):
 # Task 8: get_uwagi — populated state + after-delete
 # ---------------------------------------------------------------------------
 
-def test_get_uwagi_returns_current_meta_from_history(db, ebr_batch):
+def test_get_uwagi_returns_current_text(db, ebr_batch):
+    """get_uwagi returns tekst from ebr_batches.uwagi_koncowe.
+    Historia is read from audit_log (populated by routes, not model)."""
     save_uwagi(db, ebr_batch, "pierwsza", "kowalski")
     save_uwagi(db, ebr_batch, "druga", "nowak")
     result = get_uwagi(db, ebr_batch)
     assert result["tekst"] == "druga"
-    assert result["autor"] == "nowak"
-    assert result["dt"] is not None
-    assert len(result["historia"]) == 2
-    assert result["historia"][0]["action"] == "update"
-    assert result["historia"][1]["action"] == "create"
+    # Without audit_log entries (model-level calls), historia is empty
+    assert result["historia"] == []
 
 
 def test_get_uwagi_after_delete(db, ebr_batch):
+    """After delete, tekst is None. Historia comes from audit_log."""
     save_uwagi(db, ebr_batch, "temporary", "kowalski")
     save_uwagi(db, ebr_batch, "", "nowak")
     result = get_uwagi(db, ebr_batch)
     assert result["tekst"] is None
     assert result["autor"] is None
-    assert len(result["historia"]) == 2
-    assert result["historia"][0]["action"] == "delete"
+    # Without audit_log entries (model-level calls), historia is empty
+    assert result["historia"] == []
 
 
 # ---------------------------------------------------------------------------

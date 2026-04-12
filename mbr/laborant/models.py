@@ -770,6 +770,7 @@ def get_uwagi(db: sqlite3.Connection, ebr_id: int) -> dict:
     """Return current uwagi_koncowe state for an EBR batch.
 
     Returns dict with keys: tekst, dt, autor, historia.
+    History is read from audit_log (event_type='ebr.uwagi.updated').
     Raises ValueError if batch not found.
     """
     row = db.execute(
@@ -778,26 +779,45 @@ def get_uwagi(db: sqlite3.Connection, ebr_id: int) -> dict:
     if row is None:
         raise ValueError(f"Batch {ebr_id} not found")
 
+    import json as _json
     historia_rows = db.execute(
-        "SELECT id, tekst, action, autor, dt FROM ebr_uwagi_history "
-        "WHERE ebr_id = ? ORDER BY dt DESC, id DESC",
+        """SELECT al.dt, al.payload_json,
+                  (SELECT GROUP_CONCAT(ala.actor_login)
+                   FROM audit_log_actors ala WHERE ala.audit_id = al.id) as autor
+           FROM audit_log al
+           WHERE al.entity_type = 'ebr' AND al.entity_id = ?
+             AND al.event_type = 'ebr.uwagi.updated'
+           ORDER BY al.dt DESC, al.id DESC""",
         (ebr_id,),
     ).fetchall()
-    historia = [
-        {"id": h["id"], "tekst": h["tekst"], "action": h["action"], "autor": h["autor"], "dt": h["dt"]}
-        for h in historia_rows
-    ]
+
+    historia = []
+    for h in historia_rows:
+        payload = _json.loads(h["payload_json"]) if h["payload_json"] else {}
+        # Prefer 'autor' from payload (human-readable label like 'AK, MW');
+        # fall back to audit_log_actors.actor_login for migrated rows
+        autor_val = payload.get("autor") or h["autor"] or "unknown"
+        historia.append({
+            "tekst": payload.get("tekst"),
+            "action": payload.get("action", ""),
+            "autor": autor_val,
+            "dt": h["dt"],
+        })
 
     tekst = row["uwagi_koncowe"]
     if tekst is None:
         dt = None
         autor = None
-    else:
+    elif historia:
+        # Find the most recent create/update entry for dt and autor
         recent = next(
             (h for h in historia if h["action"] in ("create", "update")), None
         )
-        dt = recent["dt"] if recent else None
-        autor = recent["autor"] if recent else None
+        dt = recent["dt"] if recent else historia[0]["dt"]
+        autor = recent["autor"] if recent else historia[0]["autor"]
+    else:
+        dt = None
+        autor = None
 
     return {"tekst": tekst, "dt": dt, "autor": autor, "historia": historia}
 
@@ -805,7 +825,8 @@ def get_uwagi(db: sqlite3.Connection, ebr_id: int) -> dict:
 def save_uwagi(db: sqlite3.Connection, ebr_id: int, tekst, autor: str) -> dict:
     """Create, update, or delete uwagi_koncowe for an EBR batch.
 
-    Returns the same dict shape as get_uwagi().
+    Returns dict: {tekst, dt, autor, historia, _action, _old_text}.
+    Caller is responsible for log_event() and db.commit().
     Raises ValueError for validation errors or missing/cancelled batch.
     """
     # 1. Normalise input
@@ -830,7 +851,7 @@ def save_uwagi(db: sqlite3.Connection, ebr_id: int, tekst, autor: str) -> dict:
     old = row["uwagi_koncowe"]
     new = tekst or None  # empty string → NULL
 
-    # 7. Action detection — no-ops first
+    # Action detection — no-ops first
     if old is None and new is None:
         return get_uwagi(db, ebr_id)
     if old == new:
@@ -843,21 +864,13 @@ def save_uwagi(db: sqlite3.Connection, ebr_id: int, tekst, autor: str) -> dict:
     else:
         action = "update"
 
-    now = datetime.now().isoformat(timespec="seconds")
-
-    # 8. Insert history row (stores OLD value)
-    db.execute(
-        "INSERT INTO ebr_uwagi_history (ebr_id, tekst, action, autor, dt) VALUES (?, ?, ?, ?, ?)",
-        (ebr_id, old, action, autor, now),
-    )
-
-    # 9. Update the batch
+    # Update the batch (NO LONGER writes to ebr_uwagi_history — audit_log is the SSOT)
     db.execute(
         "UPDATE ebr_batches SET uwagi_koncowe = ? WHERE ebr_id = ?",
         (new, ebr_id),
     )
 
-    # 10. Bump sync_seq
+    # Bump sync_seq
     next_seq = db.execute(
         "SELECT COALESCE(MAX(sync_seq), 0) + 1 FROM ebr_batches"
     ).fetchone()[0]
@@ -866,8 +879,8 @@ def save_uwagi(db: sqlite3.Connection, ebr_id: int, tekst, autor: str) -> dict:
         (next_seq, ebr_id),
     )
 
-    # 11. Commit
-    db.commit()
-
-    # 12. Return fresh state
-    return get_uwagi(db, ebr_id)
+    # Return metadata for the route to build the audit entry
+    result = get_uwagi(db, ebr_id)
+    result["_action"] = action
+    result["_old_text"] = old
+    return result
