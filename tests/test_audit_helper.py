@@ -88,7 +88,7 @@ def test_diff_fields_missing_keys_treated_as_none():
 def test_actors_system_returns_single_system_actor():
     result = audit.actors_system()
     assert result == [
-        {"worker_id": None, "actor_login": "system", "actor_rola": "system"}
+        {"worker_id": None, "actor_login": "system", "actor_name": None, "actor_rola": "system"}
     ]
 
 
@@ -120,8 +120,8 @@ def workers_db():
 def test_actors_explicit_resolves_worker_rows_from_db(workers_db):
     result = audit.actors_explicit(workers_db, [1, 3])
     assert result == [
-        {"worker_id": 1, "actor_login": "AK", "actor_rola": "lab"},
-        {"worker_id": 3, "actor_login": "JN", "actor_rola": "lab"},
+        {"worker_id": 1, "actor_login": "AK", "actor_name": "Anna Kowalska", "actor_rola": "lab"},
+        {"worker_id": 3, "actor_login": "JN", "actor_name": "Jan Nowak", "actor_rola": "lab"},
     ]
 
 
@@ -154,7 +154,7 @@ def test_actors_from_request_admin_returns_single_session_user(app_with_workers,
         from flask import session
         session["user"] = {"login": "jan", "rola": "technolog", "worker_id": 3}
         result = audit.actors_from_request(workers_db)
-    assert result == [{"worker_id": 3, "actor_login": "jan", "actor_rola": "technolog"}]
+    assert result == [{"worker_id": 3, "actor_login": "jan", "actor_name": None, "actor_rola": "technolog"}]
 
 
 def test_actors_from_request_technolog_ignores_shift(app_with_workers, workers_db):
@@ -231,6 +231,7 @@ def audit_db(workers_db):
             worker_id       INTEGER,
             actor_login     TEXT NOT NULL,
             actor_rola      TEXT NOT NULL,
+            actor_name      TEXT,
             PRIMARY KEY (audit_id, actor_login)
         );
     """)

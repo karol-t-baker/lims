@@ -129,7 +129,7 @@ def diff_fields(old: dict, new: dict, keys: list) -> list:
 
 def actors_system() -> list:
     """Single virtual actor for migrations, archival, startup tasks."""
-    return [{"worker_id": None, "actor_login": "system", "actor_rola": "system"}]
+    return [{"worker_id": None, "actor_login": "system", "actor_name": None, "actor_rola": "system"}]
 
 
 def actors_explicit(db, worker_ids: list) -> list:
@@ -147,7 +147,7 @@ def actors_explicit(db, worker_ids: list) -> list:
         return []
     placeholders = ",".join("?" * len(worker_ids))
     rows = db.execute(
-        f"SELECT id, nickname, inicjaly FROM workers WHERE id IN ({placeholders})",
+        f"SELECT id, imie, nazwisko, nickname, inicjaly FROM workers WHERE id IN ({placeholders})",
         list(worker_ids),
     ).fetchall()
     by_id = {r["id"]: r for r in rows}
@@ -158,6 +158,7 @@ def actors_explicit(db, worker_ids: list) -> list:
         {
             "worker_id": wid,
             "actor_login": by_id[wid]["nickname"] or by_id[wid]["inicjaly"],
+            "actor_name": f"{by_id[wid]['imie']} {by_id[wid]['nazwisko']}",
             "actor_rola": "lab",
         }
         for wid in worker_ids
@@ -192,6 +193,7 @@ def actors_from_request(db) -> list:
     return [{
         "worker_id": user.get("worker_id"),
         "actor_login": user["login"],
+        "actor_name": user.get("imie_nazwisko"),
         "actor_rola": rola,
     }]
 
@@ -302,9 +304,9 @@ def log_event(
 
     for actor in actors:
         db.execute(
-            """INSERT INTO audit_log_actors (audit_id, worker_id, actor_login, actor_rola)
-               VALUES (?, ?, ?, ?)""",
-            (audit_id, actor["worker_id"], actor["actor_login"], actor["actor_rola"]),
+            """INSERT INTO audit_log_actors (audit_id, worker_id, actor_login, actor_rola, actor_name)
+               VALUES (?, ?, ?, ?, ?)""",
+            (audit_id, actor["worker_id"], actor["actor_login"], actor["actor_rola"], actor.get("actor_name")),
         )
 
     return audit_id
@@ -411,7 +413,7 @@ def query_audit_log(
         ids = [r["id"] for r in rows]
         placeholders = ",".join("?" * len(ids))
         actor_rows = db.execute(
-            f"SELECT audit_id, worker_id, actor_login, actor_rola "
+            f"SELECT audit_id, worker_id, actor_login, actor_rola, actor_name "
             f"FROM audit_log_actors WHERE audit_id IN ({placeholders})",
             ids,
         ).fetchall()
@@ -471,7 +473,7 @@ def archive_old_entries(db, cutoff_iso: str, archive_dir) -> dict:
         ids = [r["id"] for r in rows_to_archive]
         placeholders = ",".join("?" * len(ids))
         actor_rows = db.execute(
-            f"SELECT audit_id, worker_id, actor_login, actor_rola "
+            f"SELECT audit_id, worker_id, actor_login, actor_rola, actor_name "
             f"FROM audit_log_actors WHERE audit_id IN ({placeholders})",
             ids,
         ).fetchall()

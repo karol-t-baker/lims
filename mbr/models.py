@@ -508,6 +508,7 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             worker_id       INTEGER,
             actor_login     TEXT NOT NULL,
             actor_rola      TEXT NOT NULL,
+            actor_name      TEXT,
             PRIMARY KEY (audit_id, actor_login)
         )
     """)
@@ -522,6 +523,19 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
         "ON ebr_uwagi_history(ebr_id, dt DESC)"
     )
     db.commit()
+
+    # Migration: add actor_name to audit_log_actors + backfill from workers
+    try:
+        db.execute("ALTER TABLE audit_log_actors ADD COLUMN actor_name TEXT")
+        db.execute("""
+            UPDATE audit_log_actors SET actor_name = (
+                SELECT w.imie || ' ' || w.nazwisko FROM workers w
+                WHERE w.id = audit_log_actors.worker_id
+            ) WHERE worker_id IS NOT NULL AND actor_name IS NULL
+        """)
+        db.commit()
+    except Exception:
+        pass
 
     # Migration: add typ column if missing (SQLite doesn't support ALTER TABLE ADD with CHECK)
     try:
