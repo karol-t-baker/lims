@@ -99,6 +99,7 @@ def lab_get_etap_form(ebr_id, etap_id):
             return jsonify({"error": "not found"}), 404
 
         produkt = ebr["produkt"]
+        etap = pm.get_etap(db, etap_id)
         parametry = pm.resolve_limity(db, produkt, etap_id)
         warunki = pm.list_etap_warunki(db, etap_id)
         korekty_katalog = pm.list_etap_korekty(db, etap_id)
@@ -108,6 +109,7 @@ def lab_get_etap_form(ebr_id, etap_id):
         pomiary = pm.get_pomiary(db, current_sesja["id"]) if current_sesja else []
 
         return jsonify({
+            "etap": etap,
             "parametry": parametry,
             "warunki": warunki,
             "korekty_katalog": korekty_katalog,

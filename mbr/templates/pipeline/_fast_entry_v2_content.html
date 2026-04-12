@@ -122,7 +122,7 @@
     const runda = sesja ? sesja.runda : 0;
     const status = sesja ? sesja.status : 'brak';
     document.getElementById('fe2-stage-header').innerHTML = `
-      <h2>Etap #${ETAP_ID}</h2>
+      <h2>${stageData.etap ? stageData.etap.nazwa : 'Etap #' + ETAP_ID}</h2>
       ${runda ? `<span class="fe2-badge fe2-badge--runda">Runda ${runda}</span>` : ''}
       <span class="fe2-badge fe2-badge--status">${status}</span>
       ${!sesja || sesja.status !== 'w_trakcie' ? `<button class="fe2-gate-btn" onclick="window._fe2StartSesja()">Rozpocznij sesję</button>` : ''}
@@ -153,7 +153,7 @@
       const valDisplay = val !== '' && val != null ? String(val).replace('.', ',') : '';
 
       html += `<tr class="${rowClass}">
-        <td>${p.skrot || p.nazwa || 'P#' + p.parametr_id}</td>
+        <td>${p.skrot || p.label || p.kod || 'P#' + p.parametr_id}</td>
         <td><input type="number" step="any" data-pid="${p.parametr_id}" value="${val !== null && val !== '' ? val : ''}" ${readonly ? 'disabled' : ''} /></td>
         <td class="fe2-limit">${minTxt}</td>
         <td class="fe2-limit">${maxTxt}</td>
@@ -183,7 +183,7 @@
     } else {
       const failures = pomiary.filter(p => p.w_limicie === 0).map(p => {
         const param = stageData.parametry.find(x => x.parametr_id === p.parametr_id);
-        return param ? (param.skrot || param.nazwa) : 'P#' + p.parametr_id;
+        return param ? (param.skrot || param.label || param.kod) : 'P#' + p.parametr_id;
       });
       renderGate({ passed: false, failures });
     }
@@ -248,7 +248,7 @@
     let html = '<h3>Zalecenie korekty</h3>';
     korekty.forEach(k => {
       html += `<div class="fe2-corr-row">
-        <span>${k.substancja || k.nazwa || 'Korekta #' + k.id}</span>
+        <span>${k.substancja || 'Korekta #' + k.id}</span>
         <span class="fe2-limit">${k.jednostka || ''}</span>
         <span class="fe2-badge">${k.wykonawca || ''}</span>
         <input type="number" step="any" data-korekta-id="${k.id}" placeholder="Ilość" />
