@@ -1312,6 +1312,7 @@ function renderRegistryTable(columns, batches, append) {
   if (_userRola === 'admin') html += '<th class="th-del"></th>';
   html += '<th class="th-nr">Nr partii</th>';
   html += '<th class="th-date">Data</th>';
+  html += '<th class="th-who" style="min-width:80px;">Zatwierdził</th>';
   columns.forEach(function(col) {
     var limitStr = '';
     if (col.min != null && col.max != null) limitStr = col.min + ' \u2013 ' + col.max;
@@ -1348,6 +1349,7 @@ function _buildRegistryRow(columns, b) {
     dtStr = parts[2] + '.' + parts[1] + '.' + parts[0];
   }
   html += '<td class="td-date">' + dtStr + '</td>';
+  html += '<td class="td-who" style="font-size:11px;color:var(--text-sec);">' + (b.zatwierdzil || '\u2014') + '</td>';
   columns.forEach(function(col) {
     var w = b.wyniki[col.kod];
     if (w && w.wartosc != null) {

@@ -51,6 +51,21 @@ def list_completed_registry(
         for r in result:
             r["zbiorniki"] = zb_map.get(r["ebr_id"], [])
 
+    # Attach "who approved" from audit_log
+    if result:
+        placeholders = ",".join("?" * len(ebr_ids))
+        approval_rows = db.execute(f"""
+            SELECT al.entity_id, GROUP_CONCAT(COALESCE(aa.actor_name, aa.actor_login), ', ') AS zatwierdzil
+            FROM audit_log al
+            JOIN audit_log_actors aa ON aa.audit_id = al.id
+            WHERE al.event_type = 'ebr.batch.status_changed'
+              AND al.entity_id IN ({placeholders})
+            GROUP BY al.entity_id
+        """, ebr_ids).fetchall()
+        approval_map = {r["entity_id"]: r["zatwierdzil"] for r in approval_rows}
+        for r in result:
+            r["zatwierdzil"] = approval_map.get(r["ebr_id"], "")
+
     return result
 
 
