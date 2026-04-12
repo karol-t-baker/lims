@@ -416,8 +416,8 @@ def api_cert_config_product_put(key):
                 if pid in param_ids:
                     return jsonify({"error": f"Duplicate parameter id: {pid}"}), 400
                 param_ids.add(pid)
-                if not p.get("name_pl") or not p.get("requirement"):
-                    return jsonify({"error": f"Parameter '{pid}' missing name_pl or requirement"}), 400
+                if not p.get("name_pl"):
+                    return jsonify({"error": f"Parameter '{pid}' missing name_pl"}), 400
                 df = (p.get("data_field") or "").strip()
                 if df and df not in kod_to_id:
                     return jsonify({"error": f"Parameter '{pid}': data_field '{df}' not found in parametry_analityczne"}), 400
