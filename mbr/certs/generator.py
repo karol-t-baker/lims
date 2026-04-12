@@ -197,42 +197,76 @@ def build_context(
         opinion_pl = var_row["opinion_pl"] or _opinion_pl
         opinion_en = var_row["opinion_en"] or _opinion_en
 
-        # 3. Base parameter rows (variant_id IS NULL)
-        base_rows = db.execute(
-            "SELECT pc.*, pa.kod, pa.label AS pa_label, pa.name_en AS pa_name_en, "
-            "pa.method_code AS pa_method_code "
-            "FROM parametry_cert pc "
-            "JOIN parametry_analityczne pa ON pa.id = pc.parametr_id "
-            "WHERE pc.produkt = ? AND pc.variant_id IS NULL "
-            "ORDER BY pc.kolejnosc",
-            (key,),
-        ).fetchall()
+        # 3. Base parameter rows — prefer parametry_etapy, fallback to parametry_cert
+        from mbr.parametry.registry import get_cert_params, get_cert_variant_params
 
-        # 4. Filter out remove_params (set of parametr_id ints)
+        etapy_params = get_cert_params(db, key)
+        if etapy_params:
+            base_param_rows = etapy_params
+        else:
+            _legacy = db.execute(
+                "SELECT pc.*, pa.kod, pa.label AS pa_label, pa.name_en AS pa_name_en, "
+                "pa.method_code AS pa_method_code "
+                "FROM parametry_cert pc "
+                "JOIN parametry_analityczne pa ON pa.id = pc.parametr_id "
+                "WHERE pc.produkt = ? AND pc.variant_id IS NULL "
+                "ORDER BY pc.kolejnosc",
+                (key,),
+            ).fetchall()
+            base_param_rows = [
+                {
+                    "kod": r["kod"],
+                    "parametr_id": r["parametr_id"],
+                    "name_pl": r["name_pl"] or r["pa_label"] or "",
+                    "name_en": r["name_en"] or r["pa_name_en"] or "",
+                    "method": r["method"] or r["pa_method_code"] or "",
+                    "requirement": r["requirement"] or "",
+                    "format": r["format"] or "1",
+                    "qualitative_result": r["qualitative_result"],
+                }
+                for r in _legacy
+            ]
+
+        # 4. Filter out remove_params
         if remove_params:
-            base_rows = [r for r in base_rows if r["parametr_id"] not in remove_params]
+            base_param_rows = [r for r in base_param_rows if r["parametr_id"] not in remove_params]
 
-        # 5. Add variant-specific params (variant_id = cert_variants.id)
-        variant_rows = db.execute(
-            "SELECT pc.*, pa.kod, pa.label AS pa_label, pa.name_en AS pa_name_en, "
-            "pa.method_code AS pa_method_code "
-            "FROM parametry_cert pc "
-            "JOIN parametry_analityczne pa ON pa.id = pc.parametr_id "
-            "WHERE pc.variant_id = ? "
-            "ORDER BY pc.kolejnosc",
-            (var_row["id"],),
-        ).fetchall()
+        # 5. Variant-specific params
+        etapy_variant = get_cert_variant_params(db, var_row["id"])
+        if etapy_variant:
+            variant_param_rows = etapy_variant
+        else:
+            _legacy_v = db.execute(
+                "SELECT pc.*, pa.kod, pa.label AS pa_label, pa.name_en AS pa_name_en, "
+                "pa.method_code AS pa_method_code "
+                "FROM parametry_cert pc "
+                "JOIN parametry_analityczne pa ON pa.id = pc.parametr_id "
+                "WHERE pc.variant_id = ? ORDER BY pc.kolejnosc",
+                (var_row["id"],),
+            ).fetchall()
+            variant_param_rows = [
+                {
+                    "kod": r["kod"],
+                    "parametr_id": r["parametr_id"],
+                    "name_pl": r["name_pl"] or r["pa_label"] or "",
+                    "name_en": r["name_en"] or r["pa_name_en"] or "",
+                    "method": r["method"] or r["pa_method_code"] or "",
+                    "requirement": r["requirement"] or "",
+                    "format": r["format"] or "1",
+                    "qualitative_result": r["qualitative_result"],
+                }
+                for r in _legacy_v
+            ]
 
-        all_param_rows = list(base_rows) + list(variant_rows)
+        all_param_rows = base_param_rows + variant_param_rows
 
-        # 6. Build template rows with COALESCE logic for names
+        # 6. Build template rows
         rows = []
         for r in all_param_rows:
-            name_pl = r["name_pl"] or r["pa_label"] or ""
-            name_en = r["name_en"] or r["pa_name_en"] or ""
-            method = r["method"] or r["pa_method_code"] or ""
+            name_pl = r["name_pl"]
+            name_en = r["name_en"]
+            method = r["method"]
 
-            # Determine result value
             result = ""
             if r["qualitative_result"]:
                 result = r["qualitative_result"]
@@ -244,15 +278,14 @@ def build_context(
                     val = raw
                 if val is not None and val != "":
                     try:
-                        fmt = r["format"] or "1"
-                        result = _format_value(float(val), fmt)
+                        result = _format_value(float(val), r["format"])
                     except (ValueError, TypeError):
                         result = str(val).replace(".", ",")
 
             rows.append({
                 "name_pl": _md_to_richtext(name_pl),
                 "name_en": _md_to_richtext(f"/{name_en}") if name_en else _md_to_richtext(""),
-                "requirement": r["requirement"] or "",
+                "requirement": r["requirement"],
                 "method": method,
                 "result": result,
             })
