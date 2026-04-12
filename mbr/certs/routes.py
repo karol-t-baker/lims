@@ -400,14 +400,7 @@ def api_cert_config_product_put(key):
                     if kod:
                         analiza_kody.add(kod)
 
-        def _reject_if_not_in_analiza(df: str, context: str):
-            if not df:
-                return None
-            if not mbr:
-                return jsonify({"error": f"{context}: brak aktywnego MBR dla produktu '{key}'  — nie mozna przypisac parametru '{df}'"}), 400
-            if df not in analiza_kody:
-                return jsonify({"error": f"{context}: parametr '{df}' nie wystepuje w parametrach laboratoryjnych aktywnego MBR"}), 400
-            return None
+        warnings = []
 
         # Validate parameters
         if parameters is not None:
@@ -423,10 +416,9 @@ def api_cert_config_product_put(key):
                     return jsonify({"error": f"Parameter '{pid}' missing name_pl"}), 400
                 df = (p.get("data_field") or "").strip()
                 if df and df not in kod_to_id:
-                    return jsonify({"error": f"Parameter '{pid}': data_field '{df}' not found in parametry_analityczne"}), 400
-                err = _reject_if_not_in_analiza(df, f"Parametr '{pid}'")
-                if err:
-                    return err
+                    return jsonify({"error": f"Parameter '{pid}': powiazanie '{df}' nie istnieje w rejestrze parametrow"}), 400
+                if df and analiza_kody and df not in analiza_kody:
+                    warnings.append(f"Parametr '{pid}': '{df}' nie jest w MBR")
 
         # Validate variants
         if variants is not None:
@@ -456,9 +448,8 @@ def api_cert_config_product_put(key):
                         return jsonify({"error": f"Variant '{vid}' remove_parameters references unknown param: {rp}"}), 400
                 for ap in overrides.get("add_parameters", []) or []:
                     ap_df = (ap.get("data_field") or ap.get("id") or "").strip()
-                    err = _reject_if_not_in_analiza(ap_df, f"Wariant '{vid}', parametr '{ap_df}'")
-                    if err:
-                        return err
+                    if ap_df and analiza_kody and ap_df not in analiza_kody:
+                        warnings.append(f"Wariant '{vid}': '{ap_df}' nie jest w MBR")
 
         # Update produkty metadata
         for field in ("display_name", "spec_number", "cas_number", "expiry_months", "opinion_pl", "opinion_en"):
@@ -536,7 +527,10 @@ def api_cert_config_product_put(key):
         db.commit()
         save_cert_config_export(db)
 
-    return jsonify({"ok": True})
+    result = {"ok": True}
+    if warnings:
+        result["warnings"] = warnings
+    return jsonify(result)
 
 
 @certs_bp.route("/api/cert/config/product", methods=["POST"])
