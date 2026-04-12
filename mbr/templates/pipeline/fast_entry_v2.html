@@ -115,8 +115,14 @@
       cont.innerHTML = '<div class="fe2-loading">Błąd ładowania etapu.</div>';
       return;
     }
-    cont.innerHTML = await resp.text();
-    if (window._fe2InitPartial) window._fe2InitPartial();
+    const html = await resp.text();
+    cont.innerHTML = html;
+    // innerHTML doesn't execute <script> tags — extract and eval them
+    cont.querySelectorAll('script').forEach(old => {
+      const s = document.createElement('script');
+      s.textContent = old.textContent;
+      old.replaceWith(s);
+    });
   }
 
   window._fe2LoadStage = loadStage;
