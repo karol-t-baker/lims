@@ -693,6 +693,13 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
         except Exception:
             pass
 
+    # Migration: add precision to parametry_etapy (per-product precision override)
+    try:
+        db.execute("ALTER TABLE parametry_etapy ADD COLUMN precision INTEGER")
+        db.commit()
+    except Exception:
+        pass
+
     # Migration: add stezenia_json to metody_miareczkowe (persistent titrant concentrations)
     try:
         db.execute("ALTER TABLE metody_miareczkowe ADD COLUMN stezenia_json TEXT")
