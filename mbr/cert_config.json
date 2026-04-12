@@ -182,15 +182,6 @@
           "method": "L929",
           "format": "0",
           "data_field": "lh"
-        },
-        {
-          "id": "lk",
-          "name_pl": "Liczba kwasowa końcowa",
-          "name_en": "Acid value [mg KOH/g]",
-          "requirement": "",
-          "method": "PN-EN ISO 660:2021-03",
-          "format": "2",
-          "data_field": "lk"
         }
       ],
       "variants": [
