@@ -603,11 +603,6 @@ function resetTopbar() {
 // ═══ SPA NAVIGATION ═══
 
 async function loadBatch(ebrId) {
-  // Redirect to pipeline fast entry v2
-  window.location.href = `/laborant/pipeline/ebr/${ebrId}`;
-  return;
-
-  // --- Legacy code below (kept for reference, unreachable) ---
   // Cleanup + race condition guard
   const gen = ++_loadGen;
   if (_heroObserver) { _heroObserver.disconnect(); _heroObserver = null; }

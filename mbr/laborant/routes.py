@@ -162,7 +162,16 @@ def szarze_new():
 @laborant_bp.route("/laborant/ebr/<int:ebr_id>")
 @login_required
 def fast_entry(ebr_id):
-    return redirect(url_for("pipeline.fast_entry_v2", ebr_id=ebr_id))
+    from mbr.registry.models import list_completed_products
+    with db_session() as db:
+        ebr = get_ebr(db, ebr_id)
+        if ebr is None:
+            return "Nie znaleziono szarzy", 404
+        batches = list_ebr_open(db)
+        recent = list_ebr_recent(db, days=7)
+        completed_products = list_completed_products(db)
+    return render_template("laborant/szarze_list.html", batches=batches, recent=recent,
+                           products=PRODUCTS, completed_products=completed_products)
 
 
 @laborant_bp.route("/laborant/ebr/<int:ebr_id>/partial")
