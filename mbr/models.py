@@ -489,7 +489,133 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             on_cert                INTEGER DEFAULT 0,
             cert_variant_id        INTEGER,
             precision              INTEGER,
+            grupa                  TEXT DEFAULT 'lab',
             UNIQUE(produkt, kontekst, parametr_id)
+        )
+    """)
+    # --- Pipeline builder tables (analytical stages) ---
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS etapy_analityczne (
+            id                  INTEGER PRIMARY KEY,
+            kod                 TEXT NOT NULL UNIQUE,
+            nazwa               TEXT NOT NULL,
+            opis                TEXT,
+            typ_cyklu           TEXT NOT NULL DEFAULT 'jednorazowy'
+                                CHECK(typ_cyklu IN ('jednorazowy', 'cykliczny')),
+            aktywny             INTEGER DEFAULT 1,
+            kolejnosc_domyslna  INTEGER DEFAULT 0
+        )
+    """)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS etap_parametry (
+            id              INTEGER PRIMARY KEY,
+            etap_id         INTEGER NOT NULL REFERENCES etapy_analityczne(id),
+            parametr_id     INTEGER NOT NULL REFERENCES parametry_analityczne(id),
+            kolejnosc       INTEGER DEFAULT 0,
+            min_limit       REAL,
+            max_limit       REAL,
+            nawazka_g       REAL,
+            precision       INTEGER,
+            target          REAL,
+            wymagany        INTEGER DEFAULT 0,
+            grupa           TEXT DEFAULT 'lab',
+            formula         TEXT,
+            sa_bias         REAL,
+            krok            INTEGER,
+            UNIQUE(etap_id, parametr_id)
+        )
+    """)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS produkt_pipeline (
+            id              INTEGER PRIMARY KEY,
+            produkt         TEXT NOT NULL,
+            etap_id         INTEGER NOT NULL REFERENCES etapy_analityczne(id),
+            kolejnosc       INTEGER NOT NULL,
+            UNIQUE(produkt, etap_id)
+        )
+    """)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS produkt_etap_limity (
+            id              INTEGER PRIMARY KEY,
+            produkt         TEXT NOT NULL,
+            etap_id         INTEGER NOT NULL REFERENCES etapy_analityczne(id),
+            parametr_id     INTEGER NOT NULL REFERENCES parametry_analityczne(id),
+            min_limit       REAL,
+            max_limit       REAL,
+            nawazka_g       REAL,
+            precision       INTEGER,
+            target          REAL,
+            UNIQUE(produkt, etap_id, parametr_id)
+        )
+    """)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS etap_warunki (
+            id              INTEGER PRIMARY KEY,
+            etap_id         INTEGER NOT NULL REFERENCES etapy_analityczne(id),
+            parametr_id     INTEGER NOT NULL REFERENCES parametry_analityczne(id),
+            operator        TEXT NOT NULL CHECK(operator IN ('<', '<=', '>=', '>', 'between', '=')),
+            wartosc         REAL,
+            wartosc_max     REAL,
+            opis_warunku    TEXT
+        )
+    """)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS etap_korekty_katalog (
+            id              INTEGER PRIMARY KEY,
+            etap_id         INTEGER NOT NULL REFERENCES etapy_analityczne(id),
+            substancja      TEXT NOT NULL,
+            jednostka       TEXT DEFAULT 'kg',
+            wykonawca       TEXT NOT NULL DEFAULT 'produkcja'
+                            CHECK(wykonawca IN ('laborant', 'produkcja')),
+            kolejnosc       INTEGER DEFAULT 0,
+            formula_ilosc   TEXT,
+            formula_zmienne TEXT,
+            formula_opis    TEXT
+        )
+    """)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS ebr_etap_sesja (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            ebr_id          INTEGER NOT NULL REFERENCES ebr_batches(ebr_id),
+            etap_id         INTEGER NOT NULL REFERENCES etapy_analityczne(id),
+            runda           INTEGER NOT NULL DEFAULT 1,
+            status          TEXT NOT NULL DEFAULT 'w_trakcie'
+                            CHECK(status IN ('w_trakcie', 'ok', 'poza_limitem', 'oczekuje_korekty')),
+            dt_start        TEXT,
+            dt_end          TEXT,
+            laborant        TEXT,
+            decyzja         TEXT CHECK(decyzja IN ('przejscie', 'korekta')),
+            komentarz       TEXT,
+            UNIQUE(ebr_id, etap_id, runda)
+        )
+    """)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS ebr_pomiar (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            sesja_id        INTEGER NOT NULL REFERENCES ebr_etap_sesja(id),
+            parametr_id     INTEGER NOT NULL REFERENCES parametry_analityczne(id),
+            wartosc         REAL,
+            min_limit       REAL,
+            max_limit       REAL,
+            w_limicie       INTEGER,
+            is_manual       INTEGER NOT NULL DEFAULT 1,
+            dt_wpisu        TEXT NOT NULL,
+            wpisal          TEXT NOT NULL,
+            UNIQUE(sesja_id, parametr_id)
+        )
+    """)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS ebr_korekta_v2 (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            sesja_id        INTEGER NOT NULL REFERENCES ebr_etap_sesja(id),
+            korekta_typ_id  INTEGER NOT NULL REFERENCES etap_korekty_katalog(id),
+            ilosc           REAL,
+            zalecil         TEXT,
+            wykonawca_info  TEXT,
+            dt_zalecenia    TEXT,
+            dt_wykonania    TEXT,
+            status          TEXT NOT NULL DEFAULT 'zalecona'
+                            CHECK(status IN ('zalecona', 'wykonana', 'anulowana'))
         )
     """)
     db.execute("""
@@ -1071,6 +1197,20 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     except Exception as _e:
         import sys as _sys
         print(f"[migration] nadtlenki: {_e}", file=_sys.stderr)
+
+    # Migration: add grupa to parametry_etapy (parameter ownership: lab/kj/rnd)
+    try:
+        db.execute("ALTER TABLE parametry_etapy ADD COLUMN grupa TEXT DEFAULT 'lab'")
+        db.commit()
+    except Exception:
+        pass
+
+    # Migration: add default_grupa to mbr_users (default parameter group filter)
+    try:
+        db.execute("ALTER TABLE mbr_users ADD COLUMN default_grupa TEXT DEFAULT 'lab'")
+        db.commit()
+    except Exception:
+        pass
 
 # ---------------------------------------------------------------------------
 # Auto-numbering — moved to mbr.laborant.models, re-exported for backward compat
