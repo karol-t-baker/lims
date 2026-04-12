@@ -103,7 +103,7 @@
 
 {# ═══ SHIFT GATE — blocks laborant UI until shift is confirmed ═══ #}
 {% if session.get('user', {}).get('rola') in ('laborant', 'laborant_coa') %}
-<div id="shift-gate" style="display:none; position:fixed; inset:0; z-index:8000;
+<div id="shift-gate" style="display:none; position:fixed; inset:0; z-index:400;
   background:rgba(0,0,0,0.45); backdrop-filter:blur(2px);
   align-items:center; justify-content:center;">
   <div style="background:var(--surface, #fff); border-radius:12px; padding:32px 40px;
