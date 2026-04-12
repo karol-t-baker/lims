@@ -387,10 +387,16 @@ async function _loadProductsForType(typ) {
         var qpList = (typ === 'platkowanie') ? products : PRIORITY_PICKS.map(function(n) {
             return products.find(function(p) { return p.nazwa === n; });
         }).filter(Boolean);
+        var VARIANT_DEFAULTS = {Alkinol: 'A', Alstermid: 'Alstermid'};
         qpList.forEach(function(p) {
             var parts = p.nazwa.split('_');
             var inner;
-            if (parts.length >= 2) {
+            var hasVariant = parts.length >= 2;
+            if (!hasVariant && VARIANT_DEFAULTS[p.nazwa]) {
+                hasVariant = true;
+                parts = [p.nazwa, VARIANT_DEFAULTS[p.nazwa]];
+            }
+            if (hasVariant) {
                 var brand = parts[0];
                 var variant = parts.slice(1).join(' ');
                 inner = '<span class="qp-brand">' + brand + '</span><span class="qp-variant">' + variant + '</span>';
@@ -398,7 +404,7 @@ async function _loadProductsForType(typ) {
                 var short = p.display_name || p.nazwa.replace(/_/g, ' ');
                 inner = short;
             }
-            var extraCls = parts.length >= 2 ? '' : ' qp-btn-simple';
+            var extraCls = hasVariant ? '' : ' qp-btn-simple';
             qpHtml += '<button type="button" class="qp-btn' + extraCls + '" onclick="quickPick(this,\'' + p.nazwa + '\',\'' + typ + '\')" title="' + (p.display_name || p.nazwa) + '">' + inner + '</button>';
         });
         qpEl.innerHTML = qpHtml;

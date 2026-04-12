@@ -301,12 +301,19 @@ def ebr_audit_history(ebr_id):
 def complete_entry(ebr_id):
     data = request.get_json(silent=True) or {}
     zbiorniki = data.get("zbiorniki")
+    uwagi = (data.get("uwagi") or "").strip()
     with db_session() as db:
         # Read old status BEFORE completing
         row = db.execute("SELECT status FROM ebr_batches WHERE ebr_id=?", (ebr_id,)).fetchone()
         old_status = row["status"] if row else "unknown"
 
         complete_ebr(db, ebr_id, zbiorniki=zbiorniki)
+
+        if uwagi:
+            db.execute(
+                "UPDATE ebr_batches SET uwagi_koncowe = ? WHERE ebr_id = ?",
+                (uwagi, ebr_id),
+            )
 
         # Audit: log status change
         payload = {"old_status": old_status, "new_status": "completed"}

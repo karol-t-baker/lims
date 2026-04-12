@@ -679,6 +679,41 @@
     padding-top: 10px;
 }
 
+/* ── Quick-insert chips (uwagi completion dialogs) ── */
+.uwagi-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11.5px;
+    font-family: var(--font);
+    font-weight: 500;
+    line-height: 1.1;
+    letter-spacing: 0.01em;
+    color: var(--teal-dark);
+    background: var(--teal-bg);
+    border: 1px solid rgba(13, 115, 119, 0.18);
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s, transform 0.1s, box-shadow 0.12s;
+    white-space: nowrap;
+}
+.uwagi-chip:hover {
+    background: #d0eded;
+    border-color: rgba(13, 115, 119, 0.35);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px -2px rgba(13, 115, 119, 0.22);
+}
+.uwagi-chip:active {
+    transform: translateY(0);
+    background: #c3e6e6;
+}
+.uwagi-chip-formula {
+    font-family: var(--mono, 'SF Mono', 'Menlo', monospace);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
 .cv-p-input {
     font-family: var(--mono); font-size: 15px; font-weight: 700;
     min-width: 60px; width: 80px; text-align: right; border: none;
@@ -2513,6 +2548,9 @@ async function openPumpModal() {
         '<div id="pm-mass-rows"></div>' +
     '</div>';
 
+    html += '<div class="pm-section-label" style="margin-top:16px;">Uwagi (opcjonalnie)</div>' +
+        _uwagiFieldHtml('pm-uwagi');
+
     html += '</div>'; // end modal-body
 
     // Footer
@@ -2671,10 +2709,14 @@ async function confirmPump() {
     var btn = document.getElementById('pm-confirm-btn');
     if (btn) { btn.textContent = 'Zatwierdzanie...'; btn.disabled = true; }
 
+    var uwagi = (document.getElementById('pm-uwagi') || {}).value || '';
+    var bodyObj = {zbiorniki: targets};
+    if (uwagi.trim()) bodyObj.uwagi = uwagi.trim();
+
     var resp = await fetch('/laborant/ebr/' + ebrId + '/complete', {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({zbiorniki: targets})
+        body: JSON.stringify(bodyObj)
     });
     if (resp.ok || resp.redirected) {
         location.href = '/laborant/szarze';
@@ -2760,12 +2802,73 @@ async function loadCompletedSubstraty() {
     }
 }
 
+function _uwagiFieldHtml(taId) {
+    return '<div style="margin:10px 0 6px;">' +
+        '<textarea id="' + taId + '" rows="2" placeholder="Uwagi (opcjonalnie)\u2026" style="width:100%;box-sizing:border-box;border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:13px;resize:vertical;font-family:inherit;background:var(--bg);color:var(--text);"></textarea>' +
+        '<div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;">' +
+            '<button type="button" class="uwagi-chip" onclick="_uwagiInsertTemplate(\'' + taId + '\',\'H\u2082O\')"><span class="uwagi-chip-formula">H\u2082O</span></button>' +
+            '<button type="button" class="uwagi-chip" onclick="_uwagiInsertTemplate(\'' + taId + '\',\'H\u2082O\u2082\')"><span class="uwagi-chip-formula">H\u2082O\u2082</span></button>' +
+            '<button type="button" class="uwagi-chip" onclick="_uwagiInsertTemplate(\'' + taId + '\',\'kwas cytrynowy\')">kwas cytrynowy</button>' +
+        '</div>' +
+    '</div>';
+}
+
+function _uwagiInsertTemplate(taId, substance) {
+    var ta = document.getElementById(taId);
+    if (!ta) return;
+    var start = ta.selectionStart, end = ta.selectionEnd;
+    var before = ta.value.substring(0, start);
+    var after = ta.value.substring(end);
+    var needNewline = before.length > 0 && !before.endsWith('\n');
+    var sep = needNewline ? '\n' : '';
+    var template = '+ ___ kg ' + substance;
+    ta.value = before + sep + template + after;
+    var cursorPos = start + sep.length + 2;
+    ta.selectionStart = cursorPos;
+    ta.selectionEnd = cursorPos + 3;
+    ta.focus();
+}
+
+function _askUwagiBeforeComplete(title) {
+    return new Promise(function(resolve) {
+        var id = 'confirm-uwagi-modal';
+        var old = document.getElementById(id);
+        if (old) old.remove();
+        var div = document.createElement('div');
+        div.innerHTML =
+            '<div class="modal-overlay show" id="' + id + '" onclick="if(event.target===this)this.remove()">' +
+                '<div class="confirm-dialog">' +
+                    '<div class="cd-icon">' +
+                        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" style="width:24px;height:24px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 12 15 16 10"/></svg>' +
+                    '</div>' +
+                    '<div class="cd-text">' + title + '</div>' +
+                    _uwagiFieldHtml('cu-uwagi') +
+                    '<div class="cd-btns">' +
+                        '<button class="m-btn m-btn-o" id="cu-cancel">Anuluj</button>' +
+                        '<button class="m-btn m-btn-p" id="cu-confirm">Zatwierdź</button>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
+        document.body.appendChild(div.firstChild);
+        document.getElementById('cu-cancel').onclick = function() {
+            document.getElementById(id).remove(); resolve(false);
+        };
+        document.getElementById('cu-confirm').onclick = function() {
+            var v = (document.getElementById('cu-uwagi') || {}).value || '';
+            document.getElementById(id).remove(); resolve(v.trim());
+        };
+    });
+}
+
 async function completePlatkowanie() {
-    if (!confirm('Zakończyć płatkowanie?')) return;
+    var uwagi = await _askUwagiBeforeComplete('Zakończyć płatkowanie?');
+    if (uwagi === false) return;
+    var bodyObj = {zbiorniki: []};
+    if (uwagi) bodyObj.uwagi = uwagi;
     var resp = await fetch('/laborant/ebr/' + ebrId + '/complete', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({zbiorniki: []})
+        body: JSON.stringify(bodyObj)
     });
     if (resp.ok || resp.redirected) {
         location.href = '/laborant/szarze';
@@ -2775,7 +2878,6 @@ async function completePlatkowanie() {
 }
 
 function completeSimple() {
-    // Simple confirm for zbiornik — no tank selection needed
     var overlay = document.getElementById('confirm-complete-simple');
     if (!overlay) {
         var div = document.createElement('div');
@@ -2787,6 +2889,7 @@ function completeSimple() {
                     '</div>' +
                     '<div class="cd-text">Zatwierdzić kartę?</div>' +
                     '<div class="cd-sub">Analiza zbiornika zostanie zakończona.</div>' +
+                    _uwagiFieldHtml('cs-uwagi') +
                     '<div class="cd-btns">' +
                         '<button class="m-btn m-btn-o" onclick="document.getElementById(\'confirm-complete-simple\').classList.remove(\'show\')">Anuluj</button>' +
                         '<button class="m-btn m-btn-p cd-confirm" onclick="doCompleteSimple()">Zatwierdź</button>' +
@@ -2794,6 +2897,9 @@ function completeSimple() {
                 '</div>' +
             '</div>';
         document.body.appendChild(div.firstChild);
+    } else {
+        var ta = document.getElementById('cs-uwagi');
+        if (ta) ta.value = '';
     }
     document.getElementById('confirm-complete-simple').classList.add('show');
 }
@@ -2801,10 +2907,13 @@ function completeSimple() {
 async function doCompleteSimple() {
     var btn = document.querySelector('#confirm-complete-simple .cd-confirm');
     if (btn) { btn.textContent = 'Zatwierdzanie...'; btn.disabled = true; }
+    var uwagi = (document.getElementById('cs-uwagi') || {}).value || '';
+    var bodyObj = {};
+    if (uwagi.trim()) bodyObj.uwagi = uwagi.trim();
     var resp = await fetch('/laborant/ebr/' + ebrId + '/complete', {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({})
+        body: JSON.stringify(bodyObj)
     });
     if (resp.ok || resp.redirected) {
         if (typeof showDashboard === 'function') {
