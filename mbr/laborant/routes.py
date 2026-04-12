@@ -167,6 +167,13 @@ def fast_entry(ebr_id):
         ebr = get_ebr(db, ebr_id)
         if ebr is None:
             return "Nie znaleziono szarzy", 404
+
+        # If product has a pipeline, redirect to pipeline fast entry v2
+        from mbr.pipeline.models import get_produkt_pipeline
+        pipeline = get_produkt_pipeline(db, ebr["produkt"])
+        if pipeline:
+            return redirect(url_for("pipeline.fast_entry_v2", ebr_id=ebr_id))
+
         # Serve the SPA shell — JS will detect URL and load partial via AJAX
         batches = list_ebr_open(db)
         recent = list_ebr_recent(db, days=7)
