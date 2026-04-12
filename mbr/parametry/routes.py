@@ -255,8 +255,12 @@ def api_parametry_available():
                 plab = _json.loads(mbr.get("parametry_lab") or "{}")
             except Exception:
                 plab = {}
-            pola = ((plab.get("analiza_koncowa") or {}).get("pola")) or []
-            allowed_kody = [p.get("kod") for p in pola if p.get("kod")]
+            allowed_kody = []
+            for sekcja in plab.values():
+                for p in (sekcja.get("pola") or []):
+                    kod = p.get("kod")
+                    if kod and kod not in allowed_kody:
+                        allowed_kody.append(kod)
             if not allowed_kody:
                 return jsonify({"no_mbr": True, "produkt": produkt, "params": []})
             placeholders = ",".join("?" * len(allowed_kody))
