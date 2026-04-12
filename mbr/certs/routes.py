@@ -663,7 +663,7 @@ def pdf_mbr(mbr_id):
 
 
 @certs_bp.route("/api/cert/<int:cert_id>/audit-history")
-@role_required("admin", "technolog", "laborant_coa", "laborant_kj")
+@role_required("admin", "technolog", "cert", "lab")
 def cert_audit_history(cert_id):
     """Return per-cert audit history (sorted DESC by dt, with actors)."""
     from mbr.shared import audit

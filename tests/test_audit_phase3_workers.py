@@ -55,7 +55,7 @@ def admin_client(monkeypatch, db):
 
 @pytest.fixture
 def laborant_client(monkeypatch, db):
-    return _make_client(monkeypatch, db, rola="laborant")
+    return _make_client(monkeypatch, db, rola="lab")
 
 
 # ---------- POST /api/shift ----------

@@ -40,7 +40,7 @@ def api_shift():
             )
             # Explicit actor — never use actors_from_request here, because
             # session['shift_workers'] is what's being SET right now and would
-            # crash actors_from_request for rola='laborant' even if shift is
+            # crash actors_from_request for rola='lab' even if shift is
             # empty before this call.
             user = session.get("user", {})
             audit.log_event(

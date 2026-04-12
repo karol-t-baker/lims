@@ -120,8 +120,8 @@ def workers_db():
 def test_actors_explicit_resolves_worker_rows_from_db(workers_db):
     result = audit.actors_explicit(workers_db, [1, 3])
     assert result == [
-        {"worker_id": 1, "actor_login": "AK", "actor_rola": "laborant"},
-        {"worker_id": 3, "actor_login": "JN", "actor_rola": "laborant"},
+        {"worker_id": 1, "actor_login": "AK", "actor_rola": "lab"},
+        {"worker_id": 3, "actor_login": "JN", "actor_rola": "lab"},
     ]
 
 
@@ -170,7 +170,7 @@ def test_actors_from_request_technolog_ignores_shift(app_with_workers, workers_d
 def test_actors_from_request_laborant_returns_all_shift_workers(app_with_workers, workers_db):
     with app_with_workers.test_request_context():
         from flask import session
-        session["user"] = {"login": "anna", "rola": "laborant", "worker_id": 1}
+        session["user"] = {"login": "anna", "rola": "lab", "worker_id": 1}
         session["shift_workers"] = [1, 2]
         result = audit.actors_from_request(workers_db)
     assert len(result) == 2
@@ -180,7 +180,7 @@ def test_actors_from_request_laborant_returns_all_shift_workers(app_with_workers
 def test_actors_from_request_laborant_with_empty_shift_raises(app_with_workers, workers_db):
     with app_with_workers.test_request_context():
         from flask import session
-        session["user"] = {"login": "anna", "rola": "laborant", "worker_id": 1}
+        session["user"] = {"login": "anna", "rola": "lab", "worker_id": 1}
         session["shift_workers"] = []
         with pytest.raises(audit.ShiftRequiredError):
             audit.actors_from_request(workers_db)
@@ -189,7 +189,7 @@ def test_actors_from_request_laborant_with_empty_shift_raises(app_with_workers, 
 def test_actors_from_request_laborant_with_missing_shift_key_raises(app_with_workers, workers_db):
     with app_with_workers.test_request_context():
         from flask import session
-        session["user"] = {"login": "anna", "rola": "laborant", "worker_id": 1}
+        session["user"] = {"login": "anna", "rola": "lab", "worker_id": 1}
         # No shift_workers in session at all
         with pytest.raises(audit.ShiftRequiredError):
             audit.actors_from_request(workers_db)
@@ -198,11 +198,11 @@ def test_actors_from_request_laborant_with_missing_shift_key_raises(app_with_wor
 def test_actors_from_request_laborant_kj_uses_shift(app_with_workers, workers_db):
     with app_with_workers.test_request_context():
         from flask import session
-        session["user"] = {"login": "anna", "rola": "laborant_kj", "worker_id": 1}
+        session["user"] = {"login": "anna", "rola": "lab", "worker_id": 1}
         session["shift_workers"] = [1, 2, 3]
         result = audit.actors_from_request(workers_db)
     assert len(result) == 3
-    assert all(r["actor_rola"] == "laborant" for r in result)
+    assert all(r["actor_rola"] == "lab" for r in result)
 
 
 # ---------- log_event ----------
@@ -274,8 +274,8 @@ def test_log_event_writes_multiple_actors(audit_db):
         entity_label="Szarża 2026/42",
         diff=[{"pole": "temperatura", "stara": 85, "nowa": 87}],
         actors=[
-            {"worker_id": 1, "actor_login": "anna", "actor_rola": "laborant"},
-            {"worker_id": 2, "actor_login": "maria", "actor_rola": "laborant"},
+            {"worker_id": 1, "actor_login": "anna", "actor_rola": "lab"},
+            {"worker_id": 2, "actor_login": "maria", "actor_rola": "lab"},
         ],
         db=audit_db,
     )
@@ -513,7 +513,7 @@ def queryable_audit_db(audit_db):
         wid = 1 if cur.lastrowid % 2 == 1 else 2
         login = "anna" if wid == 1 else "maria"
         audit_db.execute(
-            "INSERT INTO audit_log_actors (audit_id, worker_id, actor_login, actor_rola) VALUES (?, ?, ?, 'laborant')",
+            "INSERT INTO audit_log_actors (audit_id, worker_id, actor_login, actor_rola) VALUES (?, ?, ?, 'lab')",
             (cur.lastrowid, wid, login),
         )
     audit_db.commit()

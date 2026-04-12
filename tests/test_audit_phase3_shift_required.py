@@ -42,7 +42,7 @@ def db():
     conn.close()
 
 
-def _make_client(monkeypatch, db, rola="laborant", shift_workers=None):
+def _make_client(monkeypatch, db, rola="lab", shift_workers=None):
     import mbr.db
     import mbr.laborant.routes
 
@@ -69,7 +69,7 @@ def _make_client(monkeypatch, db, rola="laborant", shift_workers=None):
 def test_save_entry_laborant_empty_shift_returns_400(monkeypatch, db):
     """Laborant POST /laborant/ebr/<id>/save with no shift → 400 shift_required,
     no row written to ebr_wyniki."""
-    client = _make_client(monkeypatch, db, rola="laborant", shift_workers=[])
+    client = _make_client(monkeypatch, db, rola="lab", shift_workers=[])
     resp = client.post(
         "/laborant/ebr/1/save",
         json={"sekcja": "analiza", "values": {"sm": 87}},
@@ -85,7 +85,7 @@ def test_save_entry_laborant_empty_shift_returns_400(monkeypatch, db):
 
 def test_save_entry_laborant_with_shift_succeeds(monkeypatch, db):
     """Laborant with confirmed shift can save normally."""
-    client = _make_client(monkeypatch, db, rola="laborant", shift_workers=[1, 2])
+    client = _make_client(monkeypatch, db, rola="lab", shift_workers=[1, 2])
     resp = client.post(
         "/laborant/ebr/1/save",
         json={"sekcja": "analiza", "values": {"sm": 87}},
@@ -96,7 +96,7 @@ def test_save_entry_laborant_with_shift_succeeds(monkeypatch, db):
 # ---------- save_uwagi shift enforcement (symmetric) ----------
 
 def test_save_uwagi_laborant_empty_shift_returns_400(monkeypatch, db):
-    client = _make_client(monkeypatch, db, rola="laborant", shift_workers=[])
+    client = _make_client(monkeypatch, db, rola="lab", shift_workers=[])
     resp = client.put("/api/ebr/1/uwagi", json={"tekst": "Test note"})
     assert resp.status_code == 400
     assert resp.get_json() == {"error": "shift_required"}
@@ -109,7 +109,7 @@ def test_save_uwagi_laborant_empty_shift_returns_400(monkeypatch, db):
 
 def test_save_entry_admin_empty_shift_succeeds(monkeypatch, db):
     """Admin/technolog/laborant_kj/laborant_coa keep the login fallback when
-    shift is empty — only role='laborant' is enforced."""
+    shift is empty — only role='lab' is enforced."""
     client = _make_client(monkeypatch, db, rola="admin", shift_workers=[])
     resp = client.post(
         "/laborant/ebr/1/save",

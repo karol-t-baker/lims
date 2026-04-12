@@ -17,7 +17,7 @@ def login_required(f):
 
 
 def role_required(*roles):
-    """Decorator requiring one of the given roles. Usage: @role_required('admin') or @role_required('laborant_kj', 'laborant')."""
+    """Decorator requiring one of the given roles. Usage: @role_required('admin') or @role_required('lab', 'cert')."""
     def decorator(f):
         @functools.wraps(f)
         @login_required

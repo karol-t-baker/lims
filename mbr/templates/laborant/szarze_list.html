@@ -676,7 +676,7 @@ async function loadBatch(ebrId) {
 
 function showDashboard(skipHistory) {
   // COA users don't have dashboard — redirect to registry
-  if ("{{ session.get('user', {}).get('rola', '') }}" === 'laborant_coa') {
+  if ("{{ session.get('user', {}).get('rola', '') }}" === 'cert') {
     showRegistry('Chegina_K7', skipHistory);
     return;
   }
@@ -713,7 +713,7 @@ if (_dm) {
   var _userRola = "{{ session.get('user', {}).get('rola', '') }}";
   if (_params.get('view') === 'registry') {
     showRegistry(_params.get('produkt') || 'Chegina_K7', true);
-  } else if (_userRola === 'laborant_coa') {
+  } else if (_userRola === 'cert') {
     // COA user: start on completed registry
     showRegistry('Chegina_K7', true);
   } else {

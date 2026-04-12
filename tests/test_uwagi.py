@@ -216,7 +216,7 @@ def test_get_uwagi_after_delete(db, ebr_batch):
 # Tasks 9-11: Flask HTTP API tests
 # ---------------------------------------------------------------------------
 
-def _make_client(monkeypatch, db, rola="laborant", shift_workers=None):
+def _make_client(monkeypatch, db, rola="lab", shift_workers=None):
     """Build a Flask test client whose db_session yields the given in-memory db."""
     from contextlib import contextmanager
     import mbr.db
@@ -251,7 +251,7 @@ def client(monkeypatch, db, ebr_batch):
         "VALUES (999, 'Test', 'User', 'TU', 'testuser', 1)"
     )
     db.commit()
-    yield from _make_client(monkeypatch, db, rola="laborant", shift_workers=[999])
+    yield from _make_client(monkeypatch, db, rola="lab", shift_workers=[999])
 
 
 @pytest.fixture
@@ -378,7 +378,7 @@ def test_resolve_actor_label_laborant_empty_shift_raises(db):
     import pytest as _pytest
     app = Flask(__name__)
     app.secret_key = "test"
-    for rola in ("laborant", "laborant_kj", "laborant_coa"):
+    for rola in ("lab", "lab", "cert"):
         with app.test_request_context():
             from flask import session
             session["user"] = {"login": "shared_lab", "rola": rola}
@@ -395,7 +395,7 @@ def test_resolve_actor_label_uses_shift_when_set(db):
     app.secret_key = "test"
     with app.test_request_context():
         from flask import session
-        session["user"] = {"login": "shared_lab", "rola": "laborant"}
+        session["user"] = {"login": "shared_lab", "rola": "lab"}
         session["shift_workers"] = [1, 2]
         assert _resolve_actor_label(db) == "AK, MW"
 
@@ -409,7 +409,7 @@ def test_resolve_actor_label_override_wins(db):
     app.secret_key = "test"
     with app.test_request_context():
         from flask import session
-        session["user"] = {"login": "shared_lab", "rola": "laborant"}
+        session["user"] = {"login": "shared_lab", "rola": "lab"}
         session["shift_workers"] = [1, 2]
         assert _resolve_actor_label(db, override="AK") == "AK"
 
@@ -423,7 +423,7 @@ def test_resolve_actor_label_empty_string_override_ignored(db):
     app.secret_key = "test"
     with app.test_request_context():
         from flask import session
-        session["user"] = {"login": "shared_lab", "rola": "laborant"}
+        session["user"] = {"login": "shared_lab", "rola": "lab"}
         session["shift_workers"] = [1]
         assert _resolve_actor_label(db, override="") == "AK"
         assert _resolve_actor_label(db, override="   ") == "AK"
@@ -439,7 +439,7 @@ def test_resolve_actor_label_nickname_falls_through_to_inicjaly(db):
     app.secret_key = "test"
     with app.test_request_context():
         from flask import session
-        session["user"] = {"login": "x", "rola": "laborant"}
+        session["user"] = {"login": "x", "rola": "lab"}
         session["shift_workers"] = [3]
         assert _resolve_actor_label(db) == "JN"
 
@@ -465,7 +465,7 @@ def test_api_put_uwagi_uses_shift_when_no_override(monkeypatch, db, ebr_batch):
     app.config["TESTING"] = True
     with app.test_client() as c:
         with c.session_transaction() as sess:
-            sess["user"] = {"login": "shared_lab", "rola": "laborant"}
+            sess["user"] = {"login": "shared_lab", "rola": "lab"}
             sess["shift_workers"] = [1, 2]
         resp = c.put(f"/api/ebr/{ebr_batch}/uwagi", json={"tekst": "Praca pary"})
         assert resp.status_code == 200
@@ -489,7 +489,7 @@ def test_api_put_uwagi_explicit_autor_overrides_shift(monkeypatch, db, ebr_batch
     app.config["TESTING"] = True
     with app.test_client() as c:
         with c.session_transaction() as sess:
-            sess["user"] = {"login": "shared_lab", "rola": "laborant"}
+            sess["user"] = {"login": "shared_lab", "rola": "lab"}
             sess["shift_workers"] = [1, 2]
         resp = c.put(
             f"/api/ebr/{ebr_batch}/uwagi",

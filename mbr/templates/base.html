@@ -34,7 +34,7 @@
   <a class="rail-btn {% block nav_substraty %}{% endblock %}" href="{{ url_for('zbiorniki.admin_substraty') }}" title="Substraty"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg><span class="rail-label">Substraty</span></a>
   {% endif %}
 
-  {% if session.get('user', {}).get('rola') in ('laborant', 'laborant_kj') %}
+  {% if session.get('user', {}).get('rola') == 'lab' %}
   <a class="rail-btn {% block nav_szarze %}{% endblock %}" href="{{ url_for('laborant.szarze_list') }}" title="Szarze"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v4l4 8H5l4-8V3z"/><path d="M3 21h18"/><path d="M9 3h6"/></svg><span class="rail-label">Szarze</span></a>
   <button class="rail-btn" onclick="if(typeof openNewBatchModal==='function')openNewBatchModal()" title="Nowa szarza"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg><span class="rail-label">+ Nowa</span></button>
   <div class="rail-sep"></div>
@@ -43,7 +43,7 @@
   <a class="rail-btn {% block nav_narzedzia_lab %}{% endblock %}" href="{{ url_for('registry.narzedzia') }}" title="Narzędzia"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg><span class="rail-label">Narzędzia</span></a>
   {% endif %}
 
-  {% if session.get('user', {}).get('rola') == 'laborant_coa' %}
+  {% if session.get('user', {}).get('rola') == 'cert' %}
   <a class="rail-btn {% block nav_szarze_coa %}{% endblock %}" href="{{ url_for('laborant.szarze_list') }}" title="Szarze"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v4l4 8H5l4-8V3z"/><path d="M3 21h18"/><path d="M9 3h6"/></svg><span class="rail-label">Ukończone</span></a>
   <a class="rail-btn" href="{{ url_for('registry.narzedzia') }}" title="Narzędzia"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg><span class="rail-label">Narzędzia</span></a>
   {% endif %}
@@ -102,7 +102,7 @@
 </div>
 
 {# ═══ SHIFT GATE — blocks laborant UI until shift is confirmed ═══ #}
-{% if session.get('user', {}).get('rola') in ('laborant', 'laborant_kj', 'laborant_coa') %}
+{% if session.get('user', {}).get('rola') in ('lab', 'cert') %}
 <div id="shift-gate" style="display:none; position:fixed; inset:0; z-index:400;
   background:rgba(0,0,0,0.45); backdrop-filter:blur(2px);
   align-items:center; justify-content:center;">
@@ -120,7 +120,7 @@
 {% block scripts %}{% endblock %}
 
 <!-- Nowa szarza modal (only for roles that can create batches) -->
-{% if session.get('user', {}).get('rola') in ('laborant', 'laborant_kj', 'technolog') %}
+{% if session.get('user', {}).get('rola') in ('lab', 'technolog') %}
 {% include "laborant/_modal_nowa_szarza.html" %}
 {% endif %}
 
@@ -449,7 +449,7 @@ document.addEventListener('keydown', function(e) {
 
   if (e.key === 'n' || e.key === 'N') {
     var _rola = "{{ session.get('user', {}).get('rola', '') }}";
-    if (_rola === 'laborant_coa' || _rola === 'admin') return;
+    if (_rola === 'cert' || _rola === 'admin') return;
     e.preventDefault();
     var regModal = document.getElementById('reg-modal');
     if (regModal && regModal.classList.contains('show')) { if (typeof closeModal === 'function') closeModal(); }

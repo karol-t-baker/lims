@@ -53,7 +53,7 @@ def admin_client(monkeypatch, db):
 
 @pytest.fixture
 def laborant_client(monkeypatch, db):
-    return _make_client(monkeypatch, db, rola="laborant")
+    return _make_client(monkeypatch, db, rola="lab")
 
 
 def _seed_some_audit_rows(db):
@@ -188,7 +188,7 @@ def test_admin_audit_export_csv_streams_correct_columns(admin_client, db):
            'Szarża, with comma', '{"a":1}', 'req-x', 'ok')"""
     )
     db.execute(
-        "INSERT INTO audit_log_actors (audit_id, worker_id, actor_login, actor_rola) VALUES (?, 1, 'AK', 'laborant')",
+        "INSERT INTO audit_log_actors (audit_id, worker_id, actor_login, actor_rola) VALUES (?, 1, 'AK', 'lab')",
         (cur.lastrowid,),
     )
     db.commit()
@@ -365,7 +365,7 @@ def test_ebr_audit_history_endpoint_includes_actors(admin_client, db):
         "INSERT INTO audit_log (dt, event_type, entity_type, entity_id, result) VALUES ('2026-04-01T08:00:00', 'ebr.wynik.saved', 'ebr', 50, 'ok')"
     )
     db.execute(
-        "INSERT INTO audit_log_actors (audit_id, worker_id, actor_login, actor_rola) VALUES (?, 1, 'AK', 'laborant')",
+        "INSERT INTO audit_log_actors (audit_id, worker_id, actor_login, actor_rola) VALUES (?, 1, 'AK', 'lab')",
         (cur.lastrowid,),
     )
     db.commit()
@@ -408,7 +408,7 @@ def test_cert_audit_history_returns_filtered(admin_client, db):
         "INSERT INTO audit_log (dt, event_type, entity_type, entity_id, entity_label, result) VALUES ('2026-04-01T08:00:00', 'cert.generated', 'cert', 12, 'Świad. K40GLO', 'ok')"
     )
     db.execute(
-        "INSERT INTO audit_log_actors (audit_id, worker_id, actor_login, actor_rola) VALUES (?, NULL, 'kj', 'laborant_kj')",
+        "INSERT INTO audit_log_actors (audit_id, worker_id, actor_login, actor_rola) VALUES (?, NULL, 'kj', 'lab')",
         (cur.lastrowid,),
     )
     db.commit()

@@ -303,7 +303,7 @@ def admin_client(cancel_app):
 def laborant_client(cancel_app):
     client = cancel_app.test_client()
     with client.session_transaction() as sess:
-        sess["user"] = {"login": "lab1", "rola": "laborant", "imie_nazwisko": "Lab"}
+        sess["user"] = {"login": "lab1", "rola": "lab", "imie_nazwisko": "Lab"}
     return client
 
 

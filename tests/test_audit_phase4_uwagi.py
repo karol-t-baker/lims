@@ -56,7 +56,7 @@ def _make_client(monkeypatch, db):
     app.config["TESTING"] = True
     client = app.test_client()
     with client.session_transaction() as sess:
-        sess["user"] = {"login": "testuser", "rola": "laborant"}
+        sess["user"] = {"login": "testuser", "rola": "lab"}
         sess["shift_workers"] = [999]
     return client
 

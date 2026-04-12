@@ -87,7 +87,7 @@ def _resolve_worker(db: sqlite3.Connection, zmienil: str):
         (zmienil, zmienil),
     ).fetchone()
     if row:
-        return (row[0], zmienil, "laborant")
+        return (row[0], zmienil, "lab")
     return (None, zmienil, "unknown")
 
 

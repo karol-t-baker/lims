@@ -84,7 +84,7 @@ def test_migrate_old_audit_log_backfills_rows():
     assert len(actors) == 2
     assert actors[0]["worker_id"] == 1
     assert actors[0]["actor_login"] == "AK"
-    assert actors[0]["actor_rola"] == "laborant"
+    assert actors[0]["actor_rola"] == "lab"
 
 
 def test_migrate_unknown_zmienil_stores_null_worker_id():
@@ -160,7 +160,7 @@ def test_migrate_recovers_from_wedged_state():
     ).fetchall()
     assert len(actors) == 2
     assert actors[0]["worker_id"] == 1
-    assert actors[0]["actor_rola"] == "laborant"
+    assert actors[0]["actor_rola"] == "lab"
     # MW has no workers row → unresolved
     assert actors[1]["worker_id"] is None
     assert actors[1]["actor_login"] == "MW"

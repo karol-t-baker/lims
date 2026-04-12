@@ -122,15 +122,15 @@ app.secret_key = "coa-local-app"
 
 
 # ---------------------------------------------------------------------------
-# Auto-login as laborant_coa on every request
+# Auto-login as cert on every request
 # ---------------------------------------------------------------------------
 
 @app.before_request
 def auto_login():
     if "user" not in session:
         session["user"] = {
-            "login": "laborant_coa",
-            "rola": "laborant_coa",
+            "login": "cert",
+            "rola": "cert",
             "imie_nazwisko": "COA",
         }
 

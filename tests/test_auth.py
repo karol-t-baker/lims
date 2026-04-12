@@ -17,7 +17,7 @@ def db():
             user_id         INTEGER PRIMARY KEY AUTOINCREMENT,
             login           TEXT UNIQUE NOT NULL,
             password_hash   TEXT NOT NULL,
-            rola            TEXT NOT NULL CHECK(rola IN ('technolog', 'laborant')),
+            rola            TEXT NOT NULL CHECK(rola IN ('technolog', 'lab')),
             imie_nazwisko   TEXT
         );
     """)
@@ -45,7 +45,7 @@ def test_create_user_stores_bcrypt_hash(db):
 
 def test_create_user_with_imie_nazwisko(db):
     """create_user() stores imie_nazwisko when provided."""
-    user_id = create_user(db, login="anna", password="pass", rola="laborant", imie_nazwisko="Anna Kowalska")
+    user_id = create_user(db, login="anna", password="pass", rola="lab", imie_nazwisko="Anna Kowalska")
     row = db.execute("SELECT imie_nazwisko FROM mbr_users WHERE user_id = ?", (user_id,)).fetchone()
     assert row["imie_nazwisko"] == "Anna Kowalska"
 
@@ -97,14 +97,14 @@ def test_verify_user_empty_password_returns_none(db):
 def test_create_multiple_users_unique_ids(db):
     """create_user() assigns distinct user_ids to different users."""
     id1 = create_user(db, login="user1", password="pass1", rola="technolog")
-    id2 = create_user(db, login="user2", password="pass2", rola="laborant")
+    id2 = create_user(db, login="user2", password="pass2", rola="lab")
     assert id1 != id2
 
 
 def test_change_password_updates_hash(db):
     """change_password() updates the hash so verify_user works with the new password."""
     from mbr.auth.models import change_password
-    user_id = create_user(db, login="kowalski", password="oldpass1", rola="laborant")
+    user_id = create_user(db, login="kowalski", password="oldpass1", rola="lab")
     result = change_password(db, user_id, "newpass2")
     assert result["user_id"] == user_id
     assert result["login"] == "kowalski"
@@ -115,7 +115,7 @@ def test_change_password_updates_hash(db):
 def test_change_password_rejects_short(db):
     """Password shorter than 6 chars raises ValueError."""
     from mbr.auth.models import change_password
-    user_id = create_user(db, login="kowalski", password="oldpass1", rola="laborant")
+    user_id = create_user(db, login="kowalski", password="oldpass1", rola="lab")
     import pytest as _pytest
     with _pytest.raises(ValueError, match="6"):
         change_password(db, user_id, "short")

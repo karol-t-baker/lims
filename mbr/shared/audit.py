@@ -135,10 +135,10 @@ def actors_system() -> list:
 def actors_explicit(db, worker_ids: list) -> list:
     """Resolve explicit worker_ids from the `workers` table.
 
-    Used for rola='laborant' multi-actor case (shift workers pracujący w parach).
+    Used for rola='lab'/'cert' multi-actor case (shift workers pracujący w parach).
     `workers` table in this project has no login/rola columns — workers are lab
     technicians identified by imie+nazwisko+inicjaly+nickname. Since this resolver
-    is only called for shift workers, we hardcode actor_rola='laborant' and use
+    is only called for shift workers, we hardcode actor_rola='lab' and use
     nickname (preferred) or inicjaly (fallback) as actor_login.
 
     Raises ValueError if any worker_id is missing from the DB.
@@ -158,7 +158,7 @@ def actors_explicit(db, worker_ids: list) -> list:
         {
             "worker_id": wid,
             "actor_login": by_id[wid]["nickname"] or by_id[wid]["inicjaly"],
-            "actor_rola": "laborant",
+            "actor_rola": "lab",
         }
         for wid in worker_ids
     ]
@@ -168,11 +168,9 @@ def actors_from_request(db) -> list:
     """Resolve actors for the current Flask request.
 
     Rules (per spec):
-    - rola 'laborant' → all entries in session['shift_workers'];
+    - rola 'lab'/'cert' → all entries in session['shift_workers'];
       empty/missing → ShiftRequiredError
-    - rola 'laborant_kj', 'technolog', 'admin' → single session user
-    - rola 'laborant_coa' → single session user (COA-specific routes
-      override this by passing actors= explicit to log_event)
+    - rola 'technolog', 'admin' → single session user
     - no session user → ValueError (this should never happen for
       authenticated routes — login_required guards them)
     """
@@ -184,7 +182,7 @@ def actors_from_request(db) -> list:
 
     rola = user.get("rola")
 
-    if rola in ("laborant", "laborant_kj", "laborant_coa"):
+    if rola in ("lab", "cert"):
         shift_ids = session.get("shift_workers") or []
         if not shift_ids:
             raise ShiftRequiredError()

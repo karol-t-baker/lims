@@ -34,6 +34,7 @@ git pull origin main --quiet
 # inside the script, so subsequent cron runs are no-op).
 /opt/lims/venv/bin/python scripts/backfill_audit_legacy_to_ebr.py --db data/batch_db.sqlite
 /opt/lims/venv/bin/python scripts/migrate_uwagi_to_audit.py --db data/batch_db.sqlite
+/opt/lims/venv/bin/python migrate_roles.py
 
 # Restart app
 sudo systemctl restart lims

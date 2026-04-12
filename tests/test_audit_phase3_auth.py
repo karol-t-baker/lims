@@ -53,7 +53,7 @@ def admin_client(monkeypatch, db):
 
 @pytest.fixture
 def laborant_client(monkeypatch, db):
-    return _make_client(monkeypatch, db, rola="laborant")
+    return _make_client(monkeypatch, db, rola="lab")
 
 
 @pytest.fixture
@@ -66,7 +66,7 @@ def anon_client(monkeypatch, db):
 def test_change_password_logs_event(admin_client, db):
     """Admin changes another user's password → audit_log entry exists with
     target_user_id + target_user_login in payload (NOT the password)."""
-    target_id = create_user(db, login="kowalski", password="oldpass1", rola="laborant")
+    target_id = create_user(db, login="kowalski", password="oldpass1", rola="lab")
 
     resp = admin_client.post(
         f"/api/users/{target_id}/password",
@@ -102,7 +102,7 @@ def test_change_password_logs_event(admin_client, db):
 
 
 def test_change_password_forbidden_for_non_admin(laborant_client, db):
-    target_id = create_user(db, login="kowalski", password="oldpass1", rola="laborant")
+    target_id = create_user(db, login="kowalski", password="oldpass1", rola="lab")
     resp = laborant_client.post(
         f"/api/users/{target_id}/password", json={"new_password": "newpass2"}
     )
@@ -121,7 +121,7 @@ def test_change_password_forbidden_for_non_admin(laborant_client, db):
 
 def test_login_success_logs_auth_login_ok(anon_client, db):
     """Successful login → audit entry with result='ok' and session user as actor."""
-    create_user(db, login="anna", password="goodpass", rola="laborant")
+    create_user(db, login="anna", password="goodpass", rola="lab")
 
     resp = anon_client.post("/login", data={"login": "anna", "password": "goodpass"})
     assert resp.status_code in (302, 303)  # redirect after successful login
@@ -138,13 +138,13 @@ def test_login_success_logs_auth_login_ok(anon_client, db):
     ).fetchall()
     assert len(actors) == 1
     assert actors[0]["actor_login"] == "anna"
-    assert actors[0]["actor_rola"] == "laborant"
+    assert actors[0]["actor_rola"] == "lab"
 
 
 def test_login_failure_logs_auth_login_error(anon_client, db):
     """Failed login → audit entry with result='error', actor_login='attempted',
     actor_rola='unknown', payload contains attempted_login."""
-    create_user(db, login="anna", password="goodpass", rola="laborant")
+    create_user(db, login="anna", password="goodpass", rola="lab")
 
     resp = anon_client.post("/login", data={"login": "anna", "password": "wrongpass"})
     # Login page re-renders on failure, no redirect
@@ -193,12 +193,12 @@ def test_login_failure_with_unknown_user_still_logs(anon_client, db):
 def test_logout_logs_auth_logout(monkeypatch, db):
     """Logout produces an audit entry with the user being logged out as actor.
     Entry must be written BEFORE session.clear()."""
-    create_user(db, login="anna", password="goodpass", rola="laborant")
+    create_user(db, login="anna", password="goodpass", rola="lab")
 
     client = _make_client(monkeypatch, db, rola=None)
     # Manually set the session as if anna had logged in
     with client.session_transaction() as sess:
-        sess["user"] = {"login": "anna", "rola": "laborant", "imie_nazwisko": "Anna K."}
+        sess["user"] = {"login": "anna", "rola": "lab", "imie_nazwisko": "Anna K."}
 
     resp = client.get("/logout")
     assert resp.status_code in (302, 303)  # redirect to login
@@ -214,4 +214,4 @@ def test_logout_logs_auth_logout(monkeypatch, db):
     ).fetchall()
     assert len(actors) == 1
     assert actors[0]["actor_login"] == "anna"
-    assert actors[0]["actor_rola"] == "laborant"
+    assert actors[0]["actor_rola"] == "lab"

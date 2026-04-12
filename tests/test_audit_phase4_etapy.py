@@ -32,7 +32,7 @@ def db():
     conn.close()
 
 
-def _make_client(monkeypatch, db, rola="laborant", shift_workers=None):
+def _make_client(monkeypatch, db, rola="lab", shift_workers=None):
     import mbr.db
     import mbr.laborant.routes
     import mbr.admin.audit_routes
@@ -60,7 +60,7 @@ def _make_client(monkeypatch, db, rola="laborant", shift_workers=None):
 
 @pytest.fixture
 def client(monkeypatch, db):
-    return _make_client(monkeypatch, db, rola="laborant", shift_workers=[1])
+    return _make_client(monkeypatch, db, rola="lab", shift_workers=[1])
 
 
 def _create_batch_with_stages(client, db):

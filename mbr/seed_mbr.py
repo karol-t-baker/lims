@@ -1049,7 +1049,8 @@ PRODUCTS = [
 
 SEED_USERS = [
     {"login": "technolog", "password": "tech123", "rola": "technolog", "imie_nazwisko": "Jan Technolog"},
-    {"login": "laborant",  "password": "lab123",  "rola": "laborant",  "imie_nazwisko": "Anna Laborant"},
+    {"login": "lab",       "password": "lab",     "rola": "lab",       "imie_nazwisko": "Laborant KJ"},
+    {"login": "cert",      "password": "cert",    "rola": "cert",      "imie_nazwisko": "Świadectwa KJ"},
 ]
 
 
