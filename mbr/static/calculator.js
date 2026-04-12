@@ -389,7 +389,7 @@ function updateResults() {
     _calcState.samples.forEach((s, i) => {
         const r = calcSample(s, method);
         const tag = document.getElementById(`cs-result-${i}`);
-        if (tag) tag.textContent = r !== null ? r.toFixed(3) : '---';
+        if (tag) tag.textContent = r !== null ? r.toFixed(3).replace('.', ',') : '---';
     });
 
     // Gather results
@@ -482,7 +482,7 @@ function renderCalculatorFull() {
         html += '<div class="cs-head">';
         html += '<div class="cs-num">' + (i + 1) + '</div>';
         html += '<span class="cs-label">Pr\u00f3bka</span>';
-        html += '<span class="cs-result-tag" id="cs-result-' + i + '">' + (r !== null ? r.toFixed(3) : '---') + '</span>';
+        html += '<span class="cs-result-tag" id="cs-result-' + i + '">' + (r !== null ? r.toFixed(3).replace('.', ',') : '---') + '</span>';
         html += '</div>';
         html += '<div class="cs-fields">';
 
@@ -532,7 +532,7 @@ function updateResultsFull() {
     _calcState.samples.forEach(function(s, i) {
         var r = calcSampleFull(s, method);
         var tag = document.getElementById('cs-result-' + i);
-        if (tag) tag.textContent = r !== null ? r.toFixed(3) : '---';
+        if (tag) tag.textContent = r !== null ? r.toFixed(3).replace('.', ',') : '---';
     });
 
     var results = _calcState.samples.map(function(s) { return calcSampleFull(s, method); }).filter(function(r) { return r !== null; });
@@ -590,7 +590,7 @@ function renderCalculator() {
             <div class="cs-head">
                 <div class="cs-num">${i + 1}</div>
                 <span class="cs-label">Probka</span>
-                <span class="cs-result-tag" id="cs-result-${i}">${r !== null ? r.toFixed(3) : '---'}</span>
+                <span class="cs-result-tag" id="cs-result-${i}">${r !== null ? r.toFixed(3).replace('.', ',') : '---'}</span>
             </div>
             <div class="cs-fields">
                 <div class="cs-field">
@@ -622,10 +622,10 @@ function renderCalculator() {
             <div>
                 <div class="calc-avg-label">Srednia</div>
                 <div class="calc-convergence ${convergent ? 'ok' : ''}">
-                    \u0394 = ${delta.toFixed(3)} \u2014 ${convergent ? 'zbiezne' : 'BRAK ZBIEZNOSCI'}
+                    \u0394 = ${delta.toFixed(3).replace('.', ',')} \u2014 ${convergent ? 'zbiezne' : 'BRAK ZBIEZNOSCI'}
                 </div>
             </div>
-            <div class="calc-avg-value">${avg.toFixed(3)}</div>
+            <div class="calc-avg-value">${avg.toFixed(3).replace('.', ',')}</div>
         </div>`;
     } else if (results.length === 1) {
         html += `<div class="calc-summary">
@@ -633,7 +633,7 @@ function renderCalculator() {
                 <div class="calc-avg-label">Wynik</div>
                 <div class="calc-convergence">Jedna probka \u2014 dodaj druga</div>
             </div>
-            <div class="calc-avg-value">${results[0].toFixed(3)}</div>
+            <div class="calc-avg-value">${results[0].toFixed(3).replace('.', ',')}</div>
         </div>`;
     }
     html += `</div>`;

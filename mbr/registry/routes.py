@@ -13,6 +13,7 @@ from mbr.models import next_nr_partii
 from mbr.registry import registry_bp
 from mbr.registry.models import export_wyniki_csv, get_registry_columns, list_completed_registry
 from mbr.shared.decorators import login_required, role_required
+from mbr.shared.filters import parse_decimal
 
 
 @registry_bp.route("/api/registry")
@@ -107,8 +108,8 @@ def wniosek_dojazd_pdf():
         "data": request.form.get("data", ""),
         "skad": request.form.get("skad", ""),
         "dokad": request.form.get("dokad", ""),
-        "km": float(request.form.get("km", 0)),
-        "stawka": float(request.form.get("stawka", 0.8358)),
+        "km": parse_decimal(request.form.get("km", 0)),
+        "stawka": parse_decimal(request.form.get("stawka", 0.8358), default=0.8358),
         "cel": request.form.get("cel", ""),
     }
     data["kwota"] = round(data["km"] * data["stawka"], 2)

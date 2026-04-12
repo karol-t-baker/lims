@@ -25,9 +25,9 @@
     <tr><th>Data</th><td>{{ data }}</td></tr>
     <tr><th>Trasa</th><td>{{ skad }} &rarr; {{ dokad }}</td></tr>
     <tr><th>Cel wyjazdu</th><td>{{ cel }}</td></tr>
-    <tr><th>Liczba kilometrów</th><td>{{ km }} km</td></tr>
-    <tr><th>Stawka za km</th><td>{{ "%.4f"|format(stawka) }} zł/km</td></tr>
-    <tr><th>Kwota do zwrotu</th><td><strong>{{ "%.2f"|format(kwota) }} zł</strong></td></tr>
+    <tr><th>Liczba kilometrów</th><td>{{ km|fmt_decimal(1) }} km</td></tr>
+    <tr><th>Stawka za km</th><td>{{ stawka|fmt_decimal(4) }} zł/km</td></tr>
+    <tr><th>Kwota do zwrotu</th><td><strong>{{ kwota|fmt_decimal(2) }} zł</strong></td></tr>
   </table>
 
   <div class="sig-row">

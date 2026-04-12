@@ -1444,9 +1444,9 @@ function renderCompletedView() {
         var val = r ? r.wartosc : '';
         var ok = r ? r.w_limicie === 1 : true;
         var normText = '';
-        if (pole.min != null && pole.max != null) normText = pole.min + ' – ' + pole.max;
-        else if (pole.min != null) normText = '> ' + pole.min;
-        else if (pole.max != null) normText = '< ' + pole.max;
+        if (pole.min != null && pole.max != null) normText = fmtDec(pole.min) + ' – ' + fmtDec(pole.max);
+        else if (pole.min != null) normText = '> ' + fmtDec(pole.min);
+        else if (pole.max != null) normText = '< ' + fmtDec(pole.max);
 
         var rowCls = r ? (ok ? 'cv-row-ok' : 'cv-row-err') : '';
         var dotHtml = r ? '<div class="cv-p-dot ' + (ok ? 'cv-dot-ok' : 'cv-dot-err') + '"></div>' : '<div class="cv-p-dot"></div>';
@@ -1528,9 +1528,9 @@ function renderCompletedView() {
                     if (!r || r.wartosc == null) return;
                     var ok = r.w_limicie === 1;
                     var normText = '';
-                    if (pole.min != null && pole.max != null) normText = pole.min + ' – ' + pole.max;
-                    else if (pole.min != null) normText = '> ' + pole.min;
-                    else if (pole.max != null) normText = '< ' + pole.max;
+                    if (pole.min != null && pole.max != null) normText = fmtDec(pole.min) + ' – ' + fmtDec(pole.max);
+                    else if (pole.min != null) normText = '> ' + fmtDec(pole.min);
+                    else if (pole.max != null) normText = '< ' + fmtDec(pole.max);
                     html += '<div class="cv-param ' + (ok ? 'cv-row-ok' : 'cv-row-err') + '">' +
                         '<div class="cv-p-dot ' + (ok ? 'cv-dot-ok' : 'cv-dot-err') + '"></div>' +
                         '<span class="cv-p-label">' + esc(pole.skrot || pole.label) + '</span>' +
@@ -2261,9 +2261,9 @@ function renderOneSection(container, opts) {
 
         // Norm range text
         var normRange = '';
-        if (pole.min != null && pole.max != null) normRange = pole.min + ' – ' + pole.max;
-        else if (pole.min != null) normRange = '> ' + pole.min;
-        else if (pole.max != null) normRange = '< ' + pole.max;
+        if (pole.min != null && pole.max != null) normRange = fmtDec(pole.min) + ' – ' + fmtDec(pole.max);
+        else if (pole.min != null) normRange = '> ' + fmtDec(pole.min);
+        else if (pole.max != null) normRange = '< ' + fmtDec(pole.max);
 
         // Type tag
         var typeTag = '';
@@ -3180,7 +3180,7 @@ function recomputeField(computedInput) {
         if (allPresent) {
             var result = Function('"use strict"; return (' + expr + ')')();
             if (!isNaN(result)) {
-                computedInput.value = result.toFixed(2);
+                computedInput.value = result.toFixed(2).replace('.', ',');
                 computedInput.readOnly = true;
                 validateField(computedInput);
             }
@@ -3194,6 +3194,11 @@ function esc(s) {
     var d = document.createElement('div');
     d.textContent = String(s);
     return d.innerHTML.replace(/"/g, '&quot;');
+}
+
+function fmtDec(v) {
+    if (v == null) return '';
+    return String(v).replace('.', ',');
 }
 
 
@@ -3392,9 +3397,9 @@ window.showProcessStage = function(etapKey) {
               val = String(krokRundaData[param.kod].wartosc).replace('.', ',');
             }
             var normRange = '';
-            if (param.min != null && param.max != null) normRange = param.min + ' – ' + param.max;
-            else if (param.min != null) normRange = '> ' + param.min;
-            else if (param.max != null) normRange = '< ' + param.max;
+            if (param.min != null && param.max != null) normRange = fmtDec(param.min) + ' – ' + fmtDec(param.max);
+            else if (param.min != null) normRange = '> ' + fmtDec(param.min);
+            else if (param.max != null) normRange = '< ' + fmtDec(param.max);
             var isTitr = param.typ === 'titracja';
             var typeTag = isTitr ? '<span class="type-tag t-titr">M</span>' : '';
             var inputClass = '';
@@ -3474,9 +3479,9 @@ window.showProcessStage = function(etapKey) {
       }
 
       var normRange = '';
-      if (param.min != null && param.max != null) normRange = param.min + ' – ' + param.max;
-      else if (param.min != null) normRange = '> ' + param.min;
-      else if (param.max != null) normRange = '< ' + param.max;
+      if (param.min != null && param.max != null) normRange = fmtDec(param.min) + ' – ' + fmtDec(param.max);
+      else if (param.min != null) normRange = '> ' + fmtDec(param.min);
+      else if (param.max != null) normRange = '< ' + fmtDec(param.max);
 
       var isTitr = param.typ === 'titracja';
       var isObl = param.typ === 'obliczeniowy';

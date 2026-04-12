@@ -72,7 +72,8 @@ def szarze_new():
     import sqlite3
     with db_session() as db:
         typ = request.form.get("typ", "szarza")
-        wielkosc_kg = float(request.form.get("wielkosc_kg", 0) or 0)
+        from mbr.shared.filters import parse_decimal
+        wielkosc_kg = parse_decimal(request.form.get("wielkosc_kg", 0))
         try:
             ebr_id = create_ebr(
                 db,
@@ -230,7 +231,7 @@ def save_entry(ebr_id):
             for kod, entry in values.items():
                 new_val = entry.get("wartosc", "")
                 try:
-                    new_val = float(new_val)
+                    new_val = parse_decimal(new_val)
                 except (ValueError, TypeError):
                     continue
                 old_row = old_sek.get(kod)

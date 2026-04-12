@@ -90,9 +90,9 @@ function renderNormy() {
       '<td><span class="nm-label">' + (r.label || r.kod) + '</span>' +
         (r.skrot ? '<span class="nm-skrot">' + r.skrot + '</span>' : '') +
       '</td>' +
-      '<td><input class="nm-input" type="number" step="any" value="' + (r.min_limit !== null ? r.min_limit : '') + '" placeholder="—" onchange="saveField(' + r.id + ', \'min_limit\', this)" data-field="min_limit"></td>' +
-      '<td><input class="nm-input target" type="number" step="any" value="' + (r.target !== null ? r.target : '') + '" placeholder="—" onchange="saveField(' + r.id + ', \'target\', this)" data-field="target"></td>' +
-      '<td><input class="nm-input" type="number" step="any" value="' + (r.max_limit !== null ? r.max_limit : '') + '" placeholder="—" onchange="saveField(' + r.id + ', \'max_limit\', this)" data-field="max_limit"></td>' +
+      '<td><input class="nm-input" type="text" inputmode="decimal" value="' + (r.min_limit !== null ? String(r.min_limit).replace('.', ',') : '') + '" placeholder="—" onchange="saveField(' + r.id + ', \'min_limit\', this)" data-field="min_limit"></td>' +
+      '<td><input class="nm-input target" type="text" inputmode="decimal" value="' + (r.target !== null ? String(r.target).replace('.', ',') : '') + '" placeholder="—" onchange="saveField(' + r.id + ', \'target\', this)" data-field="target"></td>' +
+      '<td><input class="nm-input" type="text" inputmode="decimal" value="' + (r.max_limit !== null ? String(r.max_limit).replace('.', ',') : '') + '" placeholder="—" onchange="saveField(' + r.id + ', \'max_limit\', this)" data-field="max_limit"></td>' +
       '<td class="nm-jed">' + (r.jednostka || '') + '</td>' +
       '<td><span class="nm-saved" id="saved-' + r.id + '">&#10003;</span></td>' +
     '</tr>';
@@ -101,7 +101,7 @@ function renderNormy() {
 }
 
 async function saveField(id, field, inputEl) {
-  var raw = inputEl.value.trim();
+  var raw = inputEl.value.trim().replace(',', '.');
   var val = raw === '' ? null : parseFloat(raw);
   var body = {};
   body[field] = val;

@@ -204,8 +204,8 @@ function renderParametry() {
         <td><input type="text" value="${esc(p.kod)}" ${disabled} onchange="parametry['${esc(sek)}'][${j}].kod=this.value" class="param-input"></td>
         <td><input type="text" value="${esc(p.tag)}" ${disabled} onchange="parametry['${esc(sek)}'][${j}].tag=this.value" class="param-input"></td>
         <td><input type="text" value="${esc(p.label)}" ${disabled} onchange="parametry['${esc(sek)}'][${j}].label=this.value" class="param-input param-input-text"></td>
-        <td><input type="number" step="any" value="${p.min != null ? p.min : ''}" ${disabled} onchange="parametry['${esc(sek)}'][${j}].min=this.value?parseFloat(this.value):null" class="param-input param-input-center"></td>
-        <td><input type="number" step="any" value="${p.max != null ? p.max : ''}" ${disabled} onchange="parametry['${esc(sek)}'][${j}].max=this.value?parseFloat(this.value):null" class="param-input param-input-center"></td>
+        <td><input type="text" inputmode="decimal" value="${p.min != null ? String(p.min).replace('.',',') : ''}" ${disabled} onchange="parametry['${esc(sek)}'][${j}].min=this.value?parseFloat(this.value.replace(',','.')):null" class="param-input param-input-center"></td>
+        <td><input type="text" inputmode="decimal" value="${p.max != null ? String(p.max).replace('.',',') : ''}" ${disabled} onchange="parametry['${esc(sek)}'][${j}].max=this.value?parseFloat(this.value.replace(',','.')):null" class="param-input param-input-center"></td>
         <td><input type="number" step="1" value="${p.precyzja != null ? p.precyzja : ''}" ${disabled} onchange="parametry['${esc(sek)}'][${j}].precyzja=this.value?parseInt(this.value):null" class="param-input param-input-center param-input-narrow"></td>
         <td>
           <select ${disabled} onchange="changeMeasurementType('${esc(sek)}',${j},this.value)" class="param-input" style="font-size:10px;min-width:90px;">

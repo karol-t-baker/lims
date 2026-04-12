@@ -94,7 +94,7 @@ function scRender(){
   var body = document.getElementById('sc-body');
 
   // Section 3 result — NaCl or final concentration after dilution
-  var sec3res = res.nacl !== null ? res.nacl.toFixed(2)+' kg' : (res.clKoncowe !== null ? 'Cl\u207b po rozcie\u0144czeniu: '+res.clKoncowe.toFixed(3)+'%' : '\u2014');
+  var sec3res = res.nacl !== null ? res.nacl.toFixed(2).replace('.',',')+' kg' : (res.clKoncowe !== null ? 'Cl\u207b po rozcie\u0144czeniu: '+res.clKoncowe.toFixed(3).replace('.',',')+'%' : '\u2014');
   var sec3cls = (res.nacl !== null || res.clKoncowe !== null) ? ' has-val' : '';
 
   body.innerHTML =
@@ -103,7 +103,7 @@ function scRender(){
     // Section 1: Woda (refrakcja)
     '<div class="sc-section">'+
       '<div class="sc-sec-hdr"><div class="sc-step" style="background:var(--teal)">1</div><div class="sc-sec-title">Refrakcja \u2014 korekta wody</div>'+
-        '<div class="sc-sec-res'+(res.woda!==null?' has-val':'')+'">'+( res.woda!==null?res.woda.toFixed(1)+' kg':'\u2014')+'</div></div>'+
+        '<div class="sc-sec-res'+(res.woda!==null?' has-val':'')+'">'+( res.woda!==null?res.woda.toFixed(1).replace('.',',')+' kg':'\u2014')+'</div></div>'+
       '<div class="sc-sec-body" style="grid-template-columns:1fr 1fr">'+
         '<div class="sc-fg"><div class="sc-lbl">Masa nastawu [kg]</div><input class="sc-inp" type="number" inputmode="decimal" placeholder="np. 6500" value="'+_sc.nastaw+'" oninput="_sc.nastaw=this.value;scUpdate()"></div>'+
         '<div class="sc-fg"><div class="sc-lbl">Refrakcja R\u2080</div><input class="sc-inp" type="number" inputmode="decimal" step="0.0001" placeholder="np. 1.4120" value="'+_sc.R0+'" oninput="_sc.R0=this.value;scUpdate()"></div>'+
@@ -114,7 +114,7 @@ function scRender(){
     // Section 2: pH — kwas
     '<div class="sc-section">'+
       '<div class="sc-sec-hdr"><div class="sc-step" style="background:var(--amber)">2</div><div class="sc-sec-title">Korekta pH \u2014 kwas</div>'+
-        '<div class="sc-sec-res'+(res.kwas!==null?' has-val':'')+'">'+( res.kwas!==null?res.kwas.toFixed(2)+' kg':'\u2014')+'</div></div>'+
+        '<div class="sc-sec-res'+(res.kwas!==null?' has-val':'')+'">'+( res.kwas!==null?res.kwas.toFixed(2).replace('.',',')+' kg':'\u2014')+'</div></div>'+
       '<div class="sc-sec-body" style="grid-template-columns:1fr 1fr 1fr">'+
         '<div class="sc-fg"><div class="sc-lbl">pH zmierzone</div><input class="sc-inp" type="number" inputmode="decimal" step="0.01" placeholder="np. 12.0" value="'+_sc.pH0+'" oninput="_sc.pH0=this.value;scUpdate()"></div>'+
         '<div class="sc-fg"><div class="sc-lbl">pH docelowe</div><input class="sc-inp" type="number" inputmode="decimal" step="0.01" placeholder="np. 5.0" value="'+_sc.pHk+'" oninput="_sc.pHk=this.value;scUpdate()"></div>'+
@@ -180,10 +180,10 @@ function scUpdate(){
 
   // Update section results inline
   var secs = document.querySelectorAll('.sc-sec-res');
-  if(secs[0]){ secs[0].textContent = res.woda !== null ? res.woda.toFixed(1)+' kg' : '—'; secs[0].className = 'sc-sec-res'+(res.woda!==null?' has-val':''); }
-  if(secs[1]){ secs[1].textContent = res.kwas !== null ? res.kwas.toFixed(2)+' kg' : '—'; secs[1].className = 'sc-sec-res'+(res.kwas!==null?' has-val':''); }
+  if(secs[0]){ secs[0].textContent = res.woda !== null ? res.woda.toFixed(1).replace('.',',')+' kg' : '—'; secs[0].className = 'sc-sec-res'+(res.woda!==null?' has-val':''); }
+  if(secs[1]){ secs[1].textContent = res.kwas !== null ? res.kwas.toFixed(2).replace('.',',')+' kg' : '—'; secs[1].className = 'sc-sec-res'+(res.kwas!==null?' has-val':''); }
   if(secs[2]){
-    var s3txt = res.nacl !== null ? res.nacl.toFixed(2)+' kg' : (res.clKoncowe !== null ? 'Cl\u207b po rozc.: '+res.clKoncowe.toFixed(3)+'%' : '\u2014');
+    var s3txt = res.nacl !== null ? res.nacl.toFixed(2).replace('.',',')+' kg' : (res.clKoncowe !== null ? 'Cl\u207b po rozc.: '+res.clKoncowe.toFixed(3).replace('.',',')+'%' : '\u2014');
     secs[2].textContent = s3txt;
     secs[2].className = 'sc-sec-res'+((res.nacl!==null||res.clKoncowe!==null)?' has-val':'');
   }
@@ -199,10 +199,10 @@ function scUpdateSummary(res){
     return;
   }
   el.innerHTML =
-    '<div class="sc-sum-item"><div class="sc-sum-lbl">Woda</div><div class="sc-sum-val">'+(res.woda!==null?res.woda.toFixed(1):'—')+'<span class="sc-sum-unit">kg</span></div></div>'+
-    '<div class="sc-sum-item"><div class="sc-sum-lbl">Kwas</div><div class="sc-sum-val">'+(res.kwas!==null?res.kwas.toFixed(1):'—')+'<span class="sc-sum-unit">kg</span></div></div>'+
-    '<div class="sc-sum-item"><div class="sc-sum-lbl">'+(res.nacl!==null?'NaCl':(res.clKoncowe!==null?'Cl\u207b ko\u0144c.':'NaCl'))+'</div><div class="sc-sum-val">'+(res.nacl!==null?res.nacl.toFixed(1):(res.clKoncowe!==null?res.clKoncowe.toFixed(3):'\u2014'))+'<span class="sc-sum-unit">'+(res.nacl!==null?'kg':(res.clKoncowe!==null?'%':''))+'</span></div></div>'+
-    '<div class="sc-sum-total"><div class="sc-sum-lbl">Woda łącznie</div><div class="sc-sum-val accent">'+res.wodaTotal.toFixed(1)+'<span class="sc-sum-unit">kg</span></div></div>';
+    '<div class="sc-sum-item"><div class="sc-sum-lbl">Woda</div><div class="sc-sum-val">'+(res.woda!==null?res.woda.toFixed(1).replace('.',','):'—')+'<span class="sc-sum-unit">kg</span></div></div>'+
+    '<div class="sc-sum-item"><div class="sc-sum-lbl">Kwas</div><div class="sc-sum-val">'+(res.kwas!==null?res.kwas.toFixed(1).replace('.',','):'—')+'<span class="sc-sum-unit">kg</span></div></div>'+
+    '<div class="sc-sum-item"><div class="sc-sum-lbl">'+(res.nacl!==null?'NaCl':(res.clKoncowe!==null?'Cl\u207b ko\u0144c.':'NaCl'))+'</div><div class="sc-sum-val">'+(res.nacl!==null?res.nacl.toFixed(1).replace('.',','):(res.clKoncowe!==null?res.clKoncowe.toFixed(3).replace('.',','):'\u2014'))+'<span class="sc-sum-unit">'+(res.nacl!==null?'kg':(res.clKoncowe!==null?'%':''))+'</span></div></div>'+
+    '<div class="sc-sum-total"><div class="sc-sum-lbl">Woda łącznie</div><div class="sc-sum-val accent">'+res.wodaTotal.toFixed(1).replace('.',',')+'<span class="sc-sum-unit">kg</span></div></div>';
 }
 
 // Global shortcut: S

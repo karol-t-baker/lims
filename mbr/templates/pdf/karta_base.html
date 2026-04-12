@@ -86,9 +86,9 @@ h2 { font-size: 11pt; margin: 10pt 0 4pt; text-transform: uppercase; }
   <tr>
     <td>{{ pole.label }}</td>
     <td class="val {% if wyniki.get(sekcja_key, {}).get(pole.kod) and not wyniki[sekcja_key][pole.kod].w_limicie %}out-of-limit{% endif %}">
-      {% if wyniki.get(sekcja_key, {}).get(pole.kod) %}{{ wyniki[sekcja_key][pole.kod].wartosc }}{% else %}<span class="empty">&mdash;</span>{% endif %}
+      {% if wyniki.get(sekcja_key, {}).get(pole.kod) %}{{ wyniki[sekcja_key][pole.kod].wartosc|fmt_decimal }}{% else %}<span class="empty">&mdash;</span>{% endif %}
     </td>
-    <td>{{ pole.min }} &ndash; {{ pole.max }}</td>
+    <td>{{ pole.min|fmt_decimal }} &ndash; {{ pole.max|fmt_decimal }}</td>
   </tr>
   {% endfor %}
 </table>

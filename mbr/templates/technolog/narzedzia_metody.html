@@ -170,9 +170,9 @@ function render(){
   _rows.forEach(function(row,ri){
     var r=cc(row);
     tb+='<tr><td style="font-size:9px;color:var(--text-dim);font-weight:700">'+(ri+1)+'</td>';
-    if(m.mass_required) tb+='<td><input class="v2-inp" type="number" step="any" placeholder="g" value="'+row.m+'" oninput="rch('+ri+',\'m\',this.value)"></td>';
-    (row.vols||[]).forEach(function(v,vi){tb+='<td><input class="v2-inp" type="number" step="any" placeholder="ml" value="'+v+'" oninput="rch('+ri+',\'v'+vi+'\',this.value)"></td>'});
-    tb+='<td class="v2-res">'+(r!==null?r.toFixed(4):'—')+'</td>';
+    if(m.mass_required) tb+='<td><input class="v2-inp" type="text" inputmode="decimal" placeholder="g" value="'+(row.m?String(row.m).replace('.',','):'')+'" oninput="rch('+ri+',\'m\',this.value.replace(\',\',\'.\'))"></td>';
+    (row.vols||[]).forEach(function(v,vi){tb+='<td><input class="v2-inp" type="text" inputmode="decimal" placeholder="ml" value="'+(v?String(v).replace('.',','):'')+'" oninput="rch('+ri+',\'v'+vi+'\',this.value.replace(\',\',\'.\'))"></td>'});
+    tb+='<td class="v2-res">'+(r!==null?r.toFixed(4).replace('.',','):'—')+'</td>';
     tb+='<td><button class="v2-del" onclick="del('+ri+')">✕</button></td></tr>';
   });
 
@@ -205,7 +205,7 @@ function fhtml(){
 function rch(ri,f,val){if(f==='m')_rows[ri].m=val;else{var vi=parseInt(f.slice(1));_rows[ri].vols[vi]=val}refresh()}
 function del(ri){_rows.splice(ri,1);render()}
 function refresh(){
-  _rows.forEach(function(row,ri){var r=cc(row);var td=document.querySelector('#v2-tb tr:nth-child('+(ri+1)+') .v2-res');if(td)td.textContent=r!==null?r.toFixed(4):'—'});
+  _rows.forEach(function(row,ri){var r=cc(row);var td=document.querySelector('#v2-tb tr:nth-child('+(ri+1)+') .v2-res');if(td)td.textContent=r!==null?r.toFixed(4).replace('.',','):'—'});
   var f=document.getElementById('v2-foot');if(f)f.innerHTML=fhtml();
 }
 </script>

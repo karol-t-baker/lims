@@ -75,7 +75,8 @@ def api_korekty_add(ebr_id):
     data = request.get_json(silent=True) or {}
     etap = data.get("etap")
     substancja = data.get("substancja")
-    ilosc_kg = float(data.get("ilosc_kg", 0))
+    from mbr.shared.filters import parse_decimal
+    ilosc_kg = parse_decimal(data.get("ilosc_kg", 0))
     po_rundzie = int(data.get("po_rundzie", 0))
     if not etap or not substancja:
         return jsonify({"ok": False, "error": "Missing etap or substancja"}), 400

@@ -5,6 +5,38 @@ filters.py — Jinja2 template filters for MBR/EBR webapp.
 from datetime import datetime
 
 
+def parse_decimal(value, default=0.0):
+    """Parse numeric string accepting both comma and dot as decimal separator."""
+    if value is None:
+        return default
+    if isinstance(value, (int, float)):
+        return float(value)
+    s = str(value).strip()
+    if not s:
+        return default
+    s = s.replace(",", ".")
+    try:
+        return float(s)
+    except (ValueError, TypeError):
+        return default
+
+
+def fmt_decimal_filter(value, places=None):
+    """Format number with Polish decimal comma: 3.14 → '3,14'.
+
+    places=None preserves original precision, places=N forces N decimal places.
+    """
+    if value is None or value == "":
+        return "—"
+    try:
+        v = float(str(value).replace(",", "."))
+    except (ValueError, TypeError):
+        return str(value)
+    if places is not None:
+        return f"{v:.{int(places)}f}".replace(".", ",")
+    return str(v).replace(".", ",")
+
+
 def pl_date_filter(value):
     """Format ISO date to Polish: DD.MM.YYYY HH:MM"""
     if not value:
@@ -69,5 +101,6 @@ def register_filters(app):
     app.add_template_filter(pl_date_filter, 'pl_date')
     app.add_template_filter(pl_date_short_filter, 'pl_date_short')
     app.add_template_filter(fmt_kg_filter, 'fmt_kg')
+    app.add_template_filter(fmt_decimal_filter, 'fmt_decimal')
     app.add_template_filter(short_product_filter, 'short_product')
     app.add_template_filter(audit_actors_filter, 'audit_actors')

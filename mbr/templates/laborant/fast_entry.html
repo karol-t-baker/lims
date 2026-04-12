@@ -310,7 +310,7 @@ function renderSections() {
             if (isObl) inputClass += ' calc';
 
             const normText = (pole.min != null || pole.max != null)
-                ? `<span class="norm">${pole.min != null ? pole.min : ''}${pole.min != null && pole.max != null ? ' - ' : ''}${pole.max != null ? pole.max : ''}</span>`
+                ? `<span class="norm">${pole.min != null ? String(pole.min).replace('.', ',') : ''}${pole.min != null && pole.max != null ? ' - ' : ''}${pole.max != null ? String(pole.max).replace('.', ',') : ''}</span>`
                 : '';
 
             // Store calc_method as data attribute for titracja fields
@@ -387,7 +387,7 @@ function renderReferences() {
         let html = `<div class="ref"><div class="ref-t">${esc(etap.nazwa)}</div>`;
         pola.forEach(pole => {
             const normText = (pole.min != null || pole.max != null)
-                ? `(${pole.min != null ? pole.min : '...'} - ${pole.max != null ? pole.max : '...'})`
+                ? `(${pole.min != null ? String(pole.min).replace('.', ',') : '...'} - ${pole.max != null ? String(pole.max).replace('.', ',') : '...'})`
                 : '';
             const existing = sekWyniki[pole.kod];
             const currentInput = document.querySelector(`input[data-kod="${pole.kod}"][data-sekcja="${sekcja}"]`);
@@ -550,7 +550,7 @@ function recomputeField(computedInput) {
         if (allPresent) {
             const result = Function('"use strict"; return (' + expr + ')')();
             if (!isNaN(result)) {
-                computedInput.value = result.toFixed(2);
+                computedInput.value = result.toFixed(2).replace('.', ',');
                 computedInput.readOnly = true;
                 validateField(computedInput);
             }

@@ -1314,9 +1314,9 @@ function renderRegistryTable(columns, batches, append) {
   html += '<th class="th-date">Data</th>';
   columns.forEach(function(col) {
     var limitStr = '';
-    if (col.min != null && col.max != null) limitStr = col.min + ' \u2013 ' + col.max;
-    else if (col.min != null) limitStr = '> ' + col.min;
-    else if (col.max != null) limitStr = '< ' + col.max;
+    if (col.min != null && col.max != null) limitStr = String(col.min).replace('.', ',') + ' \u2013 ' + String(col.max).replace('.', ',');
+    else if (col.min != null) limitStr = '> ' + String(col.min).replace('.', ',');
+    else if (col.max != null) limitStr = '< ' + String(col.max).replace('.', ',');
     else limitStr = '\u2014';
     html += '<th class="th-param"><div class="th-param-name">' + (col.label || col.kod) + '</div>';
     html += '<div class="th-param-limit">' + limitStr + '</div></th>';

@@ -474,7 +474,7 @@ def save_wyniki(
         wartosc_raw = entry.get("wartosc", "")
         komentarz = entry.get("komentarz", "")
         try:
-            wartosc = float(wartosc_raw)
+            wartosc = float(str(wartosc_raw).replace(",", "."))
         except (ValueError, TypeError):
             continue
         prec = pole.get("precision", 2)
