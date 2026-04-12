@@ -328,6 +328,7 @@ function renderSections() {
                         data-min="${pole.min != null ? pole.min : ''}"
                         data-max="${pole.max != null ? pole.max : ''}"
                         data-measurement-type="${esc(pole.measurement_type || '')}"
+                        data-precision="${pole.precision != null ? pole.precision : 2}"
                         ${isObl && pole.formula ? `data-formula="${esc(pole.formula)}"` : ''}
                         value="${val !== '' && val !== null ? val : ''}"
                         class="${inputClass.trim()}"
@@ -353,6 +354,16 @@ function renderSections() {
         container.appendChild(section);
     });
 }
+
+document.getElementById('sections-container').addEventListener('blur', function(e) {
+    const inp = e.target;
+    if (inp.tagName !== 'INPUT' || inp.type !== 'number') return;
+    if (inp.readOnly) return;
+    const raw = inp.value.replace(',', '.');
+    if (raw === '' || isNaN(raw)) return;
+    const prec = parseInt(inp.dataset.precision || '2', 10);
+    inp.value = parseFloat(raw).toFixed(prec).replace('.', ',');
+}, true);
 
 
 // ═══ RENDER REFERENCES ═══
