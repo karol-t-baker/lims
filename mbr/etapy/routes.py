@@ -2,6 +2,7 @@
 
 from flask import request, session, jsonify
 
+from mbr.shared import audit
 from mbr.db import db_session
 from mbr.models import get_ebr
 from mbr.shared.decorators import login_required
@@ -45,9 +46,18 @@ def api_etapy_analizy_save(ebr_id):
     wyniki = data.get("wyniki", {})
     if not etap or not wyniki:
         return jsonify({"ok": False, "error": "Missing etap or wyniki"}), 400
-    user = session.get("user", {}).get("login", "unknown")
+    user_dict = session.get("user", {})
+    user = user_dict.get("login", "unknown")
     with db_session() as db:
         save_etap_analizy(db, ebr_id, etap, runda, wyniki, user, krok=krok)
+        audit.log_event(
+            audit.EVENT_EBR_STAGE_EVENT_ADDED,
+            entity_type="ebr", entity_id=ebr_id,
+            payload={"type": "analizy", "etap": etap, "runda": runda, "krok": krok},
+            actors=[{"worker_id": None, "actor_login": user_dict.get("login", "unknown"), "actor_rola": user_dict.get("rola", "unknown")}],
+            db=db,
+        )
+        db.commit()
     return jsonify({"ok": True})
 
 
@@ -70,17 +80,35 @@ def api_korekty_add(ebr_id):
     po_rundzie = int(data.get("po_rundzie", 0))
     if not etap or not substancja:
         return jsonify({"ok": False, "error": "Missing etap or substancja"}), 400
-    user = session.get("user", {}).get("login", "unknown")
+    user_dict = session.get("user", {})
+    user = user_dict.get("login", "unknown")
     with db_session() as db:
         kid = add_korekta(db, ebr_id, etap, po_rundzie, substancja, ilosc_kg, user)
+        audit.log_event(
+            audit.EVENT_EBR_STAGE_EVENT_ADDED,
+            entity_type="ebr", entity_id=ebr_id,
+            payload={"type": "korekta", "etap": etap, "substancja": substancja, "ilosc_kg": ilosc_kg, "korekta_id": kid},
+            actors=[{"worker_id": None, "actor_login": user_dict.get("login", "unknown"), "actor_rola": user_dict.get("rola", "unknown")}],
+            db=db,
+        )
+        db.commit()
     return jsonify({"ok": True, "id": kid})
 
 
 @etapy_bp.route("/api/ebr/<int:ebr_id>/korekty/<int:kid>", methods=["PUT"])
 @login_required
 def api_korekty_confirm(ebr_id, kid):
+    user = session.get("user", {})
     with db_session() as db:
         confirm_korekta(db, kid)
+        audit.log_event(
+            audit.EVENT_EBR_STAGE_EVENT_UPDATED,
+            entity_type="ebr", entity_id=ebr_id,
+            payload={"type": "korekta_confirm", "korekta_id": kid},
+            actors=[{"worker_id": None, "actor_login": user.get("login", "unknown"), "actor_rola": user.get("rola", "unknown")}],
+            db=db,
+        )
+        db.commit()
     return jsonify({"ok": True})
 
 
@@ -99,12 +127,21 @@ def api_etapy_zatwierdz(ebr_id):
     etap = data.get("etap")
     if not etap:
         return jsonify({"ok": False, "error": "Missing etap"}), 400
-    user = session.get("user", {}).get("login", "unknown")
+    user_dict = session.get("user", {})
+    user = user_dict.get("login", "unknown")
     with db_session() as db:
         ebr = get_ebr(db, ebr_id)
         if not ebr:
             return jsonify({"ok": False, "error": "EBR not found"}), 404
         next_etap = zatwierdz_etap(db, ebr_id, etap, user, ebr["produkt"])
+        audit.log_event(
+            audit.EVENT_EBR_STAGE_EVENT_ADDED,
+            entity_type="ebr", entity_id=ebr_id,
+            payload={"type": "zatwierdz", "etap": etap, "next_etap": next_etap},
+            actors=[{"worker_id": None, "actor_login": user_dict.get("login", "unknown"), "actor_rola": user_dict.get("rola", "unknown")}],
+            db=db,
+        )
+        db.commit()
     return jsonify({"ok": True, "next_etap": next_etap})
 
 
@@ -115,10 +152,19 @@ def api_etapy_skip(ebr_id):
     etap = data.get("etap")
     if not etap:
         return jsonify({"ok": False, "error": "Missing etap"}), 400
-    user = session.get("user", {}).get("login", "unknown")
+    user_dict = session.get("user", {})
+    user = user_dict.get("login", "unknown")
     with db_session() as db:
         ebr = get_ebr(db, ebr_id)
         if not ebr:
             return jsonify({"ok": False}), 404
         next_etap = skip_etap(db, ebr_id, etap, user, ebr["produkt"])
+        audit.log_event(
+            audit.EVENT_EBR_STAGE_EVENT_ADDED,
+            entity_type="ebr", entity_id=ebr_id,
+            payload={"type": "skip", "etap": etap, "next_etap": next_etap},
+            actors=[{"worker_id": None, "actor_login": user_dict.get("login", "unknown"), "actor_rola": user_dict.get("rola", "unknown")}],
+            db=db,
+        )
+        db.commit()
     return jsonify({"ok": True, "next_etap": next_etap})
