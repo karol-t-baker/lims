@@ -315,6 +315,13 @@ def get_resolved_limity(produkt, etap_id):
     db = get_db()
     try:
         rows = pm.resolve_limity(db, produkt, etap_id)
+        # Filter to product-specific params only
+        product_param_ids = {r[0] for r in db.execute(
+            "SELECT parametr_id FROM produkt_etap_limity WHERE produkt = ? AND etap_id = ?",
+            (produkt, etap_id),
+        ).fetchall()}
+        if product_param_ids:
+            rows = [r for r in rows if r["parametr_id"] in product_param_ids]
         return jsonify(rows)
     finally:
         db.close()

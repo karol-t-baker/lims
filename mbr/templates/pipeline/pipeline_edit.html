@@ -377,22 +377,13 @@ function addProductParam(etapId) {
 
 function removeProductParam(etapId, parametrId) {
   if (!confirm('Usunac parametr z tego produktu?')) return;
-  // Find the produkt_etap_limity id
-  fetch('/api/pipeline/produkt/' + encodeURIComponent(PRODUKT) + '/etapy/' + etapId + '/resolved')
-    .then(function(r){return r.json();})
-    .then(function(data) {
-      var param = data.find(function(p){return p.parametr_id === parametrId;});
-      if (!param) return;
-      // Delete via parametry API (detects pipeline)
-      // We need the produkt_etap_limity id — query it
-      fetch('/api/pipeline/produkt/' + encodeURIComponent(PRODUKT) + '/etapy/' + etapId + '/limity', {
-        method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({remove: [parametrId]})
-      }).then(function(r) {
-        if (r.ok) loadLimits(etapId);
-      });
-    });
+  fetch('/api/pipeline/produkt/' + encodeURIComponent(PRODUKT) + '/etapy/' + etapId + '/limity', {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({remove: [parametrId]})
+  }).then(function(r) {
+    if (r.ok) loadLimits(etapId);
+  });
 }
 
 function saveLimits(etapId) {
