@@ -20,7 +20,7 @@
 }
 
 
-/* Delete button — used by cert tab too */
+/* Delete button */
 .pe-bind-del {
   background: none; border: none; cursor: pointer;
   width: 22px; height: 22px; border-radius: 4px;
@@ -128,9 +128,6 @@
     <button class="pe-tab pe-tab-active" id="tab-bind" onclick="switchTab('bind')">Etapy</button>
     {% if is_admin %}<button class="pe-tab" id="tab-def" onclick="switchTab('def')">Rejestr</button>{% endif %}
     {% if is_admin %}
-    <button class="pe-tab" id="tab-cert" onclick="switchTab('cert')">Świadectwa</button>
-    {% endif %}
-    {% if is_admin %}
     <button class="pe-tab" id="tab-prod" onclick="switchTab('prod')">Produkty</button>
     {% endif %}
   </div>
@@ -219,52 +216,6 @@
       <input id="pa-new-jednostka" type="text" placeholder="jednostka" style="width:70px;">
       <input id="pa-new-precision" type="number" placeholder="prec." value="2" style="width:55px;">
       <button onclick="addParametr()">+ Dodaj</button>
-    </div>
-  </div>
-  {% endif %}
-
-  {% if is_admin %}
-  <div id="panel-cert" style="display:none;">
-    <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;">
-      <label style="font-size:11px;font-weight:700;color:var(--text-sec);">Produkt:</label>
-      <select id="cert-produkt" class="pa-select" style="border-color:var(--border);min-width:200px;" onchange="loadCertBindings()">
-        <option value="">— wybierz —</option>
-        {% for p in cert_products %}
-        <option value="{{ p }}">{{ p.replace('_', ' ') }}</option>
-        {% endfor %}
-      </select>
-    </div>
-
-    <table class="pa-table" id="cert-table" style="display:none;">
-      <thead>
-        <tr>
-          <th style="width:30px;">⠿</th>
-          <th>Parametr</th>
-          <th>Label PL</th>
-          <th>Name EN</th>
-          <th>Metoda</th>
-          <th style="width:150px;">Requirement</th>
-          <th style="width:60px;">Format</th>
-          <th style="width:140px;">Qual. result</th>
-          <th style="width:40px;"></th>
-        </tr>
-      </thead>
-      <tbody id="cert-body"></tbody>
-    </table>
-
-    <div class="pa-add" id="cert-add" style="display:none;">
-      <select id="cert-add-param" style="width:200px;">
-        <option value="">— parametr —</option>
-      </select>
-      <input type="text" id="cert-add-req" placeholder="Requirement" style="width:140px;">
-      <select id="cert-add-fmt" style="width:60px;">
-        <option value="0">0</option>
-        <option value="1" selected>1</option>
-        <option value="2">2</option>
-        <option value="3">3</option>
-      </select>
-      <input type="text" id="cert-add-qual" placeholder="Qual. result (opcjonalne)" style="width:160px;">
-      <button onclick="addCertBinding()">+ Dodaj</button>
     </div>
   </div>
   {% endif %}
@@ -455,14 +406,13 @@ function etapDrop(e) {
 // ═══ TAB SWITCHING ═══
 
 function switchTab(which) {
-  ['bind', 'def', 'cert', 'prod'].forEach(function(t) {
+  ['bind', 'def', 'prod'].forEach(function(t) {
     var tab = document.getElementById('tab-' + t);
     var panel = document.getElementById('panel-' + t);
     if (tab) tab.classList.toggle('pe-tab-active', t === which);
     if (panel) panel.style.display = (t === which) ? '' : 'none';
   });
   if (which === 'def' && !_paLoaded) loadDefinicje();
-  if (which === 'cert' && !_certLoaded) loadCertAvailable();
   if (which === 'prod' && !_prodLoaded) loadProdukty();
 }
 
@@ -559,123 +509,6 @@ function addParametr() {
       loadDefinicje();
     }
   });
-}
-
-// ═══ CERT TAB ═══
-
-var _certLoaded = false;
-var _certAvailable = [];
-var _certBindings = [];
-
-function loadCertAvailable() {
-  fetch('/api/parametry/available').then(function(r){return r.json();}).then(function(data) {
-    _certAvailable = data;
-    _certLoaded = true;
-    var sel = document.getElementById('cert-add-param');
-    var html = '<option value="">— parametr —</option>';
-    data.forEach(function(p) {
-      html += '<option value="' + p.id + '">' + p.kod + ' — ' + (p.skrot || p.label) + '</option>';
-    });
-    sel.innerHTML = html;
-  });
-}
-
-function loadCertBindings() {
-  var produkt = document.getElementById('cert-produkt').value;
-  if (!produkt) {
-    document.getElementById('cert-table').style.display = 'none';
-    document.getElementById('cert-add').style.display = 'none';
-    return;
-  }
-  fetch('/api/parametry/cert/' + encodeURIComponent(produkt))
-    .then(function(r){return r.json();})
-    .then(function(data) {
-      _certBindings = data;
-      renderCertTable(data);
-      document.getElementById('cert-table').style.display = '';
-      document.getElementById('cert-add').style.display = 'flex';
-    });
-}
-
-function renderCertTable(data) {
-  var html = '';
-  data.forEach(function(b, idx) {
-    html += '<tr draggable="true" data-id="' + b.id + '" data-idx="' + idx + '" ' +
-      'ondragstart="certDragStart(event)" ondragover="certDragOver(event)" ondrop="certDrop(event)">' +
-      '<td style="cursor:grab;color:var(--text-dim);text-align:center;">⠿</td>' +
-      '<td><span class="pa-kod">' + (b.kod || '') + '</span></td>' +
-      '<td style="font-size:11px;">' + (b.label || '') + '</td>' +
-      '<td style="font-size:11px;color:var(--text-sec);">' + (b.name_en || '') + '</td>' +
-      '<td style="font-size:11px;font-family:var(--mono);">' + (b.method_code || '') + '</td>' +
-      '<td><input class="pa-input" value="' + (b.requirement||'').replace(/"/g,'&quot;') + '" ' +
-        'onchange="saveCertField(' + b.id + ',\'requirement\',this.value)"></td>' +
-      '<td><select class="pa-select" onchange="saveCertField(' + b.id + ',\'format\',this.value)">' +
-        ['0','1','2','3'].map(function(f){return '<option'+(String(f)===String(b.format)?' selected':'')+'>'+f+'</option>';}).join('') +
-      '</select></td>' +
-      '<td><input class="pa-input" value="' + (b.qualitative_result||'').replace(/"/g,'&quot;') + '" ' +
-        'onchange="saveCertField(' + b.id + ',\'qualitative_result\',this.value)" placeholder="—"></td>' +
-      '<td><button class="pe-bind-del" onclick="deleteCertBinding(' + b.id + ')">&times;</button></td>' +
-    '</tr>';
-  });
-  document.getElementById('cert-body').innerHTML = html || '<tr><td colspan="9" style="text-align:center;color:var(--text-dim);padding:20px;">Brak przypisań</td></tr>';
-}
-
-function saveCertField(id, field, value) {
-  var body = {}; body[field] = value;
-  fetch('/api/parametry/cert/' + id, {
-    method: 'PUT', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(body)
-  });
-}
-
-function addCertBinding() {
-  var produkt = document.getElementById('cert-produkt').value;
-  var paramId = document.getElementById('cert-add-param').value;
-  if (!produkt || !paramId) return;
-  fetch('/api/parametry/cert', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({
-      produkt: produkt,
-      parametr_id: parseInt(paramId),
-      kolejnosc: _certBindings.length,
-      requirement: document.getElementById('cert-add-req').value.trim(),
-      format: document.getElementById('cert-add-fmt').value,
-      qualitative_result: document.getElementById('cert-add-qual').value.trim() || null,
-    })
-  }).then(function(r){return r.json();}).then(function(d) {
-    if (d.ok) {
-      document.getElementById('cert-add-req').value = '';
-      document.getElementById('cert-add-qual').value = '';
-      loadCertBindings();
-    } else { alert(d.error || 'Błąd'); }
-  });
-}
-
-function deleteCertBinding(id) {
-  if (!confirm('Usunąć przypisanie?')) return;
-  fetch('/api/parametry/cert/' + id, {method: 'DELETE'})
-    .then(function(r){return r.json();})
-    .then(function(d) { if (d.ok) loadCertBindings(); });
-}
-
-var _certDragIdx = null;
-function certDragStart(e) {
-  _certDragIdx = parseInt(e.currentTarget.dataset.idx);
-  e.dataTransfer.effectAllowed = 'move';
-}
-function certDragOver(e) { e.preventDefault(); }
-function certDrop(e) {
-  e.preventDefault();
-  var targetIdx = parseInt(e.currentTarget.dataset.idx);
-  if (_certDragIdx === null || _certDragIdx === targetIdx) return;
-  var item = _certBindings.splice(_certDragIdx, 1)[0];
-  _certBindings.splice(targetIdx, 0, item);
-  var reorderData = _certBindings.map(function(b, i) { return {id: b.id, kolejnosc: i}; });
-  fetch('/api/parametry/cert/reorder', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({bindings: reorderData})
-  });
-  renderCertTable(_certBindings);
 }
 
 // ═══ PRODUKTY TAB ═══
