@@ -12,24 +12,46 @@
 .wc-flash.ok { background: #dcfce7; color: var(--green); }
 .wc-flash.err { background: #fef2f2; color: var(--red); }
 
-/* ═══ Product List ═══ */
-.wc-title { font-size: 18px; font-weight: 700; color: var(--text); }
-.wc-list-head { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
-.wc-list-head .wc-title { margin: 0; white-space: nowrap; }
-.wc-search-wrap { position: relative; flex: 1; min-width: 180px; max-width: 320px; }
-.wc-search { width: 100%; padding: 8px 12px 8px 34px; border: 1.5px solid var(--border); border-radius: 6px; font-size: 12px; font-family: var(--font); background: var(--surface); box-sizing: border-box; }
+/* ═══ Header ═══ */
+.wc-title { font-size: 17px; font-weight: 800; color: var(--text); letter-spacing: -.3px; }
+.wc-list-head { display: flex; align-items: center; margin-bottom: 20px; gap: 0; }
+.wc-list-head .wc-title { margin: 0; flex-shrink: 0; }
+.wc-head-spacer { flex: 1; }
+.wc-search-wrap { position: relative; width: 240px; flex-shrink: 0; margin-right: 10px; }
+.wc-search { width: 100%; padding: 7px 11px 7px 32px; border: 1.5px solid var(--border); border-radius: 6px; font-size: 12px; font-family: var(--font); background: var(--surface); box-sizing: border-box; transition: border-color .15s, width .2s; }
 .wc-search:focus { border-color: var(--teal); outline: none; }
 .wc-search::placeholder { color: var(--text-dim); }
-.wc-search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--text-dim); pointer-events: none; }
-.wc-grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
-.wc-card { display: flex; flex-direction: column; justify-content: space-between; padding: 14px; background: var(--surface); border: 1.5px solid var(--border); border-radius: 8px; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
-.wc-card:hover { border-color: var(--teal); box-shadow: 0 2px 8px rgba(13,115,119,.08); }
-.wc-card-top { flex: 1; }
-.wc-card-name { font-weight: 700; font-size: 12px; margin-bottom: 3px; line-height: 1.3; }
-.wc-card-key { font-family: var(--mono); font-size: 9px; color: var(--text-dim); margin-bottom: 6px; }
-.wc-card-stats { display: flex; gap: 10px; font-size: 9px; color: var(--text-sec); }
+.wc-search-icon { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--text-dim); pointer-events: none; }
+
+/* ═══ Product Grid — A4 cards ═══ */
+.wc-grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.wc-card {
+  aspect-ratio: 1 / 1.414;
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding: 14px 12px 10px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color .15s, box-shadow .2s, transform .15s;
+  position: relative;
+  overflow: hidden;
+}
+.wc-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--teal); opacity: 0;
+  transition: opacity .15s;
+}
+.wc-card:hover { border-color: var(--teal); box-shadow: 0 4px 16px rgba(13,115,119,.10); transform: translateY(-2px); }
+.wc-card:hover::before { opacity: 1; }
+.wc-card-top { flex: 1; display: flex; flex-direction: column; }
+.wc-card-name { font-weight: 700; font-size: 12px; line-height: 1.35; margin-bottom: 4px; color: var(--text); }
+.wc-card-key { font-family: var(--mono); font-size: 9px; color: var(--text-dim); letter-spacing: .3px; }
+.wc-card-stats { margin-top: auto; padding-top: 8px; display: flex; gap: 10px; font-size: 9px; color: var(--text-sec); }
 .wc-card-stat { display: flex; align-items: center; gap: 3px; }
-.wc-card-bottom { display: flex; justify-content: flex-end; margin-top: 8px; }
+.wc-card-stat svg { opacity: .6; }
+.wc-card-bottom { display: flex; justify-content: flex-end; padding-top: 6px; border-top: 1px solid var(--border-subtle, #f0ece4); margin-top: 6px; }
 
 /* ═══ Buttons ═══ */
 .wc-btn { padding: 7px 16px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: var(--font); transition: opacity .15s; }
@@ -144,9 +166,10 @@
   <div id="wc-list">
     <div class="wc-list-head">
       <div class="wc-title">Wzory świadectw</div>
+      <div class="wc-head-spacer"></div>
       <div class="wc-search-wrap">
         <svg class="wc-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        <input class="wc-search" id="wc-search" type="text" placeholder="Szukaj produktu..." oninput="filterProducts()">
+        <input class="wc-search" id="wc-search" type="text" placeholder="Szukaj..." oninput="filterProducts()">
       </div>
       <button class="wc-btn wc-btn-p" onclick="showNewForm()">+ Nowy produkt</button>
     </div>
