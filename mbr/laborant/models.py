@@ -297,7 +297,6 @@ def create_ebr(
         (mbr["mbr_id"], batch_id, nr_partii, nr_amidatora,
          nr_mieszalnika, wielkosc_kg, now, operator, typ, nastaw, nr_zbiornika),
     )
-    db.commit()
     return cur.lastrowid
 
 
