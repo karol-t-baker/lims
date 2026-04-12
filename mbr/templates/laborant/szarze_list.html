@@ -1312,7 +1312,6 @@ function renderRegistryTable(columns, batches, append) {
   if (_userRola === 'admin') html += '<th class="th-del"></th>';
   html += '<th class="th-nr">Nr partii</th>';
   html += '<th class="th-date">Data</th>';
-  html += '<th class="th-who" style="min-width:80px;">Zatwierdził</th>';
   columns.forEach(function(col) {
     var limitStr = '';
     if (col.min != null && col.max != null) limitStr = col.min + ' \u2013 ' + col.max;
@@ -1322,6 +1321,7 @@ function renderRegistryTable(columns, batches, append) {
     html += '<th class="th-param"><div class="th-param-name">' + (col.label || col.kod) + '</div>';
     html += '<div class="th-param-limit">' + limitStr + '</div></th>';
   });
+  html += '<th class="th-who" style="min-width:80px;">Zatwierdził</th>';
   html += '<th class="th-uwagi" style="min-width:180px;max-width:280px;">Uwagi</th>';
   html += '</tr></thead><tbody>';
 
@@ -1349,7 +1349,6 @@ function _buildRegistryRow(columns, b) {
     dtStr = parts[2] + '.' + parts[1] + '.' + parts[0];
   }
   html += '<td class="td-date">' + dtStr + '</td>';
-  html += '<td class="td-who" style="font-size:11px;color:var(--text-sec);">' + (b.zatwierdzil || '\u2014') + '</td>';
   columns.forEach(function(col) {
     var w = b.wyniki[col.kod];
     if (w && w.wartosc != null) {
@@ -1359,7 +1358,7 @@ function _buildRegistryRow(columns, b) {
       html += '<td style="color:var(--text-dim)">\u2014</td>';
     }
   });
-  // Uwagi końcowe — last column
+  html += '<td class="td-who" style="font-size:11px;color:var(--text-sec);">' + (b.zatwierdzil || '\u2014') + '</td>';
   var uwagi = b.uwagi_koncowe || '';
   var uwagiShort = uwagi.length > 50 ? uwagi.slice(0, 47) + '…' : uwagi;
   if (uwagi) {
