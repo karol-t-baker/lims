@@ -285,7 +285,31 @@ def complete_entry(ebr_id):
     data = request.get_json(silent=True) or {}
     zbiorniki = data.get("zbiorniki")
     with db_session() as db:
+        # Read old status BEFORE completing
+        row = db.execute("SELECT status FROM ebr_batches WHERE ebr_id=?", (ebr_id,)).fetchone()
+        old_status = row["status"] if row else "unknown"
+
         complete_ebr(db, ebr_id, zbiorniki=zbiorniki)
+
+        # Audit: log status change
+        user = session.get("user", {})
+        payload = {"old_status": old_status, "new_status": "completed"}
+        if zbiorniki:
+            payload["przepompowanie_json"] = zbiorniki
+        audit.log_event(
+            audit.EVENT_EBR_BATCH_STATUS_CHANGED,
+            entity_type="ebr",
+            entity_id=ebr_id,
+            payload=payload,
+            actors=[{
+                "worker_id": None,
+                "actor_login": user.get("login", "unknown"),
+                "actor_rola": user.get("rola", "unknown"),
+            }],
+            db=db,
+        )
+        db.commit()
+
         sync_ebr_to_v4(db, ebr_id)
     # Support AJAX calls from SPA
     if request.is_json or request.headers.get("Content-Type", "").startswith("application/json"):

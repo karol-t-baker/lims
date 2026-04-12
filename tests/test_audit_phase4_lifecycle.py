@@ -123,3 +123,29 @@ def test_toggle_golden_logs_batch_updated(client, db):
     assert len(rows) == 1
     diff = _json.loads(rows[0]["diff_json"])
     assert diff == [{"pole": "is_golden", "stara": 0, "nowa": 1}]
+
+
+# ---------- POST /laborant/ebr/<id>/complete ----------
+
+def test_complete_entry_logs_status_changed(client, db):
+    """Completing a batch logs ebr.batch.status_changed with old/new status."""
+    # Create a batch
+    client.post("/laborant/szarze/new", data={
+        "produkt": "Chegina_K7", "nr_partii": "2/2026",
+        "nr_amidatora": "", "nr_mieszalnika": "", "wielkosc_kg": "0",
+    })
+    ebr_id = db.execute("SELECT ebr_id FROM ebr_batches LIMIT 1").fetchone()["ebr_id"]
+    assert db.execute("SELECT status FROM ebr_batches WHERE ebr_id=?", (ebr_id,)).fetchone()["status"] == "open"
+
+    resp = client.post(f"/laborant/ebr/{ebr_id}/complete",
+                       json={},
+                       content_type="application/json")
+    assert resp.status_code == 200
+
+    rows = db.execute(
+        "SELECT payload_json FROM audit_log WHERE event_type = 'ebr.batch.status_changed'"
+    ).fetchall()
+    assert len(rows) == 1
+    payload = _json.loads(rows[0]["payload_json"])
+    assert payload["old_status"] == "open"
+    assert payload["new_status"] == "completed"

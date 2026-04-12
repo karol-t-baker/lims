@@ -551,7 +551,6 @@ def complete_ebr(db: sqlite3.Connection, ebr_id: int, zbiorniki: list | None = N
                     (ebr_id, zbiornik_id, z.get("kg"), now),
                 )
 
-    db.commit()
 
 
 # ---------------------------------------------------------------------------
