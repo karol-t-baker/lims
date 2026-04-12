@@ -362,4 +362,7 @@ def pipeline_dual_write(db, ebr_id, sekcja, values, wpisal):
         )
 
     # Evaluate gate
-    return evaluate_gate(db, etap_id, sesja["id"])
+    gate = evaluate_gate(db, etap_id, sesja["id"])
+    gate["sesja_id"] = sesja["id"]
+    gate["etap_id"] = etap_id
+    return gate

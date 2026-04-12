@@ -350,6 +350,8 @@ def test_dual_write_saves_to_ebr_pomiar(db):
     # Verify gate result
     assert gate is not None
     assert "passed" in gate
+    assert "sesja_id" in gate
+    assert "etap_id" in gate
 
 
 def test_dual_write_no_pipeline_returns_none(db):
