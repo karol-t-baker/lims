@@ -96,7 +96,7 @@
 }
 .pe-modal-overlay.show { display: flex; }
 .pe-modal {
-  background: var(--surface); border-radius: 12px; width: 560px; max-height: 80vh;
+  background: var(--surface); border-radius: 12px; width: 720px; max-height: 80vh;
   display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
   overflow: hidden;
 }
@@ -158,6 +158,21 @@
   transition: background 0.15s;
 }
 .ped-add-btn:hover { background: var(--teal-dark); }
+.ped-prec {
+  width: 50px; padding: 5px 6px; border: 1px solid var(--border-subtle); border-radius: 5px;
+  font-size: 11px; font-family: var(--mono); text-align: center; background: #fff;
+  transition: border-color 0.15s;
+}
+.ped-prec:focus { border-color: var(--teal); outline: none; box-shadow: 0 0 0 2px var(--teal-bg); }
+.ped-prec::placeholder { color: var(--text-dim); opacity: 0.5; }
+.pe-filter {
+  width: 100%; padding: 8px 10px; border: 1.5px solid var(--border); border-radius: 6px;
+  font-size: 12px; font-family: var(--font); margin-bottom: 10px;
+}
+.pe-filter:focus { border-color: var(--teal); outline: none; }
+.ped-row-disabled { opacity: 0.45; }
+.ped-row-disabled .ped-lim, .ped-row-disabled .ped-prec { pointer-events: none; }
+.ped-check { width: 16px; height: 16px; cursor: pointer; flex-shrink: 0; }
 
 .ped-typ {
   font-size: 8px; font-weight: 700; padding: 2px 6px; border-radius: 8px;
@@ -3881,43 +3896,32 @@ function psSkipStage(etap) {
 
 // ═══ PARAM EDITOR MODAL ═══
 
-var _peBindings = [];  // [{id, kod, label, skrot, typ, min, max, nawazka_g, binding_id}]
-var _peAvailable = []; // [{id, kod, label, skrot, typ}]
+var _peBindingMap = {};  // parametr_id → {id, min, max, precision, kolejnosc, nawazka_g}
+var _peAllParams = [];   // [{id, kod, label, skrot, typ, precision, jednostka}]
 
 function openParamEditor() {
-  // Fetch current bindings + available params in parallel
+  // Fetch current bindings + all available params in parallel
   Promise.all([
-    fetch('/api/parametry/config?produkt=' + encodeURIComponent(window._batchProdukt) + '&kontekst=analiza_koncowa').then(function(r){return r.json();}),
-    fetch('/api/parametry/available').then(function(r){return r.json();}),
-    fetch('/api/parametry/list').then(function(r){return r.json();})
+    fetch('/api/parametry/etapy/' + encodeURIComponent(window._batchProdukt) + '/analiza_koncowa').then(function(r){return r.json();}),
+    fetch('/api/parametry/available').then(function(r){return r.json();})
   ]).then(function(results) {
-    var config = results[0];  // current params for this product
+    var bindings = results[0];  // current bindings for this product
     var available = results[1];  // all global params
-    var allWithBindings = results[2];  // all params with bindings (to get binding IDs)
 
-    // Map binding IDs: find parametry_etapy entries for this product+kontekst
-    _peBindings = config.map(function(p) {
-      // Find binding ID from allWithBindings
-      var globalParam = allWithBindings.find(function(g) { return g.kod === p.kod; });
-      var bindingId = null;
-      if (globalParam && globalParam.bindings) {
-        var b = globalParam.bindings.find(function(b) {
-          return b.kontekst === 'analiza_koncowa' && (b.produkt === window._batchProdukt || b.produkt === null);
-        });
-        if (b) bindingId = b.id;
-      }
-      return {
-        parametr_id: globalParam ? globalParam.id : null,
-        binding_id: bindingId,
-        kod: p.kod, label: p.label, skrot: p.skrot, typ: p.typ,
-        min: p.min, max: p.max, nawazka_g: p.nawazka_g
+    // Build binding map: parametr_id → binding info
+    _peBindingMap = {};
+    bindings.forEach(function(b) {
+      _peBindingMap[b.parametr_id] = {
+        id: b.id, min: b.min_limit, max: b.max_limit,
+        precision: b.precision, kolejnosc: b.kolejnosc,
+        nawazka_g: b.nawazka_g
       };
     });
 
-    // Filter available: exclude already added
-    var usedKods = _peBindings.map(function(b){return b.kod;});
-    _peAvailable = available.filter(function(a) { return usedKods.indexOf(a.kod) === -1; });
+    // Store all params for rendering
+    _peAllParams = available;
 
+    document.getElementById('pe-filter').value = '';
     renderParamEditor();
     document.getElementById('pe-modal-overlay').classList.add('show');
   });
@@ -3928,164 +3932,130 @@ function closeParamEditor() {
 }
 
 function renderParamEditor() {
+  var filter = (document.getElementById('pe-filter').value || '').toLowerCase();
   var html = '';
-  _peBindings.forEach(function(b, i) {
-    var typCls = b.typ === 'titracja' ? 'ped-typ-t' : b.typ === 'obliczeniowy' ? 'ped-typ-o' : 'ped-typ-b';
-    var typLabel = b.typ === 'titracja' ? 'miarecz.' : b.typ === 'obliczeniowy' ? 'oblicz.' : 'bezpośr.';
-    html += '<div class="ped-row" id="ped-' + i + '" draggable="true" data-idx="' + i + '"' +
-      ' ondragstart="peDragStart(event,' + i + ')" ondragover="peDragOver(event)" ondragenter="peDragEnter(event)" ondragleave="peDragLeave(event)" ondrop="peDrop(event,' + i + ')" ondragend="peDragEnd()">' +
-      '<span class="ped-grip" title="Przeciągnij aby zmienić kolejność">⠿</span>' +
-      '<span class="ped-kod">' + esc(b.kod) + '</span>' +
-      '<span class="ped-label">' + esc(b.skrot || b.label) + '</span>' +
+
+  // Split into bound (checked) and unbound, sort bound by kolejnosc
+  var bound = [];
+  var unbound = [];
+  _peAllParams.forEach(function(p) {
+    var label = (p.label || '').toLowerCase();
+    var kod = (p.kod || '').toLowerCase();
+    if (filter && label.indexOf(filter) === -1 && kod.indexOf(filter) === -1) return;
+    if (_peBindingMap[p.id]) {
+      bound.push(p);
+    } else {
+      unbound.push(p);
+    }
+  });
+  bound.sort(function(a, b) {
+    return (_peBindingMap[a.id].kolejnosc || 0) - (_peBindingMap[b.id].kolejnosc || 0);
+  });
+
+  // Render bound params first (checked), then unbound (unchecked)
+  var allSorted = bound.concat(unbound);
+  allSorted.forEach(function(p) {
+    var b = _peBindingMap[p.id];
+    var checked = !!b;
+    var typCls = p.typ === 'titracja' ? 'ped-typ-t' : p.typ === 'obliczeniowy' ? 'ped-typ-o' : 'ped-typ-b';
+    var typLabel = p.typ === 'titracja' ? 'miarecz.' : p.typ === 'obliczeniowy' ? 'oblicz.' : 'bezpośr.';
+    var disabledCls = checked ? '' : ' ped-row-disabled';
+    var precVal = b && b.precision != null ? b.precision : '';
+    var precPlaceholder = p.precision != null ? p.precision : 2;
+
+    html += '<div class="ped-row' + disabledCls + '">' +
+      '<input type="checkbox" class="ped-check" ' + (checked ? 'checked' : '') +
+        ' onchange="peToggle(' + p.id + ', this.checked)">' +
+      '<span class="ped-kod">' + esc(p.kod) + '</span>' +
+      '<span class="ped-label">' + esc(p.skrot || p.label) + '</span>' +
       '<span class="ped-typ ' + typCls + '">' + typLabel + '</span>' +
-      '<input class="ped-lim" type="text" inputmode="decimal" value="' + (b.min != null ? String(b.min).replace('.',',') : '') + '" placeholder="min" data-idx="' + i + '" data-field="min">' +
-      '<input class="ped-lim" type="text" inputmode="decimal" value="' + (b.max != null ? String(b.max).replace('.',',') : '') + '" placeholder="max" data-idx="' + i + '" data-field="max">' +
-      '<button class="ped-del" onclick="peRemove(' + i + ')" title="Usuń">&times;</button>' +
+      '<input class="ped-lim" type="text" inputmode="decimal"' +
+        ' value="' + (b && b.min != null ? String(b.min).replace('.',',') : '') + '"' +
+        ' placeholder="min" data-param-id="' + p.id + '" data-field="min">' +
+      '<input class="ped-lim" type="text" inputmode="decimal"' +
+        ' value="' + (b && b.max != null ? String(b.max).replace('.',',') : '') + '"' +
+        ' placeholder="max" data-param-id="' + p.id + '" data-field="max">' +
+      '<input class="ped-prec" type="number" min="0" max="6" step="1"' +
+        ' value="' + precVal + '" placeholder="' + precPlaceholder + '"' +
+        ' data-param-id="' + p.id + '" data-field="precision"' +
+        ' title="Precyzja (miejsca po przecinku)">' +
     '</div>';
   });
 
   document.getElementById('pe-list').innerHTML = html || '<div style="color:var(--text-dim);font-size:11px;padding:8px;">Brak parametrów</div>';
-
-  // Setup drag & drop
-  _peSetupDragDrop();
-
-  // Update add dropdown
-  var sel = document.getElementById('pe-add-select');
-  sel.innerHTML = '<option value="">— wybierz parametr —</option>';
-  _peAvailable.forEach(function(a) {
-    sel.innerHTML += '<option value="' + a.id + '">' + a.kod + ' — ' + esc(a.label) + '</option>';
-  });
 }
 
-var _peDragIdx = null;
-
-function peDragStart(e, idx) {
-  _peDragIdx = idx;
-  e.target.classList.add('dragging');
-  e.dataTransfer.effectAllowed = 'move';
-}
-
-function peDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
-
-function peDragEnter(e) {
-  var row = e.target.closest('.ped-row');
-  if (row) row.classList.add('drag-over');
-}
-
-function peDragLeave(e) {
-  var row = e.target.closest('.ped-row');
-  if (row) row.classList.remove('drag-over');
-}
-
-function peDragEnd() {
-  _peDragIdx = null;
-  document.querySelectorAll('.ped-row').forEach(function(r) {
-    r.classList.remove('dragging', 'drag-over');
-  });
-}
-
-function peDrop(e, targetIdx) {
-  e.preventDefault();
-  var row = e.target.closest('.ped-row');
-  if (row) row.classList.remove('drag-over');
-  if (_peDragIdx === null || _peDragIdx === targetIdx) return;
-
-  // Reorder in array
-  var item = _peBindings.splice(_peDragIdx, 1)[0];
-  _peBindings.splice(targetIdx, 0, item);
-  _peDragIdx = null;
-
-  renderParamEditor();
-  peSaveOrder();
-}
-
-function peSaveOrder() {
-  var promises = [];
-  _peBindings.forEach(function(b, i) {
-    if (!b.binding_id) return;
-    promises.push(fetch('/api/parametry/etapy/' + b.binding_id, {
-      method: 'PUT',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({kolejnosc: i + 1})
-    }));
-  });
-  Promise.all(promises).then(function() {
-    return fetch('/api/parametry/rebuild-mbr', {
+function peToggle(paramId, checked) {
+  if (checked) {
+    // Count existing bindings to set kolejnosc
+    var nextOrder = Object.keys(_peBindingMap).length + 1;
+    fetch('/api/parametry/etapy', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({produkt: window._batchProdukt})
-    });
-  });
-}
-
-function peAdd() {
-  var sel = document.getElementById('pe-add-select');
-  var paramId = parseInt(sel.value);
-  if (!paramId) return;
-
-  var param = _peAvailable.find(function(a){return a.id === paramId;});
-  if (!param) return;
-
-  // Create binding via API
-  fetch('/api/parametry/etapy', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({
-      parametr_id: paramId,
-      kontekst: 'analiza_koncowa',
-      produkt: window._batchProdukt,
-      kolejnosc: _peBindings.length + 1
-    })
-  }).then(function(r){return r.json();}).then(function(d) {
-    if (d.ok) {
-      _peBindings.push({
-        parametr_id: paramId, binding_id: d.id,
-        kod: param.kod, label: param.label, skrot: param.skrot, typ: param.typ,
-        min: null, max: null, nawazka_g: null
-      });
-      _peAvailable = _peAvailable.filter(function(a){return a.id !== paramId;});
-      renderParamEditor();
-    }
-  });
-}
-
-function peRemove(idx) {
-  var b = _peBindings[idx];
-  if (!b.binding_id) return;
-  fetch('/api/parametry/etapy/' + b.binding_id, {method: 'DELETE'})
-    .then(function(r){return r.json();}).then(function(d) {
-      if (d.ok) {
-        _peAvailable.push({id: b.parametr_id, kod: b.kod, label: b.label, skrot: b.skrot, typ: b.typ});
-        _peBindings.splice(idx, 1);
+      body: JSON.stringify({
+        parametr_id: paramId,
+        kontekst: 'analiza_koncowa',
+        produkt: window._batchProdukt,
+        kolejnosc: nextOrder
+      })
+    }).then(function(r) {
+      if (!r.ok) { alert('Błąd dodawania parametru'); return; }
+      return r.json();
+    }).then(function(d) {
+      if (d && d.ok) {
+        _peBindingMap[paramId] = {id: d.id, min: null, max: null, precision: null, kolejnosc: nextOrder, nawazka_g: null};
         renderParamEditor();
       }
     });
+  } else {
+    var b = _peBindingMap[paramId];
+    if (!b) return;
+    fetch('/api/parametry/etapy/' + b.id, {method: 'DELETE'})
+      .then(function(r) {
+        if (!r.ok) { alert('Błąd usuwania parametru'); return; }
+        return r.json();
+      }).then(function(d) {
+        if (d && d.ok) {
+          delete _peBindingMap[paramId];
+          renderParamEditor();
+        }
+      });
+  }
 }
 
 function peSaveLimits() {
-  // Save all changed limits, then rebuild MBR
-  var promises = [];
-  document.querySelectorAll('.ped-lim').forEach(function(input) {
-    var idx = parseInt(input.dataset.idx);
+  // Collect all changed limits and precision, then rebuild MBR
+  var updates = {};  // binding_id → {field: value}
+  document.querySelectorAll('.ped-lim, .ped-prec').forEach(function(input) {
+    var paramId = parseInt(input.dataset.paramId);
     var field = input.dataset.field;
-    var b = _peBindings[idx];
-    if (!b || !b.binding_id) return;
-    var val = input.value.trim().replace(',', '.');
-    var numVal = val === '' ? null : parseFloat(val);
-    if (b[field] === numVal) return; // no change
-    b[field] = numVal;
-    var body = {};
-    body[field === 'min' ? 'min_limit' : 'max_limit'] = numVal;
-    promises.push(
-      fetch('/api/parametry/etapy/' + b.binding_id, {
-        method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(body)
-      })
-    );
+    var b = _peBindingMap[paramId];
+    if (!b) return;
+
+    var val, apiField;
+    if (field === 'precision') {
+      val = input.value.trim() === '' ? null : parseInt(input.value);
+      apiField = 'precision';
+      if (b.precision === val) return;
+    } else {
+      val = input.value.trim().replace(',', '.');
+      val = val === '' ? null : parseFloat(val);
+      apiField = field === 'min' ? 'min_limit' : 'max_limit';
+      if (b[field] === val) return;
+    }
+
+    if (!updates[b.id]) updates[b.id] = {};
+    updates[b.id][apiField] = val;
   });
 
-  // After limits saved, rebuild MBR
+  var promises = Object.keys(updates).map(function(bindingId) {
+    return fetch('/api/parametry/etapy/' + bindingId, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(updates[bindingId])
+    });
+  });
+
   Promise.all(promises).then(function() {
     return fetch('/api/parametry/rebuild-mbr', {
       method: 'POST',
@@ -4095,68 +4065,8 @@ function peSaveLimits() {
   }).then(function(r){return r.json();}).then(function(d) {
     if (d.ok) {
       closeParamEditor();
-      // Reload batch to pick up new parametry_lab
       if (typeof loadBatch === 'function') loadBatch(ebrId);
     }
-  });
-}
-
-// ═══ PARAM DRAG & DROP ═══
-
-var _peDragIdx = null;
-
-function _peSetupDragDrop() {
-  var rows = document.querySelectorAll('.ped-row[draggable]');
-  rows.forEach(function(row) {
-    row.addEventListener('dragstart', function(e) {
-      _peDragIdx = parseInt(row.dataset.idx);
-      row.classList.add('dragging');
-      e.dataTransfer.effectAllowed = 'move';
-    });
-    row.addEventListener('dragend', function() {
-      row.classList.remove('dragging');
-      document.querySelectorAll('.ped-row').forEach(function(r) { r.classList.remove('drag-over'); });
-    });
-    row.addEventListener('dragover', function(e) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      document.querySelectorAll('.ped-row').forEach(function(r) { r.classList.remove('drag-over'); });
-      if (parseInt(row.dataset.idx) !== _peDragIdx) row.classList.add('drag-over');
-    });
-    row.addEventListener('dragleave', function() {
-      row.classList.remove('drag-over');
-    });
-    row.addEventListener('drop', function(e) {
-      e.preventDefault();
-      var dropIdx = parseInt(row.dataset.idx);
-      if (_peDragIdx === null || _peDragIdx === dropIdx) return;
-
-      // Reorder array
-      var item = _peBindings.splice(_peDragIdx, 1)[0];
-      _peBindings.splice(dropIdx, 0, item);
-
-      // Save new order via API
-      var bindings = _peBindings.map(function(b, i) {
-        return {id: b.binding_id, kolejnosc: i + 1};
-      });
-      fetch('/api/parametry/etapy/reorder', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({bindings: bindings})
-      }).then(function(r) { return r.json(); }).then(function(d) {
-        if (d.ok) {
-          // Auto rebuild MBR
-          fetch('/api/parametry/rebuild-mbr', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({produkt: window._batchProdukt})
-          });
-        }
-      });
-
-      renderParamEditor();
-      _peDragIdx = null;
-    });
   });
 }
 
@@ -4183,11 +4093,8 @@ loadBatchZbiorniki();
       <button class="pe-modal-close" onclick="closeParamEditor()">&times;</button>
     </div>
     <div class="pe-modal-body">
+      <input type="text" class="pe-filter" id="pe-filter" placeholder="Filtruj po nazwie lub kodzie..." oninput="renderParamEditor()">
       <div id="pe-list"></div>
-      <div class="ped-add">
-        <select id="pe-add-select"><option value="">— wybierz parametr —</option></select>
-        <button class="ped-add-btn" onclick="peAdd()">+ Dodaj</button>
-      </div>
     </div>
     <div class="pe-modal-footer">
       <button class="btn btn-o" onclick="closeParamEditor()">Anuluj</button>

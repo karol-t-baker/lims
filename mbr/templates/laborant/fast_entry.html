@@ -285,17 +285,11 @@ function renderSections() {
             badgeHtml = '<span class="sec-badge b-wait">Oczekuje</span>';
         }
 
-        const isAnaliza = (sekcja === 'analiza_koncowa' || sekcja === 'analiza');
-        const configBtn = (!isReadonly && isAnaliza)
-            ? `<button class="btn btn-xs btn-ghost" onclick="openParametryModal('analiza_koncowa')" title="Konfiguruj parametry" style="margin-left:auto;">⚙ Parametry</button>`
-            : '';
-
         let headHtml = `
             <div class="sec-head">
                 <div class="sec-icon teal">${i + 1}</div>
                 <span class="sec-title">${esc(etap.nazwa)}</span>
                 ${badgeHtml}
-                ${configBtn}
             </div>
         `;
 
@@ -609,123 +603,5 @@ document.addEventListener('keydown', function(e) {
     }
 });
 
-// ═══ PARAMETRY MODAL ═══
-
-let _pmKontekst = '';
-let _pmAllParams = [];
-let _pmBindings = {};
-
-async function openParametryModal(kontekst) {
-    _pmKontekst = kontekst;
-    document.getElementById('pmProdukt').textContent = produkt;
-    document.getElementById('pmFilter').value = '';
-
-    const resAll = await fetch('/api/parametry/available');
-    _pmAllParams = await resAll.json();
-
-    const resBindings = await fetch(`/api/parametry/etapy/${encodeURIComponent(produkt)}/${encodeURIComponent(kontekst)}`);
-    const bindingsArr = await resBindings.json();
-    _pmBindings = {};
-    bindingsArr.forEach(b => {
-        _pmBindings[b.parametr_id] = {
-            id: b.id,
-            precision: b.precision,
-            kolejnosc: b.kolejnosc
-        };
-    });
-
-    renderParametryRows();
-    document.getElementById('parametryModal').style.display = 'flex';
-}
-
-function closeParametryModal() {
-    document.getElementById('parametryModal').style.display = 'none';
-    fetch('/api/parametry/rebuild-mbr', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({produkt: produkt})
-    }).then(() => location.reload());
-}
-
-function renderParametryRows() {
-    const filter = (document.getElementById('pmFilter').value || '').toLowerCase();
-    const tbody = document.getElementById('pmBody');
-    tbody.innerHTML = '';
-
-    _pmAllParams.forEach(p => {
-        const label = (p.label || '').toLowerCase();
-        const kod = (p.kod || '').toLowerCase();
-        if (filter && !label.includes(filter) && !kod.includes(filter)) return;
-
-        const binding = _pmBindings[p.id];
-        const checked = !!binding;
-        const precVal = binding ? (binding.precision != null ? binding.precision : '') : '';
-        const precPlaceholder = p.precision != null ? p.precision : 2;
-        const orderVal = binding ? (binding.kolejnosc || 0) : 0;
-
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td><input type="checkbox" ${checked ? 'checked' : ''}
-                 onchange="toggleBinding(${p.id}, this.checked)"></td>
-            <td>${esc(p.label)}</td>
-            <td><code>${esc(p.kod)}</code></td>
-            <td>${esc(p.typ)}</td>
-            <td>${esc(p.jednostka || '—')}</td>
-            <td><input type="number" min="0" max="6" step="1"
-                 value="${precVal}" placeholder="${precPlaceholder}"
-                 style="width:60px;text-align:center;${!checked ? 'opacity:0.3;pointer-events:none;' : ''}"
-                 onchange="updateBinding(${p.id}, 'precision', this.value === '' ? null : parseInt(this.value))"></td>
-            <td><input type="number" min="0" step="1"
-                 value="${orderVal}"
-                 style="width:60px;text-align:center;${!checked ? 'opacity:0.3;pointer-events:none;' : ''}"
-                 onchange="updateBinding(${p.id}, 'kolejnosc', parseInt(this.value) || 0)"></td>
-        `;
-        tbody.appendChild(tr);
-    });
-}
-
-function filterParametryRows() {
-    renderParametryRows();
-}
-
-async function toggleBinding(paramId, checked) {
-    if (checked) {
-        const res = await fetch('/api/parametry/etapy', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                parametr_id: paramId,
-                kontekst: _pmKontekst,
-                produkt: produkt
-            })
-        });
-        if (!res.ok) { alert('Błąd dodawania parametru'); return; }
-        const data = await res.json();
-        if (data.ok) {
-            _pmBindings[paramId] = {id: data.id, precision: null, kolejnosc: 0};
-        }
-    } else {
-        const binding = _pmBindings[paramId];
-        if (binding) {
-            const res = await fetch(`/api/parametry/etapy/${binding.id}`, {method: 'DELETE'});
-            if (!res.ok) { alert('Błąd usuwania parametru'); return; }
-            delete _pmBindings[paramId];
-        }
-    }
-    renderParametryRows();
-}
-
-async function updateBinding(paramId, field, value) {
-    const binding = _pmBindings[paramId];
-    if (!binding) return;
-    const res = await fetch(`/api/parametry/etapy/${binding.id}`, {
-        method: 'PUT',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({[field]: value})
-    });
-    if (!res.ok) { alert('Błąd zapisu'); return; }
-    binding[field] = value;
-}
 </script>
-{% include 'laborant/_parametry_modal.html' %}
 {% endblock %}
