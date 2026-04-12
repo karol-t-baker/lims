@@ -46,15 +46,23 @@ def short_product_filter(value):
 
 
 def audit_actors_filter(audit_row):
-    """Render actors as comma-separated logins, '—' if empty/missing.
+    """Render actors with full name on hover.
 
-    Used in admin/audit.html for the table column. Input is a dict from
-    audit.query_audit_log() — the 'actors' key contains a list of dicts.
+    Shows nickname/inicjaly as text, full imie+nazwisko as title tooltip.
     """
+    from markupsafe import Markup
     actors = audit_row.get("actors") or []
     if not actors:
-        return "\u2014"
-    return ", ".join(a["actor_login"] for a in actors)
+        return Markup("\u2014")
+    parts = []
+    for a in actors:
+        login = a["actor_login"]
+        name = a.get("actor_name")
+        if name:
+            parts.append(f'<span title="{name}">{login}</span>')
+        else:
+            parts.append(login)
+    return Markup(", ".join(parts))
 
 
 def register_filters(app):
