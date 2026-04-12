@@ -11,6 +11,9 @@ from mbr.pipeline.models import (
     resolve_limity,
     list_etap_korekty,
     get_etap,
+    list_sesje,
+    save_pomiar,
+    evaluate_gate,
 )
 
 
@@ -257,3 +260,80 @@ def build_pipeline_context(
         "etapy_json":    etapy_json,
         "parametry_lab": parametry_lab,
     }
+
+
+def pipeline_dual_write(db, ebr_id, sekcja, values, wpisal):
+    """Write measurements to ebr_pomiar and evaluate gate.
+
+    Called after save_wyniki in save_entry route.
+    Returns gate evaluation dict or None if no pipeline active.
+
+    Args:
+        sekcja: e.g. "analiza__1", "dodatki__1"
+        values: {kod: wartosc} (already parsed floats, None for empty)
+        wpisal: who wrote (actor label)
+    """
+    ebr = db.execute(
+        """SELECT m.produkt FROM ebr_batches e
+           JOIN mbr_templates m ON m.mbr_id = e.mbr_id
+           WHERE e.ebr_id = ?""",
+        (ebr_id,),
+    ).fetchone()
+    if not ebr:
+        return None
+
+    produkt = ebr["produkt"]
+    pipeline = get_produkt_pipeline(db, produkt)
+    if not pipeline:
+        return None
+
+    base_sekcja = sekcja.split("__")[0] if "__" in sekcja else sekcja
+
+    # "dodatki" = corrections, no gate evaluation needed
+    if base_sekcja == "dodatki":
+        return None
+
+    # Find the pipeline stage that maps to this sekcja
+    etap_id = None
+    for step in pipeline:
+        etap = get_etap(db, step["etap_id"])
+        if not etap:
+            continue
+        # cykliczny stages use sekcja "analiza" (the adapter maps them that way)
+        if etap["typ_cyklu"] == "cykliczny" and base_sekcja == "analiza":
+            etap_id = step["etap_id"]
+            break
+        # jednorazowy stages: sekcja = stage kod
+        if etap["typ_cyklu"] == "jednorazowy" and etap["kod"] == base_sekcja:
+            etap_id = step["etap_id"]
+            break
+
+    if etap_id is None:
+        return None
+
+    # Find active session (latest w_trakcie for this stage)
+    sesje = list_sesje(db, ebr_id, etap_id=etap_id)
+    active = [s for s in sesje if s["status"] == "w_trakcie"]
+    if not active:
+        return None
+    sesja = active[-1]
+
+    # Build parametr_id + limit lookups
+    resolved = resolve_limity(db, produkt, etap_id)
+    kod_to_resolved = {r["kod"]: r for r in resolved}
+
+    # Write to ebr_pomiar
+    for kod, wartosc in values.items():
+        r = kod_to_resolved.get(kod)
+        if r is None:
+            continue
+        save_pomiar(
+            db, sesja["id"], r["parametr_id"],
+            wartosc=wartosc,
+            min_limit=r.get("min_limit"),
+            max_limit=r.get("max_limit"),
+            wpisal=wpisal,
+        )
+
+    # Evaluate gate
+    return evaluate_gate(db, etap_id, sesja["id"])

@@ -283,3 +283,85 @@ def test_adapter_output_compatible_with_save_wyniki(db):
     for kod, pole in pola_map.items():
         assert "min_limit" in pole, f"Missing min_limit on {kod}"
         assert "max_limit" in pole, f"Missing max_limit on {kod}"
+
+
+# ---------------------------------------------------------------------------
+# Helpers for dual-write tests
+# ---------------------------------------------------------------------------
+
+def _setup_pipeline(db):
+    """Alias for _seed: full cykliczny pipeline for 'TestProd'."""
+    _seed(db)
+
+
+def _seed_params(db):
+    """Seed only parametry_analityczne (no pipeline) — for no-pipeline test."""
+    db.execute("""
+        INSERT INTO parametry_analityczne (id, kod, label, typ, skrot, precision)
+        VALUES (9901, 'sm', 'Sucha masa', 'bezposredni', 'SM', 1)
+    """)
+    db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Task 5: pipeline_dual_write tests
+# ---------------------------------------------------------------------------
+
+from mbr.pipeline.models import create_sesja, get_pomiary
+
+
+def test_dual_write_saves_to_ebr_pomiar(db):
+    """When pipeline is active, save to ebr_pomiar alongside ebr_wyniki."""
+    from mbr.pipeline.adapter import pipeline_dual_write
+
+    _setup_pipeline(db)
+
+    # Create MBR + EBR
+    db.execute("INSERT INTO mbr_templates (mbr_id, produkt, wersja, dt_utworzenia, parametry_lab, etapy_json) VALUES (1, 'TestProd', 1, '2026-01-01', '{}', '[]')")
+    db.execute("INSERT INTO ebr_batches (ebr_id, mbr_id, batch_id, nr_partii, dt_start) VALUES (1, 1, 'T-1', '1/2026', '2026-01-01')")
+
+    # Create pipeline session
+    etap_id = db.execute("SELECT id FROM etapy_analityczne WHERE kod='standaryzacja'").fetchone()[0]
+    sesja_id = create_sesja(db, 1, etap_id, runda=1, laborant="lab1")
+    db.commit()
+
+    # Dual write
+    gate = pipeline_dual_write(db, ebr_id=1, sekcja="analiza__1",
+                               values={"sm": 45.5, "nacl": 6.2}, wpisal="lab1")
+
+    # Verify ebr_pomiar has data
+    pomiary = get_pomiary(db, sesja_id)
+    kods = {p["kod"] for p in pomiary}
+    assert "sm" in kods
+    assert "nacl" in kods
+
+    # Verify gate result
+    assert gate is not None
+    assert "passed" in gate
+
+
+def test_dual_write_no_pipeline_returns_none(db):
+    from mbr.pipeline.adapter import pipeline_dual_write
+    _seed_params(db)
+
+    db.execute("INSERT INTO mbr_templates (mbr_id, produkt, wersja, dt_utworzenia, parametry_lab, etapy_json) VALUES (1, 'NoPipe', 1, '2026-01-01', '{}', '[]')")
+    db.execute("INSERT INTO ebr_batches (ebr_id, mbr_id, batch_id, nr_partii, dt_start) VALUES (1, 1, 'T-1', '1/2026', '2026-01-01')")
+    db.commit()
+
+    gate = pipeline_dual_write(db, ebr_id=1, sekcja="analiza_koncowa",
+                               values={"sm": 45.0}, wpisal="lab1")
+    assert gate is None
+
+
+def test_dual_write_dodatki_returns_none(db):
+    """Dodatki section should not trigger gate evaluation."""
+    from mbr.pipeline.adapter import pipeline_dual_write
+    _setup_pipeline(db)
+
+    db.execute("INSERT INTO mbr_templates (mbr_id, produkt, wersja, dt_utworzenia, parametry_lab, etapy_json) VALUES (1, 'TestProd', 1, '2026-01-01', '{}', '[]')")
+    db.execute("INSERT INTO ebr_batches (ebr_id, mbr_id, batch_id, nr_partii, dt_start) VALUES (1, 1, 'T-1', '1/2026', '2026-01-01')")
+    db.commit()
+
+    gate = pipeline_dual_write(db, ebr_id=1, sekcja="dodatki__1",
+                               values={"korekta_woda": 50.0}, wpisal="lab1")
+    assert gate is None
