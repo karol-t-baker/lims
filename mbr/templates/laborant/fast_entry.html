@@ -285,8 +285,9 @@ function renderSections() {
             badgeHtml = '<span class="sec-badge b-wait">Oczekuje</span>';
         }
 
-        const configBtn = (!isReadonly && sekcja === 'analiza_koncowa')
-            ? `<button class="btn btn-xs btn-ghost" onclick="openParametryModal('${esc(sekcja)}')" title="Konfiguruj parametry" style="margin-left:auto;">⚙ Parametry</button>`
+        const isAnaliza = (sekcja === 'analiza_koncowa' || sekcja === 'analiza');
+        const configBtn = (!isReadonly && isAnaliza)
+            ? `<button class="btn btn-xs btn-ghost" onclick="openParametryModal('analiza_koncowa')" title="Konfiguruj parametry" style="margin-left:auto;">⚙ Parametry</button>`
             : '';
 
         let headHtml = `
