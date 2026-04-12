@@ -63,6 +63,8 @@
 .wc-dragging { opacity: .4; }
 .wc-del { background: none; border: none; color: var(--red); cursor: pointer; font-size: 14px; padding: 2px 6px; border-radius: 4px; }
 .wc-del:hover { background: #fef2f2; }
+.wc-row-hidden td { opacity: .4; }
+.wc-hide-cb { accent-color: var(--red); }
 
 /* ═══ Variants ═══ */
 .wc-variants { display: flex; flex-direction: column; gap: 10px; }
@@ -209,11 +211,51 @@
 
     <!-- Tab 3: Warianty -->
     <div class="wc-panel" id="panel-warianty" style="display:none;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <div style="font-size:13px;font-weight:600;color:var(--text);">Warianty świadectw</div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+        <select class="wc-sel" id="wc-var-sel" onchange="onVariantSelect()" style="max-width:300px;"></select>
         <button class="wc-btn wc-btn-o wc-btn-sm" onclick="addVariant()">+ Nowy wariant</button>
+        <button class="wc-btn wc-btn-d wc-btn-sm" id="wc-var-del" onclick="removeCurrentVariant()" style="display:none;">Usuń wariant</button>
       </div>
-      <div class="wc-variants" id="wc-variants"></div>
+      <div id="wc-var-editor" style="display:none;">
+        <div class="wc-grid">
+          <div class="wc-field"><label>Identyfikator</label><input type="text" id="wc-var-id"></div>
+          <div class="wc-field"><label>Nazwa wariantu</label><input type="text" id="wc-var-label"></div>
+        </div>
+
+        <div class="wc-sub" style="margin-top:8px;">Opcje</div>
+        <div class="wc-flags" id="wc-var-flags"></div>
+        <div id="wc-var-avon"></div>
+
+        <div id="wc-var-overrides" style="display:none;">
+          <div class="wc-sub">Nadpisania (puste = dziedzicz z bazy)</div>
+          <div class="wc-grid">
+            <div class="wc-field"><label>Numer specyfikacji</label><input type="text" id="wc-var-spec"></div>
+            <div class="wc-field"><label>Opinia PL</label><input type="text" id="wc-var-opl"></div>
+            <div class="wc-field"><label>Opinia EN</label><input type="text" id="wc-var-oen"></div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;margin-bottom:10px;">
+          <div class="wc-sub" style="margin:0;">Parametry na świadectwie</div>
+          <button class="wc-btn wc-btn-o wc-btn-sm" onclick="addVariantParam()">+ Dodaj parametr</button>
+        </div>
+        <table class="wc-tbl">
+          <thead>
+            <tr>
+              <th style="width:50px;">Ukryj</th>
+              <th>Nazwa PL</th>
+              <th>Nazwa EN</th>
+              <th>Wymaganie</th>
+              <th>Metoda</th>
+              <th style="width:130px;">Powiąż z pomiarem</th>
+              <th style="width:90px;">Miejsca po ,</th>
+              <th>Wynik opisowy</th>
+              <th style="width:28px;"></th>
+            </tr>
+          </thead>
+          <tbody id="wc-var-params"></tbody>
+        </table>
+      </div>
     </div>
 
     <!-- Save -->
@@ -535,110 +577,186 @@ var _allFlags = [
   {key:'has_avon_code', label:'Kod Avon'},
   {key:'has_avon_name', label:'Nazwa Avon'}
 ];
+var _variantsData = [];
+var _currentVarIdx = 0;
 
 function renderVariants(variants) {
-  var html = '';
-  variants.forEach(function(v, vi) { html += renderVariant(v, vi); });
-  document.getElementById('wc-variants').innerHTML = html;
+  _variantsData = variants.map(function(v) { return JSON.parse(JSON.stringify(v)); });
+  _currentVarIdx = 0;
+  renderVariantSelector();
+  if (_variantsData.length) showVariant(0);
+  else document.getElementById('wc-var-editor').style.display = 'none';
 }
 
-function renderVariant(v, vi) {
+function renderVariantSelector() {
+  var sel = document.getElementById('wc-var-sel');
+  sel.innerHTML = _variantsData.map(function(v, i) {
+    return '<option value="' + i + '">' + _esc(v.label || v.id) + (i === 0 ? ' (bazowy)' : '') + '</option>';
+  }).join('');
+  sel.value = _currentVarIdx;
+}
+
+function onVariantSelect() {
+  saveCurrentVariantToData();
+  _currentVarIdx = parseInt(document.getElementById('wc-var-sel').value);
+  showVariant(_currentVarIdx);
+}
+
+function showVariant(vi) {
+  _currentVarIdx = vi;
+  var v = _variantsData[vi];
+  if (!v) return;
   var isBase = (vi === 0);
+  document.getElementById('wc-var-editor').style.display = '';
+  document.getElementById('wc-var-del').style.display = isBase ? 'none' : '';
+  document.getElementById('wc-var-overrides').style.display = isBase ? 'none' : '';
+
+  document.getElementById('wc-var-id').value = v.id || '';
+  document.getElementById('wc-var-id').readOnly = isBase;
+  if (isBase) document.getElementById('wc-var-id').style.cssText = 'background:var(--surface-alt);color:var(--text-dim);';
+  else document.getElementById('wc-var-id').style.cssText = '';
+  document.getElementById('wc-var-label').value = v.label || '';
+
   var flags = v.flags || [];
+  var flagsHtml = '';
+  _allFlags.forEach(function(f) {
+    flagsHtml += '<label class="wc-flag"><input type="checkbox" data-flag="' + f.key + '"' + (flags.indexOf(f.key) !== -1 ? ' checked' : '') + ' onchange="onVarFlagChange(this)">' + f.label + '</label>';
+  });
+  document.getElementById('wc-var-flags').innerHTML = flagsHtml;
+
+  var ov = v.overrides || {};
+  var avonHtml = '';
+  avonHtml += '<div class="wc-avon' + (flags.indexOf('has_avon_code') !== -1 ? ' vis' : '') + '" data-avon="avon_code"><label style="font-size:10px;min-width:80px;">Kod Avon:</label><input type="text" id="wc-var-avon-code" value="' + _esc(ov.avon_code || '') + '"></div>';
+  avonHtml += '<div class="wc-avon' + (flags.indexOf('has_avon_name') !== -1 ? ' vis' : '') + '" data-avon="avon_name"><label style="font-size:10px;min-width:80px;">Nazwa Avon:</label><input type="text" id="wc-var-avon-name" value="' + _esc(ov.avon_name || '') + '"></div>';
+  document.getElementById('wc-var-avon').innerHTML = avonHtml;
+
+  if (!isBase) {
+    document.getElementById('wc-var-spec').value = ov.spec_number || '';
+    document.getElementById('wc-var-opl').value = ov.opinion_pl || '';
+    document.getElementById('wc-var-oen').value = ov.opinion_en || '';
+  }
+
+  renderVariantParamsTable(v, isBase);
+}
+
+function renderVariantParamsTable(v, isBase) {
+  var bp = _currentProduct ? (_currentProduct.parameters || []) : [];
   var ov = v.overrides || {};
   var rp = ov.remove_parameters || [];
   var ap = ov.add_parameters || [];
-  var bp = _currentProduct ? (_currentProduct.parameters || []) : [];
+  var tbody = document.getElementById('wc-var-params');
+  var html = '';
 
-  var html = '<div class="wc-vcard' + (vi === 0 ? ' open' : '') + '" data-vi="' + vi + '">';
-  html += '<div class="wc-vhead" onclick="toggleVariant(this)">' +
-    '<span class="wc-vtitle">' + _esc(v.label || v.id) + (isBase ? ' (bazowy)' : '') + '</span>' +
-    '<div style="display:flex;align-items:center;gap:8px;">' +
-    (!isBase ? '<button class="wc-del" onclick="event.stopPropagation();removeVariant(' + vi + ')" title="Usuń">&times;</button>' : '') +
-    '<span class="wc-vchev">&#9654;</span></div></div>';
-
-  html += '<div class="wc-vbody">';
-  html += '<div class="wc-vrow"><label>Identyfikator</label><input type="text" data-vfield="id" value="' + _esc(v.id || '') + '"' + (isBase ? ' readonly style="background:var(--surface-alt);color:var(--text-dim);"' : '') + '></div>';
-  html += '<div class="wc-vrow"><label>Nazwa wariantu</label><input type="text" data-vfield="label" value="' + _esc(v.label || '') + '"></div>';
-
-  html += '<div class="wc-sub">Opcje</div><div class="wc-flags">';
-  _allFlags.forEach(function(f) {
-    html += '<label class="wc-flag"><input type="checkbox" data-flag="' + f.key + '"' + (flags.indexOf(f.key) !== -1 ? ' checked' : '') + ' onchange="onFlagChange(this)">' + f.label + '</label>';
+  bp.forEach(function(p) {
+    var hidden = rp.indexOf(p.id) !== -1;
+    html += '<tr class="' + (hidden ? 'wc-row-hidden' : '') + '" data-base-id="' + _esc(p.id) + '">' +
+      '<td style="text-align:center;">' + (isBase ? '' : '<input type="checkbox" class="wc-hide-cb" ' + (hidden ? 'checked' : '') + ' onchange="this.closest(\'tr\').classList.toggle(\'wc-row-hidden\',this.checked)" title="Ukryj w tym wariancie">') + '</td>' +
+      '<td style="color:' + (hidden ? 'var(--text-dim)' : 'var(--text)') + ';">' + _esc(p.name_pl || p.id) + '</td>' +
+      '<td style="color:var(--text-sec);">' + _esc(p.name_en || '') + '</td>' +
+      '<td>' + _esc(p.requirement || '') + '</td>' +
+      '<td>' + _esc(p.method || '') + '</td>' +
+      '<td style="font-family:var(--mono);font-size:10px;color:var(--text-dim);">' + _esc(p.data_field || '') + '</td>' +
+      '<td>' + (p.format || '') + '</td>' +
+      '<td>' + _esc(p.qualitative_result || '') + '</td>' +
+      '<td></td></tr>';
   });
-  html += '</div>';
-
-  html += '<div class="wc-avon' + (flags.indexOf('has_avon_code') !== -1 ? ' vis' : '') + '" data-avon="avon_code"><label style="font-size:10px;min-width:80px;">Kod Avon:</label><input type="text" data-voverride="avon_code" value="' + _esc(ov.avon_code || '') + '"></div>';
-  html += '<div class="wc-avon' + (flags.indexOf('has_avon_name') !== -1 ? ' vis' : '') + '" data-avon="avon_name"><label style="font-size:10px;min-width:80px;">Nazwa Avon:</label><input type="text" data-voverride="avon_name" value="' + _esc(ov.avon_name || '') + '"></div>';
 
   if (!isBase) {
-    html += '<div class="wc-sub">Nadpisania (puste = dziedzicz z bazy)</div>';
-    html += '<div class="wc-vrow"><label>Numer specyfikacji</label><input type="text" data-voverride="spec_number" value="' + _esc(ov.spec_number || '') + '"></div>';
-    html += '<div class="wc-vrow"><label>Opinia PL</label><input type="text" data-voverride="opinion_pl" value="' + _esc(ov.opinion_pl || '') + '"></div>';
-    html += '<div class="wc-vrow"><label>Opinia EN</label><input type="text" data-voverride="opinion_en" value="' + _esc(ov.opinion_en || '') + '"></div>';
-
-    if (bp.length) {
-      html += '<div class="wc-sub">Ukryj parametry</div><div class="wc-rmparams">';
-      bp.forEach(function(p) {
-        html += '<label class="wc-rmparam"><input type="checkbox" data-remove-param="' + _esc(p.id) + '"' + (rp.indexOf(p.id) !== -1 ? ' checked' : '') + '>' + _esc(p.name_pl || p.id) + '</label>';
-      });
-      html += '</div>';
-    }
-
-    html += '<div class="wc-sub">Dodatkowe parametry <button class="wc-btn wc-btn-o wc-btn-sm" onclick="addVariantParam(' + vi + ')" style="margin-left:8px;">+ Dodaj</button></div>';
-    html += '<div id="wc-vap-' + vi + '">';
-    ap.forEach(function(a, ai) { html += _vapRow(vi, ai, a); });
-    html += '</div>';
+    ap.forEach(function(a) {
+      html += _varParamRow(a);
+    });
   }
 
-  html += '</div></div>';
-  return html;
+  tbody.innerHTML = html || '<tr><td colspan="9" style="text-align:center;color:var(--text-dim);padding:16px;">Brak parametrów</td></tr>';
 }
 
-function _vapRow(vi, ai, ap) {
-  return '<div class="wc-vaprow" data-api="' + ai + '">' +
-    '<div class="rt-w"><input data-ap="name_pl" value="' + _esc(ap.name_pl || '') + '" placeholder="Nazwa PL" oninput="updateRtPreview(this)"><div class="rt-prev">' + _rtHtml(ap.name_pl || '') + '</div></div>' +
-    '<div class="rt-w"><input data-ap="name_en" value="' + _esc(ap.name_en || '') + '" placeholder="Nazwa EN" oninput="updateRtPreview(this)"><div class="rt-prev">' + _rtHtml(ap.name_en || '') + '</div></div>' +
-    '<input data-ap="requirement" value="' + _esc(ap.requirement || '') + '" placeholder="Wymaganie">' +
-    '<input data-ap="method" value="' + _esc(ap.method || '') + '" placeholder="Metoda">' +
-    '<select data-ap="data_field" onchange="onCodeSelectAp(this)">' + _codeOptions(ap.data_field) + '</select>' +
-    '<select data-ap="format" style="width:55px;">' + _fmtOptions(ap.format || '1') + '</select>' +
-    '<input data-ap="qualitative_result" value="' + _esc(ap.qualitative_result || '') + '" placeholder="Wynik opisowy" style="width:130px;">' +
-    '<button class="wc-del" onclick="this.closest(\'.wc-vaprow\').remove()">&times;</button></div>';
+function _varParamRow(ap) {
+  return '<tr data-added="1">' +
+    '<td></td>' +
+    '<td><div class="rt-w"><input data-vp="name_pl" value="' + _esc(ap.name_pl || '') + '" oninput="updateRtPreview(this)"><div class="rt-prev">' + _rtHtml(ap.name_pl || '') + '</div></div></td>' +
+    '<td><div class="rt-w"><input data-vp="name_en" value="' + _esc(ap.name_en || '') + '" oninput="updateRtPreview(this)"><div class="rt-prev">' + _rtHtml(ap.name_en || '') + '</div></div></td>' +
+    '<td><input data-vp="requirement" value="' + _esc(ap.requirement || '') + '"></td>' +
+    '<td><input data-vp="method" value="' + _esc(ap.method || '') + '"></td>' +
+    '<td><select data-vp="data_field" onchange="onCodeSelectAp(this)">' + _codeOptions(ap.data_field) + '</select></td>' +
+    '<td><select data-vp="format">' + _fmtOptions(ap.format || '1') + '</select></td>' +
+    '<td><input data-vp="qualitative_result" value="' + _esc(ap.qualitative_result || '') + '" placeholder="—"></td>' +
+    '<td><button class="wc-del" onclick="this.closest(\'tr\').remove()" title="Usuń">&times;</button></td></tr>';
 }
-
-function toggleVariant(head) { head.closest('.wc-vcard').classList.toggle('open'); }
 
 function addVariant() {
-  var c = document.getElementById('wc-variants');
-  var n = c.querySelectorAll('.wc-vcard').length;
-  var tmp = document.createElement('div');
-  tmp.innerHTML = renderVariant({id:'nowy_'+n, label:'Nowy wariant', flags:[], overrides:{}}, n);
-  var el = tmp.firstChild;
-  c.appendChild(el);
-  el.classList.add('open');
+  saveCurrentVariantToData();
+  var n = _variantsData.length;
+  _variantsData.push({id:'nowy_'+n, label:'Nowy wariant', flags:[], overrides:{}});
+  _currentVarIdx = n;
+  renderVariantSelector();
+  showVariant(n);
 }
 
-function removeVariant(vi) {
-  if (vi === 0) return;
-  if (!confirm('Usunąć ten wariant?')) return;
-  var vs = document.querySelectorAll('#wc-variants .wc-vcard');
-  if (vs[vi]) vs[vi].remove();
+function removeCurrentVariant() {
+  if (_currentVarIdx === 0) return;
+  if (!confirm('Usunąć wariant „' + (_variantsData[_currentVarIdx].label || '') + '"?')) return;
+  _variantsData.splice(_currentVarIdx, 1);
+  _currentVarIdx = 0;
+  renderVariantSelector();
+  showVariant(0);
 }
 
-function onFlagChange(cb) {
-  var body = cb.closest('.wc-vbody');
-  if (!body) return;
-  if (cb.dataset.flag === 'has_avon_code') { var el = body.querySelector('[data-avon="avon_code"]'); if (el) el.classList.toggle('vis', cb.checked); }
-  if (cb.dataset.flag === 'has_avon_name') { var el2 = body.querySelector('[data-avon="avon_name"]'); if (el2) el2.classList.toggle('vis', cb.checked); }
+function addVariantParam() {
+  if (_currentVarIdx === 0) { flash('Wariant bazowy nie może mieć dodatkowych parametrów — edytuj je w zakładce „Parametry świadectwa".', false); return; }
+  var tbody = document.getElementById('wc-var-params');
+  var tmp = document.createElement('tbody');
+  tmp.innerHTML = _varParamRow({});
+  tbody.appendChild(tmp.firstChild);
 }
 
-function addVariantParam(vi) {
-  var c = document.getElementById('wc-vap-' + vi);
-  if (!c) return;
-  var ai = c.querySelectorAll('.wc-vaprow').length;
-  var tmp = document.createElement('div');
-  tmp.innerHTML = _vapRow(vi, ai, {});
-  c.appendChild(tmp.firstChild);
+function onVarFlagChange(cb) {
+  var avonArea = document.getElementById('wc-var-avon');
+  if (cb.dataset.flag === 'has_avon_code') { var el = avonArea.querySelector('[data-avon="avon_code"]'); if (el) el.classList.toggle('vis', cb.checked); }
+  if (cb.dataset.flag === 'has_avon_name') { var el2 = avonArea.querySelector('[data-avon="avon_name"]'); if (el2) el2.classList.toggle('vis', cb.checked); }
+}
+
+function saveCurrentVariantToData() {
+  if (!_variantsData.length) return;
+  var v = _variantsData[_currentVarIdx];
+  if (!v) return;
+  var isBase = (_currentVarIdx === 0);
+  v.id = document.getElementById('wc-var-id').value.trim();
+  v.label = document.getElementById('wc-var-label').value.trim();
+  var flags = [];
+  document.querySelectorAll('#wc-var-flags [data-flag]').forEach(function(cb) { if (cb.checked) flags.push(cb.dataset.flag); });
+  v.flags = flags;
+  var ov = {};
+  var avonCode = document.getElementById('wc-var-avon-code');
+  var avonName = document.getElementById('wc-var-avon-name');
+  if (avonCode && avonCode.value.trim() && flags.indexOf('has_avon_code') !== -1) ov.avon_code = avonCode.value.trim();
+  if (avonName && avonName.value.trim() && flags.indexOf('has_avon_name') !== -1) ov.avon_name = avonName.value.trim();
+  if (!isBase) {
+    var spec = document.getElementById('wc-var-spec').value.trim();
+    var opl = document.getElementById('wc-var-opl').value.trim();
+    var oen = document.getElementById('wc-var-oen').value.trim();
+    if (spec) ov.spec_number = spec;
+    if (opl) ov.opinion_pl = opl;
+    if (oen) ov.opinion_en = oen;
+    var rmp = [];
+    document.querySelectorAll('#wc-var-params tr[data-base-id] .wc-hide-cb').forEach(function(cb) {
+      if (cb.checked) rmp.push(cb.closest('tr').dataset.baseId);
+    });
+    if (rmp.length) ov.remove_parameters = rmp;
+    var addp = [];
+    document.querySelectorAll('#wc-var-params tr[data-added]').forEach(function(tr) {
+      var ap = {};
+      tr.querySelectorAll('[data-vp]').forEach(function(inp) {
+        var val = inp.tagName === 'SELECT' ? inp.value : inp.value.trim();
+        if (inp.dataset.vp === 'data_field') ap.data_field = val || null;
+        else ap[inp.dataset.vp] = val;
+      });
+      if (ap.name_en && !ap.id) ap.id = ap.name_en.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
+      if (ap.name_pl) addp.push(ap);
+    });
+    if (addp.length) ov.add_parameters = addp;
+  }
+  if (Object.keys(ov).length) v.overrides = ov;
+  else v.overrides = undefined;
 }
 
 /* ═══ Collect State ═══ */
@@ -668,41 +786,12 @@ function collectEditorState() {
   });
   s.parameters = params;
 
-  var variants = [];
-  document.querySelectorAll('#wc-variants .wc-vcard').forEach(function(vel) {
-    var v = {}, body = vel.querySelector('.wc-vbody');
-    v.id = (body.querySelector('[data-vfield="id"]').value || '').trim();
-    v.label = (body.querySelector('[data-vfield="label"]').value || '').trim();
-    var flags = [];
-    body.querySelectorAll('[data-flag]').forEach(function(cb) { if (cb.checked) flags.push(cb.dataset.flag); });
-    v.flags = flags;
-    var overrides = {};
-    body.querySelectorAll('[data-voverride]').forEach(function(inp) {
-      var val = inp.value.trim();
-      if (!val) return;
-      var avon = inp.closest('[data-avon]');
-      if (avon && !avon.classList.contains('vis')) return;
-      overrides[inp.dataset.voverride] = val;
-    });
-    var rmp = [];
-    body.querySelectorAll('[data-remove-param]').forEach(function(cb) { if (cb.checked) rmp.push(cb.dataset.removeParam); });
-    if (rmp.length) overrides.remove_parameters = rmp;
-    var addp = [];
-    body.querySelectorAll('.wc-vaprow').forEach(function(div) {
-      var ap = {};
-      div.querySelectorAll('[data-ap]').forEach(function(inp) {
-        var val = inp.tagName === 'SELECT' ? inp.value : inp.value.trim();
-        if (inp.dataset.ap === 'data_field') ap.data_field = val || null;
-        else ap[inp.dataset.ap] = val;
-      });
-      if (ap.name_en && !ap.id) ap.id = ap.name_en.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'');
-      if (ap.name_pl) addp.push(ap);
-    });
-    if (addp.length) overrides.add_parameters = addp;
-    if (Object.keys(overrides).length) v.overrides = overrides;
-    variants.push(v);
+  saveCurrentVariantToData();
+  s.variants = _variantsData.map(function(v) {
+    var copy = JSON.parse(JSON.stringify(v));
+    if (copy.overrides && !Object.keys(copy.overrides).length) delete copy.overrides;
+    return copy;
   });
-  s.variants = variants;
   return s;
 }
 
@@ -743,12 +832,8 @@ function saveProduct() {
 function updatePreviewVariantSelect() {
   var sel = document.getElementById('wc-pv-variant');
   if (!_currentProduct) { sel.innerHTML = ''; return; }
-  var ev = [];
-  document.querySelectorAll('#wc-variants .wc-vcard').forEach(function(vel) {
-    var body = vel.querySelector('.wc-vbody');
-    ev.push({ id: (body.querySelector('[data-vfield="id"]').value||'').trim(), label: (body.querySelector('[data-vfield="label"]').value||'').trim() });
-  });
-  var src = ev.length ? ev : (_currentProduct.variants || []);
+  saveCurrentVariantToData();
+  var src = _variantsData.length ? _variantsData : (_currentProduct.variants || []);
   sel.innerHTML = src.map(function(v) { return '<option value="' + _esc(v.id) + '">' + _esc(v.label || v.id) + '</option>'; }).join('');
 }
 
