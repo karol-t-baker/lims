@@ -482,6 +482,12 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             wymagany        INTEGER DEFAULT 0,
             target          REAL,
             krok            INTEGER,
+            cert_requirement       TEXT,
+            cert_format            TEXT,
+            cert_qualitative_result TEXT,
+            cert_kolejnosc         INTEGER,
+            on_cert                INTEGER DEFAULT 0,
+            cert_variant_id        INTEGER,
             UNIQUE(produkt, kontekst, parametr_id)
         )
     """)
@@ -670,6 +676,21 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
         db.commit()
     except Exception:
         pass
+
+    # Migration: add cert columns to parametry_etapy (Phase 1 param centralization)
+    for col, typedef in [
+        ("cert_requirement", "TEXT"),
+        ("cert_format", "TEXT"),
+        ("cert_qualitative_result", "TEXT"),
+        ("cert_kolejnosc", "INTEGER"),
+        ("on_cert", "INTEGER DEFAULT 0"),
+        ("cert_variant_id", "INTEGER"),
+    ]:
+        try:
+            db.execute(f"ALTER TABLE parametry_etapy ADD COLUMN {col} {typedef}")
+            db.commit()
+        except Exception:
+            pass
 
     # Migration: add stezenia_json to metody_miareczkowe (persistent titrant concentrations)
     try:
