@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+
+{% block title %}Pipeline EBR #{{ ebr_id }}{% endblock %}
+{% block nav_szarze %}active{% endblock %}
+
+{% block topbar_title %}
+  <a href="{{ url_for('laborant.szarze_list') }}" class="tp-breadcrumb">Szarze</a>
+  <span class="tp-sep">/</span>
+  Pipeline EBR #{{ ebr_id }}
+{% endblock %}
+
+{% block head %}
+<script src="{{ url_for('static', filename='calculator.js') }}?v={{ v }}" defer></script>
+<style>
+  .tp-breadcrumb { color: var(--text-dim); text-decoration: none; font-size: 13px; }
+  .tp-breadcrumb:hover { color: var(--text-sec); }
+  .tp-sep { color: var(--text-dim); margin: 0 6px; }
+
+  /* Sidebar pipeline stages */
+  .sb-stage-list { display: flex; flex-direction: column; gap: 2px; padding: 8px; }
+  .sb-stage-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px; border-radius: 6px; cursor: pointer;
+    font-size: 13px; color: var(--text-sec);
+    transition: background .15s;
+  }
+  .sb-stage-item:hover { background: var(--surface-hover, rgba(255,255,255,0.04)); }
+  .sb-stage-item.active { background: var(--teal-bg, rgba(13,115,119,0.12)); color: var(--teal); font-weight: 600; }
+  .sb-stage-icon { width: 18px; text-align: center; font-size: 14px; flex-shrink: 0; }
+  .sb-stage-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sb-stage-badge {
+    font-size: 10px; background: var(--surface-dim, rgba(255,255,255,0.06));
+    border-radius: 8px; padding: 1px 6px; color: var(--text-dim);
+  }
+
+  /* Main content area */
+  #fe2-main { flex: 1; overflow-y: auto; padding: 0; }
+  #fe2-content { padding: 24px; min-height: 100%; }
+
+  /* Loading */
+  .fe2-loading { padding: 40px; text-align: center; color: var(--text-dim); font-size: 13px; }
+</style>
+{% endblock %}
+
+{# --- SIDEBAR --- #}
+{% block sidebar %}
+<div class="sidebar">
+  <div class="sb-batch" id="sb-batch-info">
+    <div class="sb-meta" style="padding:12px;">
+      <strong>Ładowanie...</strong>
+    </div>
+  </div>
+  <div class="sb-panel active">
+    <div class="sb-lab">Etapy pipeline</div>
+    <div class="sb-stage-list" id="sb-stages">
+      <!-- filled by JS -->
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{# --- MAIN --- #}
+{% block content %}
+<div id="fe2-main">
+  <div id="fe2-content">
+    <div class="fe2-loading">Ładowanie pipeline...</div>
+  </div>
+</div>
+
+{# Right panel with calculator #}
+<div class="col-right">
+  <div class="rp-tabs">
+    <div class="rp-tab active" id="tab-calc" onclick="showRightPanel('calc')">Kalkulator</div>
+  </div>
+  <div class="rp-body">
+    <div class="rp-view active" id="rp-calc">
+      <div id="calc-container">
+        <div class="calc-method">Kliknij pole miareczkowe aby otworzyc kalkulator.</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block footer %}{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+  const EBR_ID = {{ ebr_id }};
+  let pipeline = [];
+  let activeEtapId = null;
+
+  // --- Sidebar ---
+  async function loadPipeline() {
+    const resp = await fetch(`/api/pipeline/lab/ebr/${EBR_ID}/pipeline`);
+    if (!resp.ok) { document.getElementById('fe2-content').innerHTML = '<div class="fe2-loading">Błąd ładowania pipeline.</div>'; return; }
+    pipeline = await resp.json();
+    renderSidebar();
+    // find first non-completed stage
+    const first = pipeline.find(s => s.last_status !== 'ok') || pipeline[0];
+    if (first) loadStage(first.etap_id);
+  }
+
+  function statusIcon(step) {
+    if (step.last_status === 'ok') return '<span style="color:var(--green,#34a853);">&#10003;</span>';
+    if (step.last_status === 'w_trakcie') return '<span style="color:var(--amber,#f9ab00);">&#9679;</span>';
+    if (step.last_status === 'oczekuje_korekty') return '<span style="color:var(--red,#ea4335);">&#9888;</span>';
+    return '<span style="color:var(--text-dim);">&#9675;</span>';
+  }
+
+  function renderSidebar() {
+    const cont = document.getElementById('sb-stages');
+    cont.innerHTML = pipeline.map(s => `
+      <div class="sb-stage-item${s.etap_id === activeEtapId ? ' active' : ''}" data-etap="${s.etap_id}" onclick="window._fe2LoadStage(${s.etap_id})">
+        <span class="sb-stage-icon">${statusIcon(s)}</span>
+        <span class="sb-stage-name">${s.nazwa || 'Etap #' + s.etap_id}</span>
+        ${s.sesja_count > 0 ? '<span class="sb-stage-badge">R' + (s.last_runda || s.sesja_count) + '</span>' : ''}
+      </div>
+    `).join('');
+  }
+
+  // --- Load stage content partial ---
+  async function loadStage(etapId) {
+    activeEtapId = etapId;
+    renderSidebar();
+    const cont = document.getElementById('fe2-content');
+    cont.innerHTML = '<div class="fe2-loading">Ładowanie etapu...</div>';
+    const resp = await fetch(`/laborant/pipeline/ebr/${EBR_ID}/partial/${etapId}`);
+    if (!resp.ok) { cont.innerHTML = '<div class="fe2-loading">Błąd ładowania etapu.</div>'; return; }
+    cont.innerHTML = await resp.text();
+    // Trigger content init
+    if (window._fe2InitPartial) window._fe2InitPartial();
+  }
+  window._fe2LoadStage = loadStage;
+  window._fe2ReloadSidebar = loadPipeline;
+  window._fe2EbrId = EBR_ID;
+
+  // --- Init ---
+  document.addEventListener('DOMContentLoaded', loadPipeline);
+})();
+
+function showRightPanel(which) {
+  document.querySelectorAll('.rp-tab').forEach(t => t.classList.toggle('active', t.id === 'tab-' + which));
+  document.querySelectorAll('.rp-view').forEach(v => v.classList.toggle('active', v.id === 'rp-' + which));
+}
+</script>
+{% endblock %}

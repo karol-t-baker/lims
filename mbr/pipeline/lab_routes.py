@@ -5,12 +5,28 @@ All routes require login_required (any authenticated user).
 DB access via get_db().
 """
 
-from flask import jsonify, request, session
+from flask import jsonify, request, session, render_template
 
 from mbr.pipeline import pipeline_bp
 from mbr.db import get_db
 from mbr.pipeline import models as pm
 from mbr.shared.decorators import login_required
+
+
+# ---------------------------------------------------------------------------
+# Page routes — Fast Entry v2 SPA shell + AJAX partial
+# ---------------------------------------------------------------------------
+
+@pipeline_bp.route("/laborant/pipeline/ebr/<int:ebr_id>")
+@login_required
+def fast_entry_v2(ebr_id):
+    return render_template("pipeline/fast_entry_v2.html", ebr_id=ebr_id)
+
+
+@pipeline_bp.route("/laborant/pipeline/ebr/<int:ebr_id>/partial/<int:etap_id>")
+@login_required
+def fast_entry_v2_partial(ebr_id, etap_id):
+    return render_template("pipeline/_fast_entry_v2_content.html", ebr_id=ebr_id, etap_id=etap_id)
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,348 @@
+{# Partial: fast entry v2 stage content — loaded via AJAX, no base.html #}
+
+<div id="fe2-stage" data-ebr-id="{{ ebr_id }}" data-etap-id="{{ etap_id }}">
+  <div class="fe2-stage-header" id="fe2-stage-header">
+    <!-- filled by JS -->
+  </div>
+
+  <div class="fe2-param-table" id="fe2-param-table">
+    <!-- filled by JS -->
+  </div>
+
+  <div class="fe2-gate-bar" id="fe2-gate-bar">
+    <div class="fe2-gate fe2-gate--neutral">Uzupełnij wyniki pomiarów</div>
+  </div>
+
+  <div class="fe2-correction-panel" id="fe2-correction-panel" style="display:none;">
+    <!-- filled by JS when gate fails -->
+  </div>
+
+  <div class="fe2-history" id="fe2-history" style="display:none;">
+    <!-- round history -->
+  </div>
+</div>
+
+<style>
+  .fe2-stage-header {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;
+  }
+  .fe2-stage-header h2 { margin: 0; font-size: 18px; font-weight: 700; color: var(--text); }
+  .fe2-badge {
+    font-size: 11px; padding: 2px 8px; border-radius: 10px;
+    background: var(--surface-dim, rgba(255,255,255,0.06)); color: var(--text-dim);
+  }
+  .fe2-badge--runda { background: var(--blue-bg, #e8f0fe); color: var(--blue, #1a73e8); }
+  .fe2-badge--status { background: var(--teal-bg); color: var(--teal); }
+
+  /* Parameter table */
+  .fe2-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .fe2-table th {
+    text-align: left; padding: 8px 10px; font-weight: 600; font-size: 11px;
+    color: var(--text-dim); border-bottom: 1px solid var(--border);
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .fe2-table td { padding: 8px 10px; border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.04)); }
+  .fe2-table tr.in-limit td { background: rgba(52,168,83,0.06); }
+  .fe2-table tr.out-limit td { background: rgba(234,67,53,0.06); }
+  .fe2-table input[type="number"] {
+    width: 100px; padding: 5px 8px; border: 1px solid var(--border);
+    border-radius: 5px; background: var(--surface); color: var(--text);
+    font-size: 13px;
+  }
+  .fe2-table input[type="number"]:focus { border-color: var(--teal); outline: none; }
+  .fe2-limit { color: var(--text-dim); font-size: 12px; }
+
+  /* Gate bar */
+  .fe2-gate {
+    padding: 12px 16px; border-radius: 8px; font-size: 13px; font-weight: 500;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .fe2-gate--neutral { background: var(--surface-dim, rgba(255,255,255,0.04)); color: var(--text-dim); }
+  .fe2-gate--pass { background: rgba(52,168,83,0.1); color: var(--green, #34a853); }
+  .fe2-gate--fail { background: rgba(234,67,53,0.08); color: var(--red, #ea4335); }
+  .fe2-gate-btn {
+    margin-left: auto; padding: 6px 14px; border: none; border-radius: 6px;
+    font-size: 12px; font-weight: 600; cursor: pointer;
+    background: var(--teal); color: #fff;
+  }
+  .fe2-gate-btn:hover { opacity: 0.9; }
+
+  /* Correction panel */
+  .fe2-correction-panel { margin-top: 16px; padding: 16px; border: 1px solid var(--border); border-radius: 8px; }
+  .fe2-correction-panel h3 { margin: 0 0 12px; font-size: 14px; font-weight: 600; }
+  .fe2-corr-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 13px; }
+  .fe2-corr-row input { width: 80px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface); color: var(--text); font-size: 13px; }
+  .fe2-corr-btn {
+    margin-top: 10px; padding: 8px 16px; border: none; border-radius: 6px;
+    font-size: 12px; font-weight: 600; cursor: pointer;
+    background: var(--amber, #f9ab00); color: #000;
+  }
+  .fe2-new-runda-btn {
+    margin-top: 12px; padding: 8px 16px; border: none; border-radius: 6px;
+    font-size: 12px; font-weight: 600; cursor: pointer;
+    background: var(--blue, #1a73e8); color: #fff;
+  }
+
+  /* History */
+  .fe2-history { margin-top: 20px; }
+  .fe2-history-toggle {
+    font-size: 12px; color: var(--text-dim); cursor: pointer; padding: 6px 0;
+    border: none; background: none; text-decoration: underline;
+  }
+  .fe2-history-content { margin-top: 8px; font-size: 12px; color: var(--text-sec); }
+  .fe2-hist-round { padding: 8px; border-left: 2px solid var(--border); margin-bottom: 8px; padding-left: 12px; }
+</style>
+
+<script>
+(function(){
+  const EBR_ID = {{ ebr_id }};
+  const ETAP_ID = {{ etap_id }};
+  let stageData = null;
+
+  async function loadStageData() {
+    const resp = await fetch(`/api/pipeline/lab/ebr/${EBR_ID}/etap/${ETAP_ID}`);
+    if (!resp.ok) { document.getElementById('fe2-stage-header').innerHTML = '<p style="color:var(--red);">Błąd ładowania danych etapu.</p>'; return; }
+    stageData = await resp.json();
+    render();
+  }
+
+  function render() {
+    renderHeader();
+    renderTable();
+    renderGate(null);
+    renderHistory();
+    // If we have pomiary, do initial gate eval display
+    if (stageData.pomiary && stageData.pomiary.length > 0) {
+      evaluateLocally();
+    }
+  }
+
+  function renderHeader() {
+    const sesja = stageData.current_sesja;
+    const runda = sesja ? sesja.runda : 0;
+    const status = sesja ? sesja.status : 'brak';
+    document.getElementById('fe2-stage-header').innerHTML = `
+      <h2>Etap #${ETAP_ID}</h2>
+      ${runda ? `<span class="fe2-badge fe2-badge--runda">Runda ${runda}</span>` : ''}
+      <span class="fe2-badge fe2-badge--status">${status}</span>
+      ${!sesja || sesja.status !== 'w_trakcie' ? `<button class="fe2-gate-btn" onclick="window._fe2StartSesja()">Rozpocznij sesję</button>` : ''}
+    `;
+  }
+
+  function renderTable() {
+    const params = stageData.parametry || [];
+    const pomiary = stageData.pomiary || [];
+    const pomiarMap = {};
+    pomiary.forEach(p => { pomiarMap[p.parametr_id] = p; });
+
+    const sesja = stageData.current_sesja;
+    const readonly = !sesja || sesja.status !== 'w_trakcie';
+
+    let html = `<table class="fe2-table"><thead><tr>
+      <th>Parametr</th><th>Wartość</th><th>Min</th><th>Max</th><th>Status</th>
+    </tr></thead><tbody>`;
+
+    params.forEach(p => {
+      const pom = pomiarMap[p.parametr_id];
+      const val = pom ? pom.wartosc : '';
+      const inLimit = pom ? pom.w_limicie : null;
+      const rowClass = inLimit === 1 ? 'in-limit' : (inLimit === 0 ? 'out-limit' : '');
+      const statusTxt = inLimit === 1 ? '✓' : (inLimit === 0 ? '✗' : '—');
+      const minTxt = p.min_limit != null ? String(p.min_limit).replace('.', ',') : '—';
+      const maxTxt = p.max_limit != null ? String(p.max_limit).replace('.', ',') : '—';
+      const valDisplay = val !== '' && val != null ? String(val).replace('.', ',') : '';
+
+      html += `<tr class="${rowClass}">
+        <td>${p.skrot || p.nazwa || 'P#' + p.parametr_id}</td>
+        <td><input type="number" step="any" data-pid="${p.parametr_id}" value="${val !== null && val !== '' ? val : ''}" ${readonly ? 'disabled' : ''} /></td>
+        <td class="fe2-limit">${minTxt}</td>
+        <td class="fe2-limit">${maxTxt}</td>
+        <td>${statusTxt}</td>
+      </tr>`;
+    });
+
+    html += '</tbody></table>';
+    document.getElementById('fe2-param-table').innerHTML = html;
+
+    // Attach blur listeners
+    if (!readonly) {
+      document.querySelectorAll('#fe2-param-table input[type="number"]').forEach(inp => {
+        inp.addEventListener('blur', () => savePomiary());
+      });
+    }
+  }
+
+  function evaluateLocally() {
+    const pomiary = stageData.pomiary || [];
+    const allFilled = stageData.parametry.every(p => pomiary.find(m => m.parametr_id === p.parametr_id && m.wartosc != null));
+    const allPass = pomiary.every(p => p.w_limicie === 1 || p.w_limicie === null);
+    if (!allFilled) {
+      renderGate(null);
+    } else if (allPass) {
+      renderGate({ passed: true });
+    } else {
+      const failures = pomiary.filter(p => p.w_limicie === 0).map(p => {
+        const param = stageData.parametry.find(x => x.parametr_id === p.parametr_id);
+        return param ? (param.skrot || param.nazwa) : 'P#' + p.parametr_id;
+      });
+      renderGate({ passed: false, failures });
+    }
+  }
+
+  async function savePomiary() {
+    const sesja = stageData.current_sesja;
+    if (!sesja) return;
+
+    const inputs = document.querySelectorAll('#fe2-param-table input[type="number"]');
+    const pomiary = [];
+    inputs.forEach(inp => {
+      const pid = parseInt(inp.dataset.pid);
+      const val = inp.value !== '' ? parseFloat(inp.value) : null;
+      pomiary.push({ parametr_id: pid, wartosc: val, is_manual: 1 });
+    });
+
+    const resp = await fetch(`/api/pipeline/lab/ebr/${EBR_ID}/etap/${ETAP_ID}/pomiary`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sesja_id: sesja.id, pomiary })
+    });
+    if (!resp.ok) return;
+    const result = await resp.json();
+    stageData.pomiary = result.pomiary;
+    // Re-render table + gate
+    renderTable();
+    renderGate(result.gate);
+  }
+
+  function renderGate(gate) {
+    const bar = document.getElementById('fe2-gate-bar');
+    const sesja = stageData.current_sesja;
+    if (!gate) {
+      bar.innerHTML = '<div class="fe2-gate fe2-gate--neutral">Uzupełnij wyniki pomiarów</div>';
+      document.getElementById('fe2-correction-panel').style.display = 'none';
+      return;
+    }
+    if (gate.passed) {
+      bar.innerHTML = `<div class="fe2-gate fe2-gate--pass">
+        Warunek spełniony
+        ${sesja && sesja.status === 'w_trakcie' ? '<button class="fe2-gate-btn" onclick="window._fe2CloseStage()">Zatwierdź etap &rarr;</button>' : ''}
+      </div>`;
+      document.getElementById('fe2-correction-panel').style.display = 'none';
+    } else {
+      const failList = (gate.failures || []).join(', ');
+      bar.innerHTML = `<div class="fe2-gate fe2-gate--fail">
+        Warunek niespełniony: ${failList}
+      </div>`;
+      renderCorrectionPanel();
+    }
+  }
+
+  function renderCorrectionPanel() {
+    const panel = document.getElementById('fe2-correction-panel');
+    const korekty = stageData.korekty_katalog || [];
+    if (korekty.length === 0) { panel.style.display = 'none'; return; }
+
+    const sesja = stageData.current_sesja;
+    if (!sesja || sesja.status !== 'w_trakcie') { panel.style.display = 'none'; return; }
+
+    let html = '<h3>Zalecenie korekty</h3>';
+    korekty.forEach(k => {
+      html += `<div class="fe2-corr-row">
+        <span>${k.substancja || k.nazwa || 'Korekta #' + k.id}</span>
+        <span class="fe2-limit">${k.jednostka || ''}</span>
+        <span class="fe2-badge">${k.wykonawca || ''}</span>
+        <input type="number" step="any" data-korekta-id="${k.id}" placeholder="Ilość" />
+      </div>`;
+    });
+    html += '<button class="fe2-corr-btn" onclick="window._fe2SendKorekta()">Zaleć korektę</button>';
+    html += '<button class="fe2-new-runda-btn" onclick="window._fe2NewRunda()" style="display:none;margin-left:8px;" id="fe2-new-runda-btn">Nowa runda</button>';
+    panel.innerHTML = html;
+    panel.style.display = 'block';
+  }
+
+  // --- Actions ---
+  window._fe2StartSesja = async function() {
+    const resp = await fetch(`/api/pipeline/lab/ebr/${EBR_ID}/etap/${ETAP_ID}/start`, { method: 'POST' });
+    if (resp.ok) {
+      // Reload stage
+      await loadStageData();
+    }
+  };
+
+  window._fe2CloseStage = async function() {
+    const sesja = stageData.current_sesja;
+    if (!sesja) return;
+    const resp = await fetch(`/api/pipeline/lab/ebr/${EBR_ID}/etap/${ETAP_ID}/close`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sesja_id: sesja.id, decyzja: 'przejscie' })
+    });
+    if (resp.ok) {
+      // Reload sidebar + move to next stage
+      if (window._fe2ReloadSidebar) window._fe2ReloadSidebar();
+    }
+  };
+
+  window._fe2SendKorekta = async function() {
+    const sesja = stageData.current_sesja;
+    if (!sesja) return;
+    const inputs = document.querySelectorAll('#fe2-correction-panel input[type="number"]');
+    let anySet = false;
+    for (const inp of inputs) {
+      if (inp.value) {
+        anySet = true;
+        await fetch(`/api/pipeline/lab/ebr/${EBR_ID}/korekta`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sesja_id: sesja.id, korekta_typ_id: parseInt(inp.dataset.korektaId), ilosc: parseFloat(inp.value) })
+        });
+      }
+    }
+    if (anySet) {
+      // Close session with korekta
+      await fetch(`/api/pipeline/lab/ebr/${EBR_ID}/etap/${ETAP_ID}/close`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sesja_id: sesja.id, decyzja: 'korekta' })
+      });
+      // Show new runda button
+      const btn = document.getElementById('fe2-new-runda-btn');
+      if (btn) btn.style.display = 'inline-block';
+      document.querySelector('.fe2-corr-btn').style.display = 'none';
+      // Disable inputs
+      inputs.forEach(i => i.disabled = true);
+    }
+  };
+
+  window._fe2NewRunda = async function() {
+    const resp = await fetch(`/api/pipeline/lab/ebr/${EBR_ID}/etap/${ETAP_ID}/start`, { method: 'POST' });
+    if (resp.ok) {
+      await loadStageData();
+    }
+  };
+
+  function renderHistory() {
+    const sesje = stageData.sesje || [];
+    const histDiv = document.getElementById('fe2-history');
+    if (sesje.length <= 1) { histDiv.style.display = 'none'; return; }
+
+    // Show all except last (which is current)
+    const prev = sesje.slice(0, -1);
+    let html = '<button class="fe2-history-toggle" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === \'none\' ? \'block\' : \'none\'">Historia rund (' + prev.length + ')</button>';
+    html += '<div class="fe2-history-content" style="display:none;">';
+    prev.forEach(s => {
+      html += `<div class="fe2-hist-round">
+        <strong>Runda ${s.runda}</strong> — <span class="fe2-badge">${s.status}</span>
+        <span style="margin-left:8px;color:var(--text-dim);font-size:11px;">${s.dt_start || ''}</span>
+      </div>`;
+    });
+    html += '</div>';
+    histDiv.innerHTML = html;
+    histDiv.style.display = 'block';
+  }
+
+  // Init
+  window._fe2InitPartial = loadStageData;
+  loadStageData();
+})();
+</script>
