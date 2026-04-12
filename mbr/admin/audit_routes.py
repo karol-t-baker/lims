@@ -98,7 +98,7 @@ def audit_panel():
         page = max(1, int(request.args.get("page", "1")))
     except ValueError:
         page = 1
-    page_size = 100
+    page_size = 50
     offset = (page - 1) * page_size
 
     with db_session() as db:
