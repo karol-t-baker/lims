@@ -196,6 +196,12 @@ def build_pipeline_context(
     etapy_json: list[dict] = []
     parametry_lab: dict[str, dict] = {}
 
+    # Find which cykliczny stage is the "main" one (last in pipeline = standaryzacja)
+    # This one gets the "analiza"/"dodatki" sekcja keys for round cycling.
+    # Earlier cykliczny stages get their own unique sekcja keys.
+    cykliczne = [s for s in pipeline if s["typ_cyklu"] == "cykliczny"]
+    main_cykliczny_id = cykliczne[-1]["etap_id"] if cykliczne else None
+
     for step in pipeline:
         etap_id  = step["etap_id"]
         typ_cyklu = step["typ_cyklu"]
@@ -208,10 +214,15 @@ def build_pipeline_context(
 
         params = resolve_limity(db, produkt, etap_id)
 
-        if typ_cyklu == "cykliczny":
+        if typ_cyklu == "cykliczny" and etap_id == main_cykliczny_id:
             sekcja_key = "analiza"
+            dodatki_key = "dodatki"
+        elif typ_cyklu == "cykliczny":
+            sekcja_key = step["kod"]
+            dodatki_key = f"{step['kod']}_dodatki"
         else:
             sekcja_key = step["kod"]
+            dodatki_key = None
 
         # --- primary etap entry ---
         etap_entry: dict = {
@@ -233,12 +244,10 @@ def build_pipeline_context(
                 "pola":  pola,
             }
         else:
-            # Merge pola if sekcja already populated (multiple stages →
-            # same key, which shouldn't happen in practice but handle it)
             parametry_lab[sekcja_key]["pola"].extend(pola)
 
         # --- cykliczny: add companion "dodatki" entry ---
-        if typ_cyklu == "cykliczny":
+        if typ_cyklu == "cykliczny" and dodatki_key:
             korekty = list_etap_korekty(db, etap_id)
             korekty_pola = _build_korekty_pola(korekty)
 
@@ -246,12 +255,12 @@ def build_pipeline_context(
                 "nr":         nr + 0.5,
                 "nazwa":      f"Dodatki {nazwa.lower()}",
                 "read_only":  False,
-                "sekcja_lab": "dodatki",
+                "sekcja_lab": dodatki_key,
             }
             etapy_json.append(dodatki_entry)
 
-            if "dodatki" not in parametry_lab:
-                parametry_lab["dodatki"] = {
+            if dodatki_key not in parametry_lab:
+                parametry_lab[dodatki_key] = {
                     "label": f"Dodatki {nazwa.lower()}",
                     "pola":  korekty_pola,
                 }
@@ -294,13 +303,20 @@ def pipeline_dual_write(db, ebr_id, sekcja, values, wpisal):
         return None
 
     # Find the pipeline stage that maps to this sekcja
+    cykliczne = [s for s in pipeline if s["typ_cyklu"] == "cykliczny"]
+    main_cykliczny_id = cykliczne[-1]["etap_id"] if cykliczne else None
+
     etap_id = None
     for step in pipeline:
         etap = get_etap(db, step["etap_id"])
         if not etap:
             continue
-        # cykliczny stages use sekcja "analiza" (the adapter maps them that way)
-        if etap["typ_cyklu"] == "cykliczny" and base_sekcja == "analiza":
+        # Main cykliczny stage uses sekcja "analiza"
+        if etap["typ_cyklu"] == "cykliczny" and step["etap_id"] == main_cykliczny_id and base_sekcja == "analiza":
+            etap_id = step["etap_id"]
+            break
+        # Other cykliczny stages use their own kod as sekcja
+        if etap["typ_cyklu"] == "cykliczny" and etap["kod"] == base_sekcja:
             etap_id = step["etap_id"]
             break
         # jednorazowy stages: sekcja = stage kod
