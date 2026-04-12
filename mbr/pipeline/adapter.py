@@ -214,6 +214,16 @@ def build_pipeline_context(
 
         params = resolve_limity(db, produkt, etap_id)
 
+        # Filter to params that have product-specific limits defined.
+        # Global etap_parametry was synthesized from union of all products,
+        # so without filtering every product would see all 46+ params.
+        product_param_ids = {r[0] for r in db.execute(
+            "SELECT parametr_id FROM produkt_etap_limity WHERE produkt = ? AND etap_id = ?",
+            (produkt, etap_id),
+        ).fetchall()}
+        if product_param_ids:
+            params = [p for p in params if p["parametr_id"] in product_param_ids]
+
         if typ_cyklu == "cykliczny" and etap_id == main_cykliczny_id:
             sekcja_key = "analiza"
             dodatki_key = "dodatki"

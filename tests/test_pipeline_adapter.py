@@ -111,6 +111,18 @@ def _seed(db):
         INSERT INTO produkt_etap_limity (produkt, etap_id, parametr_id, min_limit, max_limit)
         VALUES ('TestProd', 901, 9101, 45.0, 47.0)
     """)
+    db.execute("""
+        INSERT INTO produkt_etap_limity (produkt, etap_id, parametr_id, min_limit, max_limit)
+        VALUES ('TestProd', 901, 9102, 5.8, 7.3)
+    """)
+    db.execute("""
+        INSERT INTO produkt_etap_limity (produkt, etap_id, parametr_id, min_limit, max_limit)
+        VALUES ('TestProd', 901, 9103, 30.0, 42.0)
+    """)
+    db.execute("""
+        INSERT INTO produkt_etap_limity (produkt, etap_id, parametr_id, min_limit, max_limit)
+        VALUES ('TestProd', 901, 9104, 4.0, 6.0)
+    """)
 
     db.commit()
 
