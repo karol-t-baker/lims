@@ -209,7 +209,7 @@ def lab_close_sesja(ebr_id, etap_id):
 
     db = get_db()
     try:
-        pm.close_sesja(db, sesja_id, decyzja)
+        pm.close_sesja(db, sesja_id, decyzja, komentarz=data.get("komentarz"))
         db.commit()
         return jsonify({"ok": True})
     finally:

@@ -388,15 +388,22 @@ def list_sesje(
     return [dict(r) for r in rows]
 
 
-def close_sesja(db: sqlite3.Connection, sesja_id: int, decyzja: str) -> None:
-    """Close a session. decyzja='przejscie' => status='ok', else status='oczekuje_korekty'."""
+def close_sesja(db: sqlite3.Connection, sesja_id: int, decyzja: str,
+                komentarz: str = None) -> None:
+    """Close a session.
+
+    decyzja:
+      'przejscie'            => status='ok' (gate passed, move to next stage)
+      'korekta'              => status='oczekuje_korekty' (needs correction + re-analysis)
+      'korekta_i_przejscie'  => status='ok' (small correction, no re-analysis, note in komentarz)
+    """
     now = datetime.now().isoformat(timespec="seconds")
-    status = "ok" if decyzja == "przejscie" else "oczekuje_korekty"
+    status = "ok" if decyzja in ("przejscie", "korekta_i_przejscie") else "oczekuje_korekty"
     db.execute(
         """UPDATE ebr_etap_sesja
-           SET status = ?, decyzja = ?, dt_end = ?
+           SET status = ?, decyzja = ?, dt_end = ?, komentarz = COALESCE(?, komentarz)
            WHERE id = ?""",
-        (status, decyzja, now, sesja_id),
+        (status, decyzja, now, komentarz, sesja_id),
     )
 
 

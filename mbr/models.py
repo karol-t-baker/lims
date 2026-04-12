@@ -584,7 +584,7 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             dt_start        TEXT,
             dt_end          TEXT,
             laborant        TEXT,
-            decyzja         TEXT CHECK(decyzja IN ('przejscie', 'korekta')),
+            decyzja         TEXT CHECK(decyzja IN ('przejscie', 'korekta', 'korekta_i_przejscie')),
             komentarz       TEXT,
             UNIQUE(ebr_id, etap_id, runda)
         )
@@ -1093,6 +1093,35 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
         )
     """)
     db.commit()
+
+    # Migration: add korekta_i_przejscie to ebr_etap_sesja.decyzja CHECK
+    try:
+        db.execute("INSERT INTO ebr_etap_sesja (ebr_id,etap_id,runda,decyzja) VALUES (0,0,0,'korekta_i_przejscie')")
+        db.execute("DELETE FROM ebr_etap_sesja WHERE ebr_id=0 AND etap_id=0 AND runda=0")
+        db.commit()
+    except Exception:
+        # CHECK already allows it (fresh DB) or needs recreate
+        try:
+            db.rollback()
+            db.executescript("""
+                ALTER TABLE ebr_etap_sesja RENAME TO _ebr_etap_sesja_old;
+                CREATE TABLE ebr_etap_sesja (
+                    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                    ebr_id   INTEGER NOT NULL REFERENCES ebr_batches(ebr_id),
+                    etap_id  INTEGER NOT NULL REFERENCES etapy_analityczne(id),
+                    runda    INTEGER NOT NULL DEFAULT 1,
+                    status   TEXT NOT NULL DEFAULT 'w_trakcie'
+                             CHECK(status IN ('w_trakcie','ok','poza_limitem','oczekuje_korekty')),
+                    dt_start TEXT, dt_end TEXT, laborant TEXT,
+                    decyzja  TEXT CHECK(decyzja IN ('przejscie','korekta','korekta_i_przejscie')),
+                    komentarz TEXT,
+                    UNIQUE(ebr_id, etap_id, runda)
+                );
+                INSERT INTO ebr_etap_sesja SELECT * FROM _ebr_etap_sesja_old;
+                DROP TABLE _ebr_etap_sesja_old;
+            """)
+        except Exception:
+            pass
 
     # Migration: rename h2o2 skrót → %Perh., add nadtlenki parameter,
     # replace h2o2 with nadtlenki in analiza_koncowa for betaine products
