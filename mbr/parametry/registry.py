@@ -267,6 +267,71 @@ def build_parametry_lab(db: sqlite3.Connection, produkt: str) -> dict:
         }
 
 
+# ---------------------------------------------------------------------------
+# 5. get_cert_params / get_cert_variant_params
+# ---------------------------------------------------------------------------
+
+def get_cert_params(db: sqlite3.Connection, produkt: str) -> list[dict]:
+    """Get certificate parameters for a product from parametry_etapy.
+
+    Returns base params (on_cert=1, cert_variant_id IS NULL) ordered by cert_kolejnosc.
+    Each row includes name_pl/name_en/method resolved from parametry_analityczne.
+    """
+    rows = db.execute("""
+        SELECT
+            pa.kod, pa.label, pa.name_en, pa.method_code,
+            pe.cert_requirement, pe.cert_format, pe.cert_qualitative_result,
+            pe.cert_kolejnosc, pe.parametr_id
+        FROM parametry_etapy pe
+        JOIN parametry_analityczne pa ON pa.id = pe.parametr_id
+        WHERE pe.produkt = ? AND pe.kontekst = 'analiza_koncowa'
+          AND pe.on_cert = 1 AND pe.cert_variant_id IS NULL
+        ORDER BY pe.cert_kolejnosc
+    """, (produkt,)).fetchall()
+
+    return [
+        {
+            "kod": r["kod"],
+            "parametr_id": r["parametr_id"],
+            "name_pl": r["label"] or "",
+            "name_en": r["name_en"] or "",
+            "method": r["method_code"] or "",
+            "requirement": r["cert_requirement"] or "",
+            "format": r["cert_format"] or "1",
+            "qualitative_result": r["cert_qualitative_result"],
+        }
+        for r in rows
+    ]
+
+
+def get_cert_variant_params(db: sqlite3.Connection, cert_variant_db_id: int) -> list[dict]:
+    """Get variant-specific add_parameters from parametry_etapy."""
+    rows = db.execute("""
+        SELECT
+            pa.kod, pa.label, pa.name_en, pa.method_code,
+            pe.cert_requirement, pe.cert_format, pe.cert_qualitative_result,
+            pe.cert_kolejnosc, pe.parametr_id
+        FROM parametry_etapy pe
+        JOIN parametry_analityczne pa ON pa.id = pe.parametr_id
+        WHERE pe.kontekst = 'cert_variant' AND pe.cert_variant_id = ?
+        ORDER BY pe.cert_kolejnosc
+    """, (cert_variant_db_id,)).fetchall()
+
+    return [
+        {
+            "kod": r["kod"],
+            "parametr_id": r["parametr_id"],
+            "name_pl": r["label"] or "",
+            "name_en": r["name_en"] or "",
+            "method": r["method_code"] or "",
+            "requirement": r["cert_requirement"] or "",
+            "format": r["cert_format"] or "1",
+            "qualitative_result": r["cert_qualitative_result"],
+        }
+        for r in rows
+    ]
+
+
 def get_konteksty(db: sqlite3.Connection) -> list[str]:
     """Return all distinct kontekst values from parametry_etapy."""
     rows = db.execute(

@@ -85,3 +85,63 @@ def test_migration_is_idempotent(db):
     migrate(db)
     count = db.execute("SELECT COUNT(*) as c FROM parametry_etapy WHERE on_cert=1").fetchone()["c"]
     assert count == 3
+
+
+# ---------------------------------------------------------------------------
+# Query function tests (Task 3)
+# ---------------------------------------------------------------------------
+
+def _seed_etapy_with_cert(db):
+    """Seed DB with parametry_etapy rows that have cert data (post-migration state)."""
+    db.execute("INSERT INTO parametry_analityczne (id, kod, label, typ, name_en, method_code) VALUES (10, 'sm', 'Sucha masa', 'bezposredni', 'Dry matter [%]', 'L903')")
+    db.execute("INSERT INTO parametry_analityczne (id, kod, label, typ, name_en, method_code) VALUES (20, 'nacl', 'Chlorek sodu', 'bezposredni', 'NaCl [%]', 'L941')")
+    db.execute("INSERT INTO parametry_analityczne (id, kod, label, typ) VALUES (30, 'odour', 'Zapach', 'binarny')")
+    db.execute("""INSERT INTO parametry_etapy
+        (produkt, kontekst, parametr_id, kolejnosc, on_cert, cert_requirement, cert_format, cert_kolejnosc)
+        VALUES ('Prod', 'analiza_koncowa', 10, 0, 1, 'min 35,5', '1', 0)""")
+    db.execute("""INSERT INTO parametry_etapy
+        (produkt, kontekst, parametr_id, kolejnosc, on_cert, cert_requirement, cert_format, cert_kolejnosc)
+        VALUES ('Prod', 'analiza_koncowa', 20, 1, 0, NULL, NULL, NULL)""")
+    db.execute("""INSERT INTO parametry_etapy
+        (produkt, kontekst, parametr_id, kolejnosc, on_cert, cert_requirement, cert_format, cert_qualitative_result, cert_kolejnosc)
+        VALUES ('Prod', 'analiza_koncowa', 30, 2, 1, 'charakterystyczny', '1', 'zgodny/right', 1)""")
+    db.execute("INSERT INTO cert_variants (id, produkt, variant_id, label, flags, remove_params, kolejnosc) VALUES (1, 'Prod', 'loreal', 'Loreal', '[]', '[30]', 0)")
+    db.commit()
+
+
+def test_get_cert_params_returns_on_cert_only(db):
+    _seed_etapy_with_cert(db)
+    from mbr.parametry.registry import get_cert_params
+    params = get_cert_params(db, "Prod")
+    kods = [p["kod"] for p in params]
+    assert "sm" in kods
+    assert "odour" in kods
+    assert "nacl" not in kods
+
+
+def test_get_cert_params_includes_cert_fields(db):
+    _seed_etapy_with_cert(db)
+    from mbr.parametry.registry import get_cert_params
+    params = get_cert_params(db, "Prod")
+    sm = next(p for p in params if p["kod"] == "sm")
+    assert sm["requirement"] == "min 35,5"
+    assert sm["format"] == "1"
+    assert sm["name_pl"] == "Sucha masa"
+    assert sm["name_en"] == "Dry matter [%]"
+    assert sm["method"] == "L903"
+
+
+def test_get_cert_params_qualitative(db):
+    _seed_etapy_with_cert(db)
+    from mbr.parametry.registry import get_cert_params
+    params = get_cert_params(db, "Prod")
+    odour = next(p for p in params if p["kod"] == "odour")
+    assert odour["qualitative_result"] == "zgodny/right"
+
+
+def test_get_cert_params_ordered_by_cert_kolejnosc(db):
+    _seed_etapy_with_cert(db)
+    from mbr.parametry.registry import get_cert_params
+    params = get_cert_params(db, "Prod")
+    assert params[0]["kod"] == "sm"
+    assert params[1]["kod"] == "odour"
