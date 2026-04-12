@@ -499,6 +499,9 @@
 .cv-dot-err { background: var(--red); }
 .cv-p-label { flex: 1; font-size: 12px; color: var(--text-sec); }
 .cv-param.cv-row-err .cv-p-label { color: var(--red); font-weight: 600; }
+.cv-p-grupa { display:inline-block; font-size:8px; font-weight:700; padding:1px 4px; border-radius:3px; margin-left:4px; vertical-align:middle; letter-spacing:0.5px; }
+.cv-p-grupa-kj { background:#e0e7ff; color:#3730a3; }
+.cv-p-grupa-rnd { background:#fef3c7; color:#92400e; }
 .cv-p-val { font-family: var(--mono); font-size: 15px; font-weight: 700; min-width: 60px; text-align: right; }
 .cv-param.cv-row-ok .cv-p-val, .cv-param.cv-row-ok .cv-p-input { color: var(--green); }
 .cv-param.cv-row-err .cv-p-val, .cv-param.cv-row-err .cv-p-input { color: var(--red); }
@@ -1022,6 +1025,7 @@ var ebrId = {{ ebr.ebr_id }};
 var ebrStatus = "{{ ebr.status }}";
 var ebrTyp = "{{ ebr.typ|default('szarza') }}";
 var userRola = "{{ session.get('user', {}).get('rola', '') }}";
+var userGrupa = "{{ session.get('user', {}).get('default_grupa', '') }}";
 var ebrNastaw = {{ ebr.wielkosc_szarzy_kg or ebr.nastaw or 0 }};
 var etapy = {{ (ebr.etapy_json if ebr.etapy_json is string else ebr.etapy_json | tojson) | safe }};
 var parametry = {{ (ebr.parametry_lab if ebr.parametry_lab is string else ebr.parametry_lab | tojson) | safe }};
@@ -1037,7 +1041,7 @@ window._etapyStatus = _etapyStatus;
 
 var TITR_TAGS_LEGACY = ['procent_sa', 'procent_nacl', 'procent_aa', 'procent_so3', 'procent_h2o2', 'lk', 'le_liczba_kwasowa'];
 
-function getPola(sekcja) {
+function getPola(sekcja, grupaFilter) {
     // Strip round suffix to find base key in parametry
     var baseKey = sekcja.replace(/__\d+$/, '');
     var s = parametry[baseKey];
@@ -1050,9 +1054,11 @@ function getPola(sekcja) {
         }
     }
     if (!s) return [];
-    if (Array.isArray(s)) return s;
-    if (s.pola && Array.isArray(s.pola)) return s.pola;
-    return [];
+    var pola = Array.isArray(s) ? s : (s.pola && Array.isArray(s.pola) ? s.pola : []);
+    if (grupaFilter) {
+        pola = pola.filter(function(p) { return (p.grupa || 'lab') === grupaFilter; });
+    }
+    return pola;
 }
 
 function isCyclicProduct() {
@@ -1075,6 +1081,13 @@ function renderSections() {
         return;
     }
 
+    // Pipeline products: render only the active stage's section
+    var isPipeline = etapy.some(function(e) { return e.pipeline_etap_id; });
+    if (isPipeline) {
+        renderPipelineSections();
+        return;
+    }
+
     // If active process stage — render ONLY process stage form (no hero, no standaryzacja)
     if (activeProcessStage) {
         var container = document.getElementById('sections-container');
@@ -1091,6 +1104,112 @@ function renderSections() {
     } else {
         renderLinearSections();
     }
+}
+
+function renderPipelineSections() {
+    var container = document.getElementById('sections-container');
+    container.innerHTML = '';
+    var isReadonly = ebrStatus !== 'open';
+    var rs = typeof roundState !== 'undefined' ? roundState : null;
+    var entryGrupa = (ebrStatus === 'open' && userGrupa) ? userGrupa : null;
+
+    // Determine which stage to show
+    var activeSekcja = window._activePipelineStage || null;
+    var activeReadonly = window._activePipelineReadonly || false;
+
+    // If no stage selected, find the first active one
+    if (!activeSekcja) {
+        var stages = etapy.filter(function(e) { return !!e.pipeline_etap_id; });
+        for (var i = 0; i < stages.length; i++) {
+            var e = stages[i];
+            var sekcja = e.sekcja_lab || '';
+            var hasW = false;
+            if (e.typ_cyklu === 'cykliczny' && sekcja === 'analiza') {
+                hasW = rs && rs.last_analiza > 0;
+            } else {
+                hasW = wyniki[sekcja] && Object.keys(wyniki[sekcja]).length > 0;
+            }
+            if (!hasW) {
+                activeSekcja = sekcja;
+                break;
+            }
+        }
+        if (!activeSekcja && stages.length > 0) {
+            activeSekcja = stages[stages.length - 1].sekcja_lab;
+        }
+        window._activePipelineStage = activeSekcja;
+    }
+
+    // Find the etap for active sekcja
+    var activeEtap = etapy.find(function(e) { return e.sekcja_lab === activeSekcja; });
+    if (!activeEtap) return;
+
+    // Cyclic stage (standaryzacja): use existing renderCyclicSections logic
+    if (activeEtap.typ_cyklu === 'cykliczny' && activeSekcja === 'analiza') {
+        if (activeReadonly) {
+            _renderCyclicReadonly(container, rs, entryGrupa);
+        } else {
+            renderCyclicSections();
+        }
+        return;
+    }
+
+    // Jednorazowy or non-main cyclic: render single section
+    var pola = getPola(activeSekcja, entryGrupa);
+    if (pola.length === 0) {
+        container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim);font-size:13px;">Brak parametrów dla tego etapu.</div>';
+        return;
+    }
+
+    var sekWyniki = wyniki[activeSekcja] || {};
+    var hasSomeResults = Object.keys(sekWyniki).length > 0;
+    var allInLimit = hasSomeResults && Object.values(sekWyniki).every(function(w) { return w.w_limicie === 1; });
+
+    renderOneSection(container, {
+        sekcja: activeSekcja,
+        title: activeEtap.nazwa,
+        index: 1,
+        pola: pola,
+        sekWyniki: sekWyniki,
+        hasSomeResults: hasSomeResults,
+        allInLimit: allInLimit,
+        isReadonly: isReadonly || activeReadonly,
+        isCurrent: !activeReadonly,
+        prevOutOfLimit: [],
+        saveBtnLabel: null
+    });
+}
+
+function _renderCyclicReadonly(container, rs, entryGrupa) {
+    var completedRounds = [];
+    Object.keys(wyniki).forEach(function(key) {
+        var m = key.match(/^(analiza|dodatki)__(\d+)$/);
+        if (m) completedRounds.push({base: m[1], runda: parseInt(m[2]), key: key});
+    });
+    completedRounds.sort(function(a, b) {
+        if (a.runda !== b.runda) return a.runda - b.runda;
+        return a.base === 'analiza' ? -1 : 1;
+    });
+
+    if (completedRounds.length === 0) {
+        container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim);font-size:13px;">Brak wyników.</div>';
+        return;
+    }
+
+    completedRounds.forEach(function(item, idx) {
+        var pola = getPola(item.key, entryGrupa);
+        var sekWyniki = wyniki[item.key] || {};
+        var hasSomeResults = Object.keys(sekWyniki).length > 0;
+        var allInLimit = hasSomeResults && Object.values(sekWyniki).every(function(w) { return w.w_limicie === 1; });
+        var title = getCyclicSectionTitle(item.base, item.runda);
+        renderOneSection(container, {
+            sekcja: item.key, title: title, index: idx + 1,
+            pola: pola, sekWyniki: sekWyniki,
+            hasSomeResults: hasSomeResults, allInLimit: allInLimit,
+            isReadonly: true, isCurrent: false,
+            prevOutOfLimit: [], saveBtnLabel: null, pastRound: true
+        });
+    });
 }
 
 // ═══ UWAGI KOŃCOWE ═══
@@ -1391,8 +1510,8 @@ function renderCompletedView() {
     }
 
     var fallbackSekcja = hasSingleAnaliza ? 'analiza_koncowa' : 'analiza__1';
-    var pola = getPola(lastAnaliza || fallbackSekcja);
-    if (!pola.length && lastAnaliza) pola = getPola(fallbackSekcja);
+    var pola = getPola(lastAnaliza || fallbackSekcja, null);
+    if (!pola.length && lastAnaliza) pola = getPola(fallbackSekcja, null);
     var finalWyniki = wyniki[lastAnaliza] || {};
     var errCount = 0;
     var okCount = 0;
@@ -1450,12 +1569,14 @@ function renderCompletedView() {
 
         var rowCls = r ? (ok ? 'cv-row-ok' : 'cv-row-err') : '';
         var dotHtml = r ? '<div class="cv-p-dot ' + (ok ? 'cv-dot-ok' : 'cv-dot-err') + '"></div>' : '<div class="cv-p-dot"></div>';
+        var grupaBadge = (pole.grupa && pole.grupa !== 'lab') ? '<span class="cv-p-grupa cv-p-grupa-' + esc(pole.grupa) + '">' + esc(pole.grupa.toUpperCase()) + '</span>' : '';
         paramsHtml += '<div class="cv-param ' + rowCls + '">' +
             dotHtml +
-            '<span class="cv-p-label">' + esc(pole.skrot || pole.label) + '</span>';
+            '<span class="cv-p-label">' + esc(pole.skrot || pole.label) + grupaBadge + '</span>';
         if (canEdit) {
             paramsHtml += '<input class="cv-p-input" type="text" inputmode="decimal" value="' + (val !== null && val !== '' ? String(val).replace('.', ',') : '') + '"' +
                 ' data-kod="' + esc(pole.kod) + '" data-sekcja="' + esc(lastSekcja) + '"' +
+                ' data-grupa="' + esc(pole.grupa || 'lab') + '"' +
                 ' data-min="' + (pole.min != null ? pole.min : '') + '" data-max="' + (pole.max != null ? pole.max : '') + '"' +
                 ' readonly oninput="validateField(this); autoSaveField(this)" onblur="doSaveField(this, this.dataset.sekcja, this.dataset.kod)">';
         } else {
@@ -1616,10 +1737,15 @@ function renderCompletedView() {
 
 function startEditParams() {
     var inputs = document.querySelectorAll('.cv-p-input');
-    inputs.forEach(function(inp) { inp.readOnly = false; });
+    var editableGrupas = userGrupa === 'kj' ? ['kj', 'rnd'] : (userGrupa ? [userGrupa] : null);
+    inputs.forEach(function(inp) {
+        var g = inp.dataset.grupa || 'lab';
+        if (!editableGrupas || editableGrupas.indexOf(g) !== -1) inp.readOnly = false;
+    });
     document.getElementById('cv-edit-toggle').style.display = 'none';
     document.getElementById('cv-save-toggle').style.display = '';
-    if (inputs[0]) inputs[0].focus();
+    var first = Array.from(inputs).find(function(i) { return !i.readOnly; });
+    if (first) first.focus();
     // Show warning if has certs
     var certsEl = document.getElementById('cv-certs');
     if (certsEl && certsEl.querySelector('.cv-cert-issued')) {
@@ -1880,13 +2006,16 @@ function renderLinearSections() {
     akRounds.sort(function(a, b) { return a.runda - b.runda; });
     var lastRunda = akRounds.length > 0 ? akRounds[akRounds.length - 1].runda : 0;
 
+    // Grupa filter: in entry mode, filter by user's default_grupa (if set)
+    var entryGrupa = (ebrStatus === 'open' && userGrupa) ? userGrupa : null;
+
     // Non-AK sections (skip for zbiornik)
     etapy.forEach(function(etap, i) {
         var sekcja = etap.sekcja_lab || '';
         if (!sekcja || sekcja === 'analiza_koncowa') return;
         if (etap.read_only === true) return;
         if (ebrTyp === 'zbiornik') return;
-        var pola = getPola(sekcja);
+        var pola = getPola(sekcja, entryGrupa);
         if (pola.length === 0) return;
         var sekWyniki = wyniki[sekcja] || {};
         var hasSomeResults = Object.keys(sekWyniki).length > 0;
@@ -1900,8 +2029,8 @@ function renderLinearSections() {
         });
     });
 
-    // AK pola (same for all rounds)
-    var akPola = getPola('analiza_koncowa');
+    // AK pola (same for all rounds; filtered by grupa in entry mode)
+    var akPola = getPola('analiza_koncowa', entryGrupa);
     if (akPola.length === 0) return;
 
     // Render completed AK rounds as collapsed accordions
@@ -4277,6 +4406,13 @@ function openCertMappingEditor() {
 renderSections();
 setupComputedFields();
 loadBatchZbiorniki();
+
+window.showPipelineStage = function(sekcjaLab, readonly) {
+    window._activePipelineStage = sekcjaLab;
+    window._activePipelineReadonly = !!readonly;
+    renderSections();
+    if (typeof renderSidebarEtapy === 'function') renderSidebarEtapy();
+};
 </script>
 
 {# Cert mapping modal removed — replaced by /admin/wzory-cert #}
