@@ -814,7 +814,7 @@ function saveCurrentVariantToData() {
     if (addp.length) ov.add_parameters = addp;
   }
   if (Object.keys(ov).length) v.overrides = ov;
-  else v.overrides = undefined;
+  else v.overrides = {};
 }
 
 /* ═══ Collect State ═══ */
@@ -859,28 +859,17 @@ function saveProduct() {
   var st = document.getElementById('wc-save-status');
   st.textContent = 'Zapisywanie...'; st.style.color = 'var(--text-dim)';
 
-  var dbP = Promise.resolve();
-  if (_dbMeta && _dbMeta.id) {
-    dbP = fetch('/api/produkty/' + _dbMeta.id, {
-      method: 'PUT', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ display_name: state.display_name, spec_number: state.spec_number, cas_number: state.cas_number, expiry_months: state.expiry_months, opinion_pl: state.opinion_pl, opinion_en: state.opinion_en })
-    }).then(function(r) { return r.json(); });
-  }
-
-  var cfgP = fetch('/api/cert/config/product/' + encodeURIComponent(_currentKey), {
+  fetch('/api/cert/config/product/' + encodeURIComponent(_currentKey), {
     method: 'PUT', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(state)
-  }).then(function(r) { return r.json(); });
-
-  Promise.all([dbP, cfgP]).then(function(res) {
-    if (res[0] && !res[0].ok) { flash('Błąd zapisu metadanych: ' + (res[0].error || ''), false); st.textContent = 'Błąd'; st.style.color = 'var(--red)'; return; }
-    if (res[1] && res[1].ok) {
+  }).then(function(r) { return r.json(); }).then(function(res) {
+    if (res && res.ok) {
       flash('Zapisano pomyślnie', true);
       st.textContent = 'Zapisano'; st.style.color = 'var(--green)';
       _currentProduct = Object.assign(_currentProduct || {}, state);
       updatePreviewVariantSelect();
     } else {
-      flash('Błąd zapisu: ' + ((res[1] && res[1].error) || ''), false);
+      flash('Błąd zapisu: ' + ((res && res.error) || ''), false);
       st.textContent = 'Błąd'; st.style.color = 'var(--red)';
     }
   }).catch(function(e) { flash('Błąd sieci: ' + e.message, false); st.textContent = 'Błąd'; st.style.color = 'var(--red)'; });

@@ -281,9 +281,12 @@ def get_cert_params(db: sqlite3.Connection, produkt: str) -> list[dict]:
         SELECT
             pa.kod, pa.label, pa.name_en, pa.method_code,
             pe.cert_requirement, pe.cert_format, pe.cert_qualitative_result,
-            pe.cert_kolejnosc, pe.parametr_id
+            pe.cert_kolejnosc, pe.parametr_id,
+            pc.name_pl AS cert_name_pl, pc.name_en AS cert_name_en, pc.method AS cert_method
         FROM parametry_etapy pe
         JOIN parametry_analityczne pa ON pa.id = pe.parametr_id
+        LEFT JOIN parametry_cert pc ON pc.produkt = pe.produkt
+            AND pc.parametr_id = pe.parametr_id AND pc.variant_id IS NULL
         WHERE pe.produkt = ? AND pe.kontekst = 'analiza_koncowa'
           AND pe.on_cert = 1 AND pe.cert_variant_id IS NULL
         ORDER BY pe.cert_kolejnosc
@@ -293,9 +296,9 @@ def get_cert_params(db: sqlite3.Connection, produkt: str) -> list[dict]:
         {
             "kod": r["kod"],
             "parametr_id": r["parametr_id"],
-            "name_pl": r["label"] or "",
-            "name_en": r["name_en"] or "",
-            "method": r["method_code"] or "",
+            "name_pl": r["cert_name_pl"] or r["label"] or "",
+            "name_en": r["cert_name_en"] or r["name_en"] or "",
+            "method": r["cert_method"] or r["method_code"] or "",
             "requirement": r["cert_requirement"] or "",
             "format": r["cert_format"] or "1",
             "qualitative_result": r["cert_qualitative_result"],
@@ -310,9 +313,12 @@ def get_cert_variant_params(db: sqlite3.Connection, cert_variant_db_id: int) -> 
         SELECT
             pa.kod, pa.label, pa.name_en, pa.method_code,
             pe.cert_requirement, pe.cert_format, pe.cert_qualitative_result,
-            pe.cert_kolejnosc, pe.parametr_id
+            pe.cert_kolejnosc, pe.parametr_id,
+            pc.name_pl AS cert_name_pl, pc.name_en AS cert_name_en, pc.method AS cert_method
         FROM parametry_etapy pe
         JOIN parametry_analityczne pa ON pa.id = pe.parametr_id
+        LEFT JOIN parametry_cert pc ON pc.parametr_id = pe.parametr_id
+            AND pc.variant_id = pe.cert_variant_id
         WHERE pe.kontekst = 'cert_variant' AND pe.cert_variant_id = ?
         ORDER BY pe.cert_kolejnosc
     """, (cert_variant_db_id,)).fetchall()
@@ -321,9 +327,9 @@ def get_cert_variant_params(db: sqlite3.Connection, cert_variant_db_id: int) -> 
         {
             "kod": r["kod"],
             "parametr_id": r["parametr_id"],
-            "name_pl": r["label"] or "",
-            "name_en": r["name_en"] or "",
-            "method": r["method_code"] or "",
+            "name_pl": r["cert_name_pl"] or r["label"] or "",
+            "name_en": r["cert_name_en"] or r["name_en"] or "",
+            "method": r["cert_method"] or r["method_code"] or "",
             "requirement": r["cert_requirement"] or "",
             "format": r["cert_format"] or "1",
             "qualitative_result": r["cert_qualitative_result"],

@@ -404,9 +404,9 @@ def api_cert_config_product_put(key):
             if not df:
                 return None
             if not mbr:
-                return jsonify({"error": f"{context}: brak aktywnego MBR dla produktu „{key}” — nie można przypisać parametru „{df}”"}), 400
+                return jsonify({"error": f"{context}: brak aktywnego MBR dla produktu '{key}'  — nie mozna przypisac parametru '{df}'"}), 400
             if df not in analiza_kody:
-                return jsonify({"error": f"{context}: parametr „{df}” nie występuje w sekcji „analiza końcowa” aktywnego MBR"}), 400
+                return jsonify({"error": f"{context}: parametr '{df}' nie wystepuje w parametrach laboratoryjnych aktywnego MBR"}), 400
             return None
 
         # Validate parameters
@@ -424,7 +424,7 @@ def api_cert_config_product_put(key):
                 df = (p.get("data_field") or "").strip()
                 if df and df not in kod_to_id:
                     return jsonify({"error": f"Parameter '{pid}': data_field '{df}' not found in parametry_analityczne"}), 400
-                err = _reject_if_not_in_analiza(df, f"Parametr „{pid}”")
+                err = _reject_if_not_in_analiza(df, f"Parametr '{pid}'")
                 if err:
                     return err
 
@@ -456,7 +456,7 @@ def api_cert_config_product_put(key):
                         return jsonify({"error": f"Variant '{vid}' remove_parameters references unknown param: {rp}"}), 400
                 for ap in overrides.get("add_parameters", []) or []:
                     ap_df = (ap.get("data_field") or ap.get("id") or "").strip()
-                    err = _reject_if_not_in_analiza(ap_df, f"Wariant „{vid}”, parametr „{ap_df}”")
+                    err = _reject_if_not_in_analiza(ap_df, f"Wariant '{vid}', parametr '{ap_df}'")
                     if err:
                         return err
 
@@ -472,7 +472,7 @@ def api_cert_config_product_put(key):
                 df = (p.get("data_field") or p.get("id", "")).strip()
                 parametr_id = kod_to_id.get(df)
                 if not parametr_id:
-                    continue  # skip params without valid analityczne mapping
+                    return jsonify({"error": f"Parametr '{p.get('id','')}': powiązanie '{df}' nie istnieje w rejestrze parametrów"}), 400
                 db.execute(
                     "INSERT INTO parametry_cert (produkt, parametr_id, kolejnosc, requirement, format, qualitative_result, name_pl, name_en, method, variant_id) "
                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)",
@@ -515,7 +515,7 @@ def api_cert_config_product_put(key):
                     ap_df = (ap.get("data_field") or ap.get("id", "")).strip()
                     ap_parametr_id = kod_to_id.get(ap_df)
                     if not ap_parametr_id:
-                        continue
+                        return jsonify({"error": f"Wariant '{vid}': parametr '{ap_df}' nie istnieje w rejestrze"}), 400
                     db.execute(
                         "INSERT INTO parametry_cert (produkt, parametr_id, kolejnosc, requirement, format, qualitative_result, name_pl, name_en, method, variant_id) "
                         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -525,6 +525,14 @@ def api_cert_config_product_put(key):
                          new_cv_id),
                     )
 
+        from mbr.shared import audit
+        audit.log_event(
+            audit.EVENT_CERT_CONFIG_UPDATED,
+            entity_type="cert",
+            entity_label=key,
+            payload={"params_count": len(parameters or []), "variants_count": len(variants or [])},
+            db=db,
+        )
         db.commit()
         save_cert_config_export(db)
 
