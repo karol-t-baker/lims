@@ -40,8 +40,6 @@ def save_etap_analizy(
         if old:
             old_val = str(old["wartosc"]) if old["wartosc"] is not None else old["wartosc_text"] or ""
             new_val = str(val) if val is not None else val_text or ""
-            if old_val != new_val:
-                pass  # TODO(audit-phase-4): replace with log_event('ebr.etap.analiza.updated', ...)
 
         db.execute(
             """INSERT INTO ebr_etapy_analizy (ebr_id, etap, krok, runda, kod_parametru, wartosc, wartosc_text, dt_wpisu, wpisal)
@@ -50,7 +48,6 @@ def save_etap_analizy(
                DO UPDATE SET wartosc=excluded.wartosc, wartosc_text=excluded.wartosc_text, dt_wpisu=excluded.dt_wpisu, wpisal=excluded.wpisal""",
             (ebr_id, etap, krok, runda, kod, val, val_text, now, user),
         )
-    db.commit()
 
 
 def get_etap_analizy(db: sqlite3.Connection, ebr_id: int, etap: str = None) -> dict:
@@ -97,7 +94,6 @@ def add_korekta(
            VALUES (?, ?, ?, ?, ?, ?, ?)""",
         (ebr_id, etap, po_rundzie, substancja, ilosc_kg, user, now),
     )
-    db.commit()
     return cur.lastrowid
 
 
@@ -108,7 +104,6 @@ def confirm_korekta(db: sqlite3.Connection, korekta_id: int) -> None:
         "UPDATE ebr_korekty SET wykonano = 1, dt_wykonania = ? WHERE id = ?",
         (now, korekta_id),
     )
-    db.commit()
 
 
 def get_korekty(db: sqlite3.Connection, ebr_id: int, etap: str = None) -> list[dict]:
@@ -228,7 +223,6 @@ def zatwierdz_etap(db: sqlite3.Connection, ebr_id: int, etap: str, user: str, pr
                 break
         if not all_parallel_done:
             # Other parallel stage still active — don't advance yet
-            db.commit()
             # Return the other parallel stage that's still in progress
             for other in other_parallel:
                 row = db.execute(
@@ -246,9 +240,7 @@ def zatwierdz_etap(db: sqlite3.Connection, ebr_id: int, etap: str, user: str, pr
                     "UPDATE ebr_etapy_status SET status='in_progress', dt_start=? WHERE ebr_id=? AND etap=? AND status='pending'",
                     (now, ebr_id, s),
                 )
-                db.commit()
                 return s
-        db.commit()
         return None
 
     # Sequential stage — find next pending
@@ -261,11 +253,9 @@ def zatwierdz_etap(db: sqlite3.Connection, ebr_id: int, etap: str, user: str, pr
                 "UPDATE ebr_etapy_status SET status='in_progress', dt_start=? WHERE ebr_id=? AND etap=? AND status='pending'",
                 (now, ebr_id, next_etap),
             )
-            db.commit()
             return next_etap
     except ValueError:
         pass
-    db.commit()
     return None  # All process stages done → standaryzacja next
 
 
@@ -286,9 +276,7 @@ def skip_etap(db: sqlite3.Connection, ebr_id: int, etap: str, user: str, produkt
                 "UPDATE ebr_etapy_status SET status='in_progress', dt_start=? WHERE ebr_id=? AND etap=? AND status='pending'",
                 (now, ebr_id, next_etap),
             )
-            db.commit()
             return next_etap
     except ValueError:
         pass
-    db.commit()
     return None
