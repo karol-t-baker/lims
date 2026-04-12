@@ -898,10 +898,110 @@ function filterSidebarCards(q) {
   }
 }
 
+function renderPipelineFlowchart(container) {
+  // Filter out companion "dodatki" stages — they're part of cyclic stages
+  var stages = etapy.filter(function(e) {
+    return !!e.pipeline_etap_id;  // only real pipeline stages have this
+  });
+
+  var rs = typeof roundState !== 'undefined' ? roundState : null;
+  var stageStatuses = [];
+  var foundActive = false;
+
+  stages.forEach(function(e) {
+    var sekcja = e.sekcja_lab || '';
+    var status = 'pending';
+
+    if (ebrStatus === 'completed') {
+      status = 'done';
+    } else if (e.typ_cyklu === 'cykliczny' && sekcja === 'analiza') {
+      // Main cyclic (standaryzacja) — check round state
+      if (rs && rs.last_analiza > 0 && rs.is_decision) {
+        status = 'done';
+      } else if (rs && rs.last_analiza > 0) {
+        status = 'active';
+        foundActive = true;
+      } else if (!foundActive) {
+        status = 'active';
+        foundActive = true;
+      }
+    } else {
+      // Jednorazowy or non-main cyclic — check wyniki
+      var hasWyniki = wyniki[sekcja] && Object.keys(wyniki[sekcja]).length > 0;
+      if (hasWyniki) {
+        status = 'done';
+      } else if (!foundActive) {
+        status = 'active';
+        foundActive = true;
+      }
+    }
+
+    stageStatuses.push({ etap: e, status: status, sekcja: sekcja });
+  });
+
+  // If nothing active yet and batch is open, mark first pending as active
+  if (!foundActive && ebrStatus === 'open') {
+    var firstPending = stageStatuses.find(function(s) { return s.status === 'pending'; });
+    if (firstPending) {
+      firstPending.status = 'active';
+    }
+  }
+
+  // Render using existing CSS classes
+  var html = '<div class="se-list">';
+  var selectedSekcja = window._activePipelineStage || null;
+
+  stageStatuses.forEach(function(ss, idx) {
+    var e = ss.etap;
+    var status = ss.status;
+    var isCls = 'is-' + status;
+    var numCls = status;
+
+    // Special colors for active stages
+    if (status === 'active') {
+      if (e.typ_cyklu === 'cykliczny' && ss.sekcja === 'analiza') numCls = 'stand';
+      if (ss.sekcja === 'analiza_koncowa') numCls = 'koncowa';
+    }
+
+    var clickable = status === 'done' || status === 'active';
+    var clickAttr = clickable
+      ? ' onclick="showPipelineStage(\'' + ss.sekcja + '\', ' + (status === 'done' ? 'true' : 'false') + ')"'
+      : '';
+    var cursorStyle = status === 'pending' ? ' style="cursor:not-allowed;opacity:0.5;"' : '';
+    var selCls = (selectedSekcja === ss.sekcja) ? ' se-selected' : '';
+
+    var statusText = status === 'done' ? 'Zakończone' : status === 'active' ? 'W toku' : 'Oczekuje';
+
+    // Runda badge for main cyclic
+    var rundaBadge = '';
+    if (e.typ_cyklu === 'cykliczny' && ss.sekcja === 'analiza' && rs && rs.last_analiza > 0) {
+      rundaBadge = ' <span style="font-size:8px;background:var(--surface-alt);padding:1px 5px;border-radius:8px;color:var(--text-dim);">R' + rs.last_analiza + '</span>';
+    }
+
+    html += '<div class="se-step ' + isCls + selCls + '"' + clickAttr + cursorStyle + '>' +
+      '<div class="se-num ' + numCls + '">' + (idx + 1) + '</div>' +
+      '<div class="se-info">' +
+        '<div class="se-name">' + e.nazwa + rundaBadge + '</div>' +
+        '<div class="se-status">' + statusText + '</div>' +
+      '</div>' +
+    '</div>';
+  });
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
 function renderSidebarEtapy() {
   const container = document.getElementById('sidebar-etapy');
   if (typeof window.ebrId === 'undefined' || typeof etapy === 'undefined') {
     container.innerHTML = '<div style="color:var(--text-dim);font-size:11px;padding:16px 4px;">Wybierz szarżę aby zobaczyć etapy.</div>';
+    return;
+  }
+
+  // Pipeline products: dynamic flowchart
+  var isPipeline = typeof etapy !== 'undefined' && etapy.some(function(e) { return e.pipeline_etap_id; });
+  if (isPipeline) {
+    renderPipelineFlowchart(container);
     return;
   }
 
