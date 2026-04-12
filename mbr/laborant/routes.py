@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 from flask import request, session, render_template, redirect, url_for, flash, jsonify
 
 from mbr.db import db_session
+from mbr.shared import audit
 from mbr.shared.decorators import login_required, role_required
 from mbr.laborant import laborant_bp
 from mbr.laborant.models import (
@@ -107,7 +108,6 @@ def szarze_new():
                             "INSERT OR IGNORE INTO zbiornik_szarze (ebr_id, zbiornik_id, masa_kg, dt_dodania) VALUES (?, ?, NULL, ?)",
                             (ebr_id, zid, now),
                         )
-                db.commit()
 
             # Save platkowanie substraty (optional, from modal substrat rows)
             substraty_json = request.form.get("substraty_json", "[]")
@@ -122,10 +122,32 @@ def szarze_new():
                             "INSERT OR IGNORE INTO platkowanie_substraty (ebr_id, substrat_id, nr_partii_substratu) VALUES (?, ?, ?)",
                             (ebr_id, sub_id, nr),
                         )
-                if substraty:
-                    db.commit()
             except Exception:
                 pass
+
+            # Audit: log batch creation
+            user = session.get("user", {})
+            audit.log_event(
+                audit.EVENT_EBR_BATCH_CREATED,
+                entity_type="ebr",
+                entity_id=ebr_id,
+                entity_label=f"{request.form['produkt']} {request.form['nr_partii']}",
+                payload={
+                    "produkt": request.form["produkt"],
+                    "nr_partii": request.form["nr_partii"],
+                    "nr_amidatora": request.form.get("nr_amidatora", ""),
+                    "nr_mieszalnika": request.form.get("nr_mieszalnika", ""),
+                    "wielkosc_kg": wielkosc_kg,
+                    "typ": typ,
+                },
+                actors=[{
+                    "worker_id": None,
+                    "actor_login": user.get("login", "unknown"),
+                    "actor_rola": user.get("rola", "unknown"),
+                }],
+                db=db,
+            )
+            db.commit()
 
     if ebr_id is None:
         flash("Brak aktywnego szablonu MBR dla tego produktu.")
@@ -209,7 +231,28 @@ def save_entry(ebr_id):
                     values_changed = True
                     break
 
-        save_wyniki(db, ebr_id, sekcja, values, user, ebr=ebr)
+        result = save_wyniki(db, ebr_id, sekcja, values, user, ebr=ebr)
+
+        # Audit: log wynik saved/updated if there were actual changes
+        if result["diffs"]:
+            # If only updates (no inserts) → updated; otherwise → saved
+            event = audit.EVENT_EBR_WYNIK_UPDATED if (result["has_updates"] and not result["has_inserts"]) else audit.EVENT_EBR_WYNIK_SAVED
+            sess_user = session.get("user", {})
+            audit.log_event(
+                event,
+                entity_type="ebr",
+                entity_id=ebr_id,
+                diff=result["diffs"],
+                payload={"sekcja": sekcja},
+                actors=[{
+                    "worker_id": None,
+                    "actor_login": sess_user.get("login", "unknown"),
+                    "actor_rola": sess_user.get("rola", "unknown"),
+                }],
+                db=db,
+            )
+        db.commit()
+
         sync_ebr_to_v4(db, ebr_id, ebr=ebr)
 
         if values_changed:
@@ -226,8 +269,23 @@ def toggle_golden(ebr_id):
         row = db.execute("SELECT is_golden FROM ebr_batches WHERE ebr_id=?", (ebr_id,)).fetchone()
         if not row:
             return jsonify({"error": "not found"}), 404
-        new_val = 0 if row["is_golden"] else 1
+        old_val = row["is_golden"]
+        new_val = 0 if old_val else 1
         db.execute("UPDATE ebr_batches SET is_golden=? WHERE ebr_id=?", (new_val, ebr_id))
+
+        user = session.get("user", {})
+        audit.log_event(
+            audit.EVENT_EBR_BATCH_UPDATED,
+            entity_type="ebr",
+            entity_id=ebr_id,
+            diff=[{"pole": "is_golden", "stara": old_val, "nowa": new_val}],
+            actors=[{
+                "worker_id": None,
+                "actor_login": user.get("login", "unknown"),
+                "actor_rola": user.get("rola", "unknown"),
+            }],
+            db=db,
+        )
         db.commit()
     return jsonify({"ok": True, "is_golden": new_val})
 
@@ -248,7 +306,31 @@ def complete_entry(ebr_id):
     data = request.get_json(silent=True) or {}
     zbiorniki = data.get("zbiorniki")
     with db_session() as db:
+        # Read old status BEFORE completing
+        row = db.execute("SELECT status FROM ebr_batches WHERE ebr_id=?", (ebr_id,)).fetchone()
+        old_status = row["status"] if row else "unknown"
+
         complete_ebr(db, ebr_id, zbiorniki=zbiorniki)
+
+        # Audit: log status change
+        user = session.get("user", {})
+        payload = {"old_status": old_status, "new_status": "completed"}
+        if zbiorniki:
+            payload["przepompowanie_json"] = zbiorniki
+        audit.log_event(
+            audit.EVENT_EBR_BATCH_STATUS_CHANGED,
+            entity_type="ebr",
+            entity_id=ebr_id,
+            payload=payload,
+            actors=[{
+                "worker_id": None,
+                "actor_login": user.get("login", "unknown"),
+                "actor_rola": user.get("rola", "unknown"),
+            }],
+            db=db,
+        )
+        db.commit()
+
         sync_ebr_to_v4(db, ebr_id)
     # Support AJAX calls from SPA
     if request.is_json or request.headers.get("Content-Type", "").startswith("application/json"):
@@ -267,8 +349,17 @@ def save_samples(ebr_id):
     data = request.get_json(silent=True)
     if not data:
         return jsonify({"error": "Invalid JSON"}), 400
+    sekcja = data["sekcja"]
+    kod = data["kod_parametru"]
     with db_session() as db:
+        # Read old samples_json before update
+        old_row = db.execute(
+            "SELECT samples_json FROM ebr_wyniki WHERE ebr_id=? AND sekcja=? AND kod_parametru=?",
+            (ebr_id, sekcja, kod),
+        ).fetchone()
+
         samples_json = json.dumps(data["samples"])
+        now = datetime.now().isoformat(timespec="seconds")
         db.execute("""
             INSERT INTO ebr_wyniki (ebr_id, sekcja, kod_parametru, tag, wartosc,
                 min_limit, max_limit, w_limicie, samples_json, is_manual, dt_wpisu, wpisal)
@@ -277,9 +368,23 @@ def save_samples(ebr_id):
                 samples_json = excluded.samples_json,
                 dt_wpisu = excluded.dt_wpisu,
                 wpisal = excluded.wpisal
-        """, (ebr_id, data["sekcja"], data["kod_parametru"], data.get("tag", ""),
-              samples_json, datetime.now().isoformat(timespec="seconds"),
-              session["user"]["login"]))
+        """, (ebr_id, sekcja, kod, data.get("tag", ""),
+              samples_json, now, session["user"]["login"]))
+
+        # Audit: log samples update
+        user = session.get("user", {})
+        audit.log_event(
+            audit.EVENT_EBR_WYNIK_UPDATED,
+            entity_type="ebr",
+            entity_id=ebr_id,
+            payload={"sekcja": sekcja, "kod": kod, "type": "samples"},
+            actors=[{
+                "worker_id": None,
+                "actor_login": user.get("login", "unknown"),
+                "actor_rola": user.get("rola", "unknown"),
+            }],
+            db=db,
+        )
         db.commit()
     return jsonify({"ok": True})
 
@@ -334,6 +439,28 @@ def api_put_uwagi(ebr_id):
             msg = str(e)
             status = 404 if "not found" in msg.lower() else 400
             return jsonify({"error": msg}), status
+
+        # Audit log (if save_uwagi actually did something)
+        action = result.pop("_action", None)
+        old_text = result.pop("_old_text", None)
+        if action:
+            sess_user = session.get("user", {})
+            audit.log_event(
+                audit.EVENT_EBR_UWAGI_UPDATED,
+                entity_type="ebr",
+                entity_id=ebr_id,
+                payload={"action": action, "tekst": old_text, "autor": autor},
+                actors=[{
+                    "worker_id": None,
+                    "actor_login": sess_user.get("login", "unknown"),
+                    "actor_rola": sess_user.get("rola", "unknown"),
+                }],
+                db=db,
+            )
+        db.commit()
+
+        # Re-read after commit so historia includes the just-logged entry
+        result = get_uwagi(db, ebr_id)
     return jsonify(result)
 
 
@@ -351,4 +478,26 @@ def api_delete_uwagi(ebr_id):
             msg = str(e)
             status = 404 if "not found" in msg.lower() else 400
             return jsonify({"error": msg}), status
+
+        # Audit log (if save_uwagi actually did something)
+        action = result.pop("_action", None)
+        old_text = result.pop("_old_text", None)
+        if action:
+            sess_user = session.get("user", {})
+            audit.log_event(
+                audit.EVENT_EBR_UWAGI_UPDATED,
+                entity_type="ebr",
+                entity_id=ebr_id,
+                payload={"action": action, "tekst": old_text, "autor": autor},
+                actors=[{
+                    "worker_id": None,
+                    "actor_login": sess_user.get("login", "unknown"),
+                    "actor_rola": sess_user.get("rola", "unknown"),
+                }],
+                db=db,
+            )
+        db.commit()
+
+        # Re-read after commit so historia includes the just-logged entry
+        result = get_uwagi(db, ebr_id)
     return jsonify(result)

@@ -49,6 +49,7 @@ EVENT_REGISTRY_ENTRY_DELETED = "registry.entry.deleted"
 
 # ebr / laborant
 EVENT_EBR_BATCH_CREATED = "ebr.batch.created"
+EVENT_EBR_BATCH_UPDATED = "ebr.batch.updated"
 EVENT_EBR_BATCH_STATUS_CHANGED = "ebr.batch.status_changed"
 EVENT_EBR_STAGE_EVENT_ADDED = "ebr.stage.event_added"
 EVENT_EBR_STAGE_EVENT_UPDATED = "ebr.stage.event_updated"
