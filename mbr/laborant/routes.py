@@ -189,7 +189,7 @@ def fast_entry_partial(ebr_id):
         zatwierdzil_full = ""
         if ebr.get("status") == "completed":
             row = db.execute("""
-                SELECT GROUP_CONCAT(COALESCE(w.inicjaly, aa.actor_login), ', ') AS who_short,
+                SELECT GROUP_CONCAT(COALESCE(w.inicjaly, aa.actor_login), '/') AS who_short,
                        GROUP_CONCAT(COALESCE(aa.actor_name, aa.actor_login), ', ') AS who_full
                 FROM audit_log al
                 JOIN audit_log_actors aa ON aa.audit_id = al.id

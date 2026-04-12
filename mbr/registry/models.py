@@ -56,7 +56,7 @@ def list_completed_registry(
         placeholders = ",".join("?" * len(ebr_ids))
         approval_rows = db.execute(f"""
             SELECT al.entity_id,
-                   GROUP_CONCAT(COALESCE(w.inicjaly, aa.actor_login), ', ') AS zatwierdzil_short,
+                   GROUP_CONCAT(COALESCE(w.inicjaly, aa.actor_login), '/') AS zatwierdzil_short,
                    GROUP_CONCAT(COALESCE(aa.actor_name, aa.actor_login), ', ') AS zatwierdzil_full
             FROM audit_log al
             JOIN audit_log_actors aa ON aa.audit_id = al.id
