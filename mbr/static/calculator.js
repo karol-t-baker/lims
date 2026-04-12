@@ -681,7 +681,8 @@ async function acceptCalc() {
         input = document.querySelector('input[data-kod="' + _calcState.kod + '"][data-etap="' + parts[1] + '"][data-runda="' + parts[2] + '"]');
     }
     if (input) {
-        input.value = avg.toFixed(4).replace('.', ',');
+        var prec = parseInt(input.dataset.precision || '4', 10);
+        input.value = avg.toFixed(prec).replace('.', ',');
         input.classList.add('calc');
         if (typeof validateField === 'function') {
             validateField(input);
