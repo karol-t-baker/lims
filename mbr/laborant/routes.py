@@ -349,8 +349,17 @@ def save_samples(ebr_id):
     data = request.get_json(silent=True)
     if not data:
         return jsonify({"error": "Invalid JSON"}), 400
+    sekcja = data["sekcja"]
+    kod = data["kod_parametru"]
     with db_session() as db:
+        # Read old samples_json before update
+        old_row = db.execute(
+            "SELECT samples_json FROM ebr_wyniki WHERE ebr_id=? AND sekcja=? AND kod_parametru=?",
+            (ebr_id, sekcja, kod),
+        ).fetchone()
+
         samples_json = json.dumps(data["samples"])
+        now = datetime.now().isoformat(timespec="seconds")
         db.execute("""
             INSERT INTO ebr_wyniki (ebr_id, sekcja, kod_parametru, tag, wartosc,
                 min_limit, max_limit, w_limicie, samples_json, is_manual, dt_wpisu, wpisal)
@@ -359,9 +368,23 @@ def save_samples(ebr_id):
                 samples_json = excluded.samples_json,
                 dt_wpisu = excluded.dt_wpisu,
                 wpisal = excluded.wpisal
-        """, (ebr_id, data["sekcja"], data["kod_parametru"], data.get("tag", ""),
-              samples_json, datetime.now().isoformat(timespec="seconds"),
-              session["user"]["login"]))
+        """, (ebr_id, sekcja, kod, data.get("tag", ""),
+              samples_json, now, session["user"]["login"]))
+
+        # Audit: log samples update
+        user = session.get("user", {})
+        audit.log_event(
+            audit.EVENT_EBR_WYNIK_UPDATED,
+            entity_type="ebr",
+            entity_id=ebr_id,
+            payload={"sekcja": sekcja, "kod": kod, "type": "samples"},
+            actors=[{
+                "worker_id": None,
+                "actor_login": user.get("login", "unknown"),
+                "actor_rola": user.get("rola", "unknown"),
+            }],
+            db=db,
+        )
         db.commit()
     return jsonify({"ok": True})
 

@@ -153,3 +153,38 @@ def test_save_wyniki_resave_uses_updated_event(client, db):
     assert diff[0]["pole"] == "sm"
     assert diff[0]["stara"] == 40.5
     assert diff[0]["nowa"] == 42.0
+
+
+# ---------- POST /api/ebr/<id>/samples ----------
+
+def test_save_samples_logs_event(client, db):
+    """Saving titration samples logs ebr.wynik.updated with type=samples."""
+    ebr_id = _create_batch(client, db)
+
+    # First save a wynik so the row exists
+    client.post(f"/laborant/ebr/{ebr_id}/save", json={
+        "sekcja": "analiza",
+        "values": {"sm": {"wartosc": "40.5", "komentarz": ""}},
+    })
+
+    # Now save samples for that parameter
+    resp = client.post(f"/api/ebr/{ebr_id}/samples", json={
+        "sekcja": "analiza",
+        "kod_parametru": "sm",
+        "tag": "SM",
+        "samples": [{"nawazka": 1.0, "objetosc": 2.5}],
+    })
+    assert resp.status_code == 200
+
+    rows = db.execute(
+        "SELECT event_type, payload_json FROM audit_log "
+        "WHERE event_type = 'ebr.wynik.updated' "
+        "ORDER BY id"
+    ).fetchall()
+    # Should have at least one samples entry (last one)
+    samples_entries = [r for r in rows if '"type": "samples"' in (r["payload_json"] or "")]
+    assert len(samples_entries) == 1
+    payload = _json.loads(samples_entries[0]["payload_json"])
+    assert payload["sekcja"] == "analiza"
+    assert payload["kod"] == "sm"
+    assert payload["type"] == "samples"
