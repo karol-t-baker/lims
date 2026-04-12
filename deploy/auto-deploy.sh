@@ -36,6 +36,7 @@ git pull origin main --quiet
 /opt/lims/venv/bin/python scripts/migrate_uwagi_to_audit.py --db data/batch_db.sqlite
 /opt/lims/venv/bin/python migrate_roles.py
 /opt/lims/venv/bin/python scripts/backfill_cert_name_en.py --db data/batch_db.sqlite
+/opt/lims/venv/bin/python scripts/migrate_cert_to_etapy.py
 
 # Restart app
 sudo systemctl restart lims
