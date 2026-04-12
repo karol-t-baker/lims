@@ -221,45 +221,45 @@
         {
           "id": "barwa_fau",
           "name_pl": "Barwa jodowa ",
-          "name_en": "",
+          "name_en": "Colour (Iodine scale)",
           "requirement": "",
-          "method": "",
+          "method": "L928",
           "format": "1",
           "data_field": "barwa_fau"
         },
         {
           "id": "lk",
           "name_pl": "Liczba kwasowa końcowa",
-          "name_en": "",
+          "name_en": "Acid value [mg KOH/g]",
           "requirement": "max 15",
-          "method": "",
+          "method": "PN-EN ISO 660:2021-03",
           "format": "1",
           "data_field": "lk"
         },
         {
           "id": "la",
           "name_pl": "Liczba aminowa",
-          "name_en": "",
+          "name_en": "Amine value [mg/KOH/g]",
           "requirement": "130-160",
-          "method": "",
+          "method": "L914",
           "format": "1",
           "data_field": "la"
         },
         {
           "id": "wkt",
           "name_pl": "%WKT",
-          "name_en": "",
+          "name_en": "Free fatty acids \n(Coconut fatty acids, MW=220) [%]",
           "requirement": "",
-          "method": "",
+          "method": "L925",
           "format": "1",
           "data_field": "wkt"
         },
         {
           "id": "t_kropl",
           "name_pl": "T.kroplenia",
-          "name_en": "",
+          "name_en": "Dropping point [C]",
           "requirement": "",
-          "method": "",
+          "method": "L934",
           "format": "1",
           "data_field": "t_kropl"
         }
@@ -339,54 +339,54 @@
         {
           "id": "sm",
           "name_pl": "Sucha masa",
-          "name_en": "",
+          "name_en": "Dry matter [%]",
           "requirement": "min 35,5",
-          "method": "",
+          "method": "L903",
           "format": "1",
           "data_field": "sm"
         },
         {
           "id": "nacl",
           "name_pl": "Chlorek sodu",
-          "name_en": "",
+          "name_en": "NaCl [%]",
           "requirement": "max 5,5",
-          "method": "",
+          "method": "L941",
           "format": "1",
           "data_field": "nacl"
         },
         {
           "id": "nd20",
           "name_pl": "Współczynnik załamania nD20",
-          "name_en": "",
+          "name_en": "Refraction (nD20)",
           "requirement": "1,3800-1,3950",
-          "method": "",
+          "method": "PN-EN ISO 6320:2017-04",
           "format": "1",
           "data_field": "nd20"
         },
         {
           "id": "ph_10proc",
           "name_pl": "pH roztworu 10%",
-          "name_en": "",
+          "name_en": "pH (5%, aq, 25°C)",
           "requirement": "4,5-7,5",
-          "method": "",
+          "method": "L905",
           "format": "1",
           "data_field": "ph_10proc"
         },
         {
           "id": "barwa_fau",
-          "name_pl": "Barwa jodowa ",
-          "name_en": "",
+          "name_pl": "Barwa jodowa",
+          "name_en": "Colour (Iodine scale)",
           "requirement": "max 3",
-          "method": "",
+          "method": "L928",
           "format": "1",
           "data_field": "barwa_fau"
         },
         {
           "id": "sa",
           "name_pl": "Substancja aktywna",
-          "name_en": "",
+          "name_en": "Active matter [%]",
           "requirement": "30-32",
-          "method": "",
+          "method": "L932",
           "format": "1",
           "data_field": "sa"
         }
@@ -395,10 +395,7 @@
         {
           "id": "base",
           "label": "Chegina",
-          "flags": [],
-          "overrides": {
-            "spec_number": "P810"
-          }
+          "flags": []
         }
       ]
     },
@@ -487,45 +484,45 @@
         {
           "id": "sm",
           "name_pl": "Sucha masa",
-          "name_en": "",
+          "name_en": "Dry matter [%]",
           "requirement": "36,0-40",
-          "method": "",
+          "method": "L903",
           "format": "1",
           "data_field": "sm"
         },
         {
           "id": "wolna_amina",
           "name_pl": "Wolna amina",
-          "name_en": "",
+          "name_en": "Free cocamidopropyldimethylamine [%]",
           "requirement": "max 0,4",
-          "method": "",
+          "method": "L904",
           "format": "1",
           "data_field": "wolna_amina"
         },
         {
           "id": "la",
           "name_pl": "Liczba aminowa",
-          "name_en": "",
+          "name_en": "Amine value [mg/KOH/g]",
           "requirement": "max 1",
-          "method": "",
+          "method": "L914",
           "format": "1",
           "data_field": "la"
         },
         {
           "id": "lk",
           "name_pl": "Liczba kwasowa końcowa",
-          "name_en": "",
+          "name_en": "Acid value [mg KOH/g]",
           "requirement": "max 1",
-          "method": "",
+          "method": "PN-EN ISO 660:2021-03",
           "format": "1",
           "data_field": "lk"
         },
         {
           "id": "nd20",
           "name_pl": "Współczynnik załamania nD20",
-          "name_en": "",
+          "name_en": "Refraction (nD20)",
           "requirement": "",
-          "method": "",
+          "method": "PN-EN ISO 6320:2017-04",
           "format": "1",
           "data_field": "nd20"
         }
@@ -605,18 +602,18 @@
         {
           "id": "sm",
           "name_pl": "Sucha masa",
-          "name_en": "",
+          "name_en": "Dry matter [%]",
           "requirement": "36,0-40,0",
-          "method": "",
+          "method": "L903",
           "format": "1",
           "data_field": "sm"
         },
         {
           "id": "wolna_amina",
           "name_pl": "Wolna amina",
-          "name_en": "",
+          "name_en": "Free cocamidopropyldimethylamine [%]",
           "requirement": "max 1,0",
-          "method": "",
+          "method": "L904",
           "format": "1",
           "data_field": "wolna_amina"
         }
@@ -839,9 +836,9 @@
         {
           "id": "nd20",
           "name_pl": "Współczynnik załamania nD20",
-          "name_en": "",
+          "name_en": "Refraction (nD20)",
           "requirement": "",
-          "method": "",
+          "method": "PN-EN ISO 6320:2017-04",
           "format": "1",
           "data_field": "nd20"
         },
@@ -1078,9 +1075,9 @@
         {
           "id": "nd20",
           "name_pl": "Współczynnik załamania nD20",
-          "name_en": "",
+          "name_en": "Refraction (nD20)",
           "requirement": "",
-          "method": "",
+          "method": "PN-EN ISO 6320:2017-04",
           "format": "1",
           "data_field": "nd20"
         },
@@ -1238,54 +1235,54 @@
         {
           "id": "mca",
           "name_pl": "MCA [ppm]",
-          "name_en": "",
+          "name_en": "MCA [ppm]",
           "requirement": "<100 ppm",
-          "method": "",
+          "method": "metoda zew.\n/external method",
           "format": "1",
           "data_field": "mca"
         },
         {
           "id": "dca",
           "name_pl": "DCA [ppm]",
-          "name_en": "",
+          "name_en": "DCA [ppm]",
           "requirement": "< 100 ppm",
-          "method": "",
+          "method": "metoda zew.\n/external method",
           "format": "1",
           "data_field": "dca"
         },
         {
           "id": "dmapa",
           "name_pl": "DMAPA [ppm]",
-          "name_en": "",
+          "name_en": "DMAPA [ppm]",
           "requirement": "< 10 ppm",
-          "method": "",
+          "method": "metoda zew.\n/ external method",
           "format": "1",
           "data_field": "dmapa"
         },
         {
           "id": "wkt",
           "name_pl": "%WKT",
-          "name_en": "",
+          "name_en": "Free fatty acids \n(Coconut fatty acids, MW=220) [%]",
           "requirement": "1,8-2,2",
-          "method": "",
+          "method": "L925",
           "format": "1",
           "data_field": "wkt"
         },
         {
           "id": "nd20",
           "name_pl": "Współczynnik załamania nD20",
-          "name_en": "",
+          "name_en": "Refraction (nD20)",
           "requirement": "",
-          "method": "",
+          "method": "PN-EN ISO 6320:2017-04",
           "format": "1",
           "data_field": "nd20"
         },
         {
           "id": "h2o2",
           "name_pl": "Nadtlenek wodoru",
-          "name_en": "",
+          "name_en": "Peroxides as H2O2 [%]",
           "requirement": "",
-          "method": "",
+          "method": "L901",
           "format": "1",
           "data_field": "h2o2"
         },
@@ -1399,27 +1396,27 @@
         {
           "id": "ph_10proc",
           "name_pl": "pH roztworu 10%",
-          "name_en": "",
+          "name_en": "pH (5%, aq, 25°C)",
           "requirement": "w Cheginie",
-          "method": "",
+          "method": "L905",
           "format": "1",
           "data_field": "ph_10proc"
         },
         {
           "id": "sa",
           "name_pl": "Substancja aktywna",
-          "name_en": "",
+          "name_en": "Active matter [%]",
           "requirement": "37-42",
-          "method": "",
+          "method": "L932",
           "format": "1",
           "data_field": "sa"
         },
         {
           "id": "nacl",
           "name_pl": "Chlorek sodu",
-          "name_en": "",
+          "name_en": "NaCl [%]",
           "requirement": "5,8-7,3",
-          "method": "",
+          "method": "L941",
           "format": "1",
           "data_field": "nacl"
         },
@@ -1435,36 +1432,36 @@
         {
           "id": "barwa_hz",
           "name_pl": "Barwa wg Hazen",
-          "name_en": "",
+          "name_en": "Colour (Hazen scale)",
           "requirement": "max 150 HZ",
-          "method": "",
+          "method": "L928",
           "format": "1",
           "data_field": "barwa_hz"
         },
         {
           "id": "nd20",
           "name_pl": "Współczynnik załamania nD20",
-          "name_en": "",
+          "name_en": "Refraction (nD20)",
           "requirement": "",
-          "method": "",
+          "method": "PN-EN ISO 6320:2017-04",
           "format": "1",
           "data_field": "nd20"
         },
         {
           "id": "sm",
           "name_pl": "Sucha masa",
-          "name_en": "",
+          "name_en": "Dry matter [%]",
           "requirement": "min 44,0",
-          "method": "",
+          "method": "L903",
           "format": "1",
           "data_field": "sm"
         },
         {
           "id": "h2o",
           "name_pl": "Zawartość wody",
-          "name_en": "",
+          "name_en": "H2O [%]",
           "requirement": "52-56",
-          "method": "",
+          "method": "L903",
           "format": "1",
           "data_field": "h2o"
         },
@@ -1592,9 +1589,9 @@
         {
           "id": "nd20",
           "name_pl": "Współczynnik załamania nD20",
-          "name_en": "",
+          "name_en": "Refraction (nD20)",
           "requirement": "",
-          "method": "",
+          "method": "PN-EN ISO 6320:2017-04",
           "format": "1",
           "data_field": "nd20"
         }
@@ -1661,7 +1658,7 @@
         {
           "id": "ph_10proc",
           "name_pl": "pH (10%, aq)",
-          "name_en": "pH",
+          "name_en": "pH (5%, aq, 25°C)",
           "requirement": "4,50-7,50",
           "method": "L905",
           "format": "2",
@@ -1675,25 +1672,6 @@
           "method": "L932",
           "format": "1",
           "data_field": "sa"
-        },
-        {
-          "id": "h2o2",
-          "name_pl": "Nadtlenki w przeliczeniu na H2O2 [%]",
-          "name_en": "Peroxides as H2O2 [%]",
-          "requirement": "max 0,00",
-          "method": "L901",
-          "format": "2",
-          "data_field": "h2o2",
-          "qualitative_result": "<0,00"
-        },
-        {
-          "id": "barwa_hz",
-          "name_pl": "Barwa wg Hazen",
-          "name_en": "",
-          "requirement": "max 1; 160 HZ",
-          "method": "",
-          "format": "1",
-          "data_field": "barwa_hz"
         }
       ],
       "variants": [
@@ -1793,27 +1771,27 @@
         {
           "id": "h2o",
           "name_pl": "Zawartość wody",
-          "name_en": "",
+          "name_en": "H2O [%]",
           "requirement": "62,0-64,0",
-          "method": "",
+          "method": "L903",
           "format": "1",
           "data_field": "h2o"
         },
         {
           "id": "nacl",
           "name_pl": "Chlorek sodu",
-          "name_en": "",
+          "name_en": "NaCl [%]",
           "requirement": "5,5 max",
-          "method": "",
+          "method": "L941",
           "format": "1",
           "data_field": "nacl"
         },
         {
           "id": "nd20",
           "name_pl": "Współczynnik załamania nD20",
-          "name_en": "",
+          "name_en": "Refraction (nD20)",
           "requirement": "",
-          "method": "",
+          "method": "PN-EN ISO 6320:2017-04",
           "format": "1",
           "data_field": "nd20"
         }
@@ -1851,45 +1829,45 @@
         {
           "id": "sm",
           "name_pl": "Sucha masa",
-          "name_en": "",
+          "name_en": "Dry matter [%]",
           "requirement": "35-37",
-          "method": "",
+          "method": "L903",
           "format": "1",
           "data_field": "sm"
         },
         {
           "id": "nacl",
           "name_pl": "Chlorek sodu",
-          "name_en": "",
+          "name_en": "NaCl [%]",
           "requirement": "4,5-5,5",
-          "method": "",
+          "method": "L941",
           "format": "1",
           "data_field": "nacl"
         },
         {
           "id": "barwa_hz",
           "name_pl": "Barwa wg Hazen",
-          "name_en": "",
+          "name_en": "Colour (Hazen scale)",
           "requirement": "max 120 HZ",
-          "method": "",
+          "method": "L928",
           "format": "1",
           "data_field": "barwa_hz"
         },
         {
           "id": "ph_10proc",
           "name_pl": "pH roztworu 10%",
-          "name_en": "",
+          "name_en": "pH (5%, aq, 25°C)",
           "requirement": "5,0-7,0",
-          "method": "",
+          "method": "L905",
           "format": "1",
           "data_field": "ph_10proc"
         },
         {
           "id": "sa",
           "name_pl": "Substancja aktywna",
-          "name_en": "",
+          "name_en": "Active matter [%]",
           "requirement": "29,5-32,5",
-          "method": "",
+          "method": "L932",
           "format": "1",
           "data_field": "sa"
         },
@@ -1905,9 +1883,9 @@
         {
           "id": "nd20",
           "name_pl": "Współczynnik załamania nD20",
-          "name_en": "",
+          "name_en": "Refraction (nD20)",
           "requirement": "",
-          "method": "",
+          "method": "PN-EN ISO 6320:2017-04",
           "format": "1",
           "data_field": "nd20"
         }
@@ -2056,18 +2034,18 @@
         {
           "id": "barwa_hz",
           "name_pl": "Barwa wg Hazen",
-          "name_en": "",
+          "name_en": "Colour (Hazen scale)",
           "requirement": "max 1; 160 HZ",
-          "method": "",
+          "method": "L928",
           "format": "1",
           "data_field": "barwa_hz"
         },
         {
           "id": "h2o",
           "name_pl": "Zawartość wody",
-          "name_en": "",
+          "name_en": "H2O [%]",
           "requirement": "",
-          "method": "",
+          "method": "L903",
           "format": "1",
           "data_field": "h2o"
         }
@@ -2135,63 +2113,63 @@
         {
           "id": "barwa_fau",
           "name_pl": "Barwa jodowa ",
-          "name_en": "",
+          "name_en": "Colour (Iodine scale)",
           "requirement": "max 3",
-          "method": "",
+          "method": "L928",
           "format": "1",
           "data_field": "barwa_fau"
         },
         {
           "id": "lk",
           "name_pl": "Liczba kwasowa końcowa",
-          "name_en": "",
+          "name_en": "Acid value [mg KOH/g]",
           "requirement": "max 1,5",
-          "method": "",
+          "method": "PN-EN ISO 660:2021-03",
           "format": "1",
           "data_field": "lk"
         },
         {
           "id": "ph_10proc",
           "name_pl": "pH roztworu 10%",
-          "name_en": "",
+          "name_en": "pH (5%, aq, 25°C)",
           "requirement": "7,8-9,0",
-          "method": "",
+          "method": "L905",
           "format": "1",
           "data_field": "ph_10proc"
         },
         {
           "id": "sm",
           "name_pl": "Sucha masa",
-          "name_en": "",
+          "name_en": "Dry matter [%]",
           "requirement": "34-39",
-          "method": "",
+          "method": "L903",
           "format": "1",
           "data_field": "sm"
         },
         {
           "id": "nacl",
           "name_pl": "Chlorek sodu",
-          "name_en": "",
+          "name_en": "NaCl [%]",
           "requirement": "4,8-5,5",
-          "method": "",
+          "method": "L941",
           "format": "1",
           "data_field": "nacl"
         },
         {
           "id": "nd20",
           "name_pl": "Współczynnik załamania nD20",
-          "name_en": "",
+          "name_en": "Refraction (nD20)",
           "requirement": "",
-          "method": "",
+          "method": "PN-EN ISO 6320:2017-04",
           "format": "1",
           "data_field": "nd20"
         },
         {
           "id": "sa",
           "name_pl": "Substancja aktywna",
-          "name_en": "",
+          "name_en": "Active matter [%]",
           "requirement": "min 28,0-31,0",
-          "method": "",
+          "method": "L932",
           "format": "1",
           "data_field": "sa"
         }
@@ -2468,18 +2446,18 @@
         {
           "id": "barwa_hz",
           "name_pl": "Barwa wg Hazen",
-          "name_en": "",
+          "name_en": "Colour (Hazen scale)",
           "requirement": "max 10 Hz",
-          "method": "",
+          "method": "L928",
           "format": "1",
           "data_field": "barwa_hz"
         },
         {
           "id": "nd20",
           "name_pl": "Współczynnik załamania nD20",
-          "name_en": "",
+          "name_en": "Refraction (nD20)",
           "requirement": "",
-          "method": "",
+          "method": "PN-EN ISO 6320:2017-04",
           "format": "1",
           "data_field": "nd20"
         }
@@ -2592,18 +2570,18 @@
         {
           "id": "lh",
           "name_pl": "L.hydroksylowa",
-          "name_en": "",
+          "name_en": "Hydroxyl value [mg KOH/g]",
           "requirement": "45-55",
-          "method": "",
+          "method": "L929",
           "format": "1",
           "data_field": "lh"
         },
         {
           "id": "h2o",
           "name_pl": "Zawartość wody",
-          "name_en": "",
+          "name_en": "H2O [%]",
           "requirement": "max 1,0",
-          "method": "",
+          "method": "L903",
           "format": "1",
           "data_field": "h2o"
         },
@@ -2619,9 +2597,9 @@
         {
           "id": "nd20",
           "name_pl": "Współczynnik załamania nD20",
-          "name_en": "",
+          "name_en": "Refraction (nD20)",
           "requirement": "1,4507-1,4519",
-          "method": "",
+          "method": "PN-EN ISO 6320:2017-04",
           "format": "1",
           "data_field": "nd20"
         }
@@ -2648,36 +2626,36 @@
         {
           "id": "lk",
           "name_pl": "Liczba kwasowa końcowa",
-          "name_en": "",
+          "name_en": "Acid value [mg KOH/g]",
           "requirement": "max 4",
-          "method": "",
+          "method": "PN-EN ISO 660:2021-03",
           "format": "1",
           "data_field": "lk"
         },
         {
           "id": "lz",
           "name_pl": "L.zmydlenia",
-          "name_en": "",
+          "name_en": "Saponification value [mg KOH/g]",
           "requirement": "90-120",
-          "method": "",
+          "method": "PN-EN ISO 3657:2024-01",
           "format": "1",
           "data_field": "lz"
         },
         {
           "id": "t_kropl",
           "name_pl": "T.kroplenia",
-          "name_en": "",
+          "name_en": "Dropping point [C]",
           "requirement": "48-53oC",
-          "method": "",
+          "method": "L934",
           "format": "1",
           "data_field": "t_kropl"
         },
         {
           "id": "barwa_fau",
           "name_pl": "Barwa jodowa ",
-          "name_en": "",
+          "name_en": "Colour (Iodine scale)",
           "requirement": "max 3",
-          "method": "",
+          "method": "L928",
           "format": "1",
           "data_field": "barwa_fau"
         }
@@ -2704,27 +2682,27 @@
         {
           "id": "lk",
           "name_pl": "Liczba kwasowa końcowa",
-          "name_en": "",
+          "name_en": "Acid value [mg KOH/g]",
           "requirement": "0-20",
-          "method": "",
+          "method": "PN-EN ISO 660:2021-03",
           "format": "1",
           "data_field": "lk"
         },
         {
           "id": "lz",
           "name_pl": "L.zmydlenia",
-          "name_en": "",
+          "name_en": "Saponification value [mg KOH/g]",
           "requirement": "90-100",
-          "method": "",
+          "method": "PN-EN ISO 3657:2024-01",
           "format": "1",
           "data_field": "lz"
         },
         {
           "id": "lh",
           "name_pl": "L.hydroksylowa",
-          "name_en": "",
+          "name_en": "Hydroxyl value [mg KOH/g]",
           "requirement": "145-160",
-          "method": "",
+          "method": "L929",
           "format": "1",
           "data_field": "lh"
         },
@@ -2740,9 +2718,9 @@
         {
           "id": "t_topn",
           "name_pl": "T.topnienia",
-          "name_en": "",
+          "name_en": "Melting point [°C]",
           "requirement": "49-52OC",
-          "method": "",
+          "method": "L934",
           "format": "1",
           "data_field": "t_topn"
         }
@@ -2824,9 +2802,9 @@
         {
           "id": "nd20",
           "name_pl": "Współczynnik załamania nD20",
-          "name_en": "",
+          "name_en": "Refraction (nD20)",
           "requirement": "",
-          "method": "",
+          "method": "PN-EN ISO 6320:2017-04",
           "format": "1",
           "data_field": "nd20"
         }
@@ -2910,18 +2888,18 @@
         {
           "id": "nd20",
           "name_pl": "Współczynnik załamania nD20",
-          "name_en": "",
+          "name_en": "Refraction (nD20)",
           "requirement": "",
-          "method": "",
+          "method": "PN-EN ISO 6320:2017-04",
           "format": "1",
           "data_field": "nd20"
         },
         {
           "id": "gestosc",
           "name_pl": "Gęstość",
-          "name_en": "",
+          "name_en": "Density (20°C) [g/cm3]",
           "requirement": "0,99-1,00 g/cm3",
-          "method": "",
+          "method": "L917",
           "format": "1",
           "data_field": "gestosc"
         }
@@ -2961,45 +2939,45 @@
         {
           "id": "ph_10proc",
           "name_pl": "pH roztworu 10%",
-          "name_en": "",
+          "name_en": "pH (5%, aq, 25°C)",
           "requirement": "6-8",
-          "method": "",
+          "method": "L905",
           "format": "1",
           "data_field": "ph_10proc"
         },
         {
           "id": "h2o2",
           "name_pl": "Nadtlenek wodoru",
-          "name_en": "",
+          "name_en": "Peroxides as H2O2 [%]",
           "requirement": "max 0,09",
-          "method": "",
+          "method": "L901",
           "format": "1",
           "data_field": "h2o2"
         },
         {
           "id": "barwa_fau",
           "name_pl": "Barwa jodowa ",
-          "name_en": "",
+          "name_en": "Colour (Iodine scale)",
           "requirement": "max 1",
-          "method": "",
+          "method": "L928",
           "format": "1",
           "data_field": "barwa_fau"
         },
         {
           "id": "wolna_amina",
           "name_pl": "Wolna amina",
-          "name_en": "",
+          "name_en": "Free cocamidopropyldimethylamine [%]",
           "requirement": "max 0,7",
-          "method": "",
+          "method": "L904",
           "format": "1",
           "data_field": "wolna_amina"
         },
         {
           "id": "nd20",
           "name_pl": "Współczynnik załamania nD20",
-          "name_en": "",
+          "name_en": "Refraction (nD20)",
           "requirement": "",
-          "method": "",
+          "method": "PN-EN ISO 6320:2017-04",
           "format": "1",
           "data_field": "nd20"
         }
@@ -3026,18 +3004,18 @@
         {
           "id": "sm",
           "name_pl": "Sucha masa",
-          "name_en": "",
+          "name_en": "Dry matter [%]",
           "requirement": "min 40",
-          "method": "",
+          "method": "L903",
           "format": "1",
           "data_field": "sm"
         },
         {
           "id": "lk",
           "name_pl": "Liczba kwasowa końcowa",
-          "name_en": "",
+          "name_en": "Acid value [mg KOH/g]",
           "requirement": "max 6",
-          "method": "",
+          "method": "PN-EN ISO 660:2021-03",
           "format": "1",
           "data_field": "lk"
         },
@@ -3053,27 +3031,27 @@
         {
           "id": "h2o2",
           "name_pl": "Nadtlenek wodoru",
-          "name_en": "",
+          "name_en": "Peroxides as H2O2 [%]",
           "requirement": "max 0,15",
-          "method": "",
+          "method": "L901",
           "format": "1",
           "data_field": "h2o2"
         },
         {
           "id": "sa",
           "name_pl": "Substancja aktywna",
-          "name_en": "",
+          "name_en": "Active matter [%]",
           "requirement": "min 26",
-          "method": "",
+          "method": "L932",
           "format": "1",
           "data_field": "sa"
         },
         {
           "id": "barwa_fau",
           "name_pl": "Barwa jodowa ",
-          "name_en": "",
+          "name_en": "Colour (Iodine scale)",
           "requirement": "max 10",
-          "method": "",
+          "method": "L928",
           "format": "1",
           "data_field": "barwa_fau"
         }
@@ -3100,9 +3078,9 @@
         {
           "id": "sm",
           "name_pl": "Sucha masa",
-          "name_en": "",
+          "name_en": "Dry matter [%]",
           "requirement": "38-42",
-          "method": "",
+          "method": "L903",
           "format": "1",
           "data_field": "sm"
         },
@@ -3118,45 +3096,45 @@
         {
           "id": "ph_10proc",
           "name_pl": "pH roztworu 10%",
-          "name_en": "",
+          "name_en": "pH (5%, aq, 25°C)",
           "requirement": "5,5-7",
-          "method": "",
+          "method": "L905",
           "format": "1",
           "data_field": "ph_10proc"
         },
         {
           "id": "sa",
           "name_pl": "Substancja aktywna",
-          "name_en": "",
+          "name_en": "Active matter [%]",
           "requirement": "min 31",
-          "method": "",
+          "method": "L932",
           "format": "1",
           "data_field": "sa"
         },
         {
           "id": "barwa_fau",
           "name_pl": "Barwa jodowa ",
-          "name_en": "",
+          "name_en": "Colour (Iodine scale)",
           "requirement": "max 5",
-          "method": "",
+          "method": "L928",
           "format": "1",
           "data_field": "barwa_fau"
         },
         {
           "id": "lk",
           "name_pl": "Liczba kwasowa końcowa",
-          "name_en": "",
+          "name_en": "Acid value [mg KOH/g]",
           "requirement": "max 8",
-          "method": "",
+          "method": "PN-EN ISO 660:2021-03",
           "format": "1",
           "data_field": "lk"
         },
         {
           "id": "nd20",
           "name_pl": "Współczynnik załamania nD20",
-          "name_en": "",
+          "name_en": "Refraction (nD20)",
           "requirement": "",
-          "method": "",
+          "method": "PN-EN ISO 6320:2017-04",
           "format": "1",
           "data_field": "nd20"
         }
@@ -3201,9 +3179,9 @@
         {
           "id": "barwa_fau",
           "name_pl": "Barwa jodowa ",
-          "name_en": "",
+          "name_en": "Colour (Iodine scale)",
           "requirement": "max 3",
-          "method": "",
+          "method": "L928",
           "format": "1",
           "data_field": "barwa_fau"
         }
@@ -3281,18 +3259,18 @@
         {
           "id": "t_kropl",
           "name_pl": "T.kroplenia",
-          "name_en": "",
+          "name_en": "Dropping point [C]",
           "requirement": "58-64Oc",
-          "method": "",
+          "method": "L934",
           "format": "1",
           "data_field": "t_kropl"
         },
         {
           "id": "wkt",
           "name_pl": "%WKT",
-          "name_en": "",
+          "name_en": "Free fatty acids \n(Coconut fatty acids, MW=220) [%]",
           "requirement": "",
-          "method": "",
+          "method": "L925",
           "format": "1",
           "data_field": "wkt"
         }
@@ -3473,9 +3451,9 @@
         {
           "id": "nd20",
           "name_pl": "Współczynnik załamania nD20",
-          "name_en": "",
+          "name_en": "Refraction (nD20)",
           "requirement": "",
-          "method": "",
+          "method": "PN-EN ISO 6320:2017-04",
           "format": "1",
           "data_field": "nd20"
         }
@@ -3597,18 +3575,18 @@
         {
           "id": "lz",
           "name_pl": "L.zmydlenia",
-          "name_en": "",
+          "name_en": "Saponification value [mg KOH/g]",
           "requirement": "",
-          "method": "",
+          "method": "PN-EN ISO 3657:2024-01",
           "format": "1",
           "data_field": "lz"
         },
         {
           "id": "t_kropl",
           "name_pl": "T.kroplenia",
-          "name_en": "",
+          "name_en": "Dropping point [C]",
           "requirement": "",
-          "method": "",
+          "method": "L934",
           "format": "1",
           "data_field": "t_kropl"
         }
@@ -3787,36 +3765,36 @@
         {
           "id": "barwa_fau",
           "name_pl": "Barwa jodowa ",
-          "name_en": "",
+          "name_en": "Colour (Iodine scale)",
           "requirement": "max 8",
-          "method": "",
+          "method": "L928",
           "format": "1",
           "data_field": "barwa_fau"
         },
         {
           "id": "wkt",
           "name_pl": "%WKT",
-          "name_en": "",
+          "name_en": "Free fatty acids \n(Coconut fatty acids, MW=220) [%]",
           "requirement": "max 10",
-          "method": "",
+          "method": "L925",
           "format": "1",
           "data_field": "wkt"
         },
         {
           "id": "mea",
           "name_pl": "%MEA",
-          "name_en": "",
+          "name_en": "mol)",
           "requirement": "max 5",
-          "method": "",
+          "method": "L933",
           "format": "1",
           "data_field": "mea"
         },
         {
           "id": "estry",
           "name_pl": "%estry",
-          "name_en": "",
+          "name_en": "Esters [%] as methyl laurate,\n(MW=214 g/mol)",
           "requirement": "max 10",
-          "method": "",
+          "method": "L952",
           "format": "1",
           "data_field": "estry"
         },
@@ -3832,9 +3810,9 @@
         {
           "id": "t_topn",
           "name_pl": "T.topnienia",
-          "name_en": "",
+          "name_en": "Melting point [°C]",
           "requirement": "",
-          "method": "",
+          "method": "L934",
           "format": "1",
           "data_field": "t_topn"
         }
@@ -3861,45 +3839,45 @@
         {
           "id": "lk",
           "name_pl": "Liczba kwasowa końcowa",
-          "name_en": "",
+          "name_en": "Acid value [mg KOH/g]",
           "requirement": "",
-          "method": "",
+          "method": "PN-EN ISO 660:2021-03",
           "format": "1",
           "data_field": "lk"
         },
         {
           "id": "la",
           "name_pl": "Liczba aminowa",
-          "name_en": "",
+          "name_en": "Amine value [mg/KOH/g]",
           "requirement": "",
-          "method": "",
+          "method": "L914",
           "format": "1",
           "data_field": "la"
         },
         {
           "id": "wkt",
           "name_pl": "%WKT",
-          "name_en": "",
+          "name_en": "Free fatty acids \n(Coconut fatty acids, MW=220) [%]",
           "requirement": "max 2,0",
-          "method": "",
+          "method": "L925",
           "format": "1",
           "data_field": "wkt"
         },
         {
           "id": "mea",
           "name_pl": "%MEA",
-          "name_en": "",
+          "name_en": "mol)",
           "requirement": "max 2,0",
-          "method": "",
+          "method": "L933",
           "format": "1",
           "data_field": "mea"
         },
         {
           "id": "t_kropl",
           "name_pl": "T.kroplenia",
-          "name_en": "",
+          "name_en": "Dropping point [C]",
           "requirement": "",
-          "method": "",
+          "method": "L934",
           "format": "1",
           "data_field": "t_kropl"
         }
@@ -3926,36 +3904,36 @@
         {
           "id": "lk",
           "name_pl": "Liczba kwasowa końcowa",
-          "name_en": "",
+          "name_en": "Acid value [mg KOH/g]",
           "requirement": "max 5",
-          "method": "",
+          "method": "PN-EN ISO 660:2021-03",
           "format": "1",
           "data_field": "lk"
         },
         {
           "id": "wolna_amina",
           "name_pl": "Wolna amina",
-          "name_en": "",
+          "name_en": "Free cocamidopropyldimethylamine [%]",
           "requirement": "max 3",
-          "method": "",
+          "method": "L904",
           "format": "1",
           "data_field": "wolna_amina"
         },
         {
           "id": "t_kropl",
           "name_pl": "T.kroplenia",
-          "name_en": "",
+          "name_en": "Dropping point [C]",
           "requirement": "85-92oC",
-          "method": "",
+          "method": "L934",
           "format": "1",
           "data_field": "t_kropl"
         },
         {
           "id": "barwa_fau",
           "name_pl": "Barwa jodowa ",
-          "name_en": "",
+          "name_en": "Colour (Iodine scale)",
           "requirement": "max 5",
-          "method": "",
+          "method": "L928",
           "format": "1",
           "data_field": "barwa_fau"
         }
@@ -4018,18 +3996,18 @@
         {
           "id": "monoestry",
           "name_pl": "zaw.monoestrów",
-          "name_en": "",
+          "name_en": "Monoesters [%]",
           "requirement": "min 30,0",
-          "method": "",
+          "method": "L930",
           "format": "1",
           "data_field": "monoestry"
         },
         {
           "id": "barwa_fau",
           "name_pl": "Barwa jodowa ",
-          "name_en": "",
+          "name_en": "Colour (Iodine scale)",
           "requirement": "",
-          "method": "",
+          "method": "L928",
           "format": "1",
           "data_field": "barwa_fau"
         }
@@ -4107,9 +4085,9 @@
         {
           "id": "barwa_fau",
           "name_pl": "Barwa jodowa ",
-          "name_en": "",
+          "name_en": "Colour (Iodine scale)",
           "requirement": "",
-          "method": "",
+          "method": "L928",
           "format": "1",
           "data_field": "barwa_fau"
         }
@@ -4180,54 +4158,54 @@
         {
           "id": "lk",
           "name_pl": "Liczba kwasowa końcowa",
-          "name_en": "",
+          "name_en": "Acid value [mg KOH/g]",
           "requirement": "max 2",
-          "method": "",
+          "method": "PN-EN ISO 660:2021-03",
           "format": "1",
           "data_field": "lk"
         },
         {
           "id": "gestosc",
           "name_pl": "Gęstość",
-          "name_en": "",
+          "name_en": "Density (20°C) [g/cm3]",
           "requirement": "0,960-0,970",
-          "method": "",
+          "method": "L917",
           "format": "1",
           "data_field": "gestosc"
         },
         {
           "id": "barwa_fau",
           "name_pl": "Barwa jodowa ",
-          "name_en": "",
+          "name_en": "Colour (Iodine scale)",
           "requirement": "max 2",
-          "method": "",
+          "method": "L928",
           "format": "1",
           "data_field": "barwa_fau"
         },
         {
           "id": "lz",
           "name_pl": "L.zmydlenia",
-          "name_en": "",
+          "name_en": "Saponification value [mg KOH/g]",
           "requirement": "410-450",
-          "method": "",
+          "method": "PN-EN ISO 3657:2024-01",
           "format": "1",
           "data_field": "lz"
         },
         {
           "id": "nd20",
           "name_pl": "Współczynnik załamania nD20",
-          "name_en": "",
+          "name_en": "Refraction (nD20)",
           "requirement": "1,432-1,439",
-          "method": "",
+          "method": "PN-EN ISO 6320:2017-04",
           "format": "1",
           "data_field": "nd20"
         },
         {
           "id": "sa",
           "name_pl": "Substancja aktywna",
-          "name_en": "",
+          "name_en": "Active matter [%]",
           "requirement": "29,5-32,5",
-          "method": "",
+          "method": "L932",
           "format": "1",
           "data_field": "sa"
         }
