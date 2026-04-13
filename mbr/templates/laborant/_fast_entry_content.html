@@ -1009,6 +1009,33 @@
 .ps-locked-msg { padding: 20px; text-align: center; color: var(--text-dim); font-size: 12px; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
 
+/* Inherited field from previous round — read-only, grey, with ↩ indicator */
+.field-inherited {
+    position: relative;
+}
+.field-inherited input {
+    background: var(--surface-alt, #f5f5f5) !important;
+    color: var(--muted, #6b7280) !important;
+    font-style: italic;
+    cursor: pointer;
+}
+.field-inherited::after {
+    content: '↩';
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 12px;
+    color: var(--muted, #6b7280);
+    pointer-events: none;
+}
+
+/* Field that needs re-testing (was out of limit in previous round) */
+.needs-retest input {
+    border: 2px solid var(--amber, #f59e0b) !important;
+    background: #fffbeb !important;
+}
+
 </style>
 
 <div class="cv-popup-overlay" id="cv-popup-overlay">
@@ -4827,8 +4854,10 @@ window.showProcessStage = function(etapKey) {
           krokHtml += '<div style="padding:6px 14px;">';
           krokParams.forEach(function(param) {
             var val = '';
+            var isInherited = false;
             if (krokRundaData[param.kod]) {
               val = String(krokRundaData[param.kod].wartosc).replace('.', ',');
+              isInherited = krokRundaData[param.kod].odziedziczony === 1;
             }
             var normRange = '';
             if (param.min != null && param.max != null) normRange = fmtDec(param.min) + ' – ' + fmtDec(param.max);
@@ -4839,7 +4868,17 @@ window.showProcessStage = function(etapKey) {
             var inputClass = '';
             if (val) { var nv = parseFloat(val.replace(',','.')); var ok=true; if(param.min!=null&&nv<param.min)ok=false; if(param.max!=null&&nv>param.max)ok=false; inputClass=ok?'ok':'err'; }
 
-            krokHtml += '<div class="ff' + (isTitr ? ' titr' : '') + '">' +
+            // Determine wrapper extra classes for inheritance
+            var wrapperExtra = '';
+            var inputExtra = '';
+            if (isInherited && krokRundaEditable) {
+              wrapperExtra = ' field-inherited';
+              inputExtra = ' readonly title="Wynik z poprzedniej rundy — kliknij aby odblokować" data-odziedziczony="1"';
+            } else if (krn > 1 && !val && krokRundaEditable) {
+              wrapperExtra = ' needs-retest';
+            }
+
+            krokHtml += '<div class="ff' + (isTitr ? ' titr' : '') + wrapperExtra + '">' +
               '<div class="status-dot"></div>' +
               '<label>' + (param.skrot || param.label) + '</label>' +
               '<input type="text" inputmode="decimal"' +
@@ -4848,9 +4887,10 @@ window.showProcessStage = function(etapKey) {
               (param.metoda_id ? ' data-metoda-id="' + param.metoda_id + '"' : '') +
               (param.nawazka_g != null ? ' data-nawazka="' + param.nawazka_g + '"' : '') +
               ' value="' + val + '" class="' + inputClass + '"' +
-              (!krokRundaEditable ? ' readonly' : '') +
+              ((!krokRundaEditable || isInherited) ? ' readonly' : '') +
+              inputExtra +
               ' placeholder="\u2014"' +
-              (krokRundaEditable ? ' oninput="validateField(this); psAutoSave(this)" onblur="psSave(this)"' : '') +
+              (krokRundaEditable && !isInherited ? ' oninput="validateField(this); psAutoSave(this)" onblur="psSave(this)"' : '') +
               '><div class="ff-right"><span class="norm-range">' + normRange + '</span>' + typeTag + '</div></div>';
           });
           krokHtml += '</div>';
@@ -4908,8 +4948,10 @@ window.showProcessStage = function(etapKey) {
     var rundaData = stageAnalizy[rundaNum] || {};
     stageConfig.parametry.forEach(function(param) {
       var val = '';
+      var isInherited = false;
       if (rundaData[param.kod]) {
         val = String(rundaData[param.kod].wartosc).replace('.', ',');
+        isInherited = rundaData[param.kod].odziedziczony === 1;
       }
 
       var normRange = '';
@@ -4932,6 +4974,16 @@ window.showProcessStage = function(etapKey) {
         inputClass = inLimit ? 'ok' : 'err';
       }
 
+      // Determine wrapper extra classes for inheritance
+      var wrapperExtra = '';
+      var inheritedInputExtra = '';
+      if (isInherited && editable) {
+        wrapperExtra = ' field-inherited';
+        inheritedInputExtra = ' readonly title="Wynik z poprzedniej rundy — kliknij aby odblokować" data-odziedziczony="1"';
+      } else if (rundaNum > 1 && !val && editable) {
+        wrapperExtra = ' needs-retest';
+      }
+
       // Build extra data attrs for titracja (calculator needs these)
       var extraAttrs = '';
       if (isTitr && param.metoda_id) {
@@ -4950,7 +5002,7 @@ window.showProcessStage = function(etapKey) {
       }
 
       var clickHandler = '';
-      if (isTitr && editable) {
+      if (isTitr && editable && !isInherited) {
         if (param.metoda_id) {
           clickHandler = ' onclick="openCalculatorFull(' + param.metoda_id + ', \'' + param.kod + '\', \'etap__' + etapKey + '__' + rundaNum + '\')"';
         } else if (param.metoda) {
@@ -4961,16 +5013,17 @@ window.showProcessStage = function(etapKey) {
 
       // Special hybrid input for mętność
       if (param.kod === 'metnosc_fau' || param.kod === 'barwa_opis') {
-        h += '<div class="ff">' +
+        h += '<div class="ff' + wrapperExtra + '">' +
           '<div class="status-dot"></div>' +
           '<label>' + (param.skrot || param.label) + '</label>' +
           '<input type="text" list="barwa-text-opts"' +
             ' data-etap="' + etapKey + '" data-runda="' + rundaNum + '" data-kod="' + param.kod + '"' +
             ' value="' + val + '"' +
             ' class="' + inputClass + '"' +
-            (!editable ? ' readonly' : '') +
+            ((!editable || isInherited) ? ' readonly' : '') +
+            inheritedInputExtra +
             ' placeholder="NTU lub opis"' +
-            (editable ? ' oninput="psAutoSave(this)" onblur="psSave(this)"' : '') +
+            (editable && !isInherited ? ' oninput="psAutoSave(this)" onblur="psSave(this)"' : '') +
             '>' +
           '<datalist id="barwa-text-opts">' +
             '<option value="klarowna">' +
@@ -4986,7 +5039,7 @@ window.showProcessStage = function(etapKey) {
         return; // skip standard rendering for this param
       }
 
-      h += '<div class="ff' + (isTitr ? ' titr' : '') + (isObl ? ' computed' : '') + '">' +
+      h += '<div class="ff' + (isTitr ? ' titr' : '') + (isObl ? ' computed' : '') + wrapperExtra + '">' +
         '<div class="status-dot"></div>' +
         '<label>' + (param.skrot || param.label) + '</label>' +
         '<input type="text" inputmode="decimal"' +
@@ -4996,9 +5049,10 @@ window.showProcessStage = function(etapKey) {
           extraAttrs +
           ' value="' + val + '"' +
           ' class="' + inputClass + '"' +
-          (!editable ? ' readonly' : '') +
+          ((!editable || isInherited) ? ' readonly' : '') +
+          inheritedInputExtra +
           ' placeholder="\u2014"' +
-          (editable ? ' oninput="validateField(this); psAutoSave(this)" onblur="psSave(this)"' : '') +
+          (editable && !isInherited ? ' oninput="validateField(this); psAutoSave(this)" onblur="psSave(this)"' : '') +
           clickHandler +
           '>' +
         '<div class="ff-right">' +
@@ -5220,6 +5274,31 @@ function psAutoSave(input) {
   _psSaveTimers[key] = setTimeout(function() { psSave(input); }, 1500);
 }
 
+// ── Inherited field unlock handler ──────────────────────────────
+function unlockInherited(input) {
+    var wrapper = input.closest('.field-inherited');
+    if (!wrapper) return;
+    wrapper.classList.remove('field-inherited');
+    input.removeAttribute('readonly');
+    input.removeAttribute('title');
+    input.value = '';
+    input.style.background = '';
+    input.style.color = '';
+    input.style.fontStyle = '';
+    input.classList.remove('ok', 'err');
+    // Re-attach event handlers for editing
+    input.setAttribute('oninput', 'validateField(this); psAutoSave(this)');
+    input.setAttribute('onblur', 'psSave(this)');
+    input.focus();
+    input.dataset.odziedziczony = '0';
+}
+
+document.addEventListener('click', function(e) {
+    if (e.target.matches('.field-inherited input[readonly]')) {
+        unlockInherited(e.target);
+    }
+});
+
 function psSave(input) {
   var etap = input.dataset.etap;
   var runda = parseInt(input.dataset.runda);
@@ -5251,7 +5330,7 @@ function psSave(input) {
       // Update local cache
       if (!_etapyAnalizy[etap]) _etapyAnalizy[etap] = {};
       if (!_etapyAnalizy[etap][runda]) _etapyAnalizy[etap][runda] = {};
-      _etapyAnalizy[etap][runda][kod] = {wartosc: parseFloat(val), dt_wpisu: new Date().toISOString(), wpisal: 'me', krok: window._currentKrok || 1};
+      _etapyAnalizy[etap][runda][kod] = {wartosc: parseFloat(val), dt_wpisu: new Date().toISOString(), wpisal: 'me', krok: window._currentKrok || 1, odziedziczony: (input.dataset.odziedziczony === '1') ? 1 : 0};
       var dot = input.parentElement && input.parentElement.querySelector('.status-dot');
       if (dot) dot.classList.add('ok');
     } else {
