@@ -3114,87 +3114,159 @@ function openSmallCorrectionDialog() {
 // ═══ OPERATOR-DRIVEN CORRECTION ORDERS (zlecenie korekty) ═══
 
 async function openCorrectionForm(sekcja, etapId, sesjaId) {
-    var panel = document.getElementById('sdp-' + sekcja);
-    if (!panel) return;
+    var formDiv = document.getElementById('sdp-' + sekcja);
+    if (!formDiv) return;
 
-    panel.innerHTML = '<span style="color:var(--text-dim);font-size:11px;">Ładowanie katalogu korekt...</span>';
+    formDiv.innerHTML = '<span style="color:var(--text-dim);font-size:11px;">Ładowanie katalogu korekt...</span>';
 
     try {
         var resp = await fetch('/api/pipeline/lab/etap/' + etapId + '/korekty-katalog');
-        if (!resp.ok) { panel.innerHTML = '<span style="color:var(--red);font-size:11px;">Błąd ładowania katalogu.</span>'; return; }
+        if (!resp.ok) { formDiv.innerHTML = '<span style="color:var(--red);font-size:11px;">Błąd ładowania katalogu.</span>'; return; }
         var katalog = await resp.json();
 
         if (!katalog || katalog.length === 0) {
-            panel.innerHTML = '<span style="color:var(--text-dim);font-size:11px;">Brak zdefiniowanych korekt dla tego etapu.</span>';
+            formDiv.innerHTML = '<span style="color:var(--text-dim);font-size:11px;">Brak zdefiniowanych korekt dla tego etapu.</span>';
             return;
         }
 
-        var html = '<div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Zlecenie korekty</div>';
-        html += '<div id="corr-form-' + sekcja + '">';
-
-        katalog.forEach(function(k) {
-            html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;" data-korekta-typ-id="' + k.id + '">' +
-                '<input type="checkbox" id="corr-chk-' + sekcja + '-' + k.id + '" data-korekta-typ-id="' + k.id + '" style="margin:0;">' +
-                '<label for="corr-chk-' + sekcja + '-' + k.id + '" style="font-weight:600;font-size:12px;min-width:120px;">' + k.substancja.replace(/_/g, ' ') + '</label>' +
-                '<input type="number" step="any" class="pa-input" id="corr-qty-' + sekcja + '-' + k.id + '" placeholder="Ilość" ' +
-                    'style="width:90px;font-size:12px;text-align:center;" disabled>' +
-                '<span style="color:var(--text-dim);font-size:10px;">' + (k.jednostka || 'kg') + '</span>' +
-                '<span id="corr-hint-' + sekcja + '-' + k.id + '" style="font-size:9px;color:var(--teal);"></span>' +
-            '</div>';
-        });
-
-        html += '<div style="margin-top:8px;display:flex;gap:8px;">' +
-            '<button class="btn-success" onclick="submitCorrectionOrder(\'' + sekcja + '\',' + etapId + ',' + sesjaId + ')">Zleć korektę</button>' +
-            '<button class="btn-secondary" onclick="cancelCorrectionForm(\'' + sekcja + '\',' + etapId + ',' + sesjaId + ')">Anuluj</button>' +
-        '</div></div>';
-
-        panel.innerHTML = html;
-
-        // Checkbox enables/disables quantity input
-        katalog.forEach(function(k) {
-            var chk = document.getElementById('corr-chk-' + sekcja + '-' + k.id);
-            var qty = document.getElementById('corr-qty-' + sekcja + '-' + k.id);
-            if (chk && qty) {
-                chk.addEventListener('change', function() { qty.disabled = !chk.checked; if (chk.checked) qty.focus(); });
+        // Resolve formulas for each substance
+        var resolvedMap = {};
+        var ebrIdLocal = window.ebrId || window._batchEbrId;
+        for (var k of katalog) {
+            if (k.formula_ilosc) {
+                try {
+                    var fResp = await fetch('/api/pipeline/lab/ebr/' + ebrIdLocal + '/formula-resolve', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ korekta_typ_id: k.id, etap_id: etapId, sesja_id: sesjaId }),
+                    });
+                    if (fResp.ok) resolvedMap[k.id] = await fResp.json();
+                } catch(e) {}
             }
+        }
+
+        // Find common context from first resolved
+        var ctx = null;
+        for (var kid in resolvedMap) { ctx = resolvedMap[kid]; break; }
+
+        var html = '<div id="corr-form-' + sekcja + '" class="corr-form" style="padding:12px;border:1px solid var(--border-subtle);border-radius:6px;margin-top:8px;background:var(--surface-alt);">';
+
+        // Context header with masa, editable redukcja, Meff
+        if (ctx && ctx.zmienne) {
+            var z = ctx.zmienne;
+            var masa = z.wielkosc_szarzy_kg;
+            var redukcja = z.redukcja != null ? z.redukcja : 0;
+            var meff = z.Meff;
+            html += '<div style="margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--border-subtle);">';
+            html += '<div style="font-weight:700;font-size:13px;margin-bottom:6px;">Kontekst</div>';
+            html += '<table style="font-size:12px;width:100%;">';
+            html += '<tr><td>Masa szarży:</td><td style="text-align:right;font-family:var(--mono);font-weight:600;">' + (masa != null ? masa.toLocaleString('pl') + ' kg' : '—') + '</td></tr>';
+            html += '<tr><td>Redukcja:</td><td style="text-align:right;">'
+                + '<input type="number" id="corr-redukcja-' + sekcja + '" value="' + redukcja + '" '
+                + 'style="width:80px;text-align:right;font-family:var(--mono);font-size:12px;border:1px solid var(--border-subtle);border-radius:3px;padding:2px 4px;" '
+                + 'data-sekcja="' + sekcja + '" data-etap-id="' + etapId + '" data-sesja-id="' + sesjaId + '" '
+                + 'onchange="recalcRedukcja(this)"> kg</td></tr>';
+            html += '<tr><td>Masa efektywna:</td><td id="corr-meff-' + sekcja + '" style="text-align:right;font-family:var(--mono);font-weight:600;">' + (meff != null ? meff.toLocaleString('pl') + ' kg' : '—') + '</td></tr>';
+            html += '</table></div>';
+        }
+
+        // Per-substance sections
+        katalog.forEach(function(k) {
+            var res = resolvedMap[k.id];
+            var hasFormula = !!k.formula_ilosc;
+            var wynik = (res && res.wynik != null) ? res.wynik.toFixed(2) : '';
+
+            html += '<div class="corr-substance" style="margin-bottom:10px;padding:8px;border:1px solid var(--border-subtle);border-radius:4px;">';
+            html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">';
+            html += '<input type="checkbox" id="corr-chk-' + sekcja + '-' + k.id + '" data-korekta-typ-id="' + k.id + '" ' + (hasFormula && wynik ? 'checked' : '') + '>';
+            html += '<span style="font-weight:700;">' + k.substancja + '</span>';
+            html += '<span style="color:var(--text-dim);font-size:11px;">[' + k.jednostka + ']</span>';
+            html += '</div>';
+
+            if (hasFormula && res && res.zmienne) {
+                html += '<div style="font-size:11px;color:var(--text-dim);padding-left:24px;margin-bottom:6px;">';
+                for (var vname in res.zmienne) {
+                    if (vname === 'wielkosc_szarzy_kg' || vname === 'redukcja' || vname === 'Meff') continue;
+                    var vval = res.zmienne[vname];
+                    var vlabel = (res.labels && res.labels[vname]) || vname;
+                    html += '<div>' + vlabel + ': <span style="font-family:var(--mono);font-weight:600;">' + (vval != null ? String(vval).replace('.', ',') : '—') + '</span></div>';
+                }
+                if (wynik) {
+                    html += '<div style="margin-top:4px;color:var(--teal);font-weight:600;">Wyliczone: ' + wynik.replace('.', ',') + ' ' + k.jednostka + '</div>';
+                }
+                html += '</div>';
+            } else if (!hasFormula) {
+                html += '<div style="font-size:11px;color:var(--text-dim);padding-left:24px;margin-bottom:6px;">(brak formuły — wpisz ręcznie)</div>';
+            }
+
+            html += '<div style="padding-left:24px;">';
+            html += '<label style="font-size:11px;">Ilość:</label> ';
+            html += '<input type="number" step="0.01" id="corr-qty-' + sekcja + '-' + k.id + '" '
+                + 'class="corr-amount" data-korekta-typ-id="' + k.id + '" '
+                + 'value="' + wynik + '" '
+                + 'style="width:100px;text-align:right;font-family:var(--mono);font-size:13px;font-weight:600;border:1px solid var(--border-subtle);border-radius:3px;padding:2px 4px;"> '
+                + k.jednostka;
+            html += '</div></div>';
         });
 
-        // Fetch formula hints for substances that have formulas
-        fetchFormulaHints(sekcja, etapId, katalog);
+        html += '<div style="margin-top:10px;">';
+        html += '<textarea id="corr-comment-' + sekcja + '" placeholder="Komentarz (opcjonalnie)" rows="2" style="width:100%;font-size:12px;border:1px solid var(--border-subtle);border-radius:3px;padding:4px;"></textarea>';
+        html += '</div>';
+        html += '<div style="margin-top:8px;display:flex;gap:8px;">';
+        html += '<button class="btn-success" onclick="submitCorrectionOrder(\'' + sekcja + '\',' + etapId + ',' + sesjaId + ')">Zleć korektę</button>';
+        html += '<button class="btn-secondary" onclick="cancelCorrectionForm(\'' + sekcja + '\',' + etapId + ',' + sesjaId + ')">Anuluj</button>';
+        html += '</div></div>';
+
+        formDiv.innerHTML = html;
+        formDiv.style.display = 'block';
+
+        // Track manual edits on quantity inputs
+        formDiv.querySelectorAll('.corr-amount').forEach(function(inp) {
+            inp.addEventListener('input', function() { this.dataset.manualEdit = '1'; });
+        });
 
     } catch(e) {
-        panel.innerHTML = '<span style="color:var(--red);font-size:11px;">Błąd: ' + e.message + '</span>';
+        formDiv.innerHTML = '<span style="color:var(--red);font-size:11px;">Błąd: ' + e.message + '</span>';
     }
 }
 
-async function fetchFormulaHints(sekcja, etapId, katalog) {
-    var baseSekcja = sekcja.split('__')[0];
-    var latestWyniki = wyniki[sekcja] || wyniki[baseSekcja] || {};
+async function recalcRedukcja(input) {
+    var sekcja = input.dataset.sekcja;
+    var etapId = parseInt(input.dataset.etapId);
+    var sesjaId = parseInt(input.dataset.sesjaId);
+    var redukcja = parseFloat(input.value) || 0;
+    var ebrIdLocal = window.ebrId || window._batchEbrId;
 
-    for (var i = 0; i < katalog.length; i++) {
-        var k = katalog[i];
+    var resp = await fetch('/api/pipeline/lab/etap/' + etapId + '/korekty-katalog');
+    if (!resp.ok) return;
+    var katalog = await resp.json();
+
+    for (var k of katalog) {
         if (!k.formula_ilosc) continue;
-
-        var params = 'korekta_typ_id=' + k.id;
-        // Pass current measurement values as formula variables
-        Object.keys(latestWyniki).forEach(function(kod) {
-            var w = latestWyniki[kod];
-            if (w && w.wartosc != null) params += '&' + encodeURIComponent(kod) + '=' + w.wartosc;
-        });
-        // Pass nastaw
-        if (typeof ebrNastaw !== 'undefined' && ebrNastaw) params += '&wielkosc_szarzy_kg=' + ebrNastaw;
-
         try {
-            var resp = await fetch('/api/pipeline/lab/formula-hint?' + params);
-            if (!resp.ok) continue;
-            var data = await resp.json();
-            if (data.ok && data.hint != null) {
-                var hintEl = document.getElementById('corr-hint-' + sekcja + '-' + k.id);
-                var qtyEl = document.getElementById('corr-qty-' + sekcja + '-' + k.id);
-                if (hintEl) hintEl.textContent = 'obliczono: ' + String(data.hint).replace('.', ',');
-                if (qtyEl && !qtyEl.value) qtyEl.value = data.hint;
+            var fResp = await fetch('/api/pipeline/lab/ebr/' + ebrIdLocal + '/formula-resolve', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    korekta_typ_id: k.id,
+                    etap_id: etapId,
+                    sesja_id: sesjaId,
+                    redukcja_override: redukcja,
+                }),
+            });
+            if (!fResp.ok) continue;
+            var res = await fResp.json();
+
+            var meffEl = document.getElementById('corr-meff-' + sekcja);
+            if (meffEl && res.zmienne && res.zmienne.Meff != null) {
+                meffEl.textContent = res.zmienne.Meff.toLocaleString('pl') + ' kg';
             }
-        } catch(e) { /* hint is optional */ }
+
+            var qtyEl = document.getElementById('corr-qty-' + sekcja + '-' + k.id);
+            if (qtyEl && res.wynik != null && !qtyEl.dataset.manualEdit) {
+                qtyEl.value = res.wynik.toFixed(2);
+            }
+        } catch(e) {}
     }
 }
 
