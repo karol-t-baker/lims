@@ -81,3 +81,37 @@ def run_loocv(df: pd.DataFrame, predictors: list[str]) -> dict:
         "residuals": residuals_kg,
         "predictions": pred_kg,
     }
+
+
+def compare_models(fit_a: dict, cv_a: dict, fit_b: dict, cv_b: dict) -> dict:
+    """Compare Model A vs B. B wins if woda_refrakcja is significant, MAE drops >5%, R² improves."""
+    reasons = []
+    b_wins = 0
+
+    # Criterion 1: woda_refrakcja_per_ton p-value < 0.05
+    p_woda = fit_b["p_values"].get("woda_refrakcja_per_ton", 1.0)
+    if p_woda < 0.05:
+        reasons.append(f"woda_refrakcja_per_ton significant (p={p_woda:.4f})")
+        b_wins += 1
+    else:
+        reasons.append(f"woda_refrakcja_per_ton NOT significant (p={p_woda:.4f})")
+
+    # Criterion 2: MAE drops >5%
+    mae_drop_pct = (cv_a["mae_kg"] - cv_b["mae_kg"]) / cv_a["mae_kg"] * 100.0
+    if mae_drop_pct > 5.0:
+        reasons.append(f"MAE dropped {mae_drop_pct:.1f}% (A={cv_a['mae_kg']:.2f}, B={cv_b['mae_kg']:.2f})")
+        b_wins += 1
+    else:
+        reasons.append(f"MAE drop insufficient: {mae_drop_pct:.1f}% (A={cv_a['mae_kg']:.2f}, B={cv_b['mae_kg']:.2f})")
+
+    # Criterion 3: R² CV improves
+    if cv_b["r2_cv"] > cv_a["r2_cv"]:
+        reasons.append(f"R² CV improved (A={cv_a['r2_cv']:.4f}, B={cv_b['r2_cv']:.4f})")
+        b_wins += 1
+    else:
+        reasons.append(f"R² CV did not improve (A={cv_a['r2_cv']:.4f}, B={cv_b['r2_cv']:.4f})")
+
+    winner = "B" if b_wins >= 2 else "A"
+    reasons.append(f"Winner: Model {'B (extended)' if winner == 'B' else 'A (baseline)'} ({b_wins}/3 criteria met)")
+
+    return {"winner": winner, "reasons": reasons}

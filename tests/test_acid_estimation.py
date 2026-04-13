@@ -71,3 +71,21 @@ def test_loocv():
     assert 0 < metrics["mape_pct"] < 100
     assert len(metrics["residuals"]) == 45
     assert len(metrics["predictions"]) == 45
+
+
+def test_compare_models():
+    from acid_estimation_analysis import load_data, add_features, fit_model, run_loocv, compare_models
+
+    df = load_data("data/kwas.csv")
+    df = add_features(df)
+
+    fit_a = fit_model(df, predictors=["ph_start"])
+    cv_a = run_loocv(df, predictors=["ph_start"])
+
+    fit_b = fit_model(df, predictors=["ph_start", "woda_refrakcja_per_ton"])
+    cv_b = run_loocv(df, predictors=["ph_start", "woda_refrakcja_per_ton"])
+
+    result = compare_models(fit_a, cv_a, fit_b, cv_b)
+    assert result["winner"] in ("A", "B")
+    assert "reasons" in result
+    assert isinstance(result["reasons"], list)
