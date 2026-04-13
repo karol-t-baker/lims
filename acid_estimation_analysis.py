@@ -10,6 +10,7 @@ Usage:
 
 import numpy as np
 import pandas as pd
+import statsmodels.api as sm
 
 
 def load_data(csv_path: str) -> pd.DataFrame:
@@ -31,3 +32,17 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     df["woda_refrakcja"] = df["woda_kg"] - df["kwas_kg"]
     df["woda_refrakcja_per_ton"] = df["woda_refrakcja"] / tons
     return df
+
+
+def fit_model(df: pd.DataFrame, predictors: list[str]) -> dict:
+    """Fit OLS: kwas_per_ton ~ predictors. Returns coefficients, R², p-values, model."""
+    X = sm.add_constant(df[predictors])
+    y = df["kwas_per_ton"]
+    model = sm.OLS(y, X).fit()
+    return {
+        "coefficients": model.params.to_dict(),
+        "r_squared": model.rsquared,
+        "r_squared_adj": model.rsquared_adj,
+        "p_values": model.pvalues.to_dict(),
+        "model": model,
+    }

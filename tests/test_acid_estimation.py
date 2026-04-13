@@ -36,3 +36,21 @@ def test_feature_engineering():
     # woda_refrakcja_per_ton = woda_refrakcja / (masa_kg / 1000)
     expected_wrpt = [815.0 / 12.6, 525.0 / 8.6, 467.0 / 7.4]
     np.testing.assert_allclose(result["woda_refrakcja_per_ton"].values, expected_wrpt, rtol=1e-6)
+
+
+def test_fit_model_a():
+    from acid_estimation_analysis import add_features, fit_model
+    df = add_features(make_sample_df())
+    result = fit_model(df, predictors=["ph_start"])
+    assert "coefficients" in result
+    assert "r_squared" in result
+    assert "p_values" in result
+    assert "model" in result
+    assert len(result["coefficients"]) == 2  # const + ph_start
+
+
+def test_fit_model_b():
+    from acid_estimation_analysis import add_features, fit_model
+    df = add_features(make_sample_df())
+    result = fit_model(df, predictors=["ph_start", "woda_refrakcja_per_ton"])
+    assert len(result["coefficients"]) == 3  # const + 2 predictors
