@@ -327,7 +327,7 @@ def pipeline_dual_write(db, ebr_id, sekcja, values, wpisal):
     base_sekcja = sekcja.split("__")[0] if "__" in sekcja else sekcja
 
     # "dodatki" = corrections, no gate evaluation needed
-    if base_sekcja == "dodatki":
+    if base_sekcja == "dodatki" or base_sekcja.endswith("_dodatki"):
         return None
 
     # Find the pipeline stage that maps to this sekcja
