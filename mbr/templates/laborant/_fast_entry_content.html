@@ -1185,6 +1185,18 @@ function renderPipelineSections() {
         prevOutOfLimit: [],
         saveBtnLabel: null
     });
+
+    // For jednorazowy stages without gate: add "Zatwierdź etap" button when results exist
+    if (!isReadonly && !activeReadonly && hasSomeResults && activeEtap.typ_cyklu !== 'cykliczny') {
+        var isLastStage = etapy.filter(function(e){return e.pipeline_etap_id;}).slice(-1)[0].pipeline_etap_id === activeEtap.pipeline_etap_id;
+        if (!isLastStage) {
+            var approveBar = document.createElement('div');
+            approveBar.className = 'decision-bar';
+            approveBar.style.cssText = 'padding:12px 16px;margin-top:8px;display:flex;gap:8px;';
+            approveBar.innerHTML = '<button class="btn-success" onclick="closePipelineStage(\'' + activeSekcja + '\')">Zatwierdź etap &rarr;</button>';
+            container.appendChild(approveBar);
+        }
+    }
 }
 
 function _renderCyclicReadonly(container, rs, entryGrupa) {
@@ -2747,21 +2759,58 @@ async function startNewPipelineRound(sekcja) {
 
 async function closePipelineStage(sekcja) {
     var gate = window._lastGate;
-    if (!gate || !gate.sesja_id || !gate.etap_id) return;
+    var etap_id = gate ? gate.etap_id : null;
+    var sesja_id = gate ? gate.sesja_id : null;
 
-    await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + gate.etap_id + '/close', {
+    // If no gate data, find active etap from sekcja
+    if (!etap_id) {
+        var baseSekcja = sekcja.split('__')[0];
+        var activeEtap = etapy.find(function(e) {
+            return e.pipeline_etap_id && e.sekcja_lab === baseSekcja;
+        });
+        if (activeEtap) etap_id = activeEtap.pipeline_etap_id;
+    }
+    if (!etap_id) return;
+
+    // If no sesja_id, fetch it from API
+    if (!sesja_id) {
+        try {
+            var resp = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + etap_id);
+            if (resp.ok) {
+                var data = await resp.json();
+                if (data.current_sesja) sesja_id = data.current_sesja.id;
+            }
+        } catch(e) {}
+    }
+    if (!sesja_id) return;
+
+    // Close current session
+    await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + etap_id + '/close', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({sesja_id: gate.sesja_id, decyzja: 'przejscie'})
+        body: JSON.stringify({sesja_id: sesja_id, decyzja: 'przejscie'})
     });
 
+    // Find next stage and start session
     var stages = etapy.filter(function(e) { return e.pipeline_etap_id; });
-    var currentIdx = stages.findIndex(function(e) { return e.pipeline_etap_id === gate.etap_id; });
+    var currentIdx = stages.findIndex(function(e) { return e.pipeline_etap_id === etap_id; });
     var nextStage = stages[currentIdx + 1];
 
     if (nextStage) {
-        showPipelineStage(nextStage.sekcja_lab, false);
+        // Start session for next stage
+        await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + nextStage.pipeline_etap_id + '/start', {
+            method: 'POST'
+        });
+        // Reload batch to refresh wyniki and roundState
+        if (typeof loadBatch === 'function') {
+            window._activePipelineStage = nextStage.sekcja_lab;
+            window._activePipelineReadonly = false;
+            loadBatch(ebrId);
+        } else {
+            location.reload();
+        }
     } else {
+        // Last stage — reload
         if (typeof loadBatch === 'function') loadBatch(ebrId);
         else location.reload();
     }
