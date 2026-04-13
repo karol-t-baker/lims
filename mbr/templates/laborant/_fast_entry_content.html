@@ -1,5 +1,6 @@
 {# Partial: fast entry content loaded via AJAX — no base.html wrapper #}
 {% include "laborant/_gate_decision_modal.html" %}
+{% include "laborant/_correction_panel.html" %}
 
 <div id="detail-topbar">
   <span class="tp-t">
@@ -2891,6 +2892,14 @@ function renderGateBanner(sekcja, gate) {
                 '<span style="color:var(--green);font-weight:600;font-size:13px;">&#10003; Warunek spełniony</span>' +
                 '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">' + buttonsHtml + '</div>' +
             '</div>';
+
+        // Insert correction auto-calc panel after the pass banner
+        var existingCorrPanel = document.getElementById('correction-panel-' + sekcja);
+        if (existingCorrPanel) existingCorrPanel.remove();
+        banner.insertAdjacentHTML('afterend', '<div id="correction-panel-' + sekcja + '"></div>');
+        if (typeof tryRenderCorrectionAfterGate === 'function') {
+            tryRenderCorrectionAfterGate(sekcja);
+        }
     } else {
         var failList = (gate.failures || []).map(function(f) {
             return f.kod || f.reason || 'nieznany';

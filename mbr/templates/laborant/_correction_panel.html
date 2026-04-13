@@ -1,0 +1,212 @@
+{# Correction auto-calc panels: perhydrol (sulfonowanie→utlenianie) + standaryzacja (utlenianie→standaryzacja) #}
+<script>
+/* ═══ CORRECTION AUTO-CALC PANELS ═══ */
+
+function renderCorrectionPanel(panelType, sekcja, ctx) {
+    var container = document.getElementById('correction-panel-' + sekcja);
+    if (!container) return;
+
+    if (panelType === 'perhydrol') {
+        _renderPerhydrolPanel(container, sekcja, ctx);
+    } else if (panelType === 'standaryzacja') {
+        _renderStandaryzacjaPanel(container, sekcja, ctx);
+    }
+}
+
+function _renderPerhydrolPanel(container, sekcja, ctx) {
+    var wynikSo3 = ctx.wynik_so3 != null ? String(ctx.wynik_so3).replace('.', ',') : '';
+    var targetSo3 = ctx.target_so3 != null ? String(ctx.target_so3).replace('.', ',') : '';
+    var masa = ctx.masa_szarzy != null ? String(ctx.masa_szarzy).replace('.', ',') : '';
+    var wsp = ctx.wspolczynnik || '1,0';
+
+    container.innerHTML =
+        '<div style="border:2px solid var(--blue, #3b82f6);border-radius:10px;background:var(--blue-bg, #eff6ff);padding:14px 16px;margin-top:12px;">' +
+            '<div style="font-weight:700;font-size:13px;color:var(--blue, #3b82f6);margin-bottom:10px;">' +
+                'Korekta utleniania &mdash; dawka perhydrolu' +
+            '</div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;">' +
+                _corrInput('SO\u2083\u00B2\u207B wynik [%]', 'corr-so3-wynik-' + sekcja, wynikSo3, true, 'recomputePerhydrol(\'' + sekcja + '\')') +
+                _corrInput('SO\u2083\u00B2\u207B cel [%]', 'corr-so3-cel-' + sekcja, targetSo3, false, 'recomputePerhydrol(\'' + sekcja + '\')') +
+                _corrInput('Masa szar\u017Cy [kg]', 'corr-masa-' + sekcja, masa, false, 'recomputePerhydrol(\'' + sekcja + '\')') +
+                _corrInput('Wsp\u00F3\u0142czynnik', 'corr-wsp-' + sekcja, wsp, false, 'recomputePerhydrol(\'' + sekcja + '\')',
+                    '<div style="font-size:9px;color:var(--muted, #94a3b8);margin-top:2px;">Edycja = zapis globalny</div>') +
+            '</div>' +
+            '<div id="corr-result-' + sekcja + '" style="margin-top:12px;background:var(--surface, #fff);border:1px solid var(--border, #e2e8f0);border-radius:8px;padding:12px 16px;text-align:center;">' +
+                '<div style="font-size:11px;color:var(--muted, #94a3b8);">Dawka perhydrolu</div>' +
+                '<div style="font-size:22px;font-weight:700;font-family:var(--mono, monospace);color:var(--teal, #14b8a6);margin-top:4px;">&mdash; kg</div>' +
+            '</div>' +
+        '</div>';
+
+    recomputePerhydrol(sekcja);
+}
+
+function _renderStandaryzacjaPanel(container, sekcja, ctx) {
+    var wynikSm = ctx.wynik_sm != null ? String(ctx.wynik_sm).replace('.', ',') : '';
+    var targetSm = ctx.target_sm != null ? String(ctx.target_sm).replace('.', ',') : '';
+    var wynikNacl = ctx.wynik_nacl != null ? String(ctx.wynik_nacl).replace('.', ',') : '';
+    var targetNacl = ctx.target_nacl != null ? String(ctx.target_nacl).replace('.', ',') : '';
+    var masa = ctx.masa_szarzy != null ? String(ctx.masa_szarzy).replace('.', ',') : '';
+
+    var recomp = 'recomputeStandaryzacja(\'' + sekcja + '\')';
+
+    container.innerHTML =
+        '<div style="border:2px solid var(--blue, #3b82f6);border-radius:10px;background:var(--blue-bg, #eff6ff);padding:14px 16px;margin-top:12px;">' +
+            '<div style="font-weight:700;font-size:13px;color:var(--blue, #3b82f6);margin-bottom:10px;">' +
+                'Korekta standaryzuj\u0105ca &mdash; woda + NaCl' +
+            '</div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;">' +
+                _corrInput('SM wynik [%]', 'corr-sm-wynik-' + sekcja, wynikSm, true, recomp) +
+                _corrInput('SM cel [%]', 'corr-sm-cel-' + sekcja, targetSm, false, recomp) +
+                _corrInput('NaCl wynik [%]', 'corr-nacl-wynik-' + sekcja, wynikNacl, true, recomp) +
+                _corrInput('NaCl cel [%]', 'corr-nacl-cel-' + sekcja, targetNacl, false, recomp) +
+                '<div style="grid-column:1/-1;">' +
+                    _corrInput('Masa [kg]', 'corr-masa-' + sekcja, masa, false, recomp) +
+                '</div>' +
+            '</div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;">' +
+                '<div id="corr-result-woda-' + sekcja + '" style="background:var(--surface, #fff);border:1px solid var(--border, #e2e8f0);border-radius:8px;padding:12px 14px;text-align:center;">' +
+                    '<div style="font-size:11px;color:var(--muted, #94a3b8);">Woda</div>' +
+                    '<div style="font-size:20px;font-weight:700;font-family:var(--mono, monospace);color:var(--teal, #14b8a6);margin-top:4px;">&mdash; kg</div>' +
+                '</div>' +
+                '<div id="corr-result-nacl-' + sekcja + '" style="background:var(--surface, #fff);border:1px solid var(--border, #e2e8f0);border-radius:8px;padding:12px 14px;text-align:center;">' +
+                    '<div style="font-size:11px;color:var(--muted, #94a3b8);">NaCl</div>' +
+                    '<div style="font-size:20px;font-weight:700;font-family:var(--mono, monospace);color:var(--teal, #14b8a6);margin-top:4px;">&mdash; kg</div>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+
+    recomputeStandaryzacja(sekcja);
+}
+
+function _corrInput(label, id, value, readonly, oninputFn, extra) {
+    return '<div>' +
+        '<label style="display:block;font-size:10px;font-weight:600;color:var(--muted, #94a3b8);margin-bottom:3px;">' + label + '</label>' +
+        '<input id="' + id + '" type="text" inputmode="decimal" value="' + (value || '') + '"' +
+            (readonly ? ' readonly style="background:var(--surface, #f8fafc);border:1px solid var(--border, #e2e8f0);border-radius:6px;padding:6px 10px;font-size:13px;font-family:var(--mono, monospace);width:100%;box-sizing:border-box;color:var(--muted, #94a3b8);"'
+                      : ' style="background:#fff;border:1px solid var(--border, #e2e8f0);border-radius:6px;padding:6px 10px;font-size:13px;font-family:var(--mono, monospace);width:100%;box-sizing:border-box;"') +
+            ' oninput="' + oninputFn + '">' +
+        (extra || '') +
+    '</div>';
+}
+
+function _parsePl(val) {
+    if (val == null || val === '') return NaN;
+    return parseFloat(String(val).replace(',', '.'));
+}
+
+function recomputePerhydrol(sekcja) {
+    var wynikSo3 = _parsePl(document.getElementById('corr-so3-wynik-' + sekcja)?.value);
+    var celSo3   = _parsePl(document.getElementById('corr-so3-cel-' + sekcja)?.value);
+    var masa     = _parsePl(document.getElementById('corr-masa-' + sekcja)?.value);
+    var wsp      = _parsePl(document.getElementById('corr-wsp-' + sekcja)?.value);
+
+    var resultEl = document.getElementById('corr-result-' + sekcja);
+    if (!resultEl) return;
+
+    if (isNaN(wynikSo3) || isNaN(celSo3) || isNaN(masa) || isNaN(wsp) || wsp === 0) {
+        resultEl.innerHTML =
+            '<div style="font-size:11px;color:var(--muted, #94a3b8);">Dawka perhydrolu</div>' +
+            '<div style="font-size:22px;font-weight:700;font-family:var(--mono, monospace);color:var(--teal, #14b8a6);margin-top:4px;">&mdash; kg</div>';
+        return;
+    }
+
+    var dawka = (celSo3 - wynikSo3) * masa * wsp;
+    if (!isFinite(dawka) || dawka < 0) dawka = 0;
+    var formatted = dawka.toFixed(2).replace('.', ',');
+
+    resultEl.innerHTML =
+        '<div style="font-size:11px;color:var(--muted, #94a3b8);">Dawka perhydrolu</div>' +
+        '<div style="font-size:22px;font-weight:700;font-family:var(--mono, monospace);color:var(--teal, #14b8a6);margin-top:4px;">' + formatted + ' kg</div>';
+}
+
+function recomputeStandaryzacja(sekcja) {
+    var wynikSm   = _parsePl(document.getElementById('corr-sm-wynik-' + sekcja)?.value);
+    var celSm     = _parsePl(document.getElementById('corr-sm-cel-' + sekcja)?.value);
+    var wynikNacl = _parsePl(document.getElementById('corr-nacl-wynik-' + sekcja)?.value);
+    var celNacl   = _parsePl(document.getElementById('corr-nacl-cel-' + sekcja)?.value);
+    var masa      = _parsePl(document.getElementById('corr-masa-' + sekcja)?.value);
+
+    var wodaEl = document.getElementById('corr-result-woda-' + sekcja);
+    var naclEl = document.getElementById('corr-result-nacl-' + sekcja);
+    if (!wodaEl || !naclEl) return;
+
+    var wodaValid = !isNaN(wynikSm) && !isNaN(celSm) && !isNaN(masa) && wynikSm !== 0;
+    var naclValid = !isNaN(wynikNacl) && !isNaN(celNacl) && !isNaN(masa);
+
+    if (wodaValid) {
+        var woda = masa * (1 - celSm / wynikSm);
+        if (!isFinite(woda) || woda < 0) woda = 0;
+        wodaEl.innerHTML =
+            '<div style="font-size:11px;color:var(--muted, #94a3b8);">Woda</div>' +
+            '<div style="font-size:20px;font-weight:700;font-family:var(--mono, monospace);color:var(--teal, #14b8a6);margin-top:4px;">' + woda.toFixed(2).replace('.', ',') + ' kg</div>';
+    } else {
+        wodaEl.innerHTML =
+            '<div style="font-size:11px;color:var(--muted, #94a3b8);">Woda</div>' +
+            '<div style="font-size:20px;font-weight:700;font-family:var(--mono, monospace);color:var(--teal, #14b8a6);margin-top:4px;">&mdash; kg</div>';
+    }
+
+    if (naclValid) {
+        var nacl = masa * (celNacl - wynikNacl) / 100;
+        if (!isFinite(nacl) || nacl < 0) nacl = 0;
+        naclEl.innerHTML =
+            '<div style="font-size:11px;color:var(--muted, #94a3b8);">NaCl</div>' +
+            '<div style="font-size:20px;font-weight:700;font-family:var(--mono, monospace);color:var(--teal, #14b8a6);margin-top:4px;">' + nacl.toFixed(2).replace('.', ',') + ' kg</div>';
+    } else {
+        naclEl.innerHTML =
+            '<div style="font-size:11px;color:var(--muted, #94a3b8);">NaCl</div>' +
+            '<div style="font-size:20px;font-weight:700;font-family:var(--mono, monospace);color:var(--teal, #14b8a6);margin-top:4px;">&mdash; kg</div>';
+    }
+}
+
+function _getCorrectionContext(sekcja) {
+    var baseSekcja = sekcja.split('__')[0];
+    var activeEtap = etapy.find(function(e) { return e.sekcja_lab === baseSekcja; });
+    var etapKod = activeEtap ? (activeEtap.sekcja_lab || '') : '';
+
+    // Get measurement values from wyniki
+    var sekWyniki = wyniki[sekcja] || wyniki[baseSekcja] || {};
+
+    // Get spec/target values from parametry
+    var pola = (parametry[baseSekcja] || {}).pola || [];
+
+    function getWynik(kod) {
+        var w = sekWyniki[kod];
+        return w ? w.wartosc : null;
+    }
+
+    function getTarget(kod) {
+        var p = pola.find(function(x) { return x.kod === kod; });
+        return p ? (p.spec_value || p.target || null) : null;
+    }
+
+    var masa = ebrNastaw || null;
+
+    return {
+        etapKod: etapKod,
+        getWynik: getWynik,
+        getTarget: getTarget,
+        masa: masa
+    };
+}
+
+function tryRenderCorrectionAfterGate(sekcja) {
+    var ctx = _getCorrectionContext(sekcja);
+
+    if (ctx.etapKod === 'sulfonowanie') {
+        renderCorrectionPanel('perhydrol', sekcja, {
+            wynik_so3:   ctx.getWynik('so3'),
+            target_so3:  ctx.getTarget('so3'),
+            masa_szarzy: ctx.masa,
+            wspolczynnik: '1,0'
+        });
+    } else if (ctx.etapKod === 'utlenienie') {
+        renderCorrectionPanel('standaryzacja', sekcja, {
+            wynik_sm:    ctx.getWynik('sm'),
+            target_sm:   ctx.getTarget('sm'),
+            wynik_nacl:  ctx.getWynik('nacl'),
+            target_nacl: ctx.getTarget('nacl'),
+            masa_szarzy: ctx.masa
+        });
+    }
+}
+</script>
