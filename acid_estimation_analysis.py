@@ -195,3 +195,71 @@ def generate_plots(
     paths.append(p)
 
     return paths
+
+
+def print_model_summary(name: str, fit_result: dict, cv_result: dict):
+    """Print model coefficients, significance, and CV metrics."""
+    print(f"\n{'='*60}")
+    print(f"  {name}")
+    print(f"{'='*60}")
+    print(f"\nWspółczynniki:")
+    for k, v in fit_result["coefficients"].items():
+        p = fit_result["p_values"][k]
+        sig = "***" if p < 0.001 else "**" if p < 0.01 else "*" if p < 0.05 else ""
+        print(f"  {k:>30s} = {v:>10.4f}  (p={p:.4f}) {sig}")
+    print(f"\n  R² (train)  = {fit_result['r_squared']:.4f}")
+    print(f"  R² adj      = {fit_result['r_squared_adj']:.4f}")
+    print(f"\nWalidacja LOOCV:")
+    print(f"  MAE         = {cv_result['mae_kg']:.2f} kg")
+    print(f"  MAPE        = {cv_result['mape_pct']:.1f}%")
+    print(f"  R² (CV)     = {cv_result['r2_cv']:.4f}")
+
+
+def main(out_dir: str = "plots_acid_estimation"):
+    """Run full analysis: load data, fit both models, validate, compare, plot."""
+    df = load_data("data/kwas.csv")
+    df = add_features(df)
+    print(f"Załadowano {len(df)} obserwacji z data/kwas.csv")
+    print(f"Masy szarż: {sorted(df['masa_kg'].unique())}")
+
+    # Model A: kwas_per_ton ~ pH_start
+    fit_a = fit_model(df, predictors=["ph_start"])
+    cv_a = run_loocv(df, predictors=["ph_start"])
+    print_model_summary("Model A: kwas_per_ton ~ pH_start", fit_a, cv_a)
+
+    # Model B: kwas_per_ton ~ pH_start + woda_refrakcja_per_ton
+    fit_b = fit_model(df, predictors=["ph_start", "woda_refrakcja_per_ton"])
+    cv_b = run_loocv(df, predictors=["ph_start", "woda_refrakcja_per_ton"])
+    print_model_summary("Model B: kwas_per_ton ~ pH_start + woda_refrakcja_per_ton", fit_b, cv_b)
+
+    # Compare
+    comparison = compare_models(fit_a, cv_a, fit_b, cv_b)
+    print(f"\n{'='*60}")
+    print(f"  Porównanie modeli")
+    print(f"{'='*60}")
+    for r in comparison["reasons"]:
+        print(f"  • {r}")
+    print(f"\n  Rekomendacja: Model {comparison['winner']}")
+
+    # Prediction example
+    winner_predictors = ["ph_start"] if comparison["winner"] == "A" else ["ph_start", "woda_refrakcja_per_ton"]
+    winner_fit = fit_a if comparison["winner"] == "A" else fit_b
+    print(f"\n{'='*60}")
+    print(f"  Przykład predykcji (zwycięski model)")
+    print(f"{'='*60}")
+    for masa in [7400, 8600, 12600]:
+        coefs = winner_fit["coefficients"]
+        kwas_pt = coefs["const"] + coefs["ph_start"] * 11.70
+        if "woda_refrakcja_per_ton" in coefs:
+            kwas_pt += coefs["woda_refrakcja_per_ton"] * 65.0  # typical value
+        kwas_kg = kwas_pt * masa / 1000.0
+        print(f"  masa={masa} kg, pH=11.70 → kwas ≈ {kwas_kg:.1f} kg")
+
+    # Plots
+    generate_plots(df, fit_a, cv_a, ["ph_start"], "Model_A", out_dir)
+    generate_plots(df, fit_b, cv_b, ["ph_start", "woda_refrakcja_per_ton"], "Model_B", out_dir)
+    print(f"\nWykresy zapisane do {out_dir}/")
+
+
+if __name__ == "__main__":
+    main()

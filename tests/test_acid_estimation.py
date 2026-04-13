@@ -113,3 +113,17 @@ def test_generate_plots():
         assert os.path.exists(f), f"Missing plot: {f}"
         os.remove(f)
     os.rmdir(out_dir)
+
+
+def test_main_report(capsys):
+    from acid_estimation_analysis import main
+    main(out_dir="test_report_output")
+    captured = capsys.readouterr()
+    assert "Model A" in captured.out
+    assert "Model B" in captured.out
+    assert "MAE" in captured.out
+    assert "Winner" in captured.out or "Rekomendacja" in captured.out
+    # Cleanup plot files
+    import shutil
+    if os.path.exists("test_report_output"):
+        shutil.rmtree("test_report_output")
