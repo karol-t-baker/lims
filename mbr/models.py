@@ -570,7 +570,8 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             kolejnosc       INTEGER DEFAULT 0,
             formula_ilosc   TEXT,
             formula_zmienne TEXT,
-            formula_opis    TEXT
+            formula_opis    TEXT,
+            jest_przejscie  INTEGER DEFAULT 0
         )
     """)
     db.execute("""
@@ -1238,6 +1239,15 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     try:
         db.execute("ALTER TABLE mbr_users ADD COLUMN default_grupa TEXT DEFAULT 'lab'")
         db.commit()
+    except Exception:
+        pass
+
+    # Migration: add jest_przejscie to etap_korekty_katalog
+    try:
+        ek_cols = [r[1] for r in db.execute("PRAGMA table_info(etap_korekty_katalog)").fetchall()]
+        if "jest_przejscie" not in ek_cols:
+            db.execute("ALTER TABLE etap_korekty_katalog ADD COLUMN jest_przejscie INTEGER DEFAULT 0")
+            db.commit()
     except Exception:
         pass
 

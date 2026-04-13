@@ -62,6 +62,27 @@ def setup(db):
             add_etap_parametr(db, sulf_id, pid, kolejnosc=kol)
             stats["params"] += 1
 
+    # Add Perhydrol transition correction to sulfonowanie (jest_przejscie=1)
+    perh_sulf = next((k for k in list_etap_korekty(db, sulf_id) if k["substancja"] == "Perhydrol 34%"), None)
+    if not perh_sulf:
+        kid = add_etap_korekta(db, sulf_id, "Perhydrol 34%", "kg", "produkcja", kolejnosc=2)
+        stats["korekty"] += 1
+    else:
+        kid = perh_sulf["id"]
+
+    perh_formula = "(C_so3 - target_so3) * 0.01214 * Meff + (target_nadtlenki > 0 ? target_nadtlenki * Meff / 350 : 0)"
+    perh_zmienne = json.dumps({
+        "C_so3": "pomiar:so3",
+        "target_so3": "target:so3",
+        "target_nadtlenki": "target:nadtlenki",
+        "Meff": "wielkosc_szarzy_kg > 6600 ? wielkosc_szarzy_kg - 1000 : wielkosc_szarzy_kg - 500",
+    })
+    db.execute(
+        "UPDATE etap_korekty_katalog SET formula_ilosc=?, formula_zmienne=?, jest_przejscie=1 WHERE id=?",
+        (perh_formula, perh_zmienne, kid),
+    )
+    stats["formuly"] += 1
+
     # ── 2. Configure utlenienie etap ──
     utl_id = db.execute("SELECT id FROM etapy_analityczne WHERE kod='utlenienie'").fetchone()[0]
 
@@ -189,6 +210,19 @@ def setup(db):
                                    target=nacl_targets[produkt])
 
         stats["limity"] += 1
+
+    # Copy SO3/nadtlenki targets from utlenienie to sulfonowanie for formula eval
+    for produkt in PRODUCTS:
+        for param_kod in ["so3", "nadtlenki"]:
+            pid = _get_param_id(db, param_kod)
+            if not pid:
+                continue
+            utl_limit = db.execute(
+                "SELECT target FROM produkt_etap_limity WHERE produkt=? AND etap_id=? AND parametr_id=?",
+                (produkt, utl_id, pid),
+            ).fetchone()
+            if utl_limit and utl_limit["target"] is not None:
+                set_produkt_etap_limit(db, produkt, sulf_id, pid, target=utl_limit["target"])
 
     db.commit()
     return stats
