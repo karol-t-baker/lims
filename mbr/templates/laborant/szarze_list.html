@@ -910,11 +910,9 @@ function renderPipelineFlowchart(container) {
     return !!e.pipeline_etap_id;  // only real pipeline stages have this
   });
 
-  var rs = typeof roundState !== 'undefined' ? roundState : null;
   var stageStatuses = [];
-  var foundActive = false;
-
   var psm = typeof pipelineSesjaMap !== 'undefined' ? pipelineSesjaMap : {};
+  var selectedSekcja = window._activePipelineStage || null;
 
   stages.forEach(function(e) {
     var sekcja = e.sekcja_lab || '';
@@ -924,52 +922,19 @@ function renderPipelineFlowchart(container) {
 
     if (ebrStatus === 'completed') {
       status = 'done';
-    } else if (sesjaInfo) {
-      if (sesjaInfo.status === 'zamkniety') {
-        status = 'done';
-      } else if (sesjaInfo.status === 'w_trakcie') {
-        status = 'active';
-        foundActive = true;
-      } else {
-        status = 'pending';
-      }
-    } else if (e.typ_cyklu === 'cykliczny' && sekcja === 'analiza') {
-      // Main cyclic (standaryzacja) — check round state
-      if (rs && rs.last_analiza > 0 && rs.is_decision) {
-        status = 'done';
-      } else if (rs && rs.last_analiza > 0) {
-        status = 'active';
-        foundActive = true;
-      } else if (!foundActive) {
-        status = 'active';
-        foundActive = true;
-      }
-    } else {
-      // Jednorazowy or non-main cyclic — check wyniki
-      var hasWyniki = wyniki[sekcja] && Object.keys(wyniki[sekcja]).length > 0;
-      if (hasWyniki) {
-        status = 'done';
-      } else if (!foundActive) {
-        status = 'active';
-        foundActive = true;
-      }
+    } else if (sesjaInfo && sesjaInfo.status === 'zamkniety') {
+      status = 'done';
+    } else if (selectedSekcja === sekcja) {
+      status = 'active';
+    } else if (sesjaInfo && sesjaInfo.status === 'w_trakcie') {
+      status = 'active';
     }
 
     stageStatuses.push({ etap: e, status: status, sekcja: sekcja });
   });
 
-  // If nothing active yet and batch is open, mark first pending as active
-  if (!foundActive && ebrStatus === 'open') {
-    var firstPending = stageStatuses.find(function(s) { return s.status === 'pending'; });
-    if (firstPending) {
-      firstPending.status = 'active';
-    }
-  }
-
   // Render using existing CSS classes
   var html = '<div class="se-list">';
-  var selectedSekcja = window._activePipelineStage || null;
-
   stageStatuses.forEach(function(ss, idx) {
     var e = ss.etap;
     var status = ss.status;
@@ -986,12 +951,13 @@ function renderPipelineFlowchart(container) {
     var cursorStyle = '';
     var selCls = (selectedSekcja === ss.sekcja) ? ' se-selected' : '';
 
-    var statusText = status === 'done' ? 'Zakończone' : status === 'active' ? 'W toku' : 'Oczekuje';
+    var statusText = status === 'done' ? 'Zakończone' : status === 'active' ? 'W toku' : 'Gotowy';
 
-    // Runda badge for main cyclic
+    // Runda badge from pipeline session map
     var rundaBadge = '';
-    if (e.typ_cyklu === 'cykliczny' && ss.sekcja === 'analiza' && rs && rs.last_analiza > 0) {
-      rundaBadge = ' <span style="font-size:8px;background:var(--surface-alt);padding:1px 5px;border-radius:8px;color:var(--text-dim);">R' + rs.last_analiza + '</span>';
+    var etapSesja = psm[String(e.pipeline_etap_id)] || psm[e.pipeline_etap_id] || null;
+    if (etapSesja && etapSesja.runda > 1) {
+      rundaBadge = ' <span style="font-size:8px;background:var(--surface-alt);padding:1px 5px;border-radius:8px;color:var(--text-dim);">R' + etapSesja.runda + '</span>';
     }
 
     html += '<div class="se-step ' + isCls + selCls + '"' + clickAttr + cursorStyle + '>' +
