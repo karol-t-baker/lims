@@ -237,6 +237,15 @@ def save_entry(ebr_id):
     with db_session() as db:
         ebr = get_ebr(db, ebr_id)
 
+        # Pipeline adapter: override parametry_lab so save_wyniki finds pipeline params
+        if ebr:
+            from mbr.pipeline.adapter import build_pipeline_context
+            import json as _json
+            pipeline_ctx = build_pipeline_context(db, ebr["produkt"])
+            if pipeline_ctx:
+                ebr = dict(ebr)
+                ebr["parametry_lab"] = _json.dumps(pipeline_ctx["parametry_lab"])
+
         # For completed zbiornik: check if values actually changed before marking certs outdated
         values_changed = False
         if ebr and ebr["status"] == "completed" and ebr.get("typ") == "zbiornik":
