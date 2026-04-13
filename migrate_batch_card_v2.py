@@ -48,8 +48,10 @@ def main():
             id                  INTEGER PRIMARY KEY,
             etap_id             INTEGER NOT NULL REFERENCES etapy_analityczne(id),
             produkt             TEXT,
+            typ                 TEXT NOT NULL CHECK (typ IN ('pass', 'fail')),
             kod                 TEXT NOT NULL,
             label               TEXT NOT NULL,
+            akcja               TEXT NOT NULL CHECK (akcja IN ('next_stage', 'new_round', 'release', 'close', 'skip_to_next')),
             wymaga_komentarza   INTEGER DEFAULT 0,
             kolejnosc           INTEGER DEFAULT 0,
             aktywny             INTEGER DEFAULT 1
@@ -149,8 +151,8 @@ def main():
                 sesja_id INTEGER NOT NULL REFERENCES ebr_etap_sesja(id),
                 parametr_id INTEGER NOT NULL REFERENCES parametry_analityczne(id),
                 wartosc REAL, min_limit REAL, max_limit REAL,
-                w_limicie INTEGER, is_manual INTEGER DEFAULT 0,
-                dt_wpisu TEXT, wpisal TEXT,
+                w_limicie INTEGER, is_manual INTEGER NOT NULL DEFAULT 1,
+                dt_wpisu TEXT NOT NULL, wpisal TEXT NOT NULL,
                 odziedziczony INTEGER DEFAULT 0,
                 UNIQUE(sesja_id, parametr_id))"""),
         ]:
@@ -182,22 +184,22 @@ def main():
     else:
         produkty = ["K7", "K40GL", "K40GLO", "K40GLOL"]
 
-        # Decision definitions per stage: (kod, label, wymaga_komentarza, kolejnosc)
+        # Decision definitions per stage: (typ, kod, label, akcja, wymaga_komentarza, kolejnosc)
         decisions = {
             "sulfonowanie": [
-                ("pass", "next_stage",      "Przejdź do utleniania",        0, 1),
-                ("fail", "new_round",        "Nowa runda",                   0, 2),
+                ("pass", "next_stage",      "Przejdź do utleniania",        "next_stage",    0, 1),
+                ("fail", "new_round",        "Nowa runda",                   "new_round",     0, 2),
             ],
             "utlenienie": [
-                ("pass", "next_stage",      "Przejdź do standaryzacji",     0, 1),
-                ("fail", "new_round",        "Nowa runda",                   0, 2),
-                ("fail", "skip_to_next",     "Przenieś korektę do standaryzacji", 0, 3),
+                ("pass", "next_stage",      "Przejdź do standaryzacji",     "next_stage",    0, 1),
+                ("fail", "new_round",        "Nowa runda",                   "new_round",     0, 2),
+                ("fail", "skip_to_next",     "Przenieś korektę do standaryzacji", "skip_to_next", 0, 3),
             ],
             "standaryzacja": [
-                ("pass", "release",          "Zatwierdź szarżę",            0, 1),
-                ("fail", "new_round",        "Kolejna runda (korekta)",      0, 2),
-                ("fail", "release_comment",  "Zwolnij z komentarzem",        1, 3),
-                ("fail", "close_note",       "Zamknij z notatką",            1, 4),
+                ("pass", "release",          "Zatwierdź szarżę",            "release",       0, 1),
+                ("fail", "new_round",        "Kolejna runda (korekta)",      "new_round",     0, 2),
+                ("fail", "release_comment",  "Zwolnij z komentarzem",        "release",       1, 3),
+                ("fail", "close_note",       "Zamknij z notatką",            "close",         1, 4),
             ],
         }
 
@@ -205,16 +207,16 @@ def main():
         for produkt in produkty:
             for etap_kod, decs in decisions.items():
                 etap_id = etap_map[etap_kod]
-                for _outcome, kod, label, wymaga, kolejnosc in decs:
+                for typ, kod, label, akcja, wymaga, kolejnosc in decs:
                     exists = conn.execute(
                         "SELECT 1 FROM etap_decyzje WHERE etap_id=? AND produkt=? AND kod=?",
                         (etap_id, produkt, kod),
                     ).fetchone()
                     if not exists:
                         conn.execute(
-                            "INSERT INTO etap_decyzje (etap_id, produkt, kod, label, wymaga_komentarza, kolejnosc)"
-                            " VALUES (?, ?, ?, ?, ?, ?)",
-                            (etap_id, produkt, kod, label, wymaga, kolejnosc),
+                            "INSERT INTO etap_decyzje (etap_id, produkt, typ, kod, label, akcja, wymaga_komentarza, kolejnosc)"
+                            " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                            (etap_id, produkt, typ, kod, label, akcja, wymaga, kolejnosc),
                         )
                         seeded += 1
         conn.commit()

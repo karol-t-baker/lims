@@ -567,8 +567,10 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             id                  INTEGER PRIMARY KEY,
             etap_id             INTEGER NOT NULL REFERENCES etapy_analityczne(id),
             produkt             TEXT,
+            typ                 TEXT NOT NULL CHECK (typ IN ('pass', 'fail')),
             kod                 TEXT NOT NULL,
             label               TEXT NOT NULL,
+            akcja               TEXT NOT NULL CHECK (akcja IN ('next_stage', 'new_round', 'release', 'close', 'skip_to_next')),
             wymaga_komentarza   INTEGER DEFAULT 0,
             kolejnosc           INTEGER DEFAULT 0,
             aktywny             INTEGER DEFAULT 1
@@ -1203,8 +1205,8 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
                     sesja_id INTEGER NOT NULL REFERENCES ebr_etap_sesja(id),
                     parametr_id INTEGER NOT NULL REFERENCES parametry_analityczne(id),
                     wartosc REAL, min_limit REAL, max_limit REAL,
-                    w_limicie INTEGER, is_manual INTEGER DEFAULT 0,
-                    dt_wpisu TEXT, wpisal TEXT,
+                    w_limicie INTEGER, is_manual INTEGER NOT NULL DEFAULT 1,
+                    dt_wpisu TEXT NOT NULL, wpisal TEXT NOT NULL,
                     odziedziczony INTEGER DEFAULT 0,
                     UNIQUE(sesja_id, parametr_id))"""),
             ]:
