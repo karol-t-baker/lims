@@ -35,16 +35,14 @@
   </div>
   <div class="col-right" {% if ebr.status != 'open' %}style="display:none;"{% endif %}>
     <div class="rp-tabs">
-      <div class="rp-tab" id="tab-hist" onclick="showRightPanel('hist')">Wartości typowe</div>
+      <div class="rp-tab" id="tab-cele" onclick="showRightPanel('cele')">Cele</div>
       <div class="rp-tab active" id="tab-calc" onclick="showRightPanel('calc')">Kalkulator</div>
     </div>
     <div class="rp-body">
-      <div class="rp-view" id="rp-hist">
-        <div style="padding:16px 12px;">
-          <div style="font-size:12px; font-weight:600; color:var(--text-dim); margin-bottom:8px;">Wartości typowe (historyczne)</div>
-          <div style="font-size:11px; color:var(--text-dim); line-height:1.6;">
-            Dane pojawią się po zebraniu wystarczającej liczby szarż.
-          </div>
+      <div class="rp-view" id="rp-cele">
+        <div id="cele-container" style="padding:0;">
+          <div style="padding:10px 14px;background:var(--teal-bg);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--teal);">Cele aktywnego etapu</div>
+          <div id="cele-body" style="font-size:12px;color:var(--text-dim);padding:14px;">Wybierz etap.</div>
         </div>
       </div>
       <div class="rp-view active" id="rp-calc">
@@ -1254,6 +1252,18 @@ async function submitCorrectionAndLoop(sekcja, korektaId) {
         body: JSON.stringify({sesja_id: sesja_id, korekta_typ_id: korektaId, ilosc: amount})
     });
 
+    // Save correction amount to wyniki so DODATEK block shows it next round
+    var korData = (_correctionCache[etap_id] || []).find(function(x) { return x.id === korektaId; });
+    if (korData) {
+        var corrValues = {};
+        corrValues[korData.substancja] = { wartosc: String(amount), komentarz: '' };
+        await fetch('/laborant/ebr/' + ebrId + '/save', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({sekcja: sekcja, values: corrValues})
+        });
+    }
+
     await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + etap_id + '/close', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -1323,6 +1333,74 @@ async function submitCorrectionAndAdvance(sekcja, korektaId) {
     }
 }
 
+function renderNonMainCyclicSection(container, activeSekcja, activeEtap, isReadonly, activeReadonly, entryGrupa) {
+    var sekWyniki = wyniki[activeSekcja] || {};
+    var hasSomeResults = Object.keys(sekWyniki).length > 0;
+
+    // Detect runda 2+ by checking for correction substance keys in wyniki
+    var korektaKeys = Object.keys(sekWyniki).filter(function(k) {
+        // Correction substances saved with their name as kod
+        var pola = (parametry[activeSekcja] || {}).pola || [];
+        var paramKods = pola.map(function(p) { return p.kod; });
+        return !paramKods.includes(k);
+    });
+    var isRunda2Plus = korektaKeys.length > 0;
+
+    // DODATEK block (runda 2+ only)
+    if (isRunda2Plus && !isReadonly && !activeReadonly) {
+        var dodatekDiv = document.createElement('div');
+        dodatekDiv.className = 'section';
+        dodatekDiv.style.cssText = 'margin-bottom:8px;';
+
+        var dodatekHtml = '<div class="sec-head" style="padding:10px 18px;">' +
+            '<div class="sec-icon" style="width:22px;height:22px;font-size:9px;background:var(--amber-bg);color:var(--amber);">+</div>' +
+            '<span class="sec-title" style="font-size:12px;">Dodatek</span>' +
+        '</div><div class="fg">';
+
+        korektaKeys.forEach(function(kod) {
+            var val = sekWyniki[kod];
+            var displayVal = val && val.wartosc != null ? parseFloat(val.wartosc).toFixed(1).replace('.', ',') : '—';
+            dodatekHtml += '<div class="ff">' +
+                '<div class="status-dot ok"></div>' +
+                '<label style="width:120px;">' + kod + '</label>' +
+                '<span class="val ok">' + displayVal + ' kg</span>' +
+            '</div>';
+        });
+
+        dodatekHtml += '</div>';
+        dodatekDiv.innerHTML = dodatekHtml;
+        container.appendChild(dodatekDiv);
+    }
+
+    // ANALIZA block
+    var pola = getPola(activeSekcja, entryGrupa);
+    if (pola.length === 0) {
+        container.innerHTML += '<div style="padding:40px;text-align:center;color:var(--text-dim);font-size:13px;">Brak parametrów.</div>';
+        return;
+    }
+
+    var allInLimit = hasSomeResults && Object.values(sekWyniki).every(function(w) { return w.w_limicie === 1 || w.w_limicie === null; });
+
+    renderOneSection(container, {
+        sekcja: activeSekcja,
+        title: activeEtap.nazwa + ' — Analiza',
+        index: isRunda2Plus ? 2 : 1,
+        pola: pola,
+        sekWyniki: sekWyniki,
+        hasSomeResults: hasSomeResults,
+        allInLimit: allInLimit,
+        isReadonly: isReadonly || activeReadonly,
+        isCurrent: !activeReadonly,
+        prevOutOfLimit: [],
+        saveBtnLabel: null
+    });
+
+    // Decision panel
+    if (!isReadonly && !activeReadonly) {
+        renderStageDecisionPanel(container, activeSekcja, activeEtap);
+    }
+}
+
 function renderPipelineSections() {
     var container = document.getElementById('sections-container');
     container.innerHTML = '';
@@ -1371,7 +1449,14 @@ function renderPipelineSections() {
         return;
     }
 
-    // Jednorazowy or non-main cyclic: render single section
+    // Non-main cyclic: reversed flow (DODATEK → ANALIZA → DECYZJA)
+    if (activeEtap.typ_cyklu === 'cykliczny') {
+        renderNonMainCyclicSection(container, activeSekcja, activeEtap, isReadonly, activeReadonly, entryGrupa);
+        updateCelePanel();
+        return;
+    }
+
+    // Jednorazowy: single section + decision
     var pola = getPola(activeSekcja, entryGrupa);
     if (pola.length === 0) {
         container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim);font-size:13px;">Brak parametrów dla tego etapu.</div>';
@@ -1396,10 +1481,11 @@ function renderPipelineSections() {
         saveBtnLabel: null
     });
 
-    // Stage decision panel — always visible for non-readonly pipeline stages
     if (!isReadonly && !activeReadonly) {
         renderStageDecisionPanel(container, activeSekcja, activeEtap);
     }
+
+    updateCelePanel();
 }
 
 function _renderCyclicReadonly(container, rs, entryGrupa) {
@@ -2672,7 +2758,7 @@ function renderOneSection(container, opts) {
                     '<span class="norm-range">' + normRange + '</span>' +
                     typeTag +
                 '</div>' +
-                (pole.target != null ? '<div class="target-hint">cel: <input class="target-edit" type="text" inputmode="decimal" value="' + String(pole.target).replace('.', ',') + '" data-kod="' + esc(pole.kod) + '" data-sekcja="' + esc(sekcja) + '" onblur="saveTarget(this)">' + (normRange ? ' <span class="target-norm">(' + normRange + ')</span>' : '') + '</div>' : '') +
+                '' +
             '</div>';
         } // end else (non-binary)
     });
@@ -3720,11 +3806,44 @@ function saveBias(kod) {
     });
 }
 
+function updateCelePanel() {
+    var body = document.getElementById('cele-body');
+    if (!body) return;
+
+    var activeSekcja = window._activePipelineStage;
+    if (!activeSekcja) { body.innerHTML = '<div style="padding:14px;color:var(--text-dim);font-size:11px;">Wybierz etap.</div>'; return; }
+
+    var sekData = parametry[activeSekcja];
+    if (!sekData) sekData = parametry['analiza'];
+    if (!sekData || !sekData.pola) { body.innerHTML = '<div style="padding:14px;color:var(--text-dim);font-size:11px;">Brak danych.</div>'; return; }
+
+    var withTarget = sekData.pola.filter(function(p) { return p.target != null; });
+    if (withTarget.length === 0) { body.innerHTML = '<div style="padding:14px;color:var(--text-dim);font-size:11px;">Brak celów dla tego etapu.</div>'; return; }
+
+    var html = '<table style="width:100%;border-collapse:collapse;font-size:12px;">';
+    withTarget.forEach(function(p) {
+        html += '<tr style="border-bottom:1px solid var(--border-subtle);">' +
+            '<td style="padding:10px 14px;font-weight:600;">' + (p.skrot || p.label || p.kod) + '</td>' +
+            '<td style="padding:10px 14px;font-family:var(--mono);font-weight:700;color:var(--teal);text-align:right;font-size:14px;">' +
+                '<input class="target-edit" type="text" inputmode="decimal" value="' + String(p.target).replace('.', ',') + '" ' +
+                'data-kod="' + p.kod + '" data-sekcja="' + activeSekcja + '" ' +
+                'style="width:70px;border:1px solid transparent;border-radius:3px;padding:2px 4px;font-family:var(--mono);font-size:14px;font-weight:700;color:var(--teal);text-align:center;background:transparent;cursor:pointer;" ' +
+                'onfocus="this.style.borderColor=\'var(--teal)\';this.style.background=\'#fff\'" ' +
+                'onblur="this.style.borderColor=\'transparent\';this.style.background=\'transparent\';saveTarget(this)">' +
+            '</td>' +
+        '</tr>';
+    });
+    html += '</table>';
+    body.innerHTML = html;
+}
+
 function showRightPanel(view) {
-    document.getElementById('tab-hist').classList.toggle('active', view === 'hist');
-    document.getElementById('tab-calc').classList.toggle('active', view === 'calc');
-    document.getElementById('rp-hist').classList.toggle('active', view === 'hist');
-    document.getElementById('rp-calc').classList.toggle('active', view === 'calc');
+    document.querySelectorAll('.rp-tab').forEach(function(t) { t.classList.remove('active'); });
+    document.querySelectorAll('.rp-view').forEach(function(v) { v.classList.remove('active'); });
+    var tab = document.getElementById('tab-' + view);
+    var vw = document.getElementById('rp-' + view);
+    if (tab) tab.classList.add('active');
+    if (vw) vw.classList.add('active');
 }
 
 
@@ -3808,7 +3927,7 @@ window._panelFocusBridge = function(e) {
 
     // Non-titr field focused → wartości typowe
     if (input.closest('.ff') || input.closest('.section-fields') || input.closest('#ps-stage-content')) {
-        showRightPanel('hist');
+        showRightPanel('cele');
     }
 };
 document.addEventListener('focusin', window._panelFocusBridge);
@@ -4979,11 +5098,13 @@ function openCertMappingEditor() {
 renderSections();
 setupComputedFields();
 loadBatchZbiorniki();
+updateCelePanel();
 
 window.showPipelineStage = function(sekcjaLab, readonly) {
     window._activePipelineStage = sekcjaLab;
     window._activePipelineReadonly = !!readonly;
     renderSections();
+    updateCelePanel();
     if (typeof renderSidebarEtapy === 'function') renderSidebarEtapy();
 };
 </script>
