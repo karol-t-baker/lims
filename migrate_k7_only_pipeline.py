@@ -33,12 +33,12 @@ def main():
     ).fetchall()]
     print(f"All products in produkt_pipeline: {len(products)}")
 
-    # Find non-K7 pipeline rows
+    # Find non-K7 pipeline rows (any stage except analiza_koncowa)
     rows = conn.execute("""
         SELECT pp.id, pp.produkt, ea.kod
         FROM produkt_pipeline pp
         JOIN etapy_analityczne ea ON ea.id = pp.etap_id
-        WHERE ea.kod IN ('sulfonowanie','utlenienie','standaryzacja')
+        WHERE ea.kod != 'analiza_koncowa'
           AND pp.produkt NOT LIKE '%K7'
     """).fetchall()
 
@@ -87,7 +87,7 @@ def main():
         SELECT pp.produkt, ea.kod
         FROM produkt_pipeline pp
         JOIN etapy_analityczne ea ON ea.id = pp.etap_id
-        WHERE ea.kod IN ('sulfonowanie','utlenienie','standaryzacja')
+        WHERE ea.kod != 'analiza_koncowa'
         ORDER BY pp.produkt, pp.kolejnosc
     """).fetchall()
 
