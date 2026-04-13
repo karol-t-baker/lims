@@ -11,6 +11,7 @@ from mbr.pipeline.models import (
     get_etap_decyzje,
     get_pomiary,
     get_sesja,
+    patch_parametry_etapy,
     save_pomiar,
 )
 
@@ -174,3 +175,43 @@ def test_close_sesja_with_new_decision_codes(db):
     assert sesja["decyzja"] == "release_comment"
     assert sesja["komentarz_decyzji"] == "Dodatek wody z ręki"
     assert sesja["dt_end"] is not None
+
+
+def test_global_edit_updates_limit(db):
+    """PATCH endpoint should update parametry_etapy limits and set audit fields."""
+    # Seed a parametry_etapy row
+    db.execute("""
+        INSERT INTO parametry_etapy (id, produkt, kontekst, parametr_id, min_limit, max_limit, kolejnosc)
+        VALUES (999, 'K40GLO', 'sulfonowanie', 1, 0.0, 0.1, 1)
+    """)
+    db.commit()
+
+    result = patch_parametry_etapy(db, pe_id=999, updates={"max_limit": 0.2, "min_limit": 0.05}, user_id=1)
+
+    assert result["ok"] is True
+    assert set(result["updated"]) == {"max_limit", "min_limit"}
+    row = db.execute("SELECT * FROM parametry_etapy WHERE id = 999").fetchone()
+    assert row["max_limit"] == 0.2
+    assert row["min_limit"] == 0.05
+    assert row["dt_modified"] is not None
+    assert row["modified_by"] == 1
+
+
+def test_global_edit_not_found(db):
+    """patch_parametry_etapy returns not_found for missing row."""
+    result = patch_parametry_etapy(db, pe_id=9999, updates={"max_limit": 1.0}, user_id=1)
+    assert result["ok"] is False
+    assert result["error"] == "not_found"
+
+
+def test_global_edit_no_valid_fields(db):
+    """patch_parametry_etapy rejects payload with no allowed fields."""
+    db.execute("""
+        INSERT INTO parametry_etapy (id, produkt, kontekst, parametr_id, kolejnosc)
+        VALUES (998, 'K40GLO', 'sulfonowanie', 1, 1)
+    """)
+    db.commit()
+
+    result = patch_parametry_etapy(db, pe_id=998, updates={"bogus_field": 42}, user_id=1)
+    assert result["ok"] is False
+    assert result["error"] == "no_valid_fields"

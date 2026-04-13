@@ -378,3 +378,26 @@ def lab_korekty_katalog(etap_id):
         return jsonify([dict(r) for r in rows])
     finally:
         db.close()
+
+
+# ---------------------------------------------------------------------------
+# PATCH /api/pipeline/lab/parametry-etapy/<pe_id>
+# Global Edit — update limits/target/formula on a parametry_etapy binding.
+# ---------------------------------------------------------------------------
+
+@pipeline_bp.route("/api/pipeline/lab/parametry-etapy/<int:pe_id>", methods=["PATCH"])
+@login_required
+def lab_patch_parametry_etapy(pe_id):
+    data = request.get_json(force=True) or {}
+
+    db = get_db()
+    try:
+        user_id = session.get("user_id") or (session.get("user") or {}).get("id")
+        result = pm.patch_parametry_etapy(db, pe_id=pe_id, updates=data, user_id=user_id)
+        if result.get("error") == "not_found":
+            return jsonify(result), 404
+        if result.get("error") == "no_valid_fields":
+            return jsonify(result), 400
+        return jsonify(result)
+    finally:
+        db.close()

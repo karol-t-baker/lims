@@ -1025,3 +1025,39 @@ def resolve_formula_zmienne(db, korekta_typ_id, etap_id, sesja_id, ebr_id, reduk
         wynik = None
 
     return {"ok": True, "wynik": wynik, "zmienne": resolved, "labels": labels}
+
+
+# ---------------------------------------------------------------------------
+# Global Edit — patch parametry_etapy binding
+# ---------------------------------------------------------------------------
+
+def patch_parametry_etapy(
+    db: sqlite3.Connection,
+    pe_id: int,
+    updates: dict,
+    user_id: int | None = None,
+) -> dict:
+    """Update parametry_etapy fields with audit trail.
+
+    Returns {"ok": True, "updated": [...]} on success,
+    or {"ok": False, "error": "..."} on validation failure / not found.
+    """
+    row = db.execute("SELECT id FROM parametry_etapy WHERE id = ?", (pe_id,)).fetchone()
+    if not row:
+        return {"ok": False, "error": "not_found"}
+
+    allowed = {"min_limit", "max_limit", "target", "formula", "sa_bias", "nawazka_g", "precision"}
+    filtered = {k: v for k, v in updates.items() if k in allowed}
+    if not filtered:
+        return {"ok": False, "error": "no_valid_fields"}
+
+    sets = ", ".join(f"{k} = ?" for k in filtered)
+    vals = list(filtered.values())
+    now = datetime.now().isoformat(timespec="seconds")
+    sets += ", dt_modified = ?, modified_by = ?"
+    vals.extend([now, user_id])
+    vals.append(pe_id)
+
+    db.execute(f"UPDATE parametry_etapy SET {sets} WHERE id = ?", vals)
+    db.commit()
+    return {"ok": True, "updated": list(filtered.keys())}
