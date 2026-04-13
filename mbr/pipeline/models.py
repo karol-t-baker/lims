@@ -360,6 +360,47 @@ def create_sesja(
     return cur.lastrowid
 
 
+def create_round_with_inheritance(
+    db: sqlite3.Connection,
+    ebr_id: int,
+    etap_id: int,
+    prev_sesja_id: int,
+    laborant: str | None = None,
+) -> int:
+    """Create next round, copying OK / no-limit measurements from previous session.
+
+    Measurements with w_limicie = 0 (out of limit) are NOT copied.
+    Copied rows get odziedziczony = 1, is_manual = 1, dt_wpisu = now.
+    """
+    # 1. Determine next runda
+    prev = db.execute(
+        "SELECT runda FROM ebr_etap_sesja WHERE id = ?", (prev_sesja_id,)
+    ).fetchone()
+    if prev is None:
+        raise ValueError(f"Previous session {prev_sesja_id} not found")
+    next_runda = prev["runda"] + 1
+
+    # 2. Create new session
+    new_sesja_id = create_sesja(db, ebr_id, etap_id, runda=next_runda, laborant=laborant)
+
+    # 3. Copy measurements where w_limicie = 1 (OK) or w_limicie IS NULL (no limit)
+    now = datetime.now().isoformat(timespec="seconds")
+    db.execute(
+        """INSERT INTO ebr_pomiar
+               (sesja_id, parametr_id, wartosc, min_limit, max_limit,
+                w_limicie, is_manual, dt_wpisu, wpisal, odziedziczony)
+           SELECT ?, parametr_id, wartosc, min_limit, max_limit,
+                  w_limicie, 1, ?, wpisal, 1
+           FROM ebr_pomiar
+           WHERE sesja_id = ?
+             AND (w_limicie = 1 OR w_limicie IS NULL)""",
+        (new_sesja_id, now, prev_sesja_id),
+    )
+
+    db.commit()
+    return new_sesja_id
+
+
 def get_sesja(db: sqlite3.Connection, sesja_id: int) -> dict | None:
     row = db.execute(
         "SELECT * FROM ebr_etap_sesja WHERE id = ?", (sesja_id,)
