@@ -941,11 +941,7 @@ function renderPipelineFlowchart(container) {
     var isCls = 'is-' + status;
     var numCls = status;
 
-    // Special colors for active stages
-    if (status === 'active') {
-      if (e.typ_cyklu === 'cykliczny' && ss.sekcja === 'analiza') numCls = 'stand';
-      if (ss.sekcja === 'analiza_koncowa') numCls = 'koncowa';
-    }
+    // numCls matches status — uniform colors for pipeline stages
 
     var clickAttr = ' onclick="showPipelineStage(\'' + ss.sekcja + '\', ' + (status === 'done' ? 'true' : 'false') + ')"';
     var cursorStyle = '';
