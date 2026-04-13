@@ -1026,16 +1026,17 @@ console.log('[fast_entry] script start');
 {# Set globals for this batch — use var so re-loading a different batch doesn't throw const-redeclaration error #}
 window.ebrId = {{ ebr.ebr_id }};
 window._batchProdukt = "{{ ebr.produkt }}";
-var ebrId = {{ ebr.ebr_id }};
-var ebrStatus = "{{ ebr.status }}";
+var ebrId = window.ebrId = {{ ebr.ebr_id }};
+var ebrStatus = window.ebrStatus = "{{ ebr.status }}";
 var ebrTyp = "{{ ebr.typ|default('szarza') }}";
 var userRola = "{{ session.get('user', {}).get('rola', '') }}";
 var userGrupa = "{{ session.get('user', {}).get('default_grupa', '') }}";
 var ebrNastaw = {{ ebr.wielkosc_szarzy_kg or ebr.nastaw or 0 }};
-var etapy = {{ (ebr.etapy_json if ebr.etapy_json is string else ebr.etapy_json | tojson) | safe }};
-var parametry = {{ (ebr.parametry_lab if ebr.parametry_lab is string else ebr.parametry_lab | tojson) | safe }};
-var wyniki = {{ wyniki | tojson | safe }};
-var roundState = {{ round_state | tojson | safe }};
+var etapy = window.etapy = {{ (ebr.etapy_json if ebr.etapy_json is string else ebr.etapy_json | tojson) | safe }};
+var parametry = window.parametry = {{ (ebr.parametry_lab if ebr.parametry_lab is string else ebr.parametry_lab | tojson) | safe }};
+var wyniki = window.wyniki = {{ wyniki | tojson | safe }};
+var roundState = window.roundState = {{ round_state | tojson | safe }};
+var pipelineSesjaMap = window.pipelineSesjaMap = {{ pipeline_sesja_map | default({}, true) | tojson }};
 
 // Process stage data (from backend)
 var _etapyStatus = {{ etapy_status | default([], true) | tojson }};

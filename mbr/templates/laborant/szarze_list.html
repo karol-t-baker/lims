@@ -914,12 +914,25 @@ function renderPipelineFlowchart(container) {
   var stageStatuses = [];
   var foundActive = false;
 
+  var psm = typeof pipelineSesjaMap !== 'undefined' ? pipelineSesjaMap : {};
+
   stages.forEach(function(e) {
     var sekcja = e.sekcja_lab || '';
     var status = 'pending';
+    var etapId = e.pipeline_etap_id;
+    var sesjaInfo = psm[etapId] || null;
 
     if (ebrStatus === 'completed') {
       status = 'done';
+    } else if (sesjaInfo) {
+      if (sesjaInfo.status === 'zamkniety') {
+        status = 'done';
+      } else if (sesjaInfo.status === 'w_trakcie') {
+        status = 'active';
+        foundActive = true;
+      } else {
+        status = 'pending';
+      }
     } else if (e.typ_cyklu === 'cykliczny' && sekcja === 'analiza') {
       // Main cyclic (standaryzacja) — check round state
       if (rs && rs.last_analiza > 0 && rs.is_decision) {
@@ -969,11 +982,8 @@ function renderPipelineFlowchart(container) {
       if (ss.sekcja === 'analiza_koncowa') numCls = 'koncowa';
     }
 
-    var clickable = status === 'done' || status === 'active';
-    var clickAttr = clickable
-      ? ' onclick="showPipelineStage(\'' + ss.sekcja + '\', ' + (status === 'done' ? 'true' : 'false') + ')"'
-      : '';
-    var cursorStyle = status === 'pending' ? ' style="cursor:not-allowed;opacity:0.5;"' : '';
+    var clickAttr = ' onclick="showPipelineStage(\'' + ss.sekcja + '\', ' + (status === 'done' ? 'true' : 'false') + ')"';
+    var cursorStyle = '';
     var selCls = (selectedSekcja === ss.sekcja) ? ' se-selected' : '';
 
     var statusText = status === 'done' ? 'Zakończone' : status === 'active' ? 'W toku' : 'Oczekuje';

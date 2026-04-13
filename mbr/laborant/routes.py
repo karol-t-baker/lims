@@ -189,10 +189,14 @@ def fast_entry_partial(ebr_id):
         from mbr.pipeline.adapter import build_pipeline_context
         import json as _json
         pipeline_ctx = build_pipeline_context(db, ebr["produkt"])
+        pipeline_sesja_map = {}
         if pipeline_ctx:
             ebr = dict(ebr)  # make mutable copy (sqlite3.Row is read-only)
             ebr["etapy_json"] = _json.dumps(pipeline_ctx["etapy_json"])
             ebr["parametry_lab"] = _json.dumps(pipeline_ctx["parametry_lab"])
+            from mbr.pipeline.models import list_sesje
+            for s in list_sesje(db, ebr_id):
+                pipeline_sesja_map[s["etap_id"]] = {"status": s["status"], "runda": s["runda"], "sesja_id": s["id"]}
 
         wyniki = get_ebr_wyniki(db, ebr_id)
         round_state = get_round_state(wyniki)
@@ -220,7 +224,8 @@ def fast_entry_partial(ebr_id):
                            etapy_korekty=etapy_korekty,
                            etapy_config=etapy_config,
                            zatwierdzil_short=zatwierdzil_short,
-                           zatwierdzil_full=zatwierdzil_full)
+                           zatwierdzil_full=zatwierdzil_full,
+                           pipeline_sesja_map=pipeline_sesja_map)
 
 
 @laborant_bp.route("/laborant/ebr/<int:ebr_id>/save", methods=["POST"])
