@@ -2672,7 +2672,7 @@ function renderOneSection(container, opts) {
                     '<span class="norm-range">' + normRange + '</span>' +
                     typeTag +
                 '</div>' +
-                (pole.target != null ? '<div class="target-hint">cel: <input class="target-edit" type="text" inputmode="decimal" value="' + String(pole.target).replace('.', ',') + '" data-kod="' + esc(pole.kod) + '" data-sekcja="' + esc(lastSekcja) + '" onblur="saveTarget(this)">' + (normRange ? ' <span class="target-norm">(' + normRange + ')</span>' : '') + '</div>' : '') +
+                (pole.target != null ? '<div class="target-hint">cel: <input class="target-edit" type="text" inputmode="decimal" value="' + String(pole.target).replace('.', ',') + '" data-kod="' + esc(pole.kod) + '" data-sekcja="' + esc(sekcja) + '" onblur="saveTarget(this)">' + (normRange ? ' <span class="target-norm">(' + normRange + ')</span>' : '') + '</div>' : '') +
             '</div>';
         } // end else (non-binary)
     });
