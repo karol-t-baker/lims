@@ -14,6 +14,7 @@ from mbr.pipeline.models import (
     list_sesje,
     save_pomiar,
     evaluate_gate,
+    get_etap_decyzje,
 )
 
 
@@ -294,6 +295,17 @@ def build_pipeline_context(
                     "label": f"Dodatki {nazwa.lower()}",
                     "pola":  korekty_pola,
                 }
+
+    # Enrich each stage with decision options so frontend has them without
+    # an extra API call.
+    for et in etapy_json:
+        eid = et.get("pipeline_etap_id")
+        if eid:
+            et["decyzje_pass"] = get_etap_decyzje(db, eid, "pass")
+            et["decyzje_fail"] = get_etap_decyzje(db, eid, "fail")
+        else:
+            et["decyzje_pass"] = []
+            et["decyzje_fail"] = []
 
     return {
         "etapy_json":    etapy_json,

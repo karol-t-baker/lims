@@ -302,7 +302,17 @@ def save_entry(ebr_id):
                     parsed_values[kod] = _parse_decimal(v) if v != "" else None
                 except (ValueError, TypeError):
                     pass
-            gate_result = pipeline_dual_write(db, ebr_id, sekcja, parsed_values, user)
+            odziedziczony_map = {}
+            for kod, entry in values.items():
+                if isinstance(entry, dict) and "odziedziczony" in entry:
+                    try:
+                        odziedziczony_map[kod] = int(entry["odziedziczony"])
+                    except (ValueError, TypeError):
+                        pass
+            gate_result = pipeline_dual_write(
+                db, ebr_id, sekcja, parsed_values, user,
+                odziedziczony_map=odziedziczony_map or None,
+            )
             if gate_result is not None:
                 db.commit()
         except Exception:
