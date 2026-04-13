@@ -490,6 +490,9 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             cert_variant_id        INTEGER,
             precision              INTEGER,
             grupa                  TEXT DEFAULT 'lab',
+            edytowalny             INTEGER DEFAULT 1,
+            dt_modified            TEXT,
+            modified_by            INTEGER,
             UNIQUE(produkt, kontekst, parametr_id)
         )
     """)
@@ -560,6 +563,18 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
         )
     """)
     db.execute("""
+        CREATE TABLE IF NOT EXISTS etap_decyzje (
+            id                  INTEGER PRIMARY KEY,
+            etap_id             INTEGER NOT NULL REFERENCES etapy_analityczne(id),
+            produkt             TEXT,
+            kod                 TEXT NOT NULL,
+            label               TEXT NOT NULL,
+            wymaga_komentarza   INTEGER DEFAULT 0,
+            kolejnosc           INTEGER DEFAULT 0,
+            aktywny             INTEGER DEFAULT 1
+        )
+    """)
+    db.execute("""
         CREATE TABLE IF NOT EXISTS etap_korekty_katalog (
             id              INTEGER PRIMARY KEY,
             etap_id         INTEGER NOT NULL REFERENCES etapy_analityczne(id),
@@ -585,8 +600,9 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             dt_start        TEXT,
             dt_end          TEXT,
             laborant        TEXT,
-            decyzja         TEXT CHECK(decyzja IN ('zamknij_etap', 'reopen_etap')),
+            decyzja         TEXT CHECK(decyzja IN ('zamknij_etap','reopen_etap','przejscie','new_round','release_comment','close_note','skip_to_next')),
             komentarz       TEXT,
+            komentarz_decyzji TEXT,
             UNIQUE(ebr_id, etap_id, runda)
         )
     """)
@@ -602,6 +618,7 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             is_manual       INTEGER NOT NULL DEFAULT 1,
             dt_wpisu        TEXT NOT NULL,
             wpisal          TEXT NOT NULL,
+            odziedziczony   INTEGER DEFAULT 0,
             UNIQUE(sesja_id, parametr_id)
         )
     """)
@@ -1135,8 +1152,7 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             "SELECT sql FROM sqlite_master WHERE type='table' AND name='ebr_etap_sesja'"
         ).fetchone()
         old_sql = row[0] or "" if row else ""
-        needs_rebuild = ("oczekuje_korekty" in old_sql or "korekta_i_przejscie" in old_sql
-                         or "przejscie" in old_sql)
+        needs_rebuild = ("oczekuje_korekty" in old_sql or "korekta_i_przejscie" in old_sql)
         if needs_rebuild:
             # Map old statuses to new ones before rebuild
             db.execute("UPDATE ebr_etap_sesja SET status='w_trakcie' WHERE status IN ('ok','poza_limitem','oczekuje_korekty')")
@@ -1151,11 +1167,16 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
                     status   TEXT NOT NULL DEFAULT 'nierozpoczety'
                              CHECK(status IN ('nierozpoczety','w_trakcie','zamkniety')),
                     dt_start TEXT, dt_end TEXT, laborant TEXT,
-                    decyzja  TEXT CHECK(decyzja IN ('zamknij_etap','reopen_etap')),
+                    decyzja  TEXT CHECK(decyzja IN ('zamknij_etap','reopen_etap','przejscie','new_round','release_comment','close_note','skip_to_next')),
                     komentarz TEXT,
+                    komentarz_decyzji TEXT,
                     UNIQUE(ebr_id, etap_id, runda)
                 );
-                INSERT INTO ebr_etap_sesja SELECT * FROM _ebr_etap_sesja_old;
+                INSERT INTO ebr_etap_sesja (id, ebr_id, etap_id, runda, status,
+                    dt_start, dt_end, laborant, decyzja, komentarz)
+                    SELECT id, ebr_id, etap_id, runda, status,
+                           dt_start, dt_end, laborant, decyzja, komentarz
+                    FROM _ebr_etap_sesja_old;
                 DROP TABLE _ebr_etap_sesja_old;
             """)
             # Rebuild tables whose FKs now point to the old renamed table
@@ -1184,6 +1205,7 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
                     wartosc REAL, min_limit REAL, max_limit REAL,
                     w_limicie INTEGER, is_manual INTEGER DEFAULT 0,
                     dt_wpisu TEXT, wpisal TEXT,
+                    odziedziczony INTEGER DEFAULT 0,
                     UNIQUE(sesja_id, parametr_id))"""),
             ]:
                 fks = db.execute(f"PRAGMA foreign_key_list({tbl})").fetchall()
