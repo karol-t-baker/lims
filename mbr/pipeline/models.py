@@ -1040,27 +1040,89 @@ def patch_parametry_etapy(
     updates: dict,
     user_id: int | None = None,
 ) -> dict:
-    """Update parametry_etapy fields with audit trail.
+    """Update parameter limits via Global Edit.
+
+    pe_id is an etap_parametry.id (from resolve_limity).  We resolve it
+    to the matching produkt_etap_limity row (or parametry_etapy fallback
+    for non-pipeline products) and upsert the new values.
 
     Returns {"ok": True, "updated": [...]} on success,
     or {"ok": False, "error": "..."} on validation failure / not found.
     """
-    row = db.execute("SELECT id FROM parametry_etapy WHERE id = ?", (pe_id,)).fetchone()
-    if not row:
-        return {"ok": False, "error": "not_found"}
-
     allowed = {"min_limit", "max_limit", "target", "formula", "sa_bias", "nawazka_g", "precision"}
     filtered = {k: v for k, v in updates.items() if k in allowed}
     if not filtered:
         return {"ok": False, "error": "no_valid_fields"}
 
-    sets = ", ".join(f"{k} = ?" for k in filtered)
-    vals = list(filtered.values())
-    now = datetime.now().isoformat(timespec="seconds")
-    sets += ", dt_modified = ?, modified_by = ?"
-    vals.extend([now, user_id])
-    vals.append(pe_id)
+    # "target" maps to "spec_value" in produkt_etap_limity
+    if "target" in filtered:
+        filtered["spec_value"] = filtered.pop("target")
 
-    db.execute(f"UPDATE parametry_etapy SET {sets} WHERE id = ?", vals)
+    # Try etap_parametry first to get context
+    ep = db.execute(
+        "SELECT id, etap_id, parametr_id FROM etap_parametry WHERE id = ?",
+        (pe_id,),
+    ).fetchone()
+
+    if not ep:
+        # Fallback: try parametry_etapy (non-pipeline products)
+        row = db.execute("SELECT id FROM parametry_etapy WHERE id = ?", (pe_id,)).fetchone()
+        if not row:
+            return {"ok": False, "error": "not_found"}
+        # Remap spec_value back to target for parametry_etapy
+        if "spec_value" in filtered:
+            filtered["target"] = filtered.pop("spec_value")
+        sets = ", ".join(f"{k} = ?" for k in filtered)
+        vals = list(filtered.values())
+        now = datetime.now().isoformat(timespec="seconds")
+        sets += ", dt_modified = ?, modified_by = ?"
+        vals.extend([now, user_id])
+        vals.append(pe_id)
+        db.execute(f"UPDATE parametry_etapy SET {sets} WHERE id = ?", vals)
+        db.commit()
+        return {"ok": True, "updated": list(filtered.keys())}
+
+    # Pipeline path: upsert produkt_etap_limity
+    # We need the produkt — get it from the route context (passed via request)
+    # or from the first matching row
+    from flask import request as _req
+    produkt = (_req.get_json(silent=True) or {}).get("produkt")
+
+    if not produkt:
+        # Find from existing produkt_etap_limity row
+        pel = db.execute(
+            "SELECT produkt FROM produkt_etap_limity WHERE etap_id = ? AND parametr_id = ? LIMIT 1",
+            (ep["etap_id"], ep["parametr_id"]),
+        ).fetchone()
+        if pel:
+            produkt = pel["produkt"]
+
+    if not produkt:
+        return {"ok": False, "error": "no_produkt_context"}
+
+    # Check if row exists
+    existing = db.execute(
+        "SELECT id FROM produkt_etap_limity WHERE produkt = ? AND etap_id = ? AND parametr_id = ?",
+        (produkt, ep["etap_id"], ep["parametr_id"]),
+    ).fetchone()
+
+    pel_allowed = {"min_limit", "max_limit", "spec_value", "nawazka_g", "precision"}
+    pel_filtered = {k: v for k, v in filtered.items() if k in pel_allowed}
+
+    if existing:
+        sets = ", ".join(f"{k} = ?" for k in pel_filtered)
+        vals = list(pel_filtered.values()) + [existing["id"]]
+        db.execute(f"UPDATE produkt_etap_limity SET {sets} WHERE id = ?", vals)
+    else:
+        pel_filtered["produkt"] = produkt
+        pel_filtered["etap_id"] = ep["etap_id"]
+        pel_filtered["parametr_id"] = ep["parametr_id"]
+        cols = ", ".join(pel_filtered.keys())
+        placeholders = ", ".join("?" for _ in pel_filtered)
+        db.execute(
+            f"INSERT INTO produkt_etap_limity ({cols}) VALUES ({placeholders})",
+            list(pel_filtered.values()),
+        )
+
     db.commit()
     return {"ok": True, "updated": list(filtered.keys())}

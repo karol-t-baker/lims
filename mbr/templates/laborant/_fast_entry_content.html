@@ -3099,7 +3099,7 @@ function saveSpecLimit(input) {
     fetch('/api/pipeline/lab/parametry-etapy/' + peId, {
         method: 'PATCH',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({[field]: val}),
+        body: JSON.stringify({[field]: val, produkt: window._batchProdukt || ''}),
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {
