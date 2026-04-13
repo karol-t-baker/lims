@@ -11,6 +11,7 @@ Tables:
 """
 
 import json as _json
+import re as _re
 import sqlite3
 from datetime import datetime
 
@@ -807,6 +808,18 @@ VARIABLE_LABELS = {
 }
 
 
+def _js_ternary_to_python(expr: str) -> str:
+    """Convert a simple JS-style ternary (cond ? a : b) to Python (a if cond else b).
+
+    Only handles single-level ternaries with no nested ?/: in the branches.
+    """
+    m = _re.match(r"^(.+?)\s*\?\s*(.+?)\s*:\s*(.+)$", expr.strip())
+    if m:
+        cond, then_, else_ = m.group(1).strip(), m.group(2).strip(), m.group(3).strip()
+        return f"({then_}) if ({cond}) else ({else_})"
+    return expr
+
+
 def _resolve_single_variable(db, var_name, var_ref, ebr_id, etap_id, sesja_id, produkt):
     """Resolve a single formula variable reference. Returns (value, label)."""
     # Handle pomiar:{kod}
@@ -916,6 +929,7 @@ def resolve_formula_zmienne(db, korekta_typ_id, etap_id, sesja_id, ebr_id, reduk
         meff_expr = str(meff_expression).replace(
             "wielkosc_szarzy_kg", str(float(masa))
         )
+        meff_expr = _js_ternary_to_python(meff_expr)
         try:
             meff_val = eval(meff_expr, {"__builtins__": {}})
             resolved["Meff"] = meff_val
