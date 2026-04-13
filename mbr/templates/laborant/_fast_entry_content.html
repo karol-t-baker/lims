@@ -1186,16 +1186,20 @@ function renderPipelineSections() {
         saveBtnLabel: null
     });
 
-    // For jednorazowy stages without gate: add "Zatwierdź etap" button when results exist
-    if (!isReadonly && !activeReadonly && hasSomeResults && activeEtap.typ_cyklu !== 'cykliczny') {
-        var isLastStage = etapy.filter(function(e){return e.pipeline_etap_id;}).slice(-1)[0].pipeline_etap_id === activeEtap.pipeline_etap_id;
-        if (!isLastStage) {
-            var approveBar = document.createElement('div');
-            approveBar.className = 'decision-bar';
-            approveBar.style.cssText = 'padding:12px 16px;margin-top:8px;display:flex;gap:8px;';
+    // "Zatwierdź etap" button — always visible when results exist (laborant decides when to proceed)
+    if (!isReadonly && !activeReadonly && hasSomeResults) {
+        var pipelineStages = etapy.filter(function(e){return e.pipeline_etap_id;});
+        var isLastStage = pipelineStages.length > 0 && pipelineStages[pipelineStages.length - 1].pipeline_etap_id === activeEtap.pipeline_etap_id;
+        var approveBar = document.createElement('div');
+        approveBar.className = 'decision-bar';
+        approveBar.style.cssText = 'padding:12px 16px;margin-top:12px;display:flex;gap:8px;align-items:center;';
+        if (isLastStage) {
+            approveBar.innerHTML = '<button class="btn-success" onclick="completePompuj()">Przepompuj na zbiornik</button>' +
+                '<button class="btn-secondary" onclick="openSmallCorrectionDialog()">Mała korekta + przepompuj</button>';
+        } else {
             approveBar.innerHTML = '<button class="btn-success" onclick="closePipelineStage(\'' + activeSekcja + '\')">Zatwierdź etap &rarr;</button>';
-            container.appendChild(approveBar);
         }
+        container.appendChild(approveBar);
     }
 }
 
