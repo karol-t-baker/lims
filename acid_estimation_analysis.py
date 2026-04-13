@@ -8,6 +8,11 @@ Usage:
     python acid_estimation_analysis.py
 """
 
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
@@ -115,3 +120,78 @@ def compare_models(fit_a: dict, cv_a: dict, fit_b: dict, cv_b: dict) -> dict:
     reasons.append(f"Winner: Model {'B (extended)' if winner == 'B' else 'A (baseline)'} ({b_wins}/3 criteria met)")
 
     return {"winner": winner, "reasons": reasons}
+
+
+def generate_plots(
+    df: pd.DataFrame, fit_result: dict, cv_result: dict,
+    predictors: list[str], label: str, out_dir: str = "plots"
+) -> list[str]:
+    """Generate 4 diagnostic plots. Returns list of saved file paths."""
+    Path(out_dir).mkdir(exist_ok=True)
+    paths = []
+    model = fit_result["model"]
+    masa = df["masa_kg"].values
+    actual_kg = df["kwas_kg"].values
+    pred_kg = cv_result["predictions"]
+    residuals_kg = cv_result["residuals"]
+
+    # 1. Scatter: kwas_per_ton vs pH_start with regression line
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.scatter(df["ph_start"], df["kwas_per_ton"], alpha=0.7, edgecolors="k", linewidths=0.5)
+    ph_range = np.linspace(df["ph_start"].min(), df["ph_start"].max(), 100)
+    if len(predictors) == 1:
+        X_plot = sm.add_constant(ph_range)
+        ax.plot(ph_range, model.predict(X_plot), "r-", linewidth=2)
+    ax.set_xlabel("pH start")
+    ax.set_ylabel("Kwas cytrynowy [kg/tonę]")
+    ax.set_title(f"{label}: kwas/tonę vs pH start")
+    ax.grid(True, alpha=0.3)
+    p = f"{out_dir}/{label}_scatter_regression.png"
+    fig.savefig(p, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    paths.append(p)
+
+    # 2. Prediction vs actual (kg)
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.scatter(actual_kg, pred_kg, alpha=0.7, edgecolors="k", linewidths=0.5)
+    lims = [min(actual_kg.min(), pred_kg.min()) - 5, max(actual_kg.max(), pred_kg.max()) + 5]
+    ax.plot(lims, lims, "r--", linewidth=1)
+    ax.set_xlabel("Rzeczywisty kwas [kg]")
+    ax.set_ylabel("Predykcja kwas [kg]")
+    ax.set_title(f"{label}: predykcja vs rzeczywistość")
+    ax.set_xlim(lims)
+    ax.set_ylim(lims)
+    ax.set_aspect("equal")
+    ax.grid(True, alpha=0.3)
+    p = f"{out_dir}/{label}_pred_vs_actual.png"
+    fig.savefig(p, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    paths.append(p)
+
+    # 3. Residuals vs masa (normalization check)
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.scatter(masa, residuals_kg, alpha=0.7, edgecolors="k", linewidths=0.5)
+    ax.axhline(0, color="r", linestyle="--", linewidth=1)
+    ax.set_xlabel("Masa szarży [kg]")
+    ax.set_ylabel("Residuum [kg]")
+    ax.set_title(f"{label}: residua vs masa (test normalizacji)")
+    ax.grid(True, alpha=0.3)
+    p = f"{out_dir}/{label}_residuals_vs_masa.png"
+    fig.savefig(p, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    paths.append(p)
+
+    # 4. Residuals vs fitted
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.scatter(pred_kg, residuals_kg, alpha=0.7, edgecolors="k", linewidths=0.5)
+    ax.axhline(0, color="r", linestyle="--", linewidth=1)
+    ax.set_xlabel("Fitted [kg]")
+    ax.set_ylabel("Residuum [kg]")
+    ax.set_title(f"{label}: residua vs fitted")
+    ax.grid(True, alpha=0.3)
+    p = f"{out_dir}/{label}_residuals_vs_fitted.png"
+    fig.savefig(p, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    paths.append(p)
+
+    return paths

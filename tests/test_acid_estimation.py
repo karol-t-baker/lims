@@ -1,3 +1,5 @@
+import os
+
 import pandas as pd
 import numpy as np
 import pytest
@@ -89,3 +91,25 @@ def test_compare_models():
     assert result["winner"] in ("A", "B")
     assert "reasons" in result
     assert isinstance(result["reasons"], list)
+
+
+def test_generate_plots():
+    from acid_estimation_analysis import load_data, add_features, fit_model, run_loocv, generate_plots
+    df = load_data("data/kwas.csv")
+    df = add_features(df)
+    fit_a = fit_model(df, predictors=["ph_start"])
+    cv_a = run_loocv(df, predictors=["ph_start"])
+
+    out_dir = "test_plots_output"
+    generate_plots(df, fit_a, cv_a, predictors=["ph_start"], label="Model_A", out_dir=out_dir)
+
+    expected_files = [
+        f"{out_dir}/Model_A_scatter_regression.png",
+        f"{out_dir}/Model_A_pred_vs_actual.png",
+        f"{out_dir}/Model_A_residuals_vs_masa.png",
+        f"{out_dir}/Model_A_residuals_vs_fitted.png",
+    ]
+    for f in expected_files:
+        assert os.path.exists(f), f"Missing plot: {f}"
+        os.remove(f)
+    os.rmdir(out_dir)
