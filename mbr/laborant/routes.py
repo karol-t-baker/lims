@@ -186,9 +186,12 @@ def fast_entry_partial(ebr_id):
             return "Nie znaleziono", 404
 
         # Pipeline adapter: if product has pipeline, override etapy_json + parametry_lab
+        # Zbiorniki use only analiza_koncowa — skip full pipeline
         from mbr.pipeline.adapter import build_pipeline_context
         import json as _json
-        pipeline_ctx = build_pipeline_context(db, ebr["produkt"])
+        pipeline_ctx = None
+        if ebr.get("typ") != "zbiornik":
+            pipeline_ctx = build_pipeline_context(db, ebr["produkt"])
         pipeline_sesja_map = {}
         if pipeline_ctx:
             ebr = dict(ebr)  # make mutable copy (sqlite3.Row is read-only)
@@ -243,7 +246,8 @@ def save_entry(ebr_id):
         ebr = get_ebr(db, ebr_id)
 
         # Pipeline adapter: override parametry_lab so save_wyniki finds pipeline params
-        if ebr:
+        # Zbiorniki use only analiza_koncowa — skip full pipeline
+        if ebr and ebr.get("typ") != "zbiornik":
             from mbr.pipeline.adapter import build_pipeline_context
             import json as _json
             pipeline_ctx = build_pipeline_context(db, ebr["produkt"])
