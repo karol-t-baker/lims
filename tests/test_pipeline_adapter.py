@@ -213,7 +213,7 @@ def test_parametry_lab_pole_format(db):
     assert sm["max_limit"] == 47.0
     assert sm["precision"] == 1
     assert sm["measurement_type"] == "bezp"
-    assert sm["target"] == 46.0
+    assert sm["spec_value"] == 46.0
     assert sm["tag"] == "sm"
     assert sm["typ"] == "float"
     assert sm["grupa"] == "lab"

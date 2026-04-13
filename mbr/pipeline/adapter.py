@@ -127,7 +127,7 @@ def _build_pole(param: dict, db: sqlite3.Connection) -> dict:
         "min_limit":        param["min_limit"],
         "max_limit":        param["max_limit"],
         "precision":        param["precision"],
-        "target":           param["spec_value"],
+        "spec_value":       param["spec_value"],
         "grupa":            param["grupa"] or "lab",
     }
 
@@ -179,7 +179,7 @@ def _build_korekty_pola(korekty: list[dict]) -> list[dict]:
             "min_limit":        None,
             "max_limit":        None,
             "precision":        1,
-            "target":           None,
+            "spec_value":       None,
             "grupa":            "lab",
         })
     return pola

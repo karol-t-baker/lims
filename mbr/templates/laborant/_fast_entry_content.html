@@ -35,14 +35,14 @@
   </div>
   <div class="col-right" {% if ebr.status != 'open' %}style="display:none;"{% endif %}>
     <div class="rp-tabs">
-      <div class="rp-tab" id="tab-cele" onclick="showRightPanel('cele')">Cele</div>
+      <div class="rp-tab" id="tab-spec" onclick="showRightPanel('spec')">Specyfikacja</div>
       <div class="rp-tab active" id="tab-calc" onclick="showRightPanel('calc')">Kalkulator</div>
     </div>
     <div class="rp-body">
-      <div class="rp-view" id="rp-cele">
-        <div id="cele-container" style="padding:0;">
-          <div style="padding:10px 14px;background:var(--teal-bg);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--teal);">Cele aktywnego etapu</div>
-          <div id="cele-body" style="font-size:12px;color:var(--text-dim);padding:14px;">Wybierz etap.</div>
+      <div class="rp-view" id="rp-spec">
+        <div id="spec-container" style="padding:0;">
+          <div style="padding:10px 14px;background:var(--teal-bg);font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--teal);">Specyfikacja etapu</div>
+          <div id="spec-body" style="font-size:12px;color:var(--text-dim);padding:14px;">Wybierz etap.</div>
         </div>
       </div>
       <div class="rp-view active" id="rp-calc">
@@ -1146,41 +1146,24 @@ function renderStageDecisionPanel(container, sekcja, activeEtap) {
         return;
     }
 
-    panel.innerHTML = '<span style="color:var(--text-dim);font-size:11px;">Ładowanie opcji...</span>';
+    panel.innerHTML = '<span style="color:var(--text-dim);font-size:11px;">Ładowanie...</span>';
     container.appendChild(panel);
 
     var etapId = activeEtap.pipeline_etap_id;
-    _fetchCorrections(etapId).then(function(korekty) {
-        var korekcyjne = korekty.filter(function(k) { return !k.jest_przejscie; });
-        var przejsciowe = korekty.filter(function(k) { return k.jest_przejscie; });
 
-        var currentIdx = pipelineStages.findIndex(function(e) { return e.pipeline_etap_id === etapId; });
-        var nextStage = pipelineStages[currentIdx + 1];
-        var nextName = nextStage ? nextStage.nazwa : 'następny etap';
+    // Fetch current sesja_id, then render operator decision panel
+    fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + etapId).then(function(resp) {
+        return resp.ok ? resp.json() : null;
+    }).then(function(data) {
+        var sesjaId = data && data.current_sesja ? data.current_sesja.id : null;
+        if (!sesjaId && window._lastGate) sesjaId = window._lastGate.sesja_id;
 
-        var html = '<div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Decyzja</div>';
-        html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;" id="sdp-buttons-' + sekcja + '">';
-
-        korekcyjne.forEach(function(k) {
-            html += '<button class="btn-warn" onclick="showCorrectionInput(\'' + sekcja + '\',' + k.id + ',false)">' +
-                'Korekta ' + k.substancja + '</button>';
-        });
-
-        przejsciowe.forEach(function(k) {
-            html += '<button class="btn-success" onclick="showCorrectionInput(\'' + sekcja + '\',' + k.id + ',true)">' +
-                k.substancja + ' &rarr; ' + nextName + '</button>';
-        });
-
-        if (przejsciowe.length === 0) {
-            html += '<button class="btn-success" onclick="closePipelineStage(\'' + sekcja + '\')">' +
-                'Zatwierdź &rarr; ' + nextName + '</button>';
-        }
-
-        html += '</div>';
-        html += '<div id="sdp-input-' + sekcja + '" style="display:none;"></div>';
-
-        panel.innerHTML = html;
-        panel._korektyData = korekty;
+        var newPanel = renderOperatorDecisionPanel(sekcja, etapId, sesjaId || 0);
+        panel.innerHTML = newPanel.innerHTML;
+    }).catch(function() {
+        // Fallback: render without sesja_id, functions will fetch it
+        var newPanel = renderOperatorDecisionPanel(sekcja, etapId, 0);
+        panel.innerHTML = newPanel.innerHTML;
     });
 }
 
@@ -1452,7 +1435,7 @@ function renderPipelineSections() {
     // Non-main cyclic: reversed flow (DODATEK → ANALIZA → DECYZJA)
     if (activeEtap.typ_cyklu === 'cykliczny') {
         renderNonMainCyclicSection(container, activeSekcja, activeEtap, isReadonly, activeReadonly, entryGrupa);
-        updateCelePanel();
+        updateSpecPanel();
         return;
     }
 
@@ -1485,7 +1468,7 @@ function renderPipelineSections() {
         renderStageDecisionPanel(container, activeSekcja, activeEtap);
     }
 
-    updateCelePanel();
+    updateSpecPanel();
 }
 
 function _renderCyclicReadonly(container, rs, entryGrupa) {
@@ -2776,6 +2759,8 @@ function renderOneSection(container, opts) {
     }
 
     section.innerHTML = headHtml + '<div class="sec-body">' + fieldsHtml + '</div>' + legendHtml;
+    // Add round history (collapsible, for pipeline stages with multiple rounds)
+    section.innerHTML += renderRoundHistory(sekcja);
     // Add gate banner placeholder for pipeline stages
     section.innerHTML += '<div class="gate-banner" id="gate-' + sekcja + '"></div>';
     container.appendChild(section);
@@ -2914,8 +2899,8 @@ function evalCorrectionFormula(formulaStr, sekcja, korekta) {
     ['utlenienie', 'analiza', baseSekcja].forEach(function(sek) {
         var pola = (parametry[sek] || {}).pola || [];
         pola.forEach(function(p) {
-            if (p.target != null && !vars['target_' + p.kod]) {
-                vars['target_' + p.kod] = p.target;
+            if ((p.spec_value || p.target) != null && !vars['target_' + p.kod]) {
+                vars['target_' + p.kod] = p.spec_value || p.target;
             }
         });
     });
@@ -3125,7 +3110,281 @@ function openSmallCorrectionDialog() {
     });
 }
 
-async function saveTarget(input) {
+// ═══ OPERATOR-DRIVEN CORRECTION ORDERS (zlecenie korekty) ═══
+
+async function openCorrectionForm(sekcja, etapId, sesjaId) {
+    var panel = document.getElementById('sdp-' + sekcja);
+    if (!panel) return;
+
+    panel.innerHTML = '<span style="color:var(--text-dim);font-size:11px;">Ładowanie katalogu korekt...</span>';
+
+    try {
+        var resp = await fetch('/api/pipeline/lab/etap/' + etapId + '/korekty-katalog');
+        if (!resp.ok) { panel.innerHTML = '<span style="color:var(--red);font-size:11px;">Błąd ładowania katalogu.</span>'; return; }
+        var katalog = await resp.json();
+
+        if (!katalog || katalog.length === 0) {
+            panel.innerHTML = '<span style="color:var(--text-dim);font-size:11px;">Brak zdefiniowanych korekt dla tego etapu.</span>';
+            return;
+        }
+
+        var html = '<div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Zlecenie korekty</div>';
+        html += '<div id="corr-form-' + sekcja + '">';
+
+        katalog.forEach(function(k) {
+            html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;" data-korekta-typ-id="' + k.id + '">' +
+                '<input type="checkbox" id="corr-chk-' + sekcja + '-' + k.id + '" data-korekta-typ-id="' + k.id + '" style="margin:0;">' +
+                '<label for="corr-chk-' + sekcja + '-' + k.id + '" style="font-weight:600;font-size:12px;min-width:120px;">' + k.substancja.replace(/_/g, ' ') + '</label>' +
+                '<input type="number" step="any" class="pa-input" id="corr-qty-' + sekcja + '-' + k.id + '" placeholder="Ilość" ' +
+                    'style="width:90px;font-size:12px;text-align:center;" disabled>' +
+                '<span style="color:var(--text-dim);font-size:10px;">' + (k.jednostka || 'kg') + '</span>' +
+                '<span id="corr-hint-' + sekcja + '-' + k.id + '" style="font-size:9px;color:var(--teal);"></span>' +
+            '</div>';
+        });
+
+        html += '<div style="margin-top:8px;display:flex;gap:8px;">' +
+            '<button class="btn-success" onclick="submitCorrectionOrder(\'' + sekcja + '\',' + etapId + ',' + sesjaId + ')">Zleć korektę</button>' +
+            '<button class="btn-secondary" onclick="cancelCorrectionForm(\'' + sekcja + '\',' + etapId + ',' + sesjaId + ')">Anuluj</button>' +
+        '</div></div>';
+
+        panel.innerHTML = html;
+
+        // Checkbox enables/disables quantity input
+        katalog.forEach(function(k) {
+            var chk = document.getElementById('corr-chk-' + sekcja + '-' + k.id);
+            var qty = document.getElementById('corr-qty-' + sekcja + '-' + k.id);
+            if (chk && qty) {
+                chk.addEventListener('change', function() { qty.disabled = !chk.checked; if (chk.checked) qty.focus(); });
+            }
+        });
+
+        // Fetch formula hints for substances that have formulas
+        fetchFormulaHints(sekcja, etapId, katalog);
+
+    } catch(e) {
+        panel.innerHTML = '<span style="color:var(--red);font-size:11px;">Błąd: ' + e.message + '</span>';
+    }
+}
+
+async function fetchFormulaHints(sekcja, etapId, katalog) {
+    var baseSekcja = sekcja.split('__')[0];
+    var latestWyniki = wyniki[sekcja] || wyniki[baseSekcja] || {};
+
+    for (var i = 0; i < katalog.length; i++) {
+        var k = katalog[i];
+        if (!k.formula_ilosc) continue;
+
+        var params = 'korekta_typ_id=' + k.id;
+        // Pass current measurement values as formula variables
+        Object.keys(latestWyniki).forEach(function(kod) {
+            var w = latestWyniki[kod];
+            if (w && w.wartosc != null) params += '&' + encodeURIComponent(kod) + '=' + w.wartosc;
+        });
+        // Pass nastaw
+        if (typeof ebrNastaw !== 'undefined' && ebrNastaw) params += '&wielkosc_szarzy_kg=' + ebrNastaw;
+
+        try {
+            var resp = await fetch('/api/pipeline/lab/formula-hint?' + params);
+            if (!resp.ok) continue;
+            var data = await resp.json();
+            if (data.ok && data.hint != null) {
+                var hintEl = document.getElementById('corr-hint-' + sekcja + '-' + k.id);
+                var qtyEl = document.getElementById('corr-qty-' + sekcja + '-' + k.id);
+                if (hintEl) hintEl.textContent = 'obliczono: ' + String(data.hint).replace('.', ',');
+                if (qtyEl && !qtyEl.value) qtyEl.value = data.hint;
+            }
+        } catch(e) { /* hint is optional */ }
+    }
+}
+
+async function submitCorrectionOrder(sekcja, etapId, sesjaId) {
+    var form = document.getElementById('corr-form-' + sekcja);
+    if (!form) return;
+
+    var items = [];
+    var chkBoxes = form.querySelectorAll('input[type="checkbox"][data-korekta-typ-id]');
+    chkBoxes.forEach(function(chk) {
+        if (!chk.checked) return;
+        var typId = parseInt(chk.dataset.korektaTypId);
+        var qty = parseFloat(document.getElementById('corr-qty-' + sekcja + '-' + typId).value);
+        if (isNaN(qty) || qty <= 0) return;
+        items.push({korekta_typ_id: typId, ilosc: qty});
+    });
+
+    if (items.length === 0) { alert('Zaznacz przynajmniej jedną substancję i podaj ilość.'); return; }
+
+    try {
+        var resp = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/zlecenie-korekty', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({sesja_id: sesjaId, items: items})
+        });
+        if (!resp.ok) { alert('Błąd zlecenia korekty.'); return; }
+
+        var data = await resp.json();
+        var panel = document.getElementById('sdp-' + sekcja);
+        if (panel) {
+            panel.innerHTML =
+                '<div style="background:var(--green-bg, #f0fdf4);border:1px solid var(--green);border-radius:8px;padding:12px 16px;">' +
+                    '<span style="color:var(--green);font-weight:600;font-size:12px;">&#10003; Zlecenie korekty #' + data.zlecenie_id + ' utworzone</span>' +
+                    '<div style="margin-top:8px;">' +
+                        '<button class="btn-secondary" onclick="startNewPipelineRound(\'' + sekcja + '\')">Nowa runda analizy</button>' +
+                    '</div>' +
+                '</div>';
+        }
+    } catch(e) {
+        alert('Błąd: ' + e.message);
+    }
+}
+
+function cancelCorrectionForm(sekcja, etapId, sesjaId) {
+    renderOperatorDecisionPanel(sekcja, etapId, sesjaId);
+}
+
+function renderOperatorDecisionPanel(sekcja, etapId, sesjaId) {
+    var panel = document.getElementById('sdp-' + sekcja);
+    if (!panel) {
+        panel = document.createElement('div');
+        panel.className = 'stage-decision-panel';
+        panel.id = 'sdp-' + sekcja;
+        panel.style.cssText = 'margin-top:12px;padding:14px 18px;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);';
+    }
+
+    var html = '<div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Decyzja operatora</div>';
+    html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+    html += '<button class="btn-warn" onclick="openCorrectionForm(\'' + sekcja + '\',' + etapId + ',' + sesjaId + ')">Zlecenie korekty</button>';
+    html += '<button class="btn-success" onclick="zamknijEtap(' + etapId + ',' + sesjaId + ',\'' + sekcja + '\')">Zamknij etap</button>';
+    html += '</div>';
+
+    panel.innerHTML = html;
+    return panel;
+}
+
+async function zamknijEtap(etapId, sesjaId, sekcja) {
+    if (!confirm('Czy na pewno zamknąć ten etap?')) return;
+
+    try {
+        var resp = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + etapId + '/close', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({sesja_id: sesjaId, decyzja: 'zamknij_etap'})
+        });
+        if (!resp.ok) { alert('Błąd zamykania etapu.'); return; }
+
+        // Advance to next stage
+        var stages = etapy.filter(function(e) { return e.pipeline_etap_id; });
+        var currentIdx = stages.findIndex(function(e) { return e.pipeline_etap_id === etapId; });
+        var nextStage = stages[currentIdx + 1];
+
+        if (nextStage) {
+            await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + nextStage.pipeline_etap_id + '/start', { method: 'POST' });
+            window._activePipelineStage = nextStage.sekcja_lab;
+            window._activePipelineReadonly = false;
+        }
+        if (typeof loadBatch === 'function') loadBatch(ebrId);
+        else location.reload();
+    } catch(e) {
+        alert('Błąd: ' + e.message);
+    }
+}
+
+async function reopenEtap(etapId, sesjaId) {
+    if (!confirm('Czy na pewno otworzyć ponownie ten etap?')) return;
+
+    try {
+        var resp = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + etapId + '/close', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({sesja_id: sesjaId, decyzja: 'reopen_etap'})
+        });
+        if (!resp.ok) { alert('Błąd otwierania etapu.'); return; }
+
+        if (typeof loadBatch === 'function') loadBatch(ebrId);
+        else location.reload();
+    } catch(e) {
+        alert('Błąd: ' + e.message);
+    }
+}
+
+// ═══ ROUND HISTORY DISPLAY ═══
+
+function renderRoundHistory(sekcja) {
+    var baseSekcja = sekcja.split('__')[0];
+    var rounds = [];
+
+    // Collect completed round keys for this stage
+    Object.keys(wyniki).forEach(function(key) {
+        var m = key.match(new RegExp('^' + baseSekcja.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '__(\\d+)$'));
+        if (m) rounds.push({runda: parseInt(m[1]), key: key});
+    });
+    rounds.sort(function(a, b) { return a.runda - b.runda; });
+
+    if (rounds.length <= 1) return '';
+
+    var html = '<details class="round-history" style="margin-top:12px;">' +
+        '<summary style="cursor:pointer;font-size:12px;color:var(--text-dim);font-weight:600;">Historia rund (' + rounds.length + ')</summary>';
+
+    // Show all rounds except the current (last) one
+    var pola = (parametry[baseSekcja] || {}).pola || [];
+    for (var i = 0; i < rounds.length - 1; i++) {
+        var round = rounds[i];
+        var rWyniki = wyniki[round.key] || {};
+
+        html += '<div style="margin-top:8px;padding:8px 12px;background:var(--surface-alt, #f5f5f5);border-radius:6px;border:1px solid var(--border-subtle);">';
+        html += '<div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">Runda ' + round.runda + '</div>';
+
+        var measurements = [];
+        pola.forEach(function(p) {
+            var w = rWyniki[p.kod];
+            if (w && w.wartosc != null) {
+                var inLimit = w.w_limicie === 1;
+                measurements.push({
+                    label: p.skrot || p.label || p.kod,
+                    wartosc: w.wartosc,
+                    precision: p.precision || 2,
+                    inLimit: inLimit
+                });
+            }
+        });
+
+        if (measurements.length > 0) {
+            html += '<table style="width:100%;border-collapse:collapse;font-size:11px;">';
+            measurements.forEach(function(m) {
+                var color = m.inLimit ? 'var(--green)' : 'var(--red)';
+                html += '<tr style="border-bottom:1px solid var(--border-subtle);">' +
+                    '<td style="padding:3px 6px;">' + m.label + '</td>' +
+                    '<td style="padding:3px 6px;text-align:right;font-family:var(--mono);color:' + color + ';font-weight:600;">' +
+                        m.wartosc.toFixed(m.precision).replace('.', ',') + '</td>' +
+                '</tr>';
+            });
+            html += '</table>';
+        } else {
+            html += '<span style="font-size:11px;color:var(--text-dim);">Brak pomiarów.</span>';
+        }
+
+        // Check for corrections after this round
+        var dodatkiKey = baseSekcja + '_dodatki__' + round.runda;
+        if (!wyniki[dodatkiKey]) dodatkiKey = 'dodatki__' + round.runda;
+        var dodatkiWyniki = wyniki[dodatkiKey];
+        if (dodatkiWyniki && Object.keys(dodatkiWyniki).length > 0) {
+            html += '<div style="margin-top:4px;font-size:10px;color:var(--amber);font-weight:600;">Korekty:</div>';
+            Object.keys(dodatkiWyniki).forEach(function(kod) {
+                var dw = dodatkiWyniki[kod];
+                if (dw && dw.wartosc != null) {
+                    html += '<span style="font-size:10px;color:var(--text-dim);margin-right:8px;">' +
+                        kod.replace(/_/g, ' ') + ': ' + dw.wartosc + '</span>';
+                }
+            });
+        }
+
+        html += '</div>';
+    }
+
+    html += '</details>';
+    return html;
+}
+
+async function saveSpec(input) {
     var kod = input.dataset.kod;
     var sekcja = input.dataset.sekcja;
     var rawVal = input.value.replace(',', '.');
@@ -3806,8 +4065,8 @@ function saveBias(kod) {
     });
 }
 
-function updateCelePanel() {
-    var body = document.getElementById('cele-body');
+function updateSpecPanel() {
+    var body = document.getElementById('spec-body');
     if (!body) return;
 
     var activeSekcja = window._activePipelineStage;
@@ -3817,19 +4076,19 @@ function updateCelePanel() {
     if (!sekData) sekData = parametry['analiza'];
     if (!sekData || !sekData.pola) { body.innerHTML = '<div style="padding:14px;color:var(--text-dim);font-size:11px;">Brak danych.</div>'; return; }
 
-    var withTarget = sekData.pola.filter(function(p) { return p.target != null; });
-    if (withTarget.length === 0) { body.innerHTML = '<div style="padding:14px;color:var(--text-dim);font-size:11px;">Brak celów dla tego etapu.</div>'; return; }
+    var withSpec = sekData.pola.filter(function(p) { return p.spec_value != null; });
+    if (withSpec.length === 0) { body.innerHTML = '<div style="padding:14px;color:var(--text-dim);font-size:11px;">Brak specyfikacji dla tego etapu.</div>'; return; }
 
     var html = '<table style="width:100%;border-collapse:collapse;font-size:12px;">';
-    withTarget.forEach(function(p) {
+    withSpec.forEach(function(p) {
         html += '<tr style="border-bottom:1px solid var(--border-subtle);">' +
             '<td style="padding:10px 14px;font-weight:600;">' + (p.skrot || p.label || p.kod) + '</td>' +
             '<td style="padding:10px 14px;font-family:var(--mono);font-weight:700;color:var(--teal);text-align:right;font-size:14px;">' +
-                '<input class="target-edit" type="text" inputmode="decimal" value="' + String(p.target).replace('.', ',') + '" ' +
+                '<input class="spec-edit" type="text" inputmode="decimal" value="' + String(p.spec_value).replace('.', ',') + '" ' +
                 'data-kod="' + p.kod + '" data-sekcja="' + activeSekcja + '" ' +
                 'style="width:70px;border:1px solid transparent;border-radius:3px;padding:2px 4px;font-family:var(--mono);font-size:14px;font-weight:700;color:var(--teal);text-align:center;background:transparent;cursor:pointer;" ' +
                 'onfocus="this.style.borderColor=\'var(--teal)\';this.style.background=\'#fff\'" ' +
-                'onblur="this.style.borderColor=\'transparent\';this.style.background=\'transparent\';saveTarget(this)">' +
+                'onblur="this.style.borderColor=\'transparent\';this.style.background=\'transparent\';saveSpec(this)">' +
             '</td>' +
         '</tr>';
     });
@@ -3927,7 +4186,7 @@ window._panelFocusBridge = function(e) {
 
     // Non-titr field focused → wartości typowe
     if (input.closest('.ff') || input.closest('.section-fields') || input.closest('#ps-stage-content')) {
-        showRightPanel('cele');
+        showRightPanel('spec');
     }
 };
 document.addEventListener('focusin', window._panelFocusBridge);
@@ -5098,13 +5357,13 @@ function openCertMappingEditor() {
 renderSections();
 setupComputedFields();
 loadBatchZbiorniki();
-updateCelePanel();
+updateSpecPanel();
 
 window.showPipelineStage = function(sekcjaLab, readonly) {
     window._activePipelineStage = sekcjaLab;
     window._activePipelineReadonly = !!readonly;
     renderSections();
-    updateCelePanel();
+    updateSpecPanel();
     if (typeof renderSidebarEtapy === 'function') renderSidebarEtapy();
 };
 </script>
