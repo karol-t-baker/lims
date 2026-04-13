@@ -5,9 +5,11 @@ import pytest
 
 from mbr.models import init_mbr_tables
 from mbr.pipeline.models import (
+    add_etap_warunek,
     close_sesja,
     create_sesja,
     create_round_with_inheritance,
+    evaluate_gate,
     get_etap_decyzje,
     get_pomiary,
     get_sesja,
@@ -256,3 +258,83 @@ def test_global_edit_no_valid_fields(db):
     result = patch_parametry_etapy(db, pe_id=998, updates={"bogus_field": 42}, user_id=1)
     assert result["ok"] is False
     assert result["error"] == "no_valid_fields"
+
+
+def test_full_pipeline_flow_sulfonowanie_to_utlenianie(db):
+    """E2E: sulfonowanie fail → new_round with inheritance → pass → close."""
+
+    # ── Setup: gate condition SO₃²⁻ ≤ 0.1 for etap 10 (sulfonowanie) ──
+    add_etap_warunek(db, etap_id=10, parametr_id=901,
+                     operator="<=", wartosc=0.1,
+                     opis_warunku="SO3 <= 0.1")
+    db.commit()
+
+    # ── Round 1: create session, enter SO₃ = 0.15 (FAIL) and pH = 7.2 (OK) ──
+    s1 = create_sesja(db, ebr_id=1, etap_id=10, runda=1, laborant="lab1")
+    save_pomiar(db, s1, parametr_id=901, wartosc=0.15,
+                min_limit=0.0, max_limit=0.1, wpisal="lab1")
+    save_pomiar(db, s1, parametr_id=902, wartosc=7.2,
+                min_limit=6.0, max_limit=8.0, wpisal="lab1")
+    db.commit()
+
+    # ── Gate check round 1: should FAIL on SO₃ ──
+    gate1 = evaluate_gate(db, etap_id=10, sesja_id=s1)
+    assert gate1["passed"] is False
+    assert len(gate1["failures"]) == 1
+    assert gate1["failures"][0]["kod"] == "test_so3"
+
+    # ── Close round 1 with new_round decision ──
+    close_sesja(db, s1, decyzja="new_round")
+    db.commit()
+
+    s1_row = db.execute(
+        "SELECT * FROM ebr_etap_sesja WHERE id = ?", (s1,)
+    ).fetchone()
+    assert s1_row["status"] == "zamkniety"
+    assert s1_row["decyzja"] == "new_round"
+
+    # ── Round 2: create with inheritance ──
+    s2 = create_round_with_inheritance(db, ebr_id=1, etap_id=10,
+                                       prev_sesja_id=s1, laborant="lab1")
+    db.commit()
+
+    # Verify round number
+    s2_row = db.execute(
+        "SELECT runda FROM ebr_etap_sesja WHERE id = ?", (s2,)
+    ).fetchone()
+    assert s2_row["runda"] == 2
+
+    # Verify inheritance: pH copied (odziedziczony=1), SO₃ NOT copied
+    pomiary2 = get_pomiary(db, s2)
+    kody2 = {p["kod"] for p in pomiary2}
+    assert "test_ph" in kody2, "pH should be inherited (was OK)"
+    assert "test_so3" not in kody2, "SO3 should NOT be inherited (was FAIL)"
+
+    for p in pomiary2:
+        if p["kod"] == "test_ph":
+            row = db.execute(
+                "SELECT odziedziczony FROM ebr_pomiar WHERE id = ?", (p["id"],)
+            ).fetchone()
+            assert row["odziedziczony"] == 1
+            assert p["wartosc"] == 7.2
+
+    # ── Re-enter SO₃ in round 2: now 0.05 (OK) ──
+    save_pomiar(db, s2, parametr_id=901, wartosc=0.05,
+                min_limit=0.0, max_limit=0.1, wpisal="lab1")
+    db.commit()
+
+    # ── Gate check round 2: should PASS (SO₃ ≤ 0.1, pH inherited) ──
+    gate2 = evaluate_gate(db, etap_id=10, sesja_id=s2)
+    assert gate2["passed"] is True
+    assert gate2["failures"] == []
+
+    # ── Close round 2 with przejscie (pass) ──
+    close_sesja(db, s2, decyzja="przejscie")
+    db.commit()
+
+    s2_closed = db.execute(
+        "SELECT * FROM ebr_etap_sesja WHERE id = ?", (s2,)
+    ).fetchone()
+    assert s2_closed["status"] == "zamkniety"
+    assert s2_closed["decyzja"] == "przejscie"
+    assert s2_closed["dt_end"] is not None
