@@ -171,6 +171,12 @@ def lab_save_pomiary(ebr_id, etap_id):
                 is_manual=is_manual,
             )
 
+        # Auto-transition session from 'nierozpoczety' to 'w_trakcie'
+        db.execute(
+            "UPDATE ebr_etap_sesja SET status='w_trakcie' WHERE id=? AND status='nierozpoczety'",
+            (sesja_id,),
+        )
+
         db.commit()
 
         gate = pm.evaluate_gate(db, etap_id, sesja_id)
@@ -195,7 +201,18 @@ def lab_close_sesja(ebr_id, etap_id):
 
     db = get_db()
     try:
-        pm.close_sesja(db, sesja_id, decyzja, komentarz=data.get("komentarz"))
+        if decyzja == "zamknij_etap":
+            db.execute(
+                "UPDATE ebr_etap_sesja SET status='zamkniety', decyzja='zamknij_etap', dt_end=datetime('now') WHERE id=?",
+                (sesja_id,),
+            )
+        elif decyzja == "reopen_etap":
+            db.execute(
+                "UPDATE ebr_etap_sesja SET status='w_trakcie', decyzja='reopen_etap', dt_end=NULL WHERE id=?",
+                (sesja_id,),
+            )
+        else:
+            pm.close_sesja(db, sesja_id, decyzja, komentarz=data.get("komentarz"))
         db.commit()
         return jsonify({"ok": True})
     finally:
@@ -242,5 +259,93 @@ def lab_update_korekta_status(ebr_id, korekta_id):
         pm.update_ebr_korekta_status(db, korekta_id, status, wykonawca_info)
         db.commit()
         return jsonify({"ok": True})
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# POST /api/pipeline/lab/ebr/<ebr_id>/zlecenie-korekty
+# Create a multi-substance correction order (zlecenie).
+# ---------------------------------------------------------------------------
+
+@pipeline_bp.route("/api/pipeline/lab/ebr/<int:ebr_id>/zlecenie-korekty", methods=["POST"])
+@login_required
+def lab_zlecenie_korekty(ebr_id):
+    data = request.get_json(force=True) or {}
+    sesja_id = data["sesja_id"]
+    items = data["items"]
+    komentarz = data.get("komentarz")
+    zalecil = session.get("user", {}).get("login", "unknown")
+
+    db = get_db()
+    try:
+        zlecenie_id = pm.create_zlecenie_korekty(
+            db, sesja_id, items, zalecil=zalecil, komentarz=komentarz,
+        )
+        db.commit()
+        zlecenie = pm.get_zlecenie(db, zlecenie_id)
+        return jsonify({"ok": True, "zlecenie_id": zlecenie_id, "zlecenie": zlecenie})
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# POST /api/pipeline/lab/ebr/<ebr_id>/wykonaj-korekte
+# Execute a correction order — marks it done and creates a new session.
+# ---------------------------------------------------------------------------
+
+@pipeline_bp.route("/api/pipeline/lab/ebr/<int:ebr_id>/wykonaj-korekte", methods=["POST"])
+@login_required
+def lab_wykonaj_korekte(ebr_id):
+    data = request.get_json(force=True) or {}
+    zlecenie_id = data["zlecenie_id"]
+
+    db = get_db()
+    try:
+        new_sesja_id = pm.wykonaj_zlecenie(db, zlecenie_id)
+        db.commit()
+        return jsonify({"ok": True, "new_sesja_id": new_sesja_id})
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# GET /api/pipeline/lab/formula-hint
+# Compute a formula hint for a correction type.
+# ---------------------------------------------------------------------------
+
+@pipeline_bp.route("/api/pipeline/lab/formula-hint", methods=["GET"])
+@login_required
+def lab_formula_hint():
+    korekta_typ_id = request.args.get("korekta_typ_id", type=int)
+    zmienne = {k: float(v) for k, v in request.args.items() if k != "korekta_typ_id"}
+
+    db = get_db()
+    try:
+        result = pm.compute_formula_hint(db, korekta_typ_id, zmienne)
+        return jsonify({"ok": True, "hint": result})
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# GET /api/pipeline/lab/etap/<etap_id>/korekty-katalog
+# Return available correction types for a stage.
+# ---------------------------------------------------------------------------
+
+@pipeline_bp.route("/api/pipeline/lab/etap/<int:etap_id>/korekty-katalog", methods=["GET"])
+@login_required
+def lab_korekty_katalog(etap_id):
+    db = get_db()
+    try:
+        rows = db.execute(
+            """SELECT id, substancja, jednostka, wykonawca, kolejnosc,
+                      formula_ilosc, formula_zmienne, formula_opis
+               FROM etap_korekty_katalog
+               WHERE etap_id = ?
+               ORDER BY kolejnosc""",
+            (etap_id,),
+        ).fetchall()
+        return jsonify([dict(r) for r in rows])
     finally:
         db.close()

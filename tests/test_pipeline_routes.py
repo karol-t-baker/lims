@@ -828,6 +828,128 @@ def test_close_sesja_reopen(lab_client, db):
 # Auth: lab routes require login
 # ---------------------------------------------------------------------------
 
+@pytest.fixture
+def setup_pipeline_route(lab_client, db):
+    """Seed everything needed for the new route tests: EBR, pipeline stage, params, korekty, session."""
+    _, ebr_id = _seed_ebr(db)
+    etap_id = _seed_pipeline_etap(db)
+    _seed_full_stage(db, etap_id)
+
+    from mbr.pipeline import models as pm
+    sesja_id = pm.create_sesja(db, ebr_id, etap_id, runda=1, laborant="laborant1")
+    db.commit()
+
+    kat = db.execute(
+        "SELECT id FROM etap_korekty_katalog WHERE etap_id = ?", (etap_id,)
+    ).fetchone()
+    korekta_typ_id = kat["id"]
+
+    return {
+        "ebr_id": ebr_id,
+        "etap_id": etap_id,
+        "sesja_id": sesja_id,
+        "korekta_typ_id": korekta_typ_id,
+        "client": lab_client,
+    }
+
+
+# ---------------------------------------------------------------------------
+# test_zamknij_etap / reopen_etap (Task 7a)
+# ---------------------------------------------------------------------------
+
+def test_zamknij_etap(setup_pipeline_route):
+    """POST decision with zamknij_etap should set session status to zamkniety."""
+    data = setup_pipeline_route
+    client = data["client"]
+    resp = client.post(
+        f"/api/pipeline/lab/ebr/{data['ebr_id']}/etap/{data['etap_id']}/close",
+        json={"sesja_id": data["sesja_id"], "decyzja": "zamknij_etap"},
+    )
+    assert resp.status_code == 200
+    assert resp.get_json()["ok"] is True
+
+
+def test_reopen_etap(setup_pipeline_route):
+    """POST decision with reopen_etap should set session status to w_trakcie."""
+    data = setup_pipeline_route
+    client = data["client"]
+    client.post(
+        f"/api/pipeline/lab/ebr/{data['ebr_id']}/etap/{data['etap_id']}/close",
+        json={"sesja_id": data["sesja_id"], "decyzja": "zamknij_etap"},
+    )
+    resp = client.post(
+        f"/api/pipeline/lab/ebr/{data['ebr_id']}/etap/{data['etap_id']}/close",
+        json={"sesja_id": data["sesja_id"], "decyzja": "reopen_etap"},
+    )
+    assert resp.status_code == 200
+    assert resp.get_json()["ok"] is True
+
+
+# ---------------------------------------------------------------------------
+# test_zlecenie_korekty / wykonaj_korekte (Task 7b/7c)
+# ---------------------------------------------------------------------------
+
+def test_zlecenie_korekty_endpoint(setup_pipeline_route):
+    """POST zlecenie-korekty should create multi-substance correction order."""
+    data = setup_pipeline_route
+    client = data["client"]
+    resp = client.post(
+        f"/api/pipeline/lab/ebr/{data['ebr_id']}/zlecenie-korekty",
+        json={
+            "sesja_id": data["sesja_id"],
+            "items": [{"korekta_typ_id": data["korekta_typ_id"], "ilosc": 5.0}],
+            "komentarz": "test korekta",
+        },
+    )
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["ok"] is True
+    assert "zlecenie_id" in body
+
+
+def test_wykonaj_korekte_endpoint(setup_pipeline_route):
+    """POST wykonaj-korekte should mark order as executed and create new session."""
+    data = setup_pipeline_route
+    client = data["client"]
+    resp1 = client.post(
+        f"/api/pipeline/lab/ebr/{data['ebr_id']}/zlecenie-korekty",
+        json={
+            "sesja_id": data["sesja_id"],
+            "items": [{"korekta_typ_id": data["korekta_typ_id"], "ilosc": 5.0}],
+        },
+    )
+    zlecenie_id = resp1.get_json()["zlecenie_id"]
+
+    resp2 = client.post(
+        f"/api/pipeline/lab/ebr/{data['ebr_id']}/wykonaj-korekte",
+        json={"zlecenie_id": zlecenie_id},
+    )
+    assert resp2.status_code == 200
+    body = resp2.get_json()
+    assert body["ok"] is True
+    assert "new_sesja_id" in body
+
+
+# ---------------------------------------------------------------------------
+# test_korekty_katalog (Task 11)
+# ---------------------------------------------------------------------------
+
+def test_korekty_katalog_endpoint(setup_pipeline_route):
+    """GET korekty-katalog should return available correction types for a stage."""
+    data = setup_pipeline_route
+    client = data["client"]
+    resp = client.get(f"/api/pipeline/lab/etap/{data['etap_id']}/korekty-katalog")
+    assert resp.status_code == 200
+    katalog = resp.get_json()
+    assert isinstance(katalog, list)
+    assert len(katalog) > 0
+    assert "substancja" in katalog[0]
+
+
+# ---------------------------------------------------------------------------
+# Auth: lab routes require login
+# ---------------------------------------------------------------------------
+
 def test_lab_pipeline_requires_login(monkeypatch, db):
     """Unauthenticated request is redirected to login."""
     import mbr.pipeline.lab_routes as lab_routes
