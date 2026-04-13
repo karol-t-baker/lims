@@ -274,8 +274,9 @@ def build_pipeline_context(
         else:
             parametry_lab[sekcja_key]["pola"].extend(pola)
 
-        # --- cykliczny: add companion "dodatki" entry ---
-        if typ_cyklu == "cykliczny" and dodatki_key:
+        # --- main cykliczny only: add companion "dodatki" entry ---
+        # Non-main cyclic stages handle corrections inline via decision panel.
+        if typ_cyklu == "cykliczny" and dodatki_key and etap_id == main_cykliczny_id:
             korekty = list_etap_korekty(db, etap_id)
             korekty_pola = _build_korekty_pola(korekty)
 
