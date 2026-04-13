@@ -198,7 +198,10 @@ def api_parametry_etapy_update(binding_id):
 
         if pel_row:
             # Pipeline mode: update produkt_etap_limity
-            allowed = {"nawazka_g", "min_limit", "max_limit", "target", "precision"}
+            # Frontend sends "target" but column is now "spec_value"
+            if "target" in data and "spec_value" not in data:
+                data["spec_value"] = data.pop("target")
+            allowed = {"nawazka_g", "min_limit", "max_limit", "spec_value", "precision"}
             updates = {k: v for k, v in data.items() if k in allowed}
             if not updates:
                 return jsonify({"error": "No valid fields"}), 400
@@ -418,7 +421,7 @@ def _list_pipeline_bindings(db, produkt, kontekst, pipeline):
             "kontekst": kontekst,
             "min_limit": r["min_limit"],
             "max_limit": r["max_limit"],
-            "target": r["target"],
+            "target": r.get("spec_value") or r.get("target"),
             "nawazka_g": r["nawazka_g"],
             "kolejnosc": r["kolejnosc"],
             "formula": r["formula"],
