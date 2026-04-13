@@ -129,6 +129,7 @@ def _build_pole(param: dict, db: sqlite3.Connection) -> dict:
         "precision":        param["precision"],
         "spec_value":       param["spec_value"],
         "grupa":            param["grupa"] or "lab",
+        "pe_id":            param.get("pe_id"),
     }
 
     if measurement_type == "titracja":
