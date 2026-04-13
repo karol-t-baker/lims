@@ -1177,9 +1177,17 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
                     status TEXT NOT NULL DEFAULT 'zalecona' CHECK(status IN ('zalecona','wykonana','anulowana')),
                     zlecenie_id INTEGER REFERENCES ebr_korekta_zlecenie(id),
                     ilosc_wyliczona REAL)"""),
+                ("ebr_pomiar", """CREATE TABLE ebr_pomiar (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    sesja_id INTEGER NOT NULL REFERENCES ebr_etap_sesja(id),
+                    parametr_id INTEGER NOT NULL REFERENCES parametry_analityczne(id),
+                    wartosc REAL, min_limit REAL, max_limit REAL,
+                    w_limicie INTEGER, is_manual INTEGER DEFAULT 0,
+                    dt_wpisu TEXT, wpisal TEXT,
+                    UNIQUE(sesja_id, parametr_id))"""),
             ]:
                 fks = db.execute(f"PRAGMA foreign_key_list({tbl})").fetchall()
-                if any("_old" in str(fk) for fk in fks):
+                if any("_old" in str(fk) or "_fix" in str(fk) for fk in fks):
                     db.executescript(f"""
                         ALTER TABLE {tbl} RENAME TO _{tbl}_fk_fix;
                         {ddl};
