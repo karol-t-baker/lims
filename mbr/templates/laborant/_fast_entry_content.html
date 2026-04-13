@@ -1113,6 +1113,216 @@ function renderSections() {
     }
 }
 
+// ═══ STAGE DECISION PANEL ═══
+
+var _correctionCache = {};
+
+async function _fetchCorrections(etapId) {
+    if (_correctionCache[etapId]) return _correctionCache[etapId];
+    try {
+        var resp = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + etapId);
+        if (!resp.ok) return [];
+        var data = await resp.json();
+        _correctionCache[etapId] = data.korekty_katalog || [];
+        return _correctionCache[etapId];
+    } catch(e) { return []; }
+}
+
+function renderStageDecisionPanel(container, sekcja, activeEtap) {
+    var pipelineStages = etapy.filter(function(e) { return e.pipeline_etap_id; });
+    var isLastStage = pipelineStages.length > 0 &&
+        pipelineStages[pipelineStages.length - 1].pipeline_etap_id === activeEtap.pipeline_etap_id;
+
+    var panel = document.createElement('div');
+    panel.className = 'stage-decision-panel';
+    panel.id = 'sdp-' + sekcja;
+    panel.style.cssText = 'margin-top:12px;padding:14px 18px;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);';
+
+    if (isLastStage) {
+        panel.innerHTML =
+            '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+                '<button class="btn-success" onclick="completePompuj()">Przepompuj na zbiornik</button>' +
+                '<button class="btn-secondary" onclick="openSmallCorrectionDialog()">Mała korekta + przepompuj</button>' +
+            '</div>';
+        container.appendChild(panel);
+        return;
+    }
+
+    panel.innerHTML = '<span style="color:var(--text-dim);font-size:11px;">Ładowanie opcji...</span>';
+    container.appendChild(panel);
+
+    var etapId = activeEtap.pipeline_etap_id;
+    _fetchCorrections(etapId).then(function(korekty) {
+        var korekcyjne = korekty.filter(function(k) { return !k.jest_przejscie; });
+        var przejsciowe = korekty.filter(function(k) { return k.jest_przejscie; });
+
+        var currentIdx = pipelineStages.findIndex(function(e) { return e.pipeline_etap_id === etapId; });
+        var nextStage = pipelineStages[currentIdx + 1];
+        var nextName = nextStage ? nextStage.nazwa : 'następny etap';
+
+        var html = '<div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Decyzja</div>';
+        html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;" id="sdp-buttons-' + sekcja + '">';
+
+        korekcyjne.forEach(function(k) {
+            html += '<button class="btn-warn" onclick="showCorrectionInput(\'' + sekcja + '\',' + k.id + ',false)">' +
+                'Korekta ' + k.substancja + '</button>';
+        });
+
+        przejsciowe.forEach(function(k) {
+            html += '<button class="btn-success" onclick="showCorrectionInput(\'' + sekcja + '\',' + k.id + ',true)">' +
+                k.substancja + ' &rarr; ' + nextName + '</button>';
+        });
+
+        if (przejsciowe.length === 0) {
+            html += '<button class="btn-success" onclick="closePipelineStage(\'' + sekcja + '\')">' +
+                'Zatwierdź &rarr; ' + nextName + '</button>';
+        }
+
+        html += '</div>';
+        html += '<div id="sdp-input-' + sekcja + '" style="display:none;"></div>';
+
+        panel.innerHTML = html;
+        panel._korektyData = korekty;
+    });
+}
+
+function showCorrectionInput(sekcja, korektaId, jestPrzejscie) {
+    var panel = document.getElementById('sdp-' + sekcja);
+    var inputArea = document.getElementById('sdp-input-' + sekcja);
+    if (!panel || !inputArea) return;
+
+    var korekty = panel._korektyData || [];
+    var k = korekty.find(function(x) { return x.id === korektaId; });
+    if (!k) return;
+
+    var preVal = '';
+    var preCalc = '';
+    if (k.formula_ilosc) {
+        var calc = evalCorrectionFormula(k.formula_ilosc, sekcja, k);
+        if (calc !== null) {
+            preVal = calc.toFixed(1);
+            preCalc = '<span style="font-size:9px;color:var(--teal);margin-left:8px;">obliczono: ' + preVal.replace('.', ',') + ' ' + (k.jednostka || 'kg') + '</span>';
+        }
+    }
+
+    var actionLabel = jestPrzejscie ? 'Zaleć i przejdź' : 'Zaleć korektę';
+    var actionFn = jestPrzejscie
+        ? 'submitCorrectionAndAdvance(\'' + sekcja + '\',' + korektaId + ')'
+        : 'submitCorrectionAndLoop(\'' + sekcja + '\',' + korektaId + ')';
+
+    inputArea.innerHTML =
+        '<div style="display:flex;align-items:center;gap:8px;margin-top:6px;">' +
+            '<span style="font-weight:600;font-size:12px;">' + k.substancja + '</span>' +
+            '<span style="color:var(--text-dim);font-size:10px;">[' + (k.jednostka || 'kg') + ']</span>' +
+            '<input type="number" step="any" class="pa-input" id="sdp-amount-' + sekcja + '" value="' + preVal + '" placeholder="Ilość" style="width:90px;font-size:12px;text-align:center;">' +
+            preCalc +
+            '<button class="btn-success" style="margin-left:auto;" onclick="' + actionFn + '">' + actionLabel + '</button>' +
+            '<button class="btn-secondary" onclick="document.getElementById(\'sdp-input-' + sekcja + '\').style.display=\'none\'">Anuluj</button>' +
+        '</div>';
+    inputArea.style.display = '';
+}
+
+async function submitCorrectionAndLoop(sekcja, korektaId) {
+    var amount = parseFloat(document.getElementById('sdp-amount-' + sekcja).value);
+    if (!amount || amount <= 0) { alert('Wpisz ilość'); return; }
+
+    var gate = window._lastGate;
+    var etap_id = gate ? gate.etap_id : null;
+    var sesja_id = gate ? gate.sesja_id : null;
+
+    if (!etap_id) {
+        var baseSekcja = sekcja.split('__')[0];
+        var ae = etapy.find(function(e) { return e.pipeline_etap_id && e.sekcja_lab === baseSekcja; });
+        if (ae) etap_id = ae.pipeline_etap_id;
+    }
+    if (!etap_id) return;
+
+    if (!sesja_id) {
+        try {
+            var resp = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + etap_id);
+            if (resp.ok) {
+                var data = await resp.json();
+                if (data.current_sesja) sesja_id = data.current_sesja.id;
+            }
+        } catch(e) {}
+    }
+    if (!sesja_id) return;
+
+    await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({sesja_id: sesja_id, korekta_typ_id: korektaId, ilosc: amount})
+    });
+
+    await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + etap_id + '/close', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({sesja_id: sesja_id, decyzja: 'korekta'})
+    });
+
+    await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + etap_id + '/start', {
+        method: 'POST'
+    });
+
+    _correctionCache = {};
+    if (typeof loadBatch === 'function') loadBatch(ebrId);
+    else location.reload();
+}
+
+async function submitCorrectionAndAdvance(sekcja, korektaId) {
+    var amount = parseFloat(document.getElementById('sdp-amount-' + sekcja).value);
+    if (!amount || amount <= 0) { alert('Wpisz ilość'); return; }
+
+    var gate = window._lastGate;
+    var etap_id = gate ? gate.etap_id : null;
+    var sesja_id = gate ? gate.sesja_id : null;
+
+    if (!etap_id) {
+        var baseSekcja = sekcja.split('__')[0];
+        var ae = etapy.find(function(e) { return e.pipeline_etap_id && e.sekcja_lab === baseSekcja; });
+        if (ae) etap_id = ae.pipeline_etap_id;
+    }
+    if (!etap_id) return;
+
+    if (!sesja_id) {
+        try {
+            var resp = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + etap_id);
+            if (resp.ok) {
+                var data = await resp.json();
+                if (data.current_sesja) sesja_id = data.current_sesja.id;
+            }
+        } catch(e) {}
+    }
+    if (!sesja_id) return;
+
+    await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({sesja_id: sesja_id, korekta_typ_id: korektaId, ilosc: amount})
+    });
+
+    await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + etap_id + '/close', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({sesja_id: sesja_id, decyzja: 'przejscie'})
+    });
+
+    var stages = etapy.filter(function(e) { return e.pipeline_etap_id; });
+    var currentIdx = stages.findIndex(function(e) { return e.pipeline_etap_id === etap_id; });
+    var nextStage = stages[currentIdx + 1];
+
+    if (nextStage) {
+        await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + nextStage.pipeline_etap_id + '/start', {
+            method: 'POST'
+        });
+        _correctionCache = {};
+        window._activePipelineStage = nextStage.sekcja_lab;
+        window._activePipelineReadonly = false;
+        if (typeof loadBatch === 'function') loadBatch(ebrId);
+        else location.reload();
+    }
+}
+
 function renderPipelineSections() {
     var container = document.getElementById('sections-container');
     container.innerHTML = '';
@@ -1186,20 +1396,9 @@ function renderPipelineSections() {
         saveBtnLabel: null
     });
 
-    // "Zatwierdź etap" button — always visible when results exist (laborant decides when to proceed)
-    if (!isReadonly && !activeReadonly && hasSomeResults) {
-        var pipelineStages = etapy.filter(function(e){return e.pipeline_etap_id;});
-        var isLastStage = pipelineStages.length > 0 && pipelineStages[pipelineStages.length - 1].pipeline_etap_id === activeEtap.pipeline_etap_id;
-        var approveBar = document.createElement('div');
-        approveBar.className = 'decision-bar';
-        approveBar.style.cssText = 'padding:12px 16px;margin-top:12px;display:flex;gap:8px;align-items:center;';
-        if (isLastStage) {
-            approveBar.innerHTML = '<button class="btn-success" onclick="completePompuj()">Przepompuj na zbiornik</button>' +
-                '<button class="btn-secondary" onclick="openSmallCorrectionDialog()">Mała korekta + przepompuj</button>';
-        } else {
-            approveBar.innerHTML = '<button class="btn-success" onclick="closePipelineStage(\'' + activeSekcja + '\')">Zatwierdź etap &rarr;</button>';
-        }
-        container.appendChild(approveBar);
+    // Stage decision panel — always visible for non-readonly pipeline stages
+    if (!isReadonly && !activeReadonly) {
+        renderStageDecisionPanel(container, activeSekcja, activeEtap);
     }
 }
 
