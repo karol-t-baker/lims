@@ -1910,7 +1910,7 @@ function renderCompletedView() {
                 ' data-kod="' + esc(pole.kod) + '" data-sekcja="' + esc(lastSekcja) + '"' +
                 ' data-grupa="' + esc(pole.grupa || 'lab') + '"' +
                 ' data-min="' + (pole.min != null ? pole.min : '') + '" data-max="' + (pole.max != null ? pole.max : '') + '"' +
-                ' readonly oninput="validateField(this); autoSaveField(this)" onblur="doSaveField(this, this.dataset.sekcja, this.dataset.kod)">';
+                ' readonly oninput="validateField(this); autoSaveField(this)" onblur="doSaveField(this, this.dataset.sekcja, this.dataset.kod, true)">';
         } else {
             paramsHtml += '<span class="cv-p-val ' + (ok ? '' : 'cv-val-err') + '">' + (val !== null && val !== '' ? String(val).replace('.', ',') : '—') + '</span>';
         }
@@ -2777,7 +2777,7 @@ function renderOneSection(container, opts) {
                     (isReadonly ? ' readonly' : '') +
                     (isObl && !isReadonly ? ' readonly' : '') +
                     ' placeholder="\u2014"' +
-                    ' oninput="validateField(this); autoSaveField(this)" onblur="doSaveField(this, this.dataset.sekcja, this.dataset.kod)">' +
+                    ' oninput="validateField(this); autoSaveField(this)" onblur="doSaveField(this, this.dataset.sekcja, this.dataset.kod, true)">' +
                 '<div class="ff-right">' +
                     '<span class="norm-range">' + normRange + '</span>' +
                     typeTag +
@@ -3593,15 +3593,15 @@ function saveSpecLimit(input) {
     });
 }
 
-function doSaveField(input, sekcja, kod) {
+function doSaveField(input, sekcja, kod, fromBlur) {
     // Clear pending debounce to prevent double-save
     var key = sekcja + '__' + kod;
     if (_saveTimers[key]) { clearTimeout(_saveTimers[key]); delete _saveTimers[key]; }
     if (input.value === '') return;
 
-    // Auto-round to parameter precision on blur
+    // Auto-round to parameter precision ONLY on blur (not during typing)
     var rawVal = input.value.replace(',', '.');
-    if (!isNaN(rawVal) && rawVal !== '') {
+    if (fromBlur && !isNaN(rawVal) && rawVal !== '') {
         var prec = parseInt(input.dataset.precision || '2', 10);
         input.value = parseFloat(rawVal).toFixed(prec).replace('.', ',');
     }
