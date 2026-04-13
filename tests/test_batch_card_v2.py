@@ -204,6 +204,47 @@ def test_global_edit_not_found(db):
     assert result["error"] == "not_found"
 
 
+def test_close_with_new_round_creates_inherited_session(db):
+    """Closing with new_round should create next round with inheritance."""
+    sesja1 = create_sesja(db, ebr_id=1, etap_id=10, runda=1, laborant="lab1")
+    db.execute("UPDATE ebr_etap_sesja SET status = 'w_trakcie' WHERE id = ?", (sesja1,))
+    save_pomiar(db, sesja1, 901, 5.0, 0.0, 3.0, "lab1")   # so3 FAIL
+    save_pomiar(db, sesja1, 902, 7.2, 6.0, 8.0, "lab1")    # ph OK
+    db.commit()
+
+    close_sesja(db, sesja1, decyzja="new_round")
+    sesja2 = create_round_with_inheritance(db, 1, 10, sesja1, "lab1")
+    db.commit()
+
+    # Verify session 1 is closed
+    s1 = db.execute("SELECT * FROM ebr_etap_sesja WHERE id = ?", (sesja1,)).fetchone()
+    assert s1["status"] == "zamkniety"
+    assert s1["decyzja"] == "new_round"
+
+    # Verify session 2 exists with runda=2
+    s2 = db.execute("SELECT * FROM ebr_etap_sesja WHERE id = ?", (sesja2,)).fetchone()
+    assert s2["runda"] == 2
+
+    # Verify inheritance: ph copied, so3 not
+    pomiary2 = {p["parametr_id"]: p for p in get_pomiary(db, sesja2)}
+    assert 902 in pomiary2  # ph
+    assert 901 not in pomiary2  # so3
+
+
+def test_close_with_release_comment_requires_komentarz(db):
+    """release_comment stores komentarz_decyzji correctly."""
+    sesja1 = create_sesja(db, ebr_id=1, etap_id=10, runda=1, laborant="lab1")
+    db.execute("UPDATE ebr_etap_sesja SET status = 'w_trakcie' WHERE id = ?", (sesja1,))
+    db.commit()
+
+    # With komentarz — should work
+    close_sesja(db, sesja1, decyzja="release_comment", komentarz="Dodatek wody z ręki")
+    db.commit()
+    s = db.execute("SELECT * FROM ebr_etap_sesja WHERE id = ?", (sesja1,)).fetchone()
+    assert s["decyzja"] == "release_comment"
+    assert s["komentarz_decyzji"] == "Dodatek wody z ręki"
+
+
 def test_global_edit_no_valid_fields(db):
     """patch_parametry_etapy rejects payload with no allowed fields."""
     db.execute("""

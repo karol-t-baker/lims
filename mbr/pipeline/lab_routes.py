@@ -198,9 +198,47 @@ def lab_close_sesja(ebr_id, etap_id):
     data = request.get_json(force=True) or {}
     sesja_id = data.get("sesja_id")
     decyzja = data.get("decyzja")
+    komentarz = data.get("komentarz")
 
     db = get_db()
     try:
+        # -- new_round: close + create inherited next round ----------------
+        if decyzja == "new_round":
+            pm.close_sesja(db, sesja_id, "new_round", komentarz=komentarz)
+            laborant = session.get("user", {}).get("login", "system")
+            new_sesja_id = pm.create_round_with_inheritance(
+                db, ebr_id, etap_id, prev_sesja_id=sesja_id, laborant=laborant,
+            )
+            db.commit()
+            return jsonify({"ok": True, "action": "new_round", "new_sesja_id": new_sesja_id})
+
+        # -- release_comment / close_note: require komentarz ---------------
+        if decyzja in ("release_comment", "close_note"):
+            if not komentarz:
+                return jsonify({"error": "komentarz is required"}), 400
+            pm.close_sesja(db, sesja_id, decyzja, komentarz=komentarz)
+            db.commit()
+            return jsonify({"ok": True, "action": decyzja})
+
+        # -- skip_to_next: close + advance pipeline ------------------------
+        if decyzja == "skip_to_next":
+            pm.close_sesja(db, sesja_id, "skip_to_next", komentarz=komentarz)
+            ebr = db.execute(
+                "SELECT e.ebr_id, m.produkt "
+                "FROM ebr_batches e JOIN mbr_templates m ON m.mbr_id = e.mbr_id "
+                "WHERE e.ebr_id = ?",
+                (ebr_id,),
+            ).fetchone()
+            etap_kod = db.execute(
+                "SELECT kod FROM etapy_analityczne WHERE id = ?", (etap_id,),
+            ).fetchone()["kod"]
+            from mbr.etapy.models import zatwierdz_etap
+            user = session.get("user", {}).get("login", "system")
+            next_stage = zatwierdz_etap(db, ebr_id, etap_kod, user, ebr["produkt"])
+            db.commit()
+            return jsonify({"ok": True, "action": "skip_to_next", "next_stage": next_stage})
+
+        # -- all other codes: existing behaviour ---------------------------
         if decyzja == "zamknij_etap":
             db.execute(
                 "UPDATE ebr_etap_sesja SET status='zamkniety', decyzja='zamknij_etap', dt_end=datetime('now') WHERE id=?",
@@ -212,7 +250,7 @@ def lab_close_sesja(ebr_id, etap_id):
                 (sesja_id,),
             )
         else:
-            pm.close_sesja(db, sesja_id, decyzja, komentarz=data.get("komentarz"))
+            pm.close_sesja(db, sesja_id, decyzja, komentarz=komentarz)
         db.commit()
         return jsonify({"ok": True})
     finally:
