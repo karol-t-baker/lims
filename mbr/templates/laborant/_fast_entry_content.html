@@ -2416,8 +2416,8 @@ function renderOneSection(container, opts) {
                     '<div class="status-dot"' + (bVal ? ' style="background:' + (bVal === 'OK' || bVal === '1' ? 'var(--green)' : 'var(--red)') + '"' : '') + '></div>' +
                     '<label>' + esc(pole.skrot || pole.label) + '</label>' +
                     '<div class="binary-pills">' +
-                        '<button type="button" class="bp-pill' + (bVal === 'OK' || bVal === '1' ? ' bp-ok' : '') + '" onclick="setBinary(this,\'' + esc(sekcja) + '\',\'' + esc(pole.kod) + '\',\'OK\')">OK</button>' +
-                        '<button type="button" class="bp-pill' + (bVal === 'Nie OK' || bVal === '0' ? ' bp-err' : '') + '" onclick="setBinary(this,\'' + esc(sekcja) + '\',\'' + esc(pole.kod) + '\',\'Nie OK\')">Nie OK</button>' +
+                        '<button type="button" class="bp-pill' + (bVal === 'OK' || bVal === '1' ? ' bp-ok' : '') + '" onclick="setBinary(this,\'' + esc(sekcja) + '\',\'' + esc(pole.kod) + '\',\'OK\')">Zgodny</button>' +
+                        '<button type="button" class="bp-pill' + (bVal === 'Nie OK' || bVal === '0' ? ' bp-err' : '') + '" onclick="setBinary(this,\'' + esc(sekcja) + '\',\'' + esc(pole.kod) + '\',\'Nie OK\')">Niezgodny</button>' +
                     '</div>' +
                 '</div>';
         } else {
