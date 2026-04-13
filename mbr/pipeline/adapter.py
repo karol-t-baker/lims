@@ -300,7 +300,7 @@ def build_pipeline_context(
     }
 
 
-def pipeline_dual_write(db, ebr_id, sekcja, values, wpisal):
+def pipeline_dual_write(db, ebr_id, sekcja, values, wpisal, odziedziczony_map=None):
     """Write measurements to ebr_pomiar and evaluate gate.
 
     Called after save_wyniki in save_entry route.
@@ -372,12 +372,16 @@ def pipeline_dual_write(db, ebr_id, sekcja, values, wpisal):
         r = kod_to_resolved.get(kod)
         if r is None:
             continue
+        odz = 0
+        if odziedziczony_map:
+            odz = odziedziczony_map.get(kod, 0)
         save_pomiar(
             db, sesja["id"], r["parametr_id"],
             wartosc=wartosc,
             min_limit=r.get("min_limit"),
             max_limit=r.get("max_limit"),
             wpisal=wpisal,
+            odziedziczony=odz,
         )
 
     # Evaluate gate

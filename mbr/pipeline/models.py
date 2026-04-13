@@ -519,6 +519,7 @@ def save_pomiar(
     max_limit: float | None,
     wpisal: str,
     is_manual: int = 1,
+    odziedziczony: int = 0,
 ) -> int:
     """Upsert a measurement for (sesja_id, parametr_id). Returns row id."""
     now = datetime.now().isoformat(timespec="seconds")
@@ -526,18 +527,19 @@ def save_pomiar(
     cur = db.execute(
         """INSERT INTO ebr_pomiar
                (sesja_id, parametr_id, wartosc, min_limit, max_limit,
-                w_limicie, is_manual, dt_wpisu, wpisal)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                w_limicie, is_manual, odziedziczony, dt_wpisu, wpisal)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT(sesja_id, parametr_id) DO UPDATE SET
-               wartosc    = excluded.wartosc,
-               min_limit  = excluded.min_limit,
-               max_limit  = excluded.max_limit,
-               w_limicie  = excluded.w_limicie,
-               is_manual  = excluded.is_manual,
-               dt_wpisu   = excluded.dt_wpisu,
-               wpisal     = excluded.wpisal""",
+               wartosc       = excluded.wartosc,
+               min_limit     = excluded.min_limit,
+               max_limit     = excluded.max_limit,
+               w_limicie     = excluded.w_limicie,
+               is_manual     = excluded.is_manual,
+               odziedziczony = excluded.odziedziczony,
+               dt_wpisu      = excluded.dt_wpisu,
+               wpisal        = excluded.wpisal""",
         (sesja_id, parametr_id, wartosc, min_limit, max_limit,
-         w_limicie, is_manual, now, wpisal),
+         w_limicie, is_manual, odziedziczony, now, wpisal),
     )
     return cur.lastrowid
 
@@ -549,7 +551,7 @@ def get_pomiary(db: sqlite3.Connection, sesja_id: int) -> list[dict]:
         SELECT
             ep.id, ep.sesja_id, ep.parametr_id,
             ep.wartosc, ep.min_limit, ep.max_limit, ep.w_limicie,
-            ep.is_manual, ep.dt_wpisu, ep.wpisal,
+            ep.is_manual, ep.odziedziczony, ep.dt_wpisu, ep.wpisal,
             pa.kod, pa.label, pa.typ, pa.skrot
         FROM ebr_pomiar ep
         JOIN parametry_analityczne pa ON pa.id = ep.parametr_id
@@ -843,6 +845,7 @@ def resolve_limity(db: sqlite3.Connection, produkt: str, etap_id: int) -> list[d
     for r in rows:
         result.append({
             "ep_id": r["ep_id"],
+            "pe_id": r["ep_id"],
             "parametr_id": r["parametr_id"],
             "kolejnosc": r["kolejnosc"],
             "kod": r["kod"],

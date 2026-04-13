@@ -92,6 +92,10 @@ def lab_get_etap_form(ebr_id, etap_id):
         current_sesja = sesje[-1] if sesje else None
         pomiary = pm.get_pomiary(db, current_sesja["id"]) if current_sesja else []
 
+        # Decision options for this etap
+        decyzje_pass = pm.get_etap_decyzje(db, etap_id, "pass")
+        decyzje_fail = pm.get_etap_decyzje(db, etap_id, "fail")
+
         return jsonify({
             "etap": etap,
             "parametry": parametry,
@@ -100,6 +104,8 @@ def lab_get_etap_form(ebr_id, etap_id):
             "sesje": sesje,
             "current_sesja": current_sesja,
             "pomiary": pomiary,
+            "decyzje_pass": decyzje_pass,
+            "decyzje_fail": decyzje_fail,
         })
     finally:
         db.close()
