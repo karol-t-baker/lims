@@ -964,3 +964,82 @@ def test_lab_pipeline_requires_login(monkeypatch, db):
     _, ebr_id = _seed_ebr(db)
     resp = client.get(f"/api/pipeline/lab/ebr/{ebr_id}/pipeline")
     assert resp.status_code in (302, 401, 403)
+
+
+# ---------------------------------------------------------------------------
+# test_formula_resolve (Task 2: POST /formula-resolve endpoint)
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def setup_pipeline_route_formula(lab_client, db):
+    """Seed everything for formula-resolve tests: EBR with wielkosc_szarzy_kg,
+    pipeline stage, and a korekta with formula_ilosc + formula_zmienne set."""
+    _, ebr_id = _seed_ebr(db)
+
+    # Set wielkosc_szarzy_kg on the EBR
+    db.execute(
+        "UPDATE ebr_batches SET wielkosc_szarzy_kg = 1000.0 WHERE ebr_id = ?",
+        (ebr_id,),
+    )
+
+    etap_id = _seed_pipeline_etap(db)
+    _seed_full_stage(db, etap_id)
+
+    # Add a korekta with formula fields
+    import json
+    cur = db.execute(
+        """INSERT INTO etap_korekty_katalog
+               (etap_id, substancja, jednostka, formula_ilosc, formula_zmienne)
+           VALUES (?, 'KOH', 'kg', 'wielkosc_szarzy_kg * 0.05',
+                   ?)""",
+        (etap_id, json.dumps({"wielkosc_szarzy_kg": "wielkosc_szarzy_kg"})),
+    )
+    korekta_typ_id = cur.lastrowid
+    db.commit()
+
+    from mbr.pipeline import models as pm
+    sesja_id = pm.create_sesja(db, ebr_id, etap_id, runda=1, laborant="laborant1")
+    db.commit()
+
+    return {
+        "ebr_id": ebr_id,
+        "etap_id": etap_id,
+        "sesja_id": sesja_id,
+        "korekta_typ_id": korekta_typ_id,
+        "client": lab_client,
+    }
+
+
+def test_formula_resolve_endpoint(setup_pipeline_route_formula):
+    data = setup_pipeline_route_formula
+    client = data["client"]
+    resp = client.post(
+        f"/api/pipeline/lab/ebr/{data['ebr_id']}/formula-resolve",
+        json={
+            "korekta_typ_id": data["korekta_typ_id"],
+            "etap_id": data["etap_id"],
+            "sesja_id": data["sesja_id"],
+        },
+    )
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert "zmienne" in body
+    assert "wielkosc_szarzy_kg" in body["zmienne"]
+    assert "labels" in body
+
+
+def test_formula_resolve_with_redukcja_override(setup_pipeline_route_formula):
+    data = setup_pipeline_route_formula
+    client = data["client"]
+    resp = client.post(
+        f"/api/pipeline/lab/ebr/{data['ebr_id']}/formula-resolve",
+        json={
+            "korekta_typ_id": data["korekta_typ_id"],
+            "etap_id": data["etap_id"],
+            "sesja_id": data["sesja_id"],
+            "redukcja_override": 800,
+        },
+    )
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["zmienne"]["redukcja"] == 800

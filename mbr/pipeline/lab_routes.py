@@ -329,6 +329,35 @@ def lab_formula_hint():
 
 
 # ---------------------------------------------------------------------------
+# POST /api/pipeline/lab/ebr/<ebr_id>/formula-resolve
+# Full variable resolution for a correction type in context of a session.
+# ---------------------------------------------------------------------------
+
+@pipeline_bp.route("/api/pipeline/lab/ebr/<int:ebr_id>/formula-resolve", methods=["POST"])
+@login_required
+def lab_formula_resolve(ebr_id):
+    data = request.get_json(force=True) or {}
+    korekta_typ_id = data["korekta_typ_id"]
+    etap_id = data["etap_id"]
+    sesja_id = data["sesja_id"]
+    redukcja_override = data.get("redukcja_override")
+
+    db = get_db()
+    try:
+        result = pm.resolve_formula_zmienne(
+            db,
+            korekta_typ_id=korekta_typ_id,
+            etap_id=etap_id,
+            sesja_id=sesja_id,
+            ebr_id=ebr_id,
+            redukcja_override=redukcja_override,
+        )
+        return jsonify(result)
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
 # GET /api/pipeline/lab/etap/<etap_id>/korekty-katalog
 # Return available correction types for a stage.
 # ---------------------------------------------------------------------------
