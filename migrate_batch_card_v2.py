@@ -102,7 +102,10 @@ def main():
 
     if needs_rebuild:
         print("Rebuilding ebr_etap_sesja (extended decyzja CHECK)…")
+        # Must disable FK checks during table rebuild — renaming a table
+        # referenced by FK-dependent tables would otherwise fail.
         conn.executescript(f"""
+            PRAGMA foreign_keys = OFF;
             ALTER TABLE ebr_etap_sesja RENAME TO _ebr_etap_sesja_v2_old;
             CREATE TABLE ebr_etap_sesja (
                 id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -160,11 +163,14 @@ def main():
             if any("_old" in str(fk) or "_v2_old" in str(fk) or "_fix" in str(fk) for fk in fks):
                 print(f"  Rebuilding {tbl} (stale FK)…")
                 conn.executescript(f"""
+                    PRAGMA foreign_keys = OFF;
                     ALTER TABLE {tbl} RENAME TO _{tbl}_fk_fix;
                     {ddl};
                     INSERT INTO {tbl} SELECT * FROM _{tbl}_fk_fix;
                     DROP TABLE _{tbl}_fk_fix;
                 """)
+        # Re-enable FK enforcement
+        conn.execute("PRAGMA foreign_keys = ON")
         print("ebr_etap_sesja rebuild done")
     else:
         print("ebr_etap_sesja CHECK already up to date")

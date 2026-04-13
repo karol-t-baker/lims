@@ -218,11 +218,11 @@ def setup(db):
             if not pid:
                 continue
             utl_limit = db.execute(
-                "SELECT target FROM produkt_etap_limity WHERE produkt=? AND etap_id=? AND parametr_id=?",
+                "SELECT spec_value FROM produkt_etap_limity WHERE produkt=? AND etap_id=? AND parametr_id=?",
                 (produkt, utl_id, pid),
             ).fetchone()
-            if utl_limit and utl_limit["target"] is not None:
-                set_produkt_etap_limit(db, produkt, sulf_id, pid, target=utl_limit["target"])
+            if utl_limit and utl_limit["spec_value"] is not None:
+                set_produkt_etap_limit(db, produkt, sulf_id, pid, target=utl_limit["spec_value"])
 
     db.commit()
     return stats
