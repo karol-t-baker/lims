@@ -3214,7 +3214,7 @@ async function openCorrectionForm(sekcja, etapId, sesjaId) {
         html += '</div>';
         html += '<div style="margin-top:8px;display:flex;gap:8px;">';
         html += '<button class="btn-success" onclick="submitCorrectionOrder(\'' + sekcja + '\',' + etapId + ',' + sesjaId + ')">Zleć korektę</button>';
-        html += '<button class="btn-secondary" onclick="cancelCorrectionForm(\'' + sekcja + '\',' + etapId + ',' + sesjaId + ')">Anuluj</button>';
+        html += '<button class="btn-warn" onclick="zamknijEtap(' + etapId + ',' + sesjaId + ',\'' + sekcja + '\')">Zamknij etap</button>';
         html += '</div></div>';
 
         formDiv.innerHTML = html;
@@ -3320,16 +3320,14 @@ function renderOperatorDecisionPanel(sekcja, etapId, sesjaId) {
         panel = document.createElement('div');
         panel.className = 'stage-decision-panel';
         panel.id = 'sdp-' + sekcja;
-        panel.style.cssText = 'margin-top:12px;padding:14px 18px;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);';
+        panel.style.cssText = 'margin-top:12px;';
     }
 
-    var html = '<div style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Decyzja operatora</div>';
-    html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
-    html += '<button class="btn-warn" onclick="openCorrectionForm(\'' + sekcja + '\',' + etapId + ',' + sesjaId + ')">Zlecenie korekty</button>';
-    html += '<button class="btn-success" onclick="zamknijEtap(' + etapId + ',' + sesjaId + ',\'' + sekcja + '\')">Zamknij etap</button>';
-    html += '</div>';
+    panel.innerHTML = '<div style="color:var(--text-dim);font-size:11px;">Ładowanie panelu korekt...</div>';
 
-    panel.innerHTML = html;
+    // Load correction form immediately
+    openCorrectionForm(sekcja, etapId, sesjaId);
+
     return panel;
 }
 
