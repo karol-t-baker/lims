@@ -16,6 +16,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import statsmodels.api as sm
+from scipy import stats
 from sklearn.model_selection import LeaveOneOut
 
 
@@ -126,7 +127,7 @@ def generate_plots(
     df: pd.DataFrame, fit_result: dict, cv_result: dict,
     predictors: list[str], label: str, out_dir: str = "plots"
 ) -> list[str]:
-    """Generate 4 diagnostic plots. Returns list of saved file paths."""
+    """Generate 5 diagnostic plots. Returns list of saved file paths."""
     Path(out_dir).mkdir(exist_ok=True)
     paths = []
     model = fit_result["model"]
@@ -190,6 +191,16 @@ def generate_plots(
     ax.set_title(f"{label}: residua vs fitted")
     ax.grid(True, alpha=0.3)
     p = f"{out_dir}/{label}_residuals_vs_fitted.png"
+    fig.savefig(p, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    paths.append(p)
+
+    # 5. QQ-plot of residuals (normality check)
+    fig, ax = plt.subplots(figsize=(6, 6))
+    stats.probplot(residuals_kg, dist="norm", plot=ax)
+    ax.set_title(f"{label}: QQ-plot residuów")
+    ax.grid(True, alpha=0.3)
+    p = f"{out_dir}/{label}_qq_residuals.png"
     fig.savefig(p, dpi=150, bbox_inches="tight")
     plt.close(fig)
     paths.append(p)

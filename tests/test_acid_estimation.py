@@ -6,13 +6,13 @@ import pytest
 
 
 def make_sample_df():
-    """Minimal sample matching kwas.csv structure."""
+    """Minimal sample matching kwas.csv structure (4 rows for 3-param Model B)."""
     return pd.DataFrame({
-        "masa_kg": [12600, 8600, 7400],
-        "kwas_kg": [100.0, 75.0, 63.0],
-        "woda_kg": [915.0, 600.0, 530.0],
-        "ph_start": [11.72, 11.77, 11.76],
-        "ph_koniec": [6.2, 6.47, 6.04],
+        "masa_kg": [12600, 8600, 7400, 12600],
+        "kwas_kg": [100.0, 75.0, 63.0, 94.0],
+        "woda_kg": [915.0, 600.0, 530.0, 820.0],
+        "ph_start": [11.72, 11.77, 11.76, 11.57],
+        "ph_koniec": [6.2, 6.47, 6.04, 6.17],
     })
 
 
@@ -30,13 +30,13 @@ def test_feature_engineering():
     df = make_sample_df()
     result = add_features(df)
     # kwas_per_ton = kwas_kg / (masa_kg / 1000)
-    expected_kpt = [100.0 / 12.6, 75.0 / 8.6, 63.0 / 7.4]
+    expected_kpt = [100.0 / 12.6, 75.0 / 8.6, 63.0 / 7.4, 94.0 / 12.6]
     np.testing.assert_allclose(result["kwas_per_ton"].values, expected_kpt, rtol=1e-6)
     # woda_refrakcja = woda_kg - kwas_kg
-    expected_wr = [815.0, 525.0, 467.0]
+    expected_wr = [815.0, 525.0, 467.0, 726.0]
     np.testing.assert_allclose(result["woda_refrakcja"].values, expected_wr, rtol=1e-6)
     # woda_refrakcja_per_ton = woda_refrakcja / (masa_kg / 1000)
-    expected_wrpt = [815.0 / 12.6, 525.0 / 8.6, 467.0 / 7.4]
+    expected_wrpt = [815.0 / 12.6, 525.0 / 8.6, 467.0 / 7.4, 726.0 / 12.6]
     np.testing.assert_allclose(result["woda_refrakcja_per_ton"].values, expected_wrpt, rtol=1e-6)
 
 
@@ -108,6 +108,7 @@ def test_generate_plots():
         f"{out_dir}/Model_A_pred_vs_actual.png",
         f"{out_dir}/Model_A_residuals_vs_masa.png",
         f"{out_dir}/Model_A_residuals_vs_fitted.png",
+        f"{out_dir}/Model_A_qq_residuals.png",
     ]
     for f in expected_files:
         assert os.path.exists(f), f"Missing plot: {f}"
