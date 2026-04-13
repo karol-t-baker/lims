@@ -640,7 +640,7 @@ def create_zlecenie_korekty(
     komentarz: str | None = None,
 ) -> int:
     cur = db.execute(
-        "INSERT INTO ebr_korekta_zlecenie (sesja_id, zalecil, komentarz) VALUES (?,?,?)",
+        "INSERT INTO ebr_korekta_zlecenie (sesja_id, zalecil, dt_zalecenia, komentarz) VALUES (?,?,datetime('now'),?)",
         (sesja_id, zalecil, komentarz),
     )
     zlecenie_id = cur.lastrowid

@@ -1163,7 +1163,8 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
                 ("ebr_korekta_zlecenie", """CREATE TABLE ebr_korekta_zlecenie (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     sesja_id INTEGER NOT NULL REFERENCES ebr_etap_sesja(id),
-                    zalecil TEXT NOT NULL, dt_zalecenia TEXT NOT NULL,
+                    zalecil TEXT NOT NULL,
+                    dt_zalecenia TEXT NOT NULL DEFAULT (datetime('now')),
                     dt_wykonania TEXT,
                     status TEXT NOT NULL DEFAULT 'zalecona' CHECK(status IN ('zalecona','wykonana','anulowana')),
                     komentarz TEXT)"""),
