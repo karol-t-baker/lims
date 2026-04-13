@@ -920,7 +920,7 @@ function renderPipelineFlowchart(container) {
     var sekcja = e.sekcja_lab || '';
     var status = 'pending';
     var etapId = e.pipeline_etap_id;
-    var sesjaInfo = psm[etapId] || null;
+    var sesjaInfo = psm[String(etapId)] || psm[etapId] || null;
 
     if (ebrStatus === 'completed') {
       status = 'done';
