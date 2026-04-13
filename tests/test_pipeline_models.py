@@ -454,16 +454,32 @@ def test_ebr_etap_sesja_accepts_new_statuses(db):
 
 @pytest.fixture
 def setup_pipeline(db):
-    """Seed enough data for zlecenie korekty tests."""
-    from mbr.pipeline.models import create_etap, add_etap_korekta
+    """Seed enough data for zlecenie korekty + resolve_formula tests."""
+    from mbr.pipeline.models import (
+        create_etap, add_etap_korekta, add_etap_parametr,
+        set_produkt_pipeline,
+    )
 
-    # MBR + EBR prerequisite rows
+    # Analytical parameter
+    param1_id = _seed_param(db, pid=9010, kod="so3", label="SO3", typ="bezposredni")
+
+    # MBR + EBR prerequisite rows (with wielkosc_szarzy_kg)
     db.execute("""INSERT INTO mbr_templates (mbr_id, produkt, wersja, dt_utworzenia)
                   VALUES (1, 'TestProd', 1, '2026-01-01')""")
-    db.execute("""INSERT INTO ebr_batches (ebr_id, mbr_id, batch_id, nr_partii, dt_start)
-                  VALUES (1, 1, 'TP-1', '1/2026', '2026-01-01')""")
+    db.execute("""INSERT INTO ebr_batches (ebr_id, mbr_id, batch_id, nr_partii, dt_start, wielkosc_szarzy_kg)
+                  VALUES (1, 1, 'TP-1', '1/2026', '2026-01-01', 10000)""")
 
     etap1_id = create_etap(db, kod="amid_t5", nazwa="Amidowanie T5")
+    etap2_id = create_etap(db, kod="czwart_t5", nazwa="Czwartorzędowanie T5")
+
+    # Pipeline ordering
+    set_produkt_pipeline(db, "TestProd", etap1_id, kolejnosc=1)
+    set_produkt_pipeline(db, "TestProd", etap2_id, kolejnosc=2)
+
+    # Add param to etap1 with spec_value (for target: resolution)
+    add_etap_parametr(db, etap1_id, param1_id, kolejnosc=1, spec_value=12.5)
+    add_etap_parametr(db, etap2_id, param1_id, kolejnosc=1)
+
     korekta_typ_id_1 = add_etap_korekta(db, etap1_id, substancja="NaOH", jednostka="kg", kolejnosc=1)
     korekta_typ_id_2 = add_etap_korekta(db, etap1_id, substancja="HCl", jednostka="kg", kolejnosc=2)
     db.commit()
@@ -471,6 +487,8 @@ def setup_pipeline(db):
     return {
         "ebr_id": 1,
         "etap1_id": etap1_id,
+        "etap2_id": etap2_id,
+        "param1_id": param1_id,
         "korekta_typ_id_1": korekta_typ_id_1,
         "korekta_typ_id_2": korekta_typ_id_2,
     }
@@ -648,3 +666,139 @@ def test_migrate_is_idempotent(db):
         "SELECT COUNT(*) FROM etapy_analityczne"
     ).fetchone()[0]
     assert count == 2  # still just amidowanie + analiza_koncowa
+
+
+# ---------------------------------------------------------------------------
+# Task 1: resolve_formula_zmienne tests
+# ---------------------------------------------------------------------------
+
+def test_resolve_formula_zmienne_pomiar_ref(db, setup_pipeline):
+    """pomiar:{kod} reference resolves from current session measurement."""
+    import json
+    from mbr.pipeline.models import create_sesja, save_pomiar, resolve_formula_zmienne
+
+    s = setup_pipeline
+    sesja_id = create_sesja(db, s["ebr_id"], s["etap1_id"], runda=1, laborant="lab1")
+
+    # Save a measurement for so3
+    save_pomiar(db, sesja_id, s["param1_id"], wartosc=14.2,
+                min_limit=None, max_limit=None, wpisal="lab1")
+
+    # Set formula referencing pomiar:so3
+    db.execute(
+        """UPDATE etap_korekty_katalog
+           SET formula_ilosc = '(:C_so3 - 10) * 2',
+               formula_zmienne = ?
+           WHERE id = ?""",
+        (json.dumps({"C_so3": "pomiar:so3"}), s["korekta_typ_id_1"]),
+    )
+    db.commit()
+
+    result = resolve_formula_zmienne(
+        db, s["korekta_typ_id_1"], s["etap1_id"], sesja_id, s["ebr_id"]
+    )
+    assert result["ok"] is True
+    assert result["zmienne"]["C_so3"] == 14.2
+    assert "Pomiar" in result["labels"]["C_so3"]
+    # (14.2 - 10) * 2 = 8.4
+    assert result["wynik"] is not None
+    assert abs(result["wynik"] - 8.4) < 0.01
+
+
+def test_resolve_formula_zmienne_target_ref(db, setup_pipeline):
+    """target:{kod} reference resolves spec_value from limity."""
+    import json
+    from mbr.pipeline.models import create_sesja, resolve_formula_zmienne
+
+    s = setup_pipeline
+    sesja_id = create_sesja(db, s["ebr_id"], s["etap1_id"], runda=1, laborant="lab1")
+
+    # Set formula referencing target:so3 (spec_value=12.5 from fixture)
+    db.execute(
+        """UPDATE etap_korekty_katalog
+           SET formula_ilosc = ':target_so3 * 2',
+               formula_zmienne = ?
+           WHERE id = ?""",
+        (json.dumps({"target_so3": "target:so3"}), s["korekta_typ_id_1"]),
+    )
+    db.commit()
+
+    result = resolve_formula_zmienne(
+        db, s["korekta_typ_id_1"], s["etap1_id"], sesja_id, s["ebr_id"]
+    )
+    assert result["ok"] is True
+    assert result["zmienne"]["target_so3"] == 12.5
+    assert "Spec" in result["labels"]["target_so3"]
+    # 12.5 * 2 = 25.0
+    assert result["wynik"] is not None
+    assert abs(result["wynik"] - 25.0) < 0.01
+
+
+def test_resolve_formula_zmienne_redukcja_override(db, setup_pipeline):
+    """Meff = masa - redukcja_override when override is provided."""
+    import json
+    from mbr.pipeline.models import create_sesja, resolve_formula_zmienne
+
+    s = setup_pipeline
+    sesja_id = create_sesja(db, s["ebr_id"], s["etap1_id"], runda=1, laborant="lab1")
+
+    db.execute(
+        """UPDATE etap_korekty_katalog
+           SET formula_ilosc = ':Meff * 0.01',
+               formula_zmienne = ?
+           WHERE id = ?""",
+        (json.dumps({"Meff": "wielkosc_szarzy_kg > 6600 ? wielkosc_szarzy_kg - 500 : wielkosc_szarzy_kg"}),
+         s["korekta_typ_id_1"]),
+    )
+    db.commit()
+
+    result = resolve_formula_zmienne(
+        db, s["korekta_typ_id_1"], s["etap1_id"], sesja_id, s["ebr_id"],
+        redukcja_override=1500,
+    )
+    assert result["ok"] is True
+    # Meff = 10000 - 1500 = 8500
+    assert result["zmienne"]["Meff"] == 8500
+    assert result["zmienne"]["redukcja"] == 1500
+    # 8500 * 0.01 = 85.0
+    assert result["wynik"] is not None
+    assert abs(result["wynik"] - 85.0) < 0.01
+
+
+def test_resolve_formula_zmienne_previous_stage_pomiar(db, setup_pipeline):
+    """pomiar:{kod} walks back through pipeline when not found in current session."""
+    import json
+    from mbr.pipeline.models import create_sesja, save_pomiar, resolve_formula_zmienne
+
+    s = setup_pipeline
+
+    # Create session in etap1 and save measurement there
+    sesja1_id = create_sesja(db, s["ebr_id"], s["etap1_id"], runda=1, laborant="lab1")
+    save_pomiar(db, sesja1_id, s["param1_id"], wartosc=14.2,
+                min_limit=None, max_limit=None, wpisal="lab1")
+
+    # Create session in etap2 — no measurement here
+    sesja2_id = create_sesja(db, s["ebr_id"], s["etap2_id"], runda=1, laborant="lab1")
+
+    # Formula on korekta references pomiar:so3, set on etap1's korekta but resolve from etap2
+    # We need a korekta on etap2 for this test
+    from mbr.pipeline.models import add_etap_korekta
+    korekta_etap2 = add_etap_korekta(db, s["etap2_id"], substancja="Oleum", jednostka="kg", kolejnosc=1)
+    db.execute(
+        """UPDATE etap_korekty_katalog
+           SET formula_ilosc = ':C_so3 * 3',
+               formula_zmienne = ?
+           WHERE id = ?""",
+        (json.dumps({"C_so3": "pomiar:so3"}), korekta_etap2),
+    )
+    db.commit()
+
+    result = resolve_formula_zmienne(
+        db, korekta_etap2, s["etap2_id"], sesja2_id, s["ebr_id"]
+    )
+    assert result["ok"] is True
+    # Should find so3=14.2 from etap1's session via pipeline walkback
+    assert result["zmienne"]["C_so3"] == 14.2
+    # 14.2 * 3 = 42.6
+    assert result["wynik"] is not None
+    assert abs(result["wynik"] - 42.6) < 0.01

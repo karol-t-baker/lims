@@ -10,6 +10,7 @@ Tables:
   produkt_etap_limity   — product-specific limit overrides per stage+parameter
 """
 
+import json as _json
 import sqlite3
 from datetime import datetime
 
@@ -793,3 +794,153 @@ def resolve_limity(db: sqlite3.Connection, produkt: str, etap_id: int) -> list[d
             "krok": r["krok"],
         })
     return result
+
+
+# ---------------------------------------------------------------------------
+# Task 1: resolve_formula_zmienne — auto-resolve formula variables from DB
+# ---------------------------------------------------------------------------
+
+VARIABLE_LABELS = {
+    "wielkosc_szarzy_kg": "Masa szarży",
+    "redukcja": "Redukcja",
+    "Meff": "Masa efektywna",
+}
+
+
+def _resolve_single_variable(db, var_name, var_ref, ebr_id, etap_id, sesja_id, produkt):
+    """Resolve a single formula variable reference. Returns (value, label)."""
+    # Handle pomiar:{kod}
+    if var_ref.startswith("pomiar:"):
+        kod = var_ref.split(":", 1)[1]
+        pa = db.execute(
+            "SELECT id, label FROM parametry_analityczne WHERE kod=?", (kod,)
+        ).fetchone()
+        if not pa:
+            return None, f"Pomiar {kod}"
+        # Try current session
+        row = db.execute(
+            "SELECT wartosc FROM ebr_pomiar WHERE sesja_id=? AND parametr_id=?",
+            (sesja_id, pa["id"]),
+        ).fetchone()
+        if row and row["wartosc"] is not None:
+            return row["wartosc"], f"Pomiar {pa['label']}"
+        # Walk backwards through pipeline stages
+        pipeline = db.execute(
+            "SELECT etap_id FROM produkt_pipeline WHERE produkt=? ORDER BY kolejnosc DESC",
+            (produkt,),
+        ).fetchall()
+        for step in pipeline:
+            if step["etap_id"] == etap_id:
+                continue
+            sesje = db.execute(
+                "SELECT id FROM ebr_etap_sesja WHERE ebr_id=? AND etap_id=? ORDER BY runda DESC LIMIT 1",
+                (ebr_id, step["etap_id"]),
+            ).fetchone()
+            if not sesje:
+                continue
+            row = db.execute(
+                "SELECT wartosc FROM ebr_pomiar WHERE sesja_id=? AND parametr_id=?",
+                (sesje["id"], pa["id"]),
+            ).fetchone()
+            if row and row["wartosc"] is not None:
+                return row["wartosc"], f"Pomiar {pa['label']}"
+        return None, f"Pomiar {pa['label']}"
+
+    # Handle target:{kod}
+    if var_ref.startswith("target:"):
+        kod = var_ref.split(":", 1)[1]
+        pa = db.execute(
+            "SELECT id, label FROM parametry_analityczne WHERE kod=?", (kod,)
+        ).fetchone()
+        if not pa:
+            return None, f"Spec {kod}"
+        limity = resolve_limity(db, produkt, etap_id)
+        for lim in limity:
+            if lim["parametr_id"] == pa["id"]:
+                return lim.get("spec_value"), f"Spec {pa['label']}"
+        return None, f"Spec {pa['label']}"
+
+    # Handle wielkosc_szarzy_kg
+    if var_ref == "wielkosc_szarzy_kg":
+        row = db.execute(
+            "SELECT wielkosc_szarzy_kg FROM ebr_batches WHERE ebr_id=?", (ebr_id,)
+        ).fetchone()
+        return (row["wielkosc_szarzy_kg"] if row else None), "Masa szarży"
+
+    # Expression or numeric — return as-is for later eval
+    return var_ref, VARIABLE_LABELS.get(var_name, var_name)
+
+
+def resolve_formula_zmienne(db, korekta_typ_id, etap_id, sesja_id, ebr_id, redukcja_override=None):
+    """Auto-resolve formula variables from DB data.
+
+    Returns dict with keys: ok, wynik, zmienne, labels.
+    """
+    row = db.execute(
+        "SELECT formula_ilosc, formula_zmienne, etap_id AS kor_etap_id FROM etap_korekty_katalog WHERE id=?",
+        (korekta_typ_id,),
+    ).fetchone()
+    if not row or not row["formula_ilosc"]:
+        return {"ok": False, "wynik": None, "zmienne": {}, "labels": {}}
+
+    ebr = db.execute(
+        "SELECT m.produkt, e.wielkosc_szarzy_kg FROM ebr_batches e JOIN mbr_templates m ON m.mbr_id = e.mbr_id WHERE e.ebr_id = ?",
+        (ebr_id,),
+    ).fetchone()
+    produkt = ebr["produkt"] if ebr else ""
+    masa = ebr["wielkosc_szarzy_kg"] if ebr else None
+
+    zmienne_def = _json.loads(row["formula_zmienne"]) if row["formula_zmienne"] else {}
+    resolved = {}
+    labels = {}
+
+    resolved["wielkosc_szarzy_kg"] = masa
+    labels["wielkosc_szarzy_kg"] = "Masa szarży"
+
+    meff_expression = None
+    for var_name, var_ref in zmienne_def.items():
+        if var_name == "Meff":
+            meff_expression = var_ref
+            continue
+        val, lbl = _resolve_single_variable(
+            db, var_name, var_ref, ebr_id, etap_id, sesja_id, produkt
+        )
+        resolved[var_name] = val
+        labels[var_name] = lbl
+
+    # Meff with optional override
+    if redukcja_override is not None and masa is not None:
+        resolved["Meff"] = masa - redukcja_override
+        resolved["redukcja"] = redukcja_override
+    elif meff_expression and masa is not None:
+        meff_expr = str(meff_expression).replace(
+            "wielkosc_szarzy_kg", str(float(masa))
+        )
+        try:
+            meff_val = eval(meff_expr, {"__builtins__": {}})
+            resolved["Meff"] = meff_val
+            resolved["redukcja"] = masa - meff_val
+        except Exception:
+            resolved["Meff"] = None
+            resolved["redukcja"] = None
+    elif masa is not None:
+        resolved["Meff"] = masa
+        resolved["redukcja"] = 0
+
+    labels["Meff"] = "Masa efektywna"
+    labels["redukcja"] = "Redukcja"
+
+    # Evaluate main formula
+    formula = row["formula_ilosc"]
+    for key, val in resolved.items():
+        if val is not None and key != "wielkosc_szarzy_kg" and key != "redukcja":
+            formula = formula.replace(f":{key}", str(float(val)))
+    if masa is not None:
+        formula = formula.replace("wielkosc_szarzy_kg", str(float(masa)))
+
+    try:
+        wynik = eval(formula, {"__builtins__": {}})
+    except Exception:
+        wynik = None
+
+    return {"ok": True, "wynik": wynik, "zmienne": resolved, "labels": labels}
