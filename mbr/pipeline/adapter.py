@@ -52,24 +52,42 @@ def _fetch_calc_method(
     db: sqlite3.Connection, parametr_id: int, nawazka_g: float | None = None
 ) -> dict | None:
     """
-    Return calc_method dict for a titracja parameter by querying
-    parametry_analityczne for metoda_nazwa/formula/factor.
-    nawazka_g comes from etap_parametry (passed by caller).
-    Returns None if no metoda_factor is set.
+    Return calc_method dict for a titracja parameter.
+    First tries parametry_analityczne inline fields, then falls back
+    to metody_miareczkowe via metoda_id FK.
     """
     row = db.execute(
-        """SELECT metoda_nazwa, metoda_formula, metoda_factor
+        """SELECT metoda_id, metoda_nazwa, metoda_formula, metoda_factor
            FROM parametry_analityczne
            WHERE id = ?""",
         (parametr_id,),
     ).fetchone()
-    if row is None or row["metoda_factor"] is None:
+    if row is None:
         return None
+
+    nazwa = row["metoda_nazwa"]
+    formula = row["metoda_formula"]
+    factor = row["metoda_factor"]
+
+    # Fallback to metody_miareczkowe if inline fields are empty
+    if factor is None and row["metoda_id"]:
+        mm = db.execute(
+            "SELECT nazwa, formula FROM metody_miareczkowe WHERE id = ?",
+            (row["metoda_id"],),
+        ).fetchone()
+        if mm:
+            nazwa = nazwa or mm["nazwa"]
+            formula = formula or mm["formula"]
+
+    if not nazwa and not formula:
+        return None
+
     return {
-        "name":            row["metoda_nazwa"] or "",
-        "formula":         row["metoda_formula"] or "",
-        "factor":          row["metoda_factor"],
+        "name":            nazwa or "",
+        "formula":         formula or "",
+        "factor":          factor,
         "suggested_mass":  nawazka_g,
+        "method_id":       row["metoda_id"],
     }
 
 
