@@ -54,3 +54,20 @@ def test_fit_model_b():
     df = add_features(make_sample_df())
     result = fit_model(df, predictors=["ph_start", "woda_refrakcja_per_ton"])
     assert len(result["coefficients"]) == 3  # const + 2 predictors
+
+
+def test_loocv():
+    from acid_estimation_analysis import load_data, add_features, run_loocv
+    df = load_data("data/kwas.csv")
+    df = add_features(df)
+    metrics = run_loocv(df, predictors=["ph_start"])
+    assert "mae_kg" in metrics
+    assert "mape_pct" in metrics
+    assert "r2_cv" in metrics
+    assert "residuals" in metrics
+    assert "predictions" in metrics
+    # MAE should be reasonable (not zero, not huge)
+    assert 0 < metrics["mae_kg"] < 50
+    assert 0 < metrics["mape_pct"] < 100
+    assert len(metrics["residuals"]) == 45
+    assert len(metrics["predictions"]) == 45
