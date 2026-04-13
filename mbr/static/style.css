@@ -671,7 +671,7 @@ body {
 /* Binary pills (Zgodny / Niezgodny) */
 .binary-pills {
   display: flex; gap: 2px; margin-left: auto;
-  background: var(--surface-alt); border-radius: 8px; padding: 2px;
+  background: var(--border); border-radius: 8px; padding: 2px;
 }
 .bp-pill {
   padding: 6px 16px; border: none; border-radius: 6px;

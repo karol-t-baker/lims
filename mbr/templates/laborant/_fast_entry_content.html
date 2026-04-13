@@ -2410,14 +2410,17 @@ function renderOneSection(container, opts) {
         var highlightCls = isHighlighted ? ' highlight-prev' : '';
 
         if (isBinary) {
-            var bVal = val || '';
+            var bNum = existing && existing.wartosc != null ? parseFloat(existing.wartosc) : null;
+            var isOk = bNum === 1;
+            var isErr = bNum === 0;
+            var hasBVal = bNum !== null;
             fieldsHtml +=
                 '<div class="ff binary' + highlightCls + '">' +
-                    '<div class="status-dot"' + (bVal ? ' style="background:' + (bVal === 'OK' || bVal === '1' ? 'var(--green)' : 'var(--red)') + '"' : '') + '></div>' +
+                    '<div class="status-dot"' + (hasBVal ? ' style="background:' + (isOk ? 'var(--green)' : 'var(--red)') + '"' : '') + '></div>' +
                     '<label>' + esc(pole.skrot || pole.label) + '</label>' +
                     '<div class="binary-pills">' +
-                        '<button type="button" class="bp-pill' + (bVal === 'OK' || bVal === '1' ? ' bp-ok' : '') + '" onclick="setBinary(this,\'' + esc(sekcja) + '\',\'' + esc(pole.kod) + '\',\'OK\')">Zgodny</button>' +
-                        '<button type="button" class="bp-pill' + (bVal === 'Nie OK' || bVal === '0' ? ' bp-err' : '') + '" onclick="setBinary(this,\'' + esc(sekcja) + '\',\'' + esc(pole.kod) + '\',\'Nie OK\')">Niezgodny</button>' +
+                        '<button type="button" class="bp-pill' + (isOk ? ' bp-ok' : '') + '" onclick="setBinary(this,\'' + esc(sekcja) + '\',\'' + esc(pole.kod) + '\',\'OK\')">Zgodny</button>' +
+                        '<button type="button" class="bp-pill' + (isErr ? ' bp-err' : '') + '" onclick="setBinary(this,\'' + esc(sekcja) + '\',\'' + esc(pole.kod) + '\',\'Nie OK\')">Niezgodny</button>' +
                     '</div>' +
                 '</div>';
         } else {
