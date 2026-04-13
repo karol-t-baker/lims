@@ -5,9 +5,12 @@ import pytest
 
 from mbr.models import init_mbr_tables
 from mbr.pipeline.models import (
+    close_sesja,
     create_sesja,
     create_round_with_inheritance,
+    get_etap_decyzje,
     get_pomiary,
+    get_sesja,
     save_pomiar,
 )
 
@@ -123,3 +126,51 @@ def test_inherited_measurement_preserves_limits(db):
         "SELECT runda FROM ebr_etap_sesja WHERE id = ?", (sesja2,)
     ).fetchone()
     assert sesja_row["runda"] == 2
+
+
+def test_get_etap_decyzje_returns_sorted_options(db):
+    """get_etap_decyzje returns decisions filtered by typ, sorted by kolejnosc."""
+    # etap_id=10 (sulfonowanie) already seeded in fixture
+    # Seed 3 decisions: 2 fail, 1 pass
+    db.execute(
+        "INSERT INTO etap_decyzje (id, etap_id, typ, kod, label, akcja, wymaga_komentarza, kolejnosc) "
+        "VALUES (1, 10, 'fail', 'new_round', 'Nowa runda', 'new_round', 0, 20)"
+    )
+    db.execute(
+        "INSERT INTO etap_decyzje (id, etap_id, typ, kod, label, akcja, wymaga_komentarza, kolejnosc) "
+        "VALUES (2, 10, 'fail', 'release_comment', 'Zwolnij z komentarzem', 'release', 1, 10)"
+    )
+    db.execute(
+        "INSERT INTO etap_decyzje (id, etap_id, typ, kod, label, akcja, wymaga_komentarza, kolejnosc) "
+        "VALUES (3, 10, 'pass', 'przejscie', 'Przejdź dalej', 'next_stage', 0, 1)"
+    )
+    db.commit()
+
+    fail_opts = get_etap_decyzje(db, etap_id=10, typ='fail')
+    assert len(fail_opts) == 2
+    # Sorted by kolejnosc: 10, 20
+    assert fail_opts[0]["kod"] == "release_comment"
+    assert fail_opts[1]["kod"] == "new_round"
+    # wymaga_komentarza preserved
+    assert fail_opts[0]["wymaga_komentarza"] == 1
+    assert fail_opts[1]["wymaga_komentarza"] == 0
+
+    pass_opts = get_etap_decyzje(db, etap_id=10, typ='pass')
+    assert len(pass_opts) == 1
+    assert pass_opts[0]["kod"] == "przejscie"
+
+
+def test_close_sesja_with_new_decision_codes(db):
+    """close_sesja with 'release_comment' sets status, decyzja, komentarz_decyzji."""
+    sesja_id = create_sesja(db, ebr_id=1, etap_id=10, runda=1, laborant="lab1")
+    db.commit()
+
+    close_sesja(db, sesja_id, decyzja='release_comment',
+                komentarz='Dodatek wody z ręki')
+    db.commit()
+
+    sesja = get_sesja(db, sesja_id)
+    assert sesja["status"] == "zamkniety"
+    assert sesja["decyzja"] == "release_comment"
+    assert sesja["komentarz_decyzji"] == "Dodatek wody z ręki"
+    assert sesja["dt_end"] is not None

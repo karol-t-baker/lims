@@ -175,6 +175,21 @@ def list_etap_warunki(db: sqlite3.Connection, etap_id: int) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def get_etap_decyzje(
+    db: sqlite3.Connection,
+    etap_id: int,
+    typ: str,
+) -> list[dict]:
+    """Return decision options for a pipeline stage, filtered by pass/fail type."""
+    rows = db.execute("""
+        SELECT id, etap_id, typ, kod, label, akcja, wymaga_komentarza, kolejnosc
+        FROM etap_decyzje
+        WHERE etap_id = ? AND typ = ?
+        ORDER BY kolejnosc
+    """, (etap_id, typ)).fetchall()
+    return [dict(r) for r in rows]
+
+
 def remove_etap_warunek(db: sqlite3.Connection, warunek_id: int) -> None:
     db.execute("DELETE FROM etap_warunki WHERE id = ?", (warunek_id,))
 
@@ -433,20 +448,31 @@ def list_sesje(
 
 def close_sesja(db: sqlite3.Connection, sesja_id: int, decyzja: str,
                 komentarz: str = None) -> None:
-    """Close a session.
+    """Close (or reopen) a session.
 
     decyzja:
-      'zamknij_etap'  => status='zamkniety' (operator closes the stage)
       'reopen_etap'   => status='w_trakcie' (operator re-opens the stage)
+      Any other code   => status='zamkniety', komentarz stored in komentarz_decyzji
+        ('zamknij_etap', 'przejscie', 'new_round', 'release_comment',
+         'close_note', 'skip_to_next')
     """
     now = datetime.now().isoformat(timespec="seconds")
-    status = "zamkniety" if decyzja == "zamknij_etap" else "w_trakcie"
-    db.execute(
-        """UPDATE ebr_etap_sesja
-           SET status = ?, decyzja = ?, dt_end = ?, komentarz = COALESCE(?, komentarz)
-           WHERE id = ?""",
-        (status, decyzja, now, komentarz, sesja_id),
-    )
+    if decyzja == "reopen_etap":
+        db.execute(
+            """UPDATE ebr_etap_sesja
+               SET status = 'w_trakcie', decyzja = ?, dt_end = ?,
+                   komentarz = COALESCE(?, komentarz)
+               WHERE id = ?""",
+            (decyzja, now, komentarz, sesja_id),
+        )
+    else:
+        db.execute(
+            """UPDATE ebr_etap_sesja
+               SET status = 'zamkniety', decyzja = ?, dt_end = ?,
+                   komentarz_decyzji = ?
+               WHERE id = ?""",
+            (decyzja, now, komentarz, sesja_id),
+        )
 
 
 def init_pipeline_sesje(
