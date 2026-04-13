@@ -448,6 +448,124 @@ def test_ebr_etap_sesja_accepts_new_statuses(db):
     assert True  # no IntegrityError
 
 
+# ---------------------------------------------------------------------------
+# Task 5/6: Zlecenie korekty CRUD + formula hint — fixture & tests
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def setup_pipeline(db):
+    """Seed enough data for zlecenie korekty tests."""
+    from mbr.pipeline.models import create_etap, add_etap_korekta
+
+    # MBR + EBR prerequisite rows
+    db.execute("""INSERT INTO mbr_templates (mbr_id, produkt, wersja, dt_utworzenia)
+                  VALUES (1, 'TestProd', 1, '2026-01-01')""")
+    db.execute("""INSERT INTO ebr_batches (ebr_id, mbr_id, batch_id, nr_partii, dt_start)
+                  VALUES (1, 1, 'TP-1', '1/2026', '2026-01-01')""")
+
+    etap1_id = create_etap(db, kod="amid_t5", nazwa="Amidowanie T5")
+    korekta_typ_id_1 = add_etap_korekta(db, etap1_id, substancja="NaOH", jednostka="kg", kolejnosc=1)
+    korekta_typ_id_2 = add_etap_korekta(db, etap1_id, substancja="HCl", jednostka="kg", kolejnosc=2)
+    db.commit()
+
+    return {
+        "ebr_id": 1,
+        "etap1_id": etap1_id,
+        "korekta_typ_id_1": korekta_typ_id_1,
+        "korekta_typ_id_2": korekta_typ_id_2,
+    }
+
+
+def test_create_zlecenie_korekty(db, setup_pipeline):
+    """Create a correction order with multiple items."""
+    from mbr.pipeline.models import create_sesja, create_zlecenie_korekty, get_zlecenie
+
+    sesja_id = create_sesja(db, setup_pipeline["ebr_id"], setup_pipeline["etap1_id"], runda=1, laborant="lab1")
+    items = [
+        {"korekta_typ_id": setup_pipeline["korekta_typ_id_1"], "ilosc": 5.0, "ilosc_wyliczona": 4.8},
+        {"korekta_typ_id": setup_pipeline["korekta_typ_id_2"], "ilosc": 2.0, "ilosc_wyliczona": None},
+    ]
+    zlecenie_id = create_zlecenie_korekty(db, sesja_id, items, zalecil="lab1", komentarz="test")
+    db.commit()
+
+    zlecenie = get_zlecenie(db, zlecenie_id)
+    assert zlecenie["status"] == "zalecona"
+    assert len(zlecenie["items"]) == 2
+    assert zlecenie["items"][0]["ilosc"] == 5.0
+    assert zlecenie["items"][0]["ilosc_wyliczona"] == 4.8
+    assert zlecenie["items"][1]["ilosc_wyliczona"] is None
+
+
+def test_wykonaj_zlecenie(db, setup_pipeline):
+    """Executing a correction order creates a new session (runda+1)."""
+    from mbr.pipeline.models import create_sesja, create_zlecenie_korekty, wykonaj_zlecenie, get_zlecenie
+
+    sesja_id = create_sesja(db, setup_pipeline["ebr_id"], setup_pipeline["etap1_id"], runda=1, laborant="lab1")
+    items = [{"korekta_typ_id": setup_pipeline["korekta_typ_id_1"], "ilosc": 5.0, "ilosc_wyliczona": None}]
+    zlecenie_id = create_zlecenie_korekty(db, sesja_id, items, zalecil="lab1")
+    db.commit()
+
+    new_sesja_id = wykonaj_zlecenie(db, zlecenie_id)
+    db.commit()
+
+    zlecenie = get_zlecenie(db, zlecenie_id)
+    assert zlecenie["status"] == "wykonana"
+    assert zlecenie["dt_wykonania"] is not None
+
+    new_sesja = db.execute("SELECT * FROM ebr_etap_sesja WHERE id=?", (new_sesja_id,)).fetchone()
+    assert new_sesja["runda"] == 2
+
+
+def test_list_zlecenia_for_sesja(db, setup_pipeline):
+    """list_zlecenia_for_sesja returns all orders with items for a session."""
+    from mbr.pipeline.models import create_sesja, create_zlecenie_korekty, list_zlecenia_for_sesja
+
+    sesja_id = create_sesja(db, setup_pipeline["ebr_id"], setup_pipeline["etap1_id"], runda=1, laborant="lab1")
+    items1 = [{"korekta_typ_id": setup_pipeline["korekta_typ_id_1"], "ilosc": 5.0}]
+    items2 = [{"korekta_typ_id": setup_pipeline["korekta_typ_id_2"], "ilosc": 3.0}]
+    create_zlecenie_korekty(db, sesja_id, items1, zalecil="lab1")
+    create_zlecenie_korekty(db, sesja_id, items2, zalecil="lab1")
+    db.commit()
+
+    zlecenia = list_zlecenia_for_sesja(db, sesja_id)
+    assert len(zlecenia) == 2
+    assert all("items" in z for z in zlecenia)
+
+
+def test_compute_formula_hint(db, setup_pipeline):
+    """Formula hint should compute amount from formula_ilosc."""
+    from mbr.pipeline.models import compute_formula_hint
+
+    db.execute(
+        """UPDATE etap_korekty_katalog
+           SET formula_ilosc = ':masa_wsadu * (:spec - :wynik) / 100',
+               formula_zmienne = 'masa_wsadu,spec,wynik'
+           WHERE id = ?""",
+        (setup_pipeline["korekta_typ_id_1"],)
+    )
+    db.commit()
+
+    result = compute_formula_hint(
+        db,
+        korekta_typ_id=setup_pipeline["korekta_typ_id_1"],
+        zmienne={"masa_wsadu": 1000, "spec": 12.0, "wynik": 10.0},
+    )
+    assert result is not None
+    assert abs(result - 20.0) < 0.01
+
+
+def test_compute_formula_hint_no_formula(db, setup_pipeline):
+    """Returns None when no formula is set."""
+    from mbr.pipeline.models import compute_formula_hint
+
+    result = compute_formula_hint(
+        db,
+        korekta_typ_id=setup_pipeline["korekta_typ_id_1"],
+        zmienne={"masa_wsadu": 1000},
+    )
+    assert result is None
+
+
 from scripts.migrate_parametry_etapy import migrate_parametry_etapy
 
 

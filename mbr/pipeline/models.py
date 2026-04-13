@@ -626,6 +626,117 @@ def update_ebr_korekta_status(
     )
 
 
+# ---------------------------------------------------------------------------
+# Task 5: ebr_korekta_zlecenie — multi-substance correction orders
+# ---------------------------------------------------------------------------
+
+def create_zlecenie_korekty(
+    db: sqlite3.Connection,
+    sesja_id: int,
+    items: list[dict],
+    zalecil: str,
+    komentarz: str | None = None,
+) -> int:
+    cur = db.execute(
+        "INSERT INTO ebr_korekta_zlecenie (sesja_id, zalecil, komentarz) VALUES (?,?,?)",
+        (sesja_id, zalecil, komentarz),
+    )
+    zlecenie_id = cur.lastrowid
+    for item in items:
+        db.execute(
+            """INSERT INTO ebr_korekta_v2
+               (sesja_id, korekta_typ_id, ilosc, ilosc_wyliczona, zlecenie_id, zalecil, dt_zalecenia, status)
+               VALUES (?,?,?,?,?,?, datetime('now'), 'zalecona')""",
+            (sesja_id, item["korekta_typ_id"], item["ilosc"],
+             item.get("ilosc_wyliczona"), zlecenie_id, zalecil),
+        )
+    return zlecenie_id
+
+
+def get_zlecenie(db: sqlite3.Connection, zlecenie_id: int) -> dict | None:
+    row = db.execute(
+        "SELECT * FROM ebr_korekta_zlecenie WHERE id=?", (zlecenie_id,)
+    ).fetchone()
+    if not row:
+        return None
+    items = db.execute(
+        """SELECT kv.*, ek.substancja, ek.jednostka
+           FROM ebr_korekta_v2 kv
+           JOIN etap_korekty_katalog ek ON ek.id = kv.korekta_typ_id
+           WHERE kv.zlecenie_id=?""",
+        (zlecenie_id,),
+    ).fetchall()
+    return {**dict(row), "items": [dict(i) for i in items]}
+
+
+def wykonaj_zlecenie(db: sqlite3.Connection, zlecenie_id: int) -> int:
+    zlecenie = db.execute(
+        "SELECT * FROM ebr_korekta_zlecenie WHERE id=?", (zlecenie_id,)
+    ).fetchone()
+    db.execute(
+        "UPDATE ebr_korekta_zlecenie SET status='wykonana', dt_wykonania=datetime('now') WHERE id=?",
+        (zlecenie_id,),
+    )
+    db.execute(
+        "UPDATE ebr_korekta_v2 SET status='wykonana', dt_wykonania=datetime('now') WHERE zlecenie_id=?",
+        (zlecenie_id,),
+    )
+    sesja = db.execute(
+        "SELECT * FROM ebr_etap_sesja WHERE id=?", (zlecenie["sesja_id"],)
+    ).fetchone()
+    new_runda = sesja["runda"] + 1
+    cur = db.execute(
+        """INSERT INTO ebr_etap_sesja (ebr_id, etap_id, runda, status, dt_start, laborant)
+           VALUES (?,?,?,'w_trakcie', datetime('now'),?)""",
+        (sesja["ebr_id"], sesja["etap_id"], new_runda, sesja["laborant"]),
+    )
+    return cur.lastrowid
+
+
+def list_zlecenia_for_sesja(db: sqlite3.Connection, sesja_id: int) -> list[dict]:
+    rows = db.execute(
+        "SELECT * FROM ebr_korekta_zlecenie WHERE sesja_id=? ORDER BY dt_zalecenia",
+        (sesja_id,),
+    ).fetchall()
+    result = []
+    for row in rows:
+        items = db.execute(
+            """SELECT kv.*, ek.substancja, ek.jednostka
+               FROM ebr_korekta_v2 kv
+               JOIN etap_korekty_katalog ek ON ek.id = kv.korekta_typ_id
+               WHERE kv.zlecenie_id=?""",
+            (row["id"],),
+        ).fetchall()
+        result.append({**dict(row), "items": [dict(i) for i in items]})
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Task 6: formula hint computation
+# ---------------------------------------------------------------------------
+
+def compute_formula_hint(
+    db: sqlite3.Connection,
+    korekta_typ_id: int,
+    zmienne: dict[str, float],
+) -> float | None:
+    row = db.execute(
+        "SELECT formula_ilosc, formula_zmienne FROM etap_korekty_katalog WHERE id=?",
+        (korekta_typ_id,),
+    ).fetchone()
+    if not row or not row["formula_ilosc"]:
+        return None
+
+    formula = row["formula_ilosc"]
+    for key, val in zmienne.items():
+        formula = formula.replace(f":{key}", str(float(val)))
+
+    try:
+        return eval(formula, {"__builtins__": {}})
+    except Exception:
+        return None
+
+
 def resolve_limity(db: sqlite3.Connection, produkt: str, etap_id: int) -> list[dict]:
     """Merge catalog limits with product-level overrides.
 
