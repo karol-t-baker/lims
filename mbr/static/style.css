@@ -2112,10 +2112,19 @@ body {
 
 /* Target hint */
 .target-hint {
-  font-size: 9px; color: var(--text-dim); margin-top: 2px;
-  font-family: var(--mono);
+  font-size: 10px; color: var(--text-sec); margin-top: 1px;
+  font-family: var(--mono); display: flex; align-items: center; gap: 4px;
+  padding: 0 18px;
 }
-.target-hint strong { color: var(--teal); }
+.target-edit {
+  width: 55px; padding: 1px 4px; border: 1px solid transparent; border-radius: 3px;
+  font-size: 11px; font-family: var(--mono); font-weight: 700;
+  color: var(--teal); background: transparent; text-align: center;
+  transition: all 0.15s;
+}
+.target-edit:hover { border-color: var(--border); background: var(--teal-bg); }
+.target-edit:focus { border-color: var(--teal); background: #fff; outline: none; box-shadow: 0 0 0 2px var(--teal-bg); }
+.target-norm { font-size: 9px; color: var(--text-dim); }
 
 /* Repeat analysis bar */
 .repeat-bar {

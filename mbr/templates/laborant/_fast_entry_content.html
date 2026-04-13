@@ -2469,7 +2469,7 @@ function renderOneSection(container, opts) {
                     '<span class="norm-range">' + normRange + '</span>' +
                     typeTag +
                 '</div>' +
-                (pole.target != null ? '<div class="target-hint">cel: <strong>' + String(pole.target).replace('.', ',') + '</strong>' + (normRange ? ' (' + normRange + ')' : '') + '</div>' : '') +
+                (pole.target != null ? '<div class="target-hint">cel: <input class="target-edit" type="text" inputmode="decimal" value="' + String(pole.target).replace('.', ',') + '" data-kod="' + esc(pole.kod) + '" data-sekcja="' + esc(lastSekcja) + '" onblur="saveTarget(this)">' + (normRange ? ' <span class="target-norm">(' + normRange + ')</span>' : '') + '</div>' : '') +
             '</div>';
         } // end else (non-binary)
     });
@@ -2834,6 +2834,36 @@ function openSmallCorrectionDialog() {
     }).then(function(resp) {
         if (resp.ok) completePompuj();
     });
+}
+
+async function saveTarget(input) {
+    var kod = input.dataset.kod;
+    var sekcja = input.dataset.sekcja;
+    var rawVal = input.value.replace(',', '.');
+    var val = parseFloat(rawVal);
+    if (isNaN(val)) return;
+
+    var baseSekcja = sekcja.split('__')[0];
+    var kontekst = baseSekcja === 'analiza' ? 'analiza_koncowa' : baseSekcja;
+
+    // Find binding ID via parametry API
+    try {
+        var resp = await fetch('/api/parametry/etapy/' + encodeURIComponent(window._batchProdukt) + '/' + encodeURIComponent(kontekst));
+        if (!resp.ok) return;
+        var bindings = await resp.json();
+        var binding = bindings.find(function(b) { return b.kod === kod; });
+        if (!binding) return;
+
+        var saveResp = await fetch('/api/parametry/etapy/' + binding.id, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({target: val})
+        });
+        if (saveResp.ok) {
+            input.style.outline = '2px solid var(--green)';
+            setTimeout(function() { input.style.outline = ''; }, 800);
+        }
+    } catch(e) {}
 }
 
 function doSaveField(input, sekcja, kod) {
