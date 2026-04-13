@@ -188,7 +188,7 @@ def main():
     if missing:
         print(f"WARNING: etapy_analityczne missing stages: {missing} — skipping seed")
     else:
-        produkty = ["K7", "K40GL", "K40GLO", "K40GLOL"]
+        produkty = ["K7"]  # Only K7 has full pipeline; others use analiza_koncowa only
 
         # Decision definitions per stage: (typ, kod, label, akcja, wymaga_komentarza, kolejnosc)
         decisions = {
