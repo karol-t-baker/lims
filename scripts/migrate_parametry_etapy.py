@@ -94,7 +94,7 @@ def migrate_parametry_etapy(db: sqlite3.Connection) -> dict:
         cur = db.execute(
             """INSERT OR IGNORE INTO etap_parametry
                (etap_id, parametr_id, kolejnosc, min_limit, max_limit,
-                nawazka_g, precision, target, wymagany, grupa,
+                nawazka_g, precision, spec_value, wymagany, grupa,
                 formula, sa_bias, krok)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
@@ -105,7 +105,7 @@ def migrate_parametry_etapy(db: sqlite3.Connection) -> dict:
                 row[4],   # max_limit
                 row[5],   # nawazka_g
                 row[6],   # precision
-                row[7],   # target
+                row[7],   # spec_value (from old target)
                 row[8],   # wymagany
                 row[9],   # grupa
                 row[10],  # formula
@@ -207,7 +207,7 @@ def migrate_parametry_etapy(db: sqlite3.Connection) -> dict:
         cur = db.execute(
             """INSERT OR IGNORE INTO produkt_etap_limity
                (produkt, etap_id, parametr_id, min_limit, max_limit,
-                nawazka_g, precision, target)
+                nawazka_g, precision, spec_value)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 produkt,
@@ -217,7 +217,7 @@ def migrate_parametry_etapy(db: sqlite3.Connection) -> dict:
                 row[4],   # max_limit
                 row[5],   # nawazka_g
                 row[6],   # precision
-                row[7],   # target
+                row[7],   # spec_value (from old target)
             ),
         )
         stats["produkt_etap_limity"] += cur.rowcount

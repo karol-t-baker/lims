@@ -65,22 +65,22 @@ def _seed(db):
     # etap_parametry (catalog defaults)
     db.execute("""
         INSERT INTO etap_parametry (etap_id, parametr_id, kolejnosc,
-            min_limit, max_limit, precision, target, wymagany, grupa, formula, sa_bias)
+            min_limit, max_limit, precision, spec_value, wymagany, grupa, formula, sa_bias)
         VALUES (901, 9101, 1, 44.0, 48.0, 1, 46.0, 1, 'lab', NULL, NULL)
     """)
     db.execute("""
         INSERT INTO etap_parametry (etap_id, parametr_id, kolejnosc,
-            min_limit, max_limit, precision, target, wymagany, grupa, formula, sa_bias)
+            min_limit, max_limit, precision, spec_value, wymagany, grupa, formula, sa_bias)
         VALUES (901, 9102, 2, 0.5, 2.5, 2, NULL, 1, 'lab', NULL, NULL)
     """)
     db.execute("""
         INSERT INTO etap_parametry (etap_id, parametr_id, kolejnosc,
-            min_limit, max_limit, precision, target, wymagany, grupa, formula, sa_bias)
+            min_limit, max_limit, precision, spec_value, wymagany, grupa, formula, sa_bias)
         VALUES (901, 9103, 3, 30.0, 40.0, 1, NULL, 1, 'lab', 'sm - nacl - 0.6', 0.6)
     """)
     db.execute("""
         INSERT INTO etap_parametry (etap_id, parametr_id, kolejnosc,
-            min_limit, max_limit, precision, target, wymagany, grupa, formula, sa_bias)
+            min_limit, max_limit, precision, spec_value, wymagany, grupa, formula, sa_bias)
         VALUES (901, 9104, 4, 6.5, 7.5, 1, NULL, 0, 'lab', NULL, NULL)
     """)
 

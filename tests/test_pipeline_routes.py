@@ -581,7 +581,7 @@ def test_get_pipeline_lab(lab_client, db):
     resp2 = lab_client.get(f"/api/pipeline/lab/ebr/{ebr_id}/pipeline")
     step2 = resp2.get_json()[0]
     assert step2["sesja_count"] == 1
-    assert step2["last_status"] == "w_trakcie"
+    assert step2["last_status"] == "nierozpoczety"
     assert step2["last_runda"] == 1
 
 
@@ -785,7 +785,7 @@ def test_update_korekta_status(lab_client, db):
 # ---------------------------------------------------------------------------
 
 def test_close_sesja(lab_client, db):
-    """Closes session with decyzja='przejscie', status becomes 'ok'."""
+    """Closes session with decyzja='zamknij_etap', status becomes 'zamkniety'."""
     _, ebr_id = _seed_ebr(db)
     etap_id = _seed_pipeline_etap(db)
 
@@ -795,18 +795,18 @@ def test_close_sesja(lab_client, db):
 
     resp = lab_client.post(
         f"/api/pipeline/lab/ebr/{ebr_id}/etap/{etap_id}/close",
-        json={"sesja_id": sesja_id, "decyzja": "przejscie"},
+        json={"sesja_id": sesja_id, "decyzja": "zamknij_etap"},
     )
     assert resp.status_code == 200
     assert resp.get_json() == {"ok": True}
 
     row = db.execute("SELECT status, decyzja FROM ebr_etap_sesja WHERE id = ?", (sesja_id,)).fetchone()
-    assert row["status"] == "ok"
-    assert row["decyzja"] == "przejscie"
+    assert row["status"] == "zamkniety"
+    assert row["decyzja"] == "zamknij_etap"
 
 
-def test_close_sesja_korekta(lab_client, db):
-    """Closes session with decyzja='korekta', status becomes 'oczekuje_korekty'."""
+def test_close_sesja_reopen(lab_client, db):
+    """Closes session with decyzja='reopen_etap', status becomes 'w_trakcie'."""
     _, ebr_id = _seed_ebr(db)
     etap_id = _seed_pipeline_etap(db)
 
@@ -816,12 +816,12 @@ def test_close_sesja_korekta(lab_client, db):
 
     resp = lab_client.post(
         f"/api/pipeline/lab/ebr/{ebr_id}/etap/{etap_id}/close",
-        json={"sesja_id": sesja_id, "decyzja": "korekta"},
+        json={"sesja_id": sesja_id, "decyzja": "reopen_etap"},
     )
     assert resp.status_code == 200
 
     row = db.execute("SELECT status FROM ebr_etap_sesja WHERE id = ?", (sesja_id,)).fetchone()
-    assert row["status"] == "oczekuje_korekty"
+    assert row["status"] == "w_trakcie"
 
 
 # ---------------------------------------------------------------------------

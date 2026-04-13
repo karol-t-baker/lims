@@ -127,7 +127,7 @@ def _build_pole(param: dict, db: sqlite3.Connection) -> dict:
         "min_limit":        param["min_limit"],
         "max_limit":        param["max_limit"],
         "precision":        param["precision"],
-        "target":           param["target"],
+        "target":           param["spec_value"],
         "grupa":            param["grupa"] or "lab",
     }
 
@@ -356,9 +356,9 @@ def pipeline_dual_write(db, ebr_id, sekcja, values, wpisal):
     if etap_id is None:
         return None
 
-    # Find active session (latest w_trakcie for this stage)
+    # Find active session (latest nierozpoczety or w_trakcie for this stage)
     sesje = list_sesje(db, ebr_id, etap_id=etap_id)
-    active = [s for s in sesje if s["status"] == "w_trakcie"]
+    active = [s for s in sesje if s["status"] in ("nierozpoczety", "w_trakcie")]
     if not active:
         return None
     sesja = active[-1]

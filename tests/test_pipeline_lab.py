@@ -98,7 +98,7 @@ def test_create_sesja_and_get(setup_pipeline, db):
     sesja = get_sesja(db, sesja_id)
     assert sesja is not None
     assert sesja["runda"] == 1
-    assert sesja["status"] == "w_trakcie"
+    assert sesja["status"] == "nierozpoczety"
     assert sesja["laborant"] == "Jan"
     assert sesja["ebr_id"] == ctx["ebr_id"]
     assert sesja["etap_id"] == ctx["etap1"]
@@ -257,26 +257,26 @@ def test_evaluate_gate_no_warunki(setup_pipeline, db):
 # close_sesja tests
 # ---------------------------------------------------------------------------
 
-def test_close_sesja_przejscie(setup_pipeline, db):
+def test_close_sesja_zamknij(setup_pipeline, db):
     ctx = setup_pipeline
     sesja_id = create_sesja(db, ctx["ebr_id"], ctx["etap1"])
-    close_sesja(db, sesja_id, decyzja="przejscie")
+    close_sesja(db, sesja_id, decyzja="zamknij_etap")
 
     sesja = get_sesja(db, sesja_id)
-    assert sesja["status"] == "ok"
+    assert sesja["status"] == "zamkniety"
     assert sesja["dt_end"] is not None
-    assert sesja["decyzja"] == "przejscie"
+    assert sesja["decyzja"] == "zamknij_etap"
 
 
-def test_close_sesja_korekta(setup_pipeline, db):
+def test_close_sesja_reopen(setup_pipeline, db):
     ctx = setup_pipeline
     sesja_id = create_sesja(db, ctx["ebr_id"], ctx["etap1"])
-    close_sesja(db, sesja_id, decyzja="korekta")
+    close_sesja(db, sesja_id, decyzja="reopen_etap")
 
     sesja = get_sesja(db, sesja_id)
-    assert sesja["status"] == "oczekuje_korekty"
+    assert sesja["status"] == "w_trakcie"
     assert sesja["dt_end"] is not None
-    assert sesja["decyzja"] == "korekta"
+    assert sesja["decyzja"] == "reopen_etap"
 
 
 # ---------------------------------------------------------------------------
@@ -367,8 +367,8 @@ def test_init_pipeline_sesje_no_pipeline(db):
 
 def test_multi_round_flow(setup_pipeline, db):
     """
-    Round 1: measure so3=0.15 (fail), close korekta, add korekta, execute korekta.
-    Round 2: measure so3=0.05 (pass), close przejscie.
+    Round 1: measure so3=0.15 (fail), close stage, add korekta, execute korekta.
+    Round 2: measure so3=0.05 (pass), close stage.
     """
     ctx = setup_pipeline
     ebr_id = ctx["ebr_id"]
@@ -379,9 +379,9 @@ def test_multi_round_flow(setup_pipeline, db):
     gate1 = evaluate_gate(db, ctx["etap1"], s1)
     assert gate1["passed"] is False
 
-    close_sesja(db, s1, decyzja="korekta")
+    close_sesja(db, s1, decyzja="zamknij_etap")
     sesja1 = get_sesja(db, s1)
-    assert sesja1["status"] == "oczekuje_korekty"
+    assert sesja1["status"] == "zamkniety"
 
     # Add and execute korekta
     k_id = create_ebr_korekta(db, s1, ctx["korekta_typ_id"], ilosc=3.0, zalecil="Jan")
@@ -395,9 +395,9 @@ def test_multi_round_flow(setup_pipeline, db):
     gate2 = evaluate_gate(db, ctx["etap1"], s2)
     assert gate2["passed"] is True
 
-    close_sesja(db, s2, decyzja="przejscie")
+    close_sesja(db, s2, decyzja="zamknij_etap")
     sesja2 = get_sesja(db, s2)
-    assert sesja2["status"] == "ok"
+    assert sesja2["status"] == "zamkniety"
 
     # Two sessions for etap1
     sesje = list_sesje(db, ebr_id, etap_id=ctx["etap1"])

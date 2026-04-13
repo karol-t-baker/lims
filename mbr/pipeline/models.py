@@ -73,7 +73,7 @@ def deactivate_etap(db: sqlite3.Connection, etap_id: int) -> None:
 
 _EP_ALLOWED_FIELDS = {
     "kolejnosc", "min_limit", "max_limit", "nawazka_g", "precision",
-    "target", "wymagany", "grupa", "formula", "sa_bias", "krok",
+    "spec_value", "wymagany", "grupa", "formula", "sa_bias", "krok",
 }
 
 
@@ -107,7 +107,7 @@ def list_etap_parametry(db: sqlite3.Connection, etap_id: int) -> list[dict]:
         SELECT
             ep.id, ep.etap_id, ep.parametr_id, ep.kolejnosc,
             ep.min_limit, ep.max_limit, ep.nawazka_g, ep.precision,
-            ep.target, ep.wymagany, ep.grupa, ep.formula, ep.sa_bias, ep.krok,
+            ep.spec_value, ep.wymagany, ep.grupa, ep.formula, ep.sa_bias, ep.krok,
             pa.kod, pa.label, pa.typ, pa.skrot, pa.jednostka,
             pa.metoda_id, pa.metoda_nazwa, pa.metoda_formula, pa.metoda_factor
         FROM etap_parametry ep
@@ -268,7 +268,7 @@ def reorder_pipeline(db: sqlite3.Connection, produkt: str, etap_ids: list[int]) 
 # Task 3: produkt_etap_limity CRUD
 # ---------------------------------------------------------------------------
 
-_PEL_ALLOWED_FIELDS = {"min_limit", "max_limit", "nawazka_g", "precision", "target"}
+_PEL_ALLOWED_FIELDS = {"min_limit", "max_limit", "nawazka_g", "precision", "spec_value"}
 
 
 def set_produkt_etap_limit(
@@ -316,7 +316,7 @@ def get_produkt_etap_limity(
         """
         SELECT
             pel.id, pel.produkt, pel.etap_id, pel.parametr_id,
-            pel.min_limit, pel.max_limit, pel.nawazka_g, pel.precision, pel.target,
+            pel.min_limit, pel.max_limit, pel.nawazka_g, pel.precision, pel.spec_value,
             pa.kod, pa.label
         FROM produkt_etap_limity pel
         JOIN parametry_analityczne pa ON pa.id = pel.parametr_id
@@ -393,12 +393,11 @@ def close_sesja(db: sqlite3.Connection, sesja_id: int, decyzja: str,
     """Close a session.
 
     decyzja:
-      'przejscie'            => status='ok' (gate passed, move to next stage)
-      'korekta'              => status='oczekuje_korekty' (needs correction + re-analysis)
-      'korekta_i_przejscie'  => status='ok' (small correction, no re-analysis, note in komentarz)
+      'zamknij_etap'  => status='zamkniety' (operator closes the stage)
+      'reopen_etap'   => status='w_trakcie' (operator re-opens the stage)
     """
     now = datetime.now().isoformat(timespec="seconds")
-    status = "ok" if decyzja in ("przejscie", "korekta_i_przejscie") else "oczekuje_korekty"
+    status = "zamkniety" if decyzja == "zamknij_etap" else "w_trakcie"
     db.execute(
         """UPDATE ebr_etap_sesja
            SET status = ?, decyzja = ?, dt_end = ?, komentarz = COALESCE(?, komentarz)
@@ -642,12 +641,12 @@ def resolve_limity(db: sqlite3.Connection, produkt: str, etap_id: int) -> list[d
             ep.id AS ep_id, ep.parametr_id, ep.kolejnosc,
             ep.min_limit  AS cat_min, ep.max_limit  AS cat_max,
             ep.nawazka_g  AS cat_nawazka, ep.precision AS cat_precision,
-            ep.target     AS cat_target,
+            ep.spec_value AS cat_spec_value,
             ep.wymagany, ep.grupa, ep.formula, ep.sa_bias, ep.krok,
             pa.kod, pa.label, pa.typ, pa.skrot, pa.jednostka,
             pel.min_limit  AS ovr_min, pel.max_limit  AS ovr_max,
             pel.nawazka_g  AS ovr_nawazka, pel.precision AS ovr_precision,
-            pel.target     AS ovr_target
+            pel.spec_value AS ovr_spec_value
         FROM etap_parametry ep
         JOIN parametry_analityczne pa ON pa.id = ep.parametr_id
         LEFT JOIN produkt_etap_limity pel
@@ -675,7 +674,7 @@ def resolve_limity(db: sqlite3.Connection, produkt: str, etap_id: int) -> list[d
             "max_limit": r["ovr_max"] if r["ovr_max"] is not None else r["cat_max"],
             "nawazka_g": r["ovr_nawazka"] if r["ovr_nawazka"] is not None else r["cat_nawazka"],
             "precision": r["ovr_precision"] if r["ovr_precision"] is not None else r["cat_precision"],
-            "target": r["ovr_target"] if r["ovr_target"] is not None else r["cat_target"],
+            "spec_value": r["ovr_spec_value"] if r["ovr_spec_value"] is not None else r["cat_spec_value"],
             "wymagany": r["wymagany"],
             "grupa": r["grupa"],
             "formula": r["formula"],

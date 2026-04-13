@@ -397,6 +397,57 @@ def test_resolve_limity_partial_override(db):
 # Task 5: Migration Script — parametry_etapy -> pipeline tables
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Tasks 1-3: DB Schema changes for operator-driven analytical stages
+# ---------------------------------------------------------------------------
+
+def test_ebr_korekta_zlecenie_table_exists(db):
+    """ebr_korekta_zlecenie table should exist after init."""
+    row = db.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='ebr_korekta_zlecenie'"
+    ).fetchone()
+    assert row is not None
+
+def test_ebr_korekta_v2_has_zlecenie_columns(db):
+    """ebr_korekta_v2 should have zlecenie_id and ilosc_wyliczona columns."""
+    info = db.execute("PRAGMA table_info(ebr_korekta_v2)").fetchall()
+    col_names = [r["name"] for r in info]
+    assert "zlecenie_id" in col_names
+    assert "ilosc_wyliczona" in col_names
+
+def test_etap_parametry_has_spec_value(db):
+    """etap_parametry should have spec_value column (not target)."""
+    info = db.execute("PRAGMA table_info(etap_parametry)").fetchall()
+    col_names = [r["name"] for r in info]
+    assert "spec_value" in col_names
+    assert "target" not in col_names
+
+def test_produkt_etap_limity_has_spec_value(db):
+    """produkt_etap_limity should have spec_value column (not target)."""
+    info = db.execute("PRAGMA table_info(produkt_etap_limity)").fetchall()
+    col_names = [r["name"] for r in info]
+    assert "spec_value" in col_names
+    assert "target" not in col_names
+
+def test_ebr_etap_sesja_accepts_new_statuses(db):
+    """ebr_etap_sesja should accept nierozpoczety, w_trakcie, zamkniety statuses."""
+    db.execute("INSERT INTO etapy_analityczne (kod, nazwa, typ_cyklu) VALUES ('test_ea','Test','jednorazowy')")
+    db.execute("""INSERT INTO mbr_templates (mbr_id, produkt, wersja, dt_utworzenia)
+                  VALUES (99, 'TEST', 1, '2026-01-01')""")
+    db.execute("""INSERT INTO ebr_batches (ebr_id, mbr_id, batch_id, nr_partii, dt_start)
+                  VALUES (99, 99, 'TST-99', '1/2026', '2026-01-01')""")
+    etap_id = db.execute("SELECT id FROM etapy_analityczne WHERE kod='test_ea'").fetchone()["id"]
+
+    for status in ("nierozpoczety", "w_trakcie", "zamkniety"):
+        db.execute(
+            "INSERT INTO ebr_etap_sesja (ebr_id, etap_id, runda, status) VALUES (?,?,?,?)",
+            (99, etap_id, 1, status),
+        )
+        # clean up for next iteration
+        db.execute("DELETE FROM ebr_etap_sesja WHERE ebr_id=99 AND etap_id=? AND runda=1", (etap_id,))
+    assert True  # no IntegrityError
+
+
 from scripts.migrate_parametry_etapy import migrate_parametry_etapy
 
 

@@ -516,7 +516,7 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             max_limit       REAL,
             nawazka_g       REAL,
             precision       INTEGER,
-            target          REAL,
+            spec_value      REAL,
             wymagany        INTEGER DEFAULT 0,
             grupa           TEXT DEFAULT 'lab',
             formula         TEXT,
@@ -544,7 +544,7 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             max_limit       REAL,
             nawazka_g       REAL,
             precision       INTEGER,
-            target          REAL,
+            spec_value      REAL,
             UNIQUE(produkt, etap_id, parametr_id)
         )
     """)
@@ -580,12 +580,12 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             ebr_id          INTEGER NOT NULL REFERENCES ebr_batches(ebr_id),
             etap_id         INTEGER NOT NULL REFERENCES etapy_analityczne(id),
             runda           INTEGER NOT NULL DEFAULT 1,
-            status          TEXT NOT NULL DEFAULT 'w_trakcie'
-                            CHECK(status IN ('w_trakcie', 'ok', 'poza_limitem', 'oczekuje_korekty')),
+            status          TEXT NOT NULL DEFAULT 'nierozpoczety'
+                            CHECK(status IN ('nierozpoczety', 'w_trakcie', 'zamkniety')),
             dt_start        TEXT,
             dt_end          TEXT,
             laborant        TEXT,
-            decyzja         TEXT CHECK(decyzja IN ('przejscie', 'korekta', 'korekta_i_przejscie')),
+            decyzja         TEXT CHECK(decyzja IN ('zamknij_etap', 'reopen_etap')),
             komentarz       TEXT,
             UNIQUE(ebr_id, etap_id, runda)
         )
@@ -619,6 +619,24 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
                             CHECK(status IN ('zalecona', 'wykonana', 'anulowana'))
         )
     """)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS ebr_korekta_zlecenie (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            sesja_id        INTEGER NOT NULL REFERENCES ebr_etap_sesja(id),
+            zalecil         TEXT NOT NULL,
+            dt_zalecenia    TEXT NOT NULL DEFAULT (datetime('now')),
+            dt_wykonania    TEXT,
+            status          TEXT NOT NULL DEFAULT 'zalecona'
+                            CHECK(status IN ('zalecona', 'wykonana', 'anulowana')),
+            komentarz       TEXT
+        )
+    """)
+    for col, typ in [("zlecenie_id", "INTEGER REFERENCES ebr_korekta_zlecenie(id)"),
+                     ("ilosc_wyliczona", "REAL")]:
+        try:
+            db.execute(f"ALTER TABLE ebr_korekta_v2 ADD COLUMN {col} {typ}")
+        except sqlite3.OperationalError:
+            pass
     db.execute("""
         CREATE TABLE IF NOT EXISTS audit_log (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -657,6 +675,22 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
         "ON ebr_uwagi_history(ebr_id, dt DESC)"
     )
     db.commit()
+
+    # Migration: rename target → spec_value in pipeline tables
+    for table in ("etap_parametry", "produkt_etap_limity"):
+        info = db.execute(f"PRAGMA table_info({table})").fetchall()
+        col_names = [r[1] for r in info]
+        if "target" in col_names and "spec_value" not in col_names:
+            db.execute(f"ALTER TABLE {table} RENAME COLUMN target TO spec_value")
+    db.commit()
+
+    # Migration: update ebr_etap_sesja status values from old gate-driven to operator-driven
+    row = db.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='ebr_etap_sesja'"
+    ).fetchone()
+    if row and "oczekuje_korekty" in (row[0] or ""):
+        db.execute("UPDATE ebr_etap_sesja SET status='w_trakcie' WHERE status IN ('ok','poza_limitem','oczekuje_korekty')")
+        db.commit()
 
     # Migration: add actor_name to audit_log_actors + backfill from workers
     try:
@@ -1095,15 +1129,18 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     """)
     db.commit()
 
-    # Migration: add korekta_i_przejscie to ebr_etap_sesja.decyzja CHECK
+    # Migration: rebuild ebr_etap_sesja to operator-driven statuses + decisions
     try:
-        db.execute("INSERT INTO ebr_etap_sesja (ebr_id,etap_id,runda,decyzja) VALUES (0,0,0,'korekta_i_przejscie')")
-        db.execute("DELETE FROM ebr_etap_sesja WHERE ebr_id=0 AND etap_id=0 AND runda=0")
-        db.commit()
-    except Exception:
-        # CHECK already allows it (fresh DB) or needs recreate
-        try:
-            db.rollback()
+        row = db.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='ebr_etap_sesja'"
+        ).fetchone()
+        old_sql = row[0] or "" if row else ""
+        needs_rebuild = ("oczekuje_korekty" in old_sql or "korekta_i_przejscie" in old_sql
+                         or "przejscie" in old_sql)
+        if needs_rebuild:
+            # Map old statuses to new ones before rebuild
+            db.execute("UPDATE ebr_etap_sesja SET status='w_trakcie' WHERE status IN ('ok','poza_limitem','oczekuje_korekty')")
+            db.execute("UPDATE ebr_etap_sesja SET decyzja=NULL WHERE decyzja IN ('przejscie','korekta','korekta_i_przejscie')")
             db.executescript("""
                 ALTER TABLE ebr_etap_sesja RENAME TO _ebr_etap_sesja_old;
                 CREATE TABLE ebr_etap_sesja (
@@ -1111,18 +1148,18 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
                     ebr_id   INTEGER NOT NULL REFERENCES ebr_batches(ebr_id),
                     etap_id  INTEGER NOT NULL REFERENCES etapy_analityczne(id),
                     runda    INTEGER NOT NULL DEFAULT 1,
-                    status   TEXT NOT NULL DEFAULT 'w_trakcie'
-                             CHECK(status IN ('w_trakcie','ok','poza_limitem','oczekuje_korekty')),
+                    status   TEXT NOT NULL DEFAULT 'nierozpoczety'
+                             CHECK(status IN ('nierozpoczety','w_trakcie','zamkniety')),
                     dt_start TEXT, dt_end TEXT, laborant TEXT,
-                    decyzja  TEXT CHECK(decyzja IN ('przejscie','korekta','korekta_i_przejscie')),
+                    decyzja  TEXT CHECK(decyzja IN ('zamknij_etap','reopen_etap')),
                     komentarz TEXT,
                     UNIQUE(ebr_id, etap_id, runda)
                 );
                 INSERT INTO ebr_etap_sesja SELECT * FROM _ebr_etap_sesja_old;
                 DROP TABLE _ebr_etap_sesja_old;
             """)
-        except Exception:
-            pass
+    except Exception:
+        pass
 
     # Migration: rename h2o2 skrót → %Perh., add nadtlenki parameter,
     # replace h2o2 with nadtlenki in analiza_koncowa for betaine products
