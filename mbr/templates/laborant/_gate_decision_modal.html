@@ -1,0 +1,239 @@
+{# Gate decision modal — shows pass/fail options from etap_decyzje #}
+<script>
+// ═══ GATE DECISION MODAL ═══
+
+window._pipelineDecyzje = {};
+
+function showGateDecisionModal(sekcja, gate, decyzje, sesjaId, etapId) {
+    // Remove any existing modal
+    var old = document.getElementById('gate-decision-modal');
+    if (old) old.remove();
+
+    var ebrIdVal = window.ebrId || (document.querySelector('[data-ebr-id]') || {}).dataset && document.querySelector('[data-ebr-id]').dataset.ebrId;
+    var passed = gate && gate.passed;
+
+    var html = '<div id="gate-decision-modal" style="position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;">';
+    html += '<div style="background:var(--surface, #fff);border-radius:10px;padding:20px 24px;min-width:380px;max-width:540px;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.3);">';
+
+    if (passed) {
+        // ── PASS ──
+        html += '<div style="font-size:15px;font-weight:700;color:var(--green, #16a34a);margin-bottom:14px;">&#10003; Bramka spełniona</div>';
+
+        var passOpts = (decyzje && decyzje.decyzje_pass) ? decyzje.decyzje_pass : [];
+        if (passOpts.length === 0) {
+            // Fallback: single "przejście" button
+            passOpts = [{kod: 'przejscie', label: 'Zatwierdź i przejdź dalej', akcja: 'next_stage', wymaga_komentarza: 0}];
+        }
+        html += _renderDecisionButtons(passOpts, sesjaId, etapId, sekcja);
+
+    } else {
+        // ── FAIL ──
+        html += '<div style="font-size:15px;font-weight:700;color:var(--red, #dc2626);margin-bottom:14px;">&#9888; Bramka niespełniona</div>';
+
+        // Failure summary table
+        var failures = (gate && gate.failures) ? gate.failures : [];
+        if (failures.length > 0) {
+            html += '<table style="width:100%;font-size:12px;border-collapse:collapse;margin-bottom:14px;">';
+            html += '<thead><tr style="border-bottom:1px solid var(--border, #e5e7eb);">';
+            html += '<th style="text-align:left;padding:4px 6px;color:var(--muted, #6b7280);">Parametr</th>';
+            html += '<th style="text-align:right;padding:4px 6px;color:var(--muted, #6b7280);">Wynik</th>';
+            html += '<th style="text-align:right;padding:4px 6px;color:var(--muted, #6b7280);">Limit</th>';
+            html += '<th style="text-align:right;padding:4px 6px;color:var(--muted, #6b7280);">Edycja</th>';
+            html += '</tr></thead><tbody>';
+
+            failures.forEach(function(f) {
+                var w = f.warunek || {};
+                var wynikText = '';
+                if (f.reason === 'brak_pomiaru') {
+                    wynikText = '<em style="color:var(--muted, #6b7280);">brak</em>';
+                } else if (f.reason && f.reason.indexOf('warunek_niespelniony') === 0) {
+                    var parts = f.reason.split(': ');
+                    wynikText = parts.length > 1 ? parts[1].split(' ')[0] : '—';
+                } else {
+                    wynikText = '—';
+                }
+
+                var limitStr = (w.operator || '') + ' ' + (w.wartosc != null ? String(w.wartosc).replace('.', ',') : '—');
+
+                // Find pe_id for this parameter's kod from the cached parametry
+                var peId = _findPeIdForKod(f.kod, etapId);
+
+                html += '<tr style="border-bottom:1px solid var(--border, #e5e7eb);">';
+                html += '<td style="padding:4px 6px;font-weight:600;">' + (f.kod || '?') + '</td>';
+                html += '<td style="padding:4px 6px;text-align:right;font-family:var(--mono, monospace);color:var(--red, #dc2626);">' + wynikText + '</td>';
+                html += '<td style="padding:4px 6px;text-align:right;font-family:var(--mono, monospace);">' + limitStr + '</td>';
+                html += '<td style="padding:4px 6px;text-align:right;">';
+                if (peId) {
+                    html += '<input type="number" step="any" value="' + (w.wartosc != null ? w.wartosc : '') + '" ' +
+                        'data-pe-id="' + peId + '" ' +
+                        'style="width:70px;text-align:right;font-family:var(--mono, monospace);font-size:12px;border:1px solid var(--border, #e5e7eb);border-radius:3px;padding:2px 4px;" ' +
+                        'onchange="reEvaluateThreshold(this,\'' + sekcja + '\',' + sesjaId + ',' + etapId + ')">';
+                } else {
+                    html += '—';
+                }
+                html += '</td></tr>';
+            });
+            html += '</tbody></table>';
+        }
+
+        var failOpts = (decyzje && decyzje.decyzje_fail) ? decyzje.decyzje_fail : [];
+        if (failOpts.length === 0) {
+            // Fallback: basic options
+            failOpts = [
+                {kod: 'new_round', label: 'Nowa runda', akcja: 'new_round', wymaga_komentarza: 0},
+                {kod: 'release_comment', label: 'Zwolnij z komentarzem', akcja: 'release', wymaga_komentarza: 1}
+            ];
+        }
+        html += _renderDecisionButtons(failOpts, sesjaId, etapId, sekcja);
+    }
+
+    // Cancel button
+    html += '<div style="margin-top:12px;text-align:center;">';
+    html += '<button onclick="closeGateDecisionModal()" style="background:none;border:1px solid var(--border, #e5e7eb);border-radius:6px;padding:6px 18px;font-size:12px;cursor:pointer;color:var(--muted, #6b7280);">Anuluj</button>';
+    html += '</div>';
+
+    html += '</div></div>';
+
+    document.body.insertAdjacentHTML('beforeend', html);
+
+    // Close on backdrop click
+    document.getElementById('gate-decision-modal').addEventListener('click', function(e) {
+        if (e.target === this) closeGateDecisionModal();
+    });
+}
+
+function _renderDecisionButtons(options, sesjaId, etapId, sekcja) {
+    var colorMap = {
+        'new_round': 'var(--amber, #f59e0b)',
+        'release': 'var(--green, #16a34a)',
+        'close': 'var(--red, #dc2626)',
+        'next_stage': 'var(--teal, #0d9488)',
+        'skip_to_next': 'var(--blue, #2563eb)'
+    };
+
+    var html = '<div style="display:flex;flex-direction:column;gap:10px;">';
+    options.forEach(function(opt) {
+        var color = colorMap[opt.akcja] || 'var(--teal, #0d9488)';
+        var textareaId = 'gdm-comment-' + opt.kod;
+
+        if (opt.wymaga_komentarza) {
+            html += '<div>';
+            html += '<textarea id="' + textareaId + '" placeholder="Komentarz (wymagany)" rows="2" ' +
+                'style="width:100%;font-size:12px;border:1px solid var(--border, #e5e7eb);border-radius:4px;padding:6px 8px;margin-bottom:6px;box-sizing:border-box;"></textarea>';
+            html += '</div>';
+        }
+
+        html += '<button onclick="executeDecision(\'' + opt.kod + '\',\'' + opt.akcja + '\',' + (opt.wymaga_komentarza ? 1 : 0) + ',' + sesjaId + ',' + etapId + ',\'' + sekcja + '\')" ' +
+            'style="padding:8px 16px;font-size:13px;font-weight:600;border:none;border-radius:6px;cursor:pointer;' +
+            'background:' + color + ';color:#fff;transition:opacity .15s;" ' +
+            'onmouseenter="this.style.opacity=\'0.85\'" onmouseleave="this.style.opacity=\'1\'">' +
+            (opt.label || opt.kod) + '</button>';
+    });
+    html += '</div>';
+    return html;
+}
+
+function _findPeIdForKod(kod, etapId) {
+    // Try to find pe_id from cached parametry data
+    if (window._cachedEtapParametry && window._cachedEtapParametry[etapId]) {
+        var params = window._cachedEtapParametry[etapId];
+        for (var i = 0; i < params.length; i++) {
+            if (params[i].kod === kod) return params[i].pe_id || params[i].ep_id;
+        }
+    }
+    return null;
+}
+
+function closeGateDecisionModal() {
+    var modal = document.getElementById('gate-decision-modal');
+    if (modal) modal.remove();
+}
+
+async function executeDecision(kod, akcja, wymagaKomentarza, sesjaId, etapId, sekcja) {
+    var komentarz = '';
+    if (wymagaKomentarza) {
+        var textarea = document.getElementById('gdm-comment-' + kod);
+        if (textarea) {
+            komentarz = textarea.value.trim();
+            if (!komentarz) {
+                textarea.style.border = '2px solid var(--red, #dc2626)';
+                textarea.focus();
+                return;
+            }
+        }
+    }
+
+    var ebrIdVal = window.ebrId || (document.querySelector('[data-ebr-id]') || {}).dataset && document.querySelector('[data-ebr-id]').dataset.ebrId;
+
+    try {
+        var resp = await fetch('/api/pipeline/lab/ebr/' + ebrIdVal + '/etap/' + etapId + '/close', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                sesja_id: sesjaId,
+                decyzja: kod,
+                komentarz: komentarz || null
+            })
+        });
+
+        if (!resp.ok) {
+            var errData = await resp.json().catch(function() { return {}; });
+            alert('Błąd: ' + (errData.error || resp.statusText));
+            return;
+        }
+
+        closeGateDecisionModal();
+        location.reload();
+    } catch(e) {
+        alert('Błąd połączenia: ' + e.message);
+    }
+}
+
+async function reEvaluateThreshold(input, sekcja, sesjaId, etapId) {
+    var peId = input.dataset.peId;
+    var newVal = parseFloat(input.value);
+    if (!peId || isNaN(newVal)) return;
+
+    var ebrIdVal = window.ebrId || (document.querySelector('[data-ebr-id]') || {}).dataset && document.querySelector('[data-ebr-id]').dataset.ebrId;
+
+    try {
+        // PATCH the threshold (Global Edit)
+        var patchResp = await fetch('/api/pipeline/lab/parametry-etapy/' + peId, {
+            method: 'PATCH',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({max_limit: newVal})
+        });
+
+        if (patchResp.ok) {
+            input.style.outline = '2px solid var(--green, #16a34a)';
+            setTimeout(function() { input.style.outline = ''; }, 1500);
+        } else {
+            input.style.outline = '2px solid var(--red, #dc2626)';
+            return;
+        }
+
+        // Re-evaluate gate by posting empty pomiary
+        var evalResp = await fetch('/api/pipeline/lab/ebr/' + ebrIdVal + '/etap/' + etapId + '/pomiary', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({sesja_id: sesjaId, pomiary: []})
+        });
+
+        if (evalResp.ok) {
+            var data = await evalResp.json();
+            if (data.gate) {
+                // Close old modal, show updated one
+                closeGateDecisionModal();
+                var decyzje = window._pipelineDecyzje[etapId] || {};
+                showGateDecisionModal(sekcja, data.gate, decyzje, sesjaId, etapId);
+
+                // Also update the banner behind the modal
+                window._lastGate = data.gate;
+                renderGateBanner(sekcja, data.gate);
+            }
+        }
+    } catch(e) {
+        input.style.outline = '2px solid var(--red, #dc2626)';
+    }
+}
+</script>

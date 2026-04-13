@@ -1,4 +1,5 @@
 {# Partial: fast entry content loaded via AJAX — no base.html wrapper #}
+{% include "laborant/_gate_decision_modal.html" %}
 
 <div id="detail-topbar">
   <span class="tp-t">
@@ -1152,12 +1153,23 @@ function renderStageDecisionPanel(container, sekcja, activeEtap) {
 
     var etapId = activeEtap.pipeline_etap_id;
 
-    // Fetch current sesja_id, then render operator decision panel
+    // Fetch current sesja_id + cache decyzje, then render operator decision panel
     fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + etapId).then(function(resp) {
         return resp.ok ? resp.json() : null;
     }).then(function(data) {
         var sesjaId = data && data.current_sesja ? data.current_sesja.id : null;
         if (!sesjaId && window._lastGate) sesjaId = window._lastGate.sesja_id;
+
+        // Cache decisions and parametry for the gate modal
+        if (data) {
+            window._pipelineDecyzje[etapId] = {
+                decyzje_pass: data.decyzje_pass || [],
+                decyzje_fail: data.decyzje_fail || []
+            };
+            if (data.parametry) {
+                window._cachedEtapParametry[etapId] = data.parametry;
+            }
+        }
 
         var newPanel = renderOperatorDecisionPanel(sekcja, etapId, sesjaId || 0);
         panel.innerHTML = newPanel.innerHTML;
@@ -2844,7 +2856,7 @@ function renderGateBanner(sekcja, gate) {
                 '<button class="btn-secondary" onclick="openSmallCorrectionDialog()">Mała korekta + przepompuj</button>';
         } else {
             buttonsHtml =
-                '<button class="btn-success" onclick="closePipelineStage(\'' + sekcja + '\')">Zatwierdź etap &rarr;</button>';
+                '<button class="btn-success" onclick="_openGateModal(\'' + sekcja + '\')">Zatwierdź etap &rarr;</button>';
         }
 
         banner.innerHTML =
@@ -2860,6 +2872,9 @@ function renderGateBanner(sekcja, gate) {
         banner.innerHTML =
             '<div class="decision-bar" style="background:var(--red-bg, #fef2f2);border:1px solid var(--red);border-radius:8px;padding:12px 16px;margin-top:12px;">' +
                 '<span style="color:var(--red);font-weight:600;font-size:13px;">&#9888; Warunek niespełniony: ' + failList + '</span>' +
+                '<div style="margin-top:8px;">' +
+                    '<button class="btn-secondary" onclick="_openGateModal(\'' + sekcja + '\')" style="font-size:12px;padding:6px 14px;">Opcje decyzji&hellip;</button>' +
+                '</div>' +
                 '<div id="correction-panel-' + sekcja + '" style="margin-top:10px;">' +
                     '<div style="color:var(--text-dim);font-size:11px;">Ładowanie korekt...</div>' +
                 '</div>' +
@@ -2869,6 +2884,56 @@ function renderGateBanner(sekcja, gate) {
             loadCorrectionPanel(sekcja, gate);
         }
     }
+}
+
+// Helper to open the gate decision modal with current state
+window._cachedEtapParametry = {};
+
+async function _openGateModal(sekcja) {
+    var gate = window._lastGate;
+    if (!gate) return;
+
+    var etapId = gate.etap_id;
+    var sesjaId = gate.sesja_id;
+
+    // If missing etap_id/sesja_id, try to find from etapy array
+    if (!etapId) {
+        var baseSekcja = sekcja.split('__')[0];
+        var activeEtap = etapy.find(function(e) {
+            return e.pipeline_etap_id && e.sekcja_lab === baseSekcja;
+        });
+        if (activeEtap) etapId = activeEtap.pipeline_etap_id;
+    }
+    if (!etapId) { closePipelineStage(sekcja); return; }
+
+    // Fetch decyzje + parametry if not cached
+    if (!window._pipelineDecyzje[etapId]) {
+        try {
+            var resp = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + etapId);
+            if (resp.ok) {
+                var data = await resp.json();
+                window._pipelineDecyzje[etapId] = {
+                    decyzje_pass: data.decyzje_pass || [],
+                    decyzje_fail: data.decyzje_fail || []
+                };
+                window._cachedEtapParametry[etapId] = data.parametry || [];
+                if (!sesjaId && data.current_sesja) sesjaId = data.current_sesja.id;
+            }
+        } catch(e) {}
+    }
+
+    if (!sesjaId) { closePipelineStage(sekcja); return; }
+
+    var decyzje = window._pipelineDecyzje[etapId] || {};
+
+    // If no decision options configured, fall back to legacy closePipelineStage
+    if ((!decyzje.decyzje_pass || decyzje.decyzje_pass.length === 0) &&
+        (!decyzje.decyzje_fail || decyzje.decyzje_fail.length === 0)) {
+        closePipelineStage(sekcja);
+        return;
+    }
+
+    showGateDecisionModal(sekcja, gate, decyzje, sesjaId, etapId);
 }
 
 function evalCorrectionFormula(formulaStr, sekcja, korekta) {
