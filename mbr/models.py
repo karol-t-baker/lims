@@ -1158,6 +1158,33 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
                 INSERT INTO ebr_etap_sesja SELECT * FROM _ebr_etap_sesja_old;
                 DROP TABLE _ebr_etap_sesja_old;
             """)
+            # Rebuild tables whose FKs now point to the old renamed table
+            for tbl, ddl in [
+                ("ebr_korekta_zlecenie", """CREATE TABLE ebr_korekta_zlecenie (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    sesja_id INTEGER NOT NULL REFERENCES ebr_etap_sesja(id),
+                    zalecil TEXT NOT NULL, dt_zalecenia TEXT NOT NULL,
+                    dt_wykonania TEXT,
+                    status TEXT NOT NULL DEFAULT 'zalecona' CHECK(status IN ('zalecona','wykonana','anulowana')),
+                    komentarz TEXT)"""),
+                ("ebr_korekta_v2", """CREATE TABLE ebr_korekta_v2 (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    sesja_id INTEGER NOT NULL REFERENCES ebr_etap_sesja(id),
+                    korekta_typ_id INTEGER NOT NULL REFERENCES etap_korekty_katalog(id),
+                    ilosc REAL, zalecil TEXT, wykonawca_info TEXT,
+                    dt_zalecenia TEXT, dt_wykonania TEXT,
+                    status TEXT NOT NULL DEFAULT 'zalecona' CHECK(status IN ('zalecona','wykonana','anulowana')),
+                    zlecenie_id INTEGER REFERENCES ebr_korekta_zlecenie(id),
+                    ilosc_wyliczona REAL)"""),
+            ]:
+                fks = db.execute(f"PRAGMA foreign_key_list({tbl})").fetchall()
+                if any("_old" in str(fk) for fk in fks):
+                    db.executescript(f"""
+                        ALTER TABLE {tbl} RENAME TO _{tbl}_fk_fix;
+                        {ddl};
+                        INSERT INTO {tbl} SELECT * FROM _{tbl}_fk_fix;
+                        DROP TABLE _{tbl}_fk_fix;
+                    """)
     except Exception:
         pass
 
