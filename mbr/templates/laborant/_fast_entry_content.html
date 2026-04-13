@@ -136,6 +136,13 @@
 .ped-grip:hover { opacity: 1; }
 .ped-row.dragging { opacity: 0.4; background: var(--teal-bg); }
 .ped-row.drag-over { border-top: 2px solid var(--teal); margin-top: -2px; }
+.ped-row.ped-header {
+  border: none; background: none; cursor: default; margin-bottom: 2px; padding: 4px 10px;
+  font-size: 9px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px;
+}
+.ped-row.ped-header:hover { background: none; }
+.ped-row.ped-header .ped-kod { font-family: var(--font); font-size: 9px; font-weight: 700; }
+.ped-row.ped-header .ped-label { font-size: 9px; color: var(--text-dim); }
 
 /* Add param row */
 .ped-add {
@@ -4470,6 +4477,18 @@ function renderParamEditor() {
   bound.sort(function(a, b) {
     return (_peBindingMap[a.id].kolejnosc || 0) - (_peBindingMap[b.id].kolejnosc || 0);
   });
+
+  // Column headers
+  html += '<div class="ped-row ped-header">' +
+    '<span style="width:20px;flex-shrink:0;"></span>' +
+    '<span style="width:18px;flex-shrink:0;"></span>' +
+    '<span class="ped-kod">Kod</span>' +
+    '<span class="ped-label">Nazwa</span>' +
+    '<span class="ped-typ">Typ</span>' +
+    '<span class="ped-lim" style="border:none;background:none;text-align:center;">Min</span>' +
+    '<span class="ped-lim" style="border:none;background:none;text-align:center;">Max</span>' +
+    '<span class="ped-prec" style="border:none;background:none;text-align:center;">Prec.</span>' +
+  '</div>';
 
   // Render bound params first (checked), then unbound (unchecked)
   var allSorted = bound.concat(unbound);
