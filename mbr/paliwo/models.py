@@ -18,8 +18,7 @@ STAWKA_DZIENNA = 15.68  # 345/22
 LIMIT_KM = 300
 
 GOTENBERG_URL = "http://localhost:3000"
-_TEMPLATE_PATH_1 = Path(__file__).resolve().parent.parent / "templates" / "paliwo_master.docx"
-_TEMPLATE_PATH_2 = Path(__file__).resolve().parent.parent / "templates" / "paliwo_master_2.docx"
+_TEMPLATE_PATH = Path(__file__).resolve().parent.parent / "templates" / "paliwo_temp.docx"
 
 MIESIACE = {
     1: 'styczeń', 2: 'luty', 3: 'marzec', 4: 'kwiecień',
@@ -152,8 +151,47 @@ def _build_person_context(osoba: dict, dni_urlopu: int, year: int, month: int, s
     return ctx
 
 
+def _hide_second_person(doc):
+    """Set font color to white for the second person's section.
+
+    The template has two identical halves. After rendering with same data,
+    find the midpoint (second occurrence of the rendered date string)
+    and set all runs from there onward to white (#FFFFFF).
+    """
+    from lxml import etree
+    WNS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+
+    # The first paragraph is always the date (data_wystawienia).
+    # Find its rendered text, then locate the second occurrence.
+    first_text = doc.paragraphs[0].text.strip() if doc.paragraphs else ''
+    start_idx = None
+    for i, para in enumerate(doc.paragraphs):
+        if i == 0:
+            continue
+        if para.text.strip() == first_text and first_text:
+            start_idx = i
+            break
+
+    if start_idx is None:
+        return
+
+    for para in doc.paragraphs[start_idx:]:
+        for run in para.runs:
+            rpr = run._element.find(f'{{{WNS}}}rPr')
+            if rpr is None:
+                rpr = etree.SubElement(run._element, f'{{{WNS}}}rPr')
+                run._element.insert(0, rpr)
+            color = rpr.find(f'{{{WNS}}}color')
+            if color is None:
+                color = etree.SubElement(rpr, f'{{{WNS}}}color')
+            color.set(f'{{{WNS}}}val', 'FFFFFF')
+
+
 def generate_pdf(osoby: list[dict], dni_list: list[int], year: int = None, month: int = None) -> bytes:
     """Generate fuel reimbursement PDF for 1 or 2 persons.
+
+    Uses single template (paliwo_temp.docx) with two person sections.
+    When only 1 person, fills second section with same data but white font.
 
     Args:
         osoby: list of 1 or 2 person dicts
@@ -169,16 +207,20 @@ def generate_pdf(osoby: list[dict], dni_list: list[int], year: int = None, month
     if month is None:
         month = today.month
 
-    if len(osoby) == 1:
-        template_path = _TEMPLATE_PATH_1
-        context = _build_person_context(osoby[0], dni_list[0], year, month)
-    else:
-        template_path = _TEMPLATE_PATH_2
-        context = _build_person_context(osoby[0], dni_list[0], year, month)
+    context = _build_person_context(osoby[0], dni_list[0], year, month)
+    if len(osoby) >= 2:
         context.update(_build_person_context(osoby[1], dni_list[1], year, month, suffix='_2'))
+    else:
+        # Single person — fill second section with same data (will be hidden with white font)
+        context.update(_build_person_context(osoby[0], dni_list[0], year, month, suffix='_2'))
 
-    tpl = DocxTemplate(str(template_path))
+    tpl = DocxTemplate(str(_TEMPLATE_PATH))
     tpl.render(context)
+
+    # When single person, hide second section with white font
+    if len(osoby) == 1:
+        _hide_second_person(tpl.docx)
+
     buf = io.BytesIO()
     tpl.save(buf)
 

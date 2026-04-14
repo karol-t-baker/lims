@@ -83,9 +83,12 @@ function Move-Certificate($FilePath) {
     $Product = Get-MatchedProduct $FileName
     if (-not $Product) { return }
 
+    # Rename: "Chegina K7 4.pdf" → "Świadectwo_certificate-Chegina K7 4.pdf"
+    $NewFileName = "Świadectwo_certificate-$FileName"
+
     $Year = (Get-Date).Year.ToString()
     $TargetDir = Join-Path $DestDir (Join-Path $Year $Product)
-    $TargetPath = Join-Path $TargetDir $FileName
+    $TargetPath = Join-Path $TargetDir $NewFileName
 
     # Create target directory
     if (-not (Test-Path $TargetDir)) {
@@ -98,10 +101,10 @@ function Move-Certificate($FilePath) {
         if (-not (Test-Path $ArchiveDir)) {
             New-Item -ItemType Directory -Path $ArchiveDir -Force | Out-Null
         }
-        $ArchivePath = Join-Path $ArchiveDir $FileName
+        $ArchivePath = Join-Path $ArchiveDir $NewFileName
         # If archive also has this file, add timestamp
         if (Test-Path $ArchivePath) {
-            $Stem = [System.IO.Path]::GetFileNameWithoutExtension($FileName)
+            $Stem = [System.IO.Path]::GetFileNameWithoutExtension($NewFileName)
             $Ts = (Get-Date).ToString("yyyy-MM-dd HH-mm")
             $ArchivePath = Join-Path $ArchiveDir "$Stem ($Ts).pdf"
         }
@@ -109,7 +112,7 @@ function Move-Certificate($FilePath) {
     }
 
     Move-Item -Path $FilePath -Destination $TargetPath -Force
-    Write-Host "[$(Get-Date -Format 'HH:mm:ss')] $FileName -> $Year\$Product\"
+    Write-Host "[$(Get-Date -Format 'HH:mm:ss')] $FileName -> $Year\$Product\$NewFileName"
 }
 
 # Set up FileSystemWatcher

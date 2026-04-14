@@ -106,11 +106,13 @@ def api_cert_generate():
 
         cert_id = create_swiadectwo(db, ebr_id, variant_label, ebr["nr_partii"], "regenerate", wystawil, data_json=_json.dumps(generation_data, ensure_ascii=False))
 
-    # Return PDF as download to user's browser
+    # Return PDF as download
     nr_only = ebr['nr_partii'].split('/')[0].strip()
-    filename = f"Świadectwo_certificate - {variant_label} {nr_only}.pdf"
-    # HTTP headers must be ASCII-safe — replace em dash and encode
-    filename_ascii = filename.replace('\u2014', '-').replace('\u2013', '-')
+    filename = f"{variant_label} {nr_only}.pdf"
+    # Content-Disposition filename must be ASCII-safe (HTTP latin-1 limit)
+    import unicodedata
+    fn_safe = filename.replace('\u2014', '-').replace('\u2013', '-')
+    filename_ascii = unicodedata.normalize('NFKD', fn_safe).encode('ascii', 'ignore').decode('ascii')
     from urllib.parse import quote
     return Response(
         pdf_bytes,
@@ -165,7 +167,8 @@ def api_cert_pdf(cert_id):
                 gen.get("dt_start"), gen.get("wyniki_flat", {}),
                 gen.get("extra_fields", {}), wystawil=gen.get("wystawil", ""),
             )
-            return Response(pdf_bytes, mimetype="application/pdf")
+            return Response(pdf_bytes, mimetype="application/pdf",
+                           headers={"Content-Disposition": "inline"})
         except Exception as e:
             return f"Błąd regeneracji PDF: {e}", 500
 
@@ -176,7 +179,8 @@ def api_cert_pdf(cert_id):
         pdf_path = (project_root / pdf_path).resolve()
     if not pdf_path.exists() or pdf_path.is_dir():
         return "Plik PDF nie istnieje i brak danych do regeneracji.", 404
-    return send_file(str(pdf_path), mimetype="application/pdf")
+    return send_file(str(pdf_path), mimetype="application/pdf",
+                     download_name=None, as_attachment=False)
 
 
 @certs_bp.route("/api/cert/list")
