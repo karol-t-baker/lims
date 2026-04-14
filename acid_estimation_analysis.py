@@ -1,8 +1,11 @@
 """
-Acid estimation model for K7 chegina.
+Acid estimation model for K7 chegina — buffer capacity approach.
 
-Compares two OLS models for predicting citric acid dosage (kg)
-from batch mass and pH_start, with optional woda_refrakcja feature.
+Predicts citric acid dosage (kg) for target pH 6.25 using buffer capacity:
+  buffer_cap = kwas_per_eff_ton / delta_ph  [kg acid / ton solution / pH unit]
+
+Compares: OLS linear, polynomial (deg 2, 3), Ridge-regularized models.
+Validates with LOOCV. Generates diagnostic plots.
 
 Usage:
     python acid_estimation_analysis.py
@@ -17,7 +20,13 @@ import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 from scipy import stats
+from sklearn.linear_model import Ridge
 from sklearn.model_selection import LeaveOneOut
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.preprocessing import PolynomialFeatures, StandardScaler
+
+
+TARGET_PH = 6.25
 
 
 def load_data(csv_path: str) -> pd.DataFrame:
@@ -32,50 +41,169 @@ def load_data(csv_path: str) -> pd.DataFrame:
 
 
 def add_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Add per-ton normalized features."""
+    """Compute effective mass, buffer capacity, and normalized features."""
     df = df.copy()
-    tons = df["masa_kg"] / 1000.0
-    df["kwas_per_ton"] = df["kwas_kg"] / tons
     df["woda_refrakcja"] = df["woda_kg"] - df["kwas_kg"]
-    df["woda_refrakcja_per_ton"] = df["woda_refrakcja"] / tons
+    df["masa_efektywna"] = df["masa_kg"] + df["woda_refrakcja"]
+    df["masa_eff_ton"] = df["masa_efektywna"] / 1000.0
+    df["kwas_per_eff_ton"] = df["kwas_kg"] / df["masa_eff_ton"]
+    df["delta_ph"] = df["ph_start"] - df["ph_koniec"]
+    df["buffer_cap"] = df["kwas_per_eff_ton"] / df["delta_ph"]
+    df["h3o_scaled"] = 10.0 ** (12.0 - df["ph_start"])  # [H3O+] * 10^12
     return df
 
 
-def fit_model(df: pd.DataFrame, predictors: list[str]) -> dict:
-    """Fit OLS: kwas_per_ton ~ predictors. Returns coefficients, R², p-values, model."""
-    X = sm.add_constant(df[predictors])
-    y = df["kwas_per_ton"]
-    model = sm.OLS(y, X).fit()
-    return {
-        "coefficients": model.params.to_dict(),
-        "r_squared": model.rsquared,
-        "r_squared_adj": model.rsquared_adj,
-        "p_values": model.pvalues.to_dict(),
-        "model": model,
-    }
+def _fit_single(X_train, bc_train, X_test, model_type, degree, alpha, n_neighbors):
+    """Fit one model on train, predict on test. Returns bc predictions."""
+    if model_type == "knn":
+        model = KNeighborsRegressor(n_neighbors=n_neighbors, weights="distance")
+        model.fit(X_train, bc_train)
+        return model.predict(X_test)
+    elif model_type == "ridge":
+        model = Ridge(alpha=alpha)
+        model.fit(X_train, bc_train)
+        return model.predict(X_test)
+    else:
+        X_train_c = sm.add_constant(X_train)
+        X_test_c = sm.add_constant(X_test, has_constant=False)
+        model = sm.OLS(bc_train, X_train_c).fit()
+        return model.predict(X_test_c)
 
 
-def run_loocv(df: pd.DataFrame, predictors: list[str]) -> dict:
-    """Leave-One-Out CV. Returns MAE (in kg), MAPE (%), R² CV, residuals, predictions."""
-    X = df[predictors].values
-    y = df["kwas_per_ton"].values
-    masa = df["masa_kg"].values
+def _make_features(values, degree):
+    """Build feature matrix from 1D values."""
+    if degree > 1:
+        poly = PolynomialFeatures(degree, include_bias=False)
+        return poly.fit_transform(values.reshape(-1, 1)), poly
+    return values.reshape(-1, 1), None
+
+
+def _loocv_predict_bc(ph_train, bc_train, ph_test, model_type, degree, alpha,
+                      n_neighbors, ensemble, boosted, stacked):
+    """Predict buffer capacity for one LOOCV fold."""
+    if boosted is not None:
+        # Stage 1: fit base model, get residuals
+        base = boosted["base"]
+        base_deg = base.get("degree", 1)
+        Xtr_b, poly_b = _make_features(ph_train, base_deg)
+        if poly_b:
+            Xte_b = poly_b.transform(ph_test.reshape(-1, 1))
+        else:
+            Xte_b = ph_test.reshape(-1, 1)
+        bc_base_train = _fit_single(Xtr_b, bc_train, Xtr_b,
+                                    base["model_type"], base_deg,
+                                    base.get("alpha", 1.0),
+                                    base.get("n_neighbors", 5))
+        bc_base_test = _fit_single(Xtr_b, bc_train, Xte_b,
+                                   base["model_type"], base_deg,
+                                   base.get("alpha", 1.0),
+                                   base.get("n_neighbors", 5))
+        # Stage 2: fit corrector on residuals
+        residuals = bc_train - bc_base_train
+        corr = boosted["corrector"]
+        corr_deg = corr.get("degree", 1)
+        Xtr_c, poly_c = _make_features(ph_train, corr_deg)
+        if poly_c:
+            Xte_c = poly_c.transform(ph_test.reshape(-1, 1))
+        else:
+            Xte_c = ph_test.reshape(-1, 1)
+        bc_corr = _fit_single(Xtr_c, residuals, Xte_c,
+                              corr["model_type"], corr_deg,
+                              corr.get("alpha", 1.0),
+                              corr.get("n_neighbors", 5))
+        return bc_base_test + bc_corr
+
+    if stacked is not None:
+        # Stage 1: get base model predictions on train (inner LOOCV)
+        base_models = stacked["base_models"]
+        meta_cfg = stacked.get("meta", {"alpha": 1.0})
+        n_train = len(ph_train)
+        oof_preds = np.zeros((n_train, len(base_models)))
+        test_preds = np.zeros(len(base_models))
+
+        for m_idx, bm in enumerate(base_models):
+            bm_deg = bm.get("degree", 1)
+            # Full train prediction for test point
+            Xtr_full, poly_full = _make_features(ph_train, bm_deg)
+            if poly_full:
+                Xte_full = poly_full.transform(ph_test.reshape(-1, 1))
+            else:
+                Xte_full = ph_test.reshape(-1, 1)
+            test_preds[m_idx] = _fit_single(Xtr_full, bc_train, Xte_full,
+                                            bm["model_type"], bm_deg,
+                                            bm.get("alpha", 1.0),
+                                            bm.get("n_neighbors", 5))[0]
+            # Inner LOOCV for OOF predictions
+            inner_loo = LeaveOneOut()
+            for itr, ite in inner_loo.split(ph_train):
+                Xtr_i, poly_i = _make_features(ph_train[itr], bm_deg)
+                if poly_i:
+                    Xte_i = poly_i.transform(ph_train[ite].reshape(-1, 1))
+                else:
+                    Xte_i = ph_train[ite].reshape(-1, 1)
+                oof_preds[ite, m_idx] = _fit_single(Xtr_i, bc_train[itr], Xte_i,
+                                                    bm["model_type"], bm_deg,
+                                                    bm.get("alpha", 1.0),
+                                                    bm.get("n_neighbors", 5))[0]
+        # Stage 2: fit meta-learner on OOF predictions
+        meta = Ridge(alpha=meta_cfg.get("alpha", 1.0))
+        meta.fit(oof_preds, bc_train)
+        return meta.predict(test_preds.reshape(1, -1))
+
+    if ensemble is not None:
+        bc_preds = []
+        for sub in ensemble:
+            sub_deg = sub.get("degree", 1)
+            Xtr, poly_s = _make_features(ph_train, sub_deg)
+            if poly_s:
+                Xte = poly_s.transform(ph_test.reshape(-1, 1))
+            else:
+                Xte = ph_test.reshape(-1, 1)
+            bc_p = _fit_single(Xtr, bc_train, Xte,
+                               sub["model_type"], sub_deg,
+                               sub.get("alpha", 1.0),
+                               sub.get("n_neighbors", 5))
+            bc_preds.append(bc_p[0])
+        return np.array([np.mean(bc_preds)])
+
+    X_train, poly = _make_features(ph_train, degree)
+    if poly:
+        X_test = poly.transform(ph_test.reshape(-1, 1))
+    else:
+        X_test = ph_test.reshape(-1, 1)
+    return _fit_single(X_train, bc_train, X_test,
+                       model_type, degree, alpha, n_neighbors)
+
+
+def run_loocv(df: pd.DataFrame, model_type: str = "ols", degree: int = 1,
+              alpha: float = 1.0, n_neighbors: int = 5,
+              ensemble: list[dict] | None = None,
+              boosted: dict | None = None,
+              stacked: dict | None = None,
+              feature: str = "ph_start") -> dict:
+    """LOOCV predicting kwas_kg. Returns MAE, MAPE, R² CV, residuals, predictions."""
+    ph = df[feature].values
+    buffer_cap = df["buffer_cap"].values
+    masa_eff_ton = df["masa_eff_ton"].values
+    actual_kg = df["kwas_kg"].values
+    delta_ph = df["delta_ph"].values
     loo = LeaveOneOut()
 
-    pred_per_ton = np.zeros(len(y))
-    for train_idx, test_idx in loo.split(X):
-        X_train = sm.add_constant(X[train_idx])
-        X_test = sm.add_constant(X[test_idx], has_constant=False)
-        model = sm.OLS(y[train_idx], X_train).fit()
-        pred_per_ton[test_idx] = model.predict(X_test)
+    pred_kg = np.zeros(len(ph))
+    for train_idx, test_idx in loo.split(ph):
+        ph_train, ph_test = ph[train_idx], ph[test_idx]
+        bc_train = buffer_cap[train_idx]
 
-    pred_kg = pred_per_ton * masa / 1000.0
-    actual_kg = y * masa / 1000.0
+        bc_pred = _loocv_predict_bc(ph_train, bc_train, ph_test,
+                                    model_type, degree, alpha, n_neighbors,
+                                    ensemble, boosted, stacked)
+
+        # Use actual delta_ph for validation (not TARGET_PH)
+        pred_kg[test_idx] = bc_pred * delta_ph[test_idx] * masa_eff_ton[test_idx]
+
     residuals_kg = actual_kg - pred_kg
-
     mae = np.mean(np.abs(residuals_kg))
     mape = np.mean(np.abs(residuals_kg / actual_kg)) * 100.0
-
     ss_res = np.sum(residuals_kg ** 2)
     ss_tot = np.sum((actual_kg - np.mean(actual_kg)) ** 2)
     r2_cv = 1.0 - ss_res / ss_tot
@@ -89,65 +217,205 @@ def run_loocv(df: pd.DataFrame, predictors: list[str]) -> dict:
     }
 
 
-def compare_models(fit_a: dict, cv_a: dict, fit_b: dict, cv_b: dict) -> dict:
-    """Compare Model A vs B. B wins if woda_refrakcja is significant, MAE drops >5%, R² improves."""
-    reasons = []
-    b_wins = 0
+def fit_full_model(df: pd.DataFrame, model_type: str = "ols", degree: int = 1,
+                   alpha: float = 1.0, n_neighbors: int = 5,
+                   ensemble: list[dict] | None = None,
+                   boosted: dict | None = None,
+                   stacked: dict | None = None,
+                   feature: str = "ph_start") -> dict:
+    """Fit buffer_cap ~ f(feature) on all data. Returns model info."""
+    ph = df[feature].values
+    bc = df["buffer_cap"].values
 
-    # Criterion 1: woda_refrakcja_per_ton p-value < 0.05
-    p_woda = fit_b["p_values"].get("woda_refrakcja_per_ton", 1.0)
-    if p_woda < 0.05:
-        reasons.append(f"woda_refrakcja_per_ton significant (p={p_woda:.4f})")
-        b_wins += 1
+    if boosted is not None:
+        base_fit = fit_full_model(df, **boosted["base"])
+        bc_base = _predict_bc(base_fit, ph)
+        residuals = bc - bc_base
+        # Fit corrector on residuals — create a temp df-like structure
+        corr_cfg = boosted["corrector"]
+        corr_deg = corr_cfg.get("degree", 1)
+        X_corr, poly_corr = _make_features(ph, corr_deg)
+        if corr_cfg["model_type"] == "knn":
+            corr_model = KNeighborsRegressor(
+                n_neighbors=corr_cfg.get("n_neighbors", 5), weights="distance")
+            corr_model.fit(X_corr, residuals)
+        elif corr_cfg["model_type"] == "ridge":
+            corr_model = Ridge(alpha=corr_cfg.get("alpha", 1.0))
+            corr_model.fit(X_corr, residuals)
+        else:
+            X_corr_c = sm.add_constant(X_corr)
+            corr_model = sm.OLS(residuals, X_corr_c).fit()
+        bc_total = bc_base + (corr_model.predict(X_corr) if corr_cfg["model_type"] != "ols"
+                              else corr_model.predict(sm.add_constant(X_corr)))
+        ss_res = np.sum((bc - bc_total) ** 2)
+        ss_tot = np.sum((bc - np.mean(bc)) ** 2)
+        r2 = 1.0 - ss_res / ss_tot
+        return {
+            "base_fit": base_fit, "corr_model": corr_model,
+            "corr_poly": poly_corr, "corr_type": corr_cfg["model_type"],
+            "r_squared": r2, "type": "boosted", "degree": 0,
+        }
+
+    if stacked is not None:
+        base_models_cfg = stacked["base_models"]
+        meta_cfg = stacked.get("meta", {"alpha": 1.0})
+        base_fits = [fit_full_model(df, **bm) for bm in base_models_cfg]
+        # OOF predictions via inner LOOCV
+        n = len(ph)
+        oof = np.zeros((n, len(base_fits)))
+        loo = LeaveOneOut()
+        for tr, te in loo.split(ph):
+            for m_idx, bm in enumerate(base_models_cfg):
+                bm_deg = bm.get("degree", 1)
+                Xtr, poly_i = _make_features(ph[tr], bm_deg)
+                if poly_i:
+                    Xte = poly_i.transform(ph[te].reshape(-1, 1))
+                else:
+                    Xte = ph[te].reshape(-1, 1)
+                oof[te, m_idx] = _fit_single(Xtr, bc[tr], Xte,
+                                             bm["model_type"], bm_deg,
+                                             bm.get("alpha", 1.0),
+                                             bm.get("n_neighbors", 5))[0]
+        meta_model = Ridge(alpha=meta_cfg.get("alpha", 1.0))
+        meta_model.fit(oof, bc)
+        # R² on train using full base_fits
+        base_preds = np.column_stack([_predict_bc(bf, ph) for bf in base_fits])
+        bc_meta = meta_model.predict(base_preds)
+        ss_res = np.sum((bc - bc_meta) ** 2)
+        ss_tot = np.sum((bc - np.mean(bc)) ** 2)
+        r2 = 1.0 - ss_res / ss_tot
+        return {
+            "base_fits": base_fits, "meta_model": meta_model,
+            "r_squared": r2, "type": "stacked", "degree": 0,
+        }
+
+    if ensemble is not None:
+        sub_models = []
+        for sub in ensemble:
+            sub_fit = fit_full_model(df, **sub)
+            sub_models.append(sub_fit)
+        bc_preds = []
+        for sub_fit in sub_models:
+            bc_preds.append(_predict_bc(sub_fit, ph))
+        bc_avg = np.mean(bc_preds, axis=0)
+        ss_res = np.sum((bc - bc_avg) ** 2)
+        ss_tot = np.sum((bc - np.mean(bc)) ** 2)
+        r2 = 1.0 - ss_res / ss_tot
+        return {
+            "sub_models": sub_models, "r_squared": r2,
+            "type": "ensemble", "degree": 0,
+        }
+
+    if degree > 1:
+        poly = PolynomialFeatures(degree, include_bias=False)
+        X = poly.fit_transform(ph.reshape(-1, 1))
     else:
-        reasons.append(f"woda_refrakcja_per_ton NOT significant (p={p_woda:.4f})")
+        poly = None
+        X = ph.reshape(-1, 1)
 
-    # Criterion 2: MAE drops >5%
-    mae_drop_pct = (cv_a["mae_kg"] - cv_b["mae_kg"]) / cv_a["mae_kg"] * 100.0
-    if mae_drop_pct > 5.0:
-        reasons.append(f"MAE dropped {mae_drop_pct:.1f}% (A={cv_a['mae_kg']:.2f}, B={cv_b['mae_kg']:.2f})")
-        b_wins += 1
+    if model_type == "knn":
+        model = KNeighborsRegressor(n_neighbors=n_neighbors, weights="distance")
+        model.fit(X, bc)
+        bc_pred = model.predict(X)
+        ss_res = np.sum((bc - bc_pred) ** 2)
+        ss_tot = np.sum((bc - np.mean(bc)) ** 2)
+        r2 = 1.0 - ss_res / ss_tot
+        return {
+            "model": model, "poly": poly, "r_squared": r2,
+            "type": "knn", "degree": degree, "n_neighbors": n_neighbors,
+        }
+    elif model_type == "ridge":
+        model = Ridge(alpha=alpha)
+        model.fit(X, bc)
+        bc_pred = model.predict(X)
+        ss_res = np.sum((bc - bc_pred) ** 2)
+        ss_tot = np.sum((bc - np.mean(bc)) ** 2)
+        r2 = 1.0 - ss_res / ss_tot
+        return {
+            "model": model, "poly": poly, "r_squared": r2,
+            "type": "ridge", "degree": degree, "alpha": alpha,
+        }
     else:
-        reasons.append(f"MAE drop insufficient: {mae_drop_pct:.1f}% (A={cv_a['mae_kg']:.2f}, B={cv_b['mae_kg']:.2f})")
+        X_c = sm.add_constant(X)
+        ols_model = sm.OLS(bc, X_c).fit()
+        return {
+            "model": ols_model, "poly": poly,
+            "r_squared": ols_model.rsquared,
+            "r_squared_adj": ols_model.rsquared_adj,
+            "coefficients": ols_model.params.tolist(),
+            "p_values": ols_model.pvalues.tolist(),
+            "type": "ols", "degree": degree,
+        }
 
-    # Criterion 3: R² CV improves
-    if cv_b["r2_cv"] > cv_a["r2_cv"]:
-        reasons.append(f"R² CV improved (A={cv_a['r2_cv']:.4f}, B={cv_b['r2_cv']:.4f})")
-        b_wins += 1
+
+def _predict_bc(fit_result: dict, ph_values: np.ndarray) -> np.ndarray:
+    """Predict buffer capacity for an array of pH values."""
+    if fit_result["type"] == "boosted":
+        bc_base = _predict_bc(fit_result["base_fit"], ph_values)
+        ph_arr = ph_values.reshape(-1, 1)
+        if fit_result.get("corr_poly") is not None:
+            ph_arr = fit_result["corr_poly"].transform(ph_arr)
+        if fit_result["corr_type"] == "ols":
+            bc_corr = fit_result["corr_model"].predict(sm.add_constant(ph_arr, has_constant=False))
+        else:
+            bc_corr = fit_result["corr_model"].predict(ph_arr)
+        return bc_base + bc_corr
+
+    if fit_result["type"] == "stacked":
+        base_preds = np.column_stack([_predict_bc(bf, ph_values)
+                                      for bf in fit_result["base_fits"]])
+        return fit_result["meta_model"].predict(base_preds)
+
+    if fit_result["type"] == "ensemble":
+        preds = [_predict_bc(sub, ph_values) for sub in fit_result["sub_models"]]
+        return np.mean(preds, axis=0)
+
+    ph_arr = ph_values.reshape(-1, 1)
+    if fit_result.get("poly") is not None:
+        ph_arr = fit_result["poly"].transform(ph_arr)
+
+    if fit_result["type"] in ("knn", "ridge"):
+        return fit_result["model"].predict(ph_arr)
     else:
-        reasons.append(f"R² CV did not improve (A={cv_a['r2_cv']:.4f}, B={cv_b['r2_cv']:.4f})")
-
-    winner = "B" if b_wins >= 2 else "A"
-    reasons.append(f"Winner: Model {'B (extended)' if winner == 'B' else 'A (baseline)'} ({b_wins}/3 criteria met)")
-
-    return {"winner": winner, "reasons": reasons}
+        return fit_result["model"].predict(sm.add_constant(ph_arr, has_constant=False))
 
 
-def generate_plots(
-    df: pd.DataFrame, fit_result: dict, cv_result: dict,
-    predictors: list[str], label: str, out_dir: str = "plots"
-) -> list[str]:
-    """Generate 5 diagnostic plots. Returns list of saved file paths."""
+def predict_kwas(fit_result: dict, ph_start: float, masa_eff_ton: float,
+                 feature: str = "ph_start") -> float:
+    """Predict kwas_kg for a single observation."""
+    if feature == "h3o_scaled":
+        feat_val = 10.0 ** (12.0 - ph_start)
+    else:
+        feat_val = ph_start
+    bc_pred = _predict_bc(fit_result, np.array([feat_val]))[0]
+    target_delta = ph_start - TARGET_PH
+    return bc_pred * target_delta * masa_eff_ton
+
+
+def generate_plots(df: pd.DataFrame, fit_result: dict, cv_result: dict,
+                   label: str, out_dir: str = "plots",
+                   feature: str = "ph_start") -> list[str]:
+    """Generate 5 diagnostic plots."""
     Path(out_dir).mkdir(exist_ok=True)
     paths = []
-    model = fit_result["model"]
-    masa = df["masa_kg"].values
     actual_kg = df["kwas_kg"].values
     pred_kg = cv_result["predictions"]
     residuals_kg = cv_result["residuals"]
+    masa_eff = df["masa_efektywna"].values
+    feat_values = df[feature].values
+    feat_label = "pH start" if feature == "ph_start" else "[H₃O⁺]·10¹² [mol/L]"
 
-    # 1. Scatter: kwas_per_ton vs pH_start with regression line
+    # 1. Buffer capacity vs feature with fitted curve
     fig, ax = plt.subplots(figsize=(8, 5))
-    ax.scatter(df["ph_start"], df["kwas_per_ton"], alpha=0.7, edgecolors="k", linewidths=0.5)
-    ph_range = np.linspace(df["ph_start"].min(), df["ph_start"].max(), 100)
-    if len(predictors) == 1:
-        X_plot = sm.add_constant(ph_range)
-        ax.plot(ph_range, model.predict(X_plot), "r-", linewidth=2)
-    ax.set_xlabel("pH start")
-    ax.set_ylabel("Kwas cytrynowy [kg/tonę]")
-    ax.set_title(f"{label}: kwas/tonę vs pH start")
+    ax.scatter(feat_values, df["buffer_cap"], alpha=0.7, edgecolors="k", linewidths=0.5)
+    feat_range = np.linspace(feat_values.min() - 0.05, feat_values.max() + 0.05, 200)
+    bc_line = _predict_bc(fit_result, feat_range)
+    ax.plot(feat_range, bc_line, "r-", linewidth=2)
+    ax.set_xlabel(feat_label)
+    ax.set_ylabel("Buffer capacity [kg/tonę/pH]")
+    ax.set_title(f"{label}: zdolność buforowa vs {feat_label}")
     ax.grid(True, alpha=0.3)
-    p = f"{out_dir}/{label}_scatter_regression.png"
+    p = f"{out_dir}/{label}_buffer_cap_vs_ph.png"
     fig.savefig(p, dpi=150, bbox_inches="tight")
     plt.close(fig)
     paths.append(p)
@@ -169,13 +437,13 @@ def generate_plots(
     plt.close(fig)
     paths.append(p)
 
-    # 3. Residuals vs masa (normalization check)
+    # 3. Residuals vs effective mass (normalization check)
     fig, ax = plt.subplots(figsize=(8, 5))
-    ax.scatter(masa, residuals_kg, alpha=0.7, edgecolors="k", linewidths=0.5)
+    ax.scatter(masa_eff, residuals_kg, alpha=0.7, edgecolors="k", linewidths=0.5)
     ax.axhline(0, color="r", linestyle="--", linewidth=1)
-    ax.set_xlabel("Masa szarży [kg]")
+    ax.set_xlabel("Masa efektywna [kg]")
     ax.set_ylabel("Residuum [kg]")
-    ax.set_title(f"{label}: residua vs masa (test normalizacji)")
+    ax.set_title(f"{label}: residua vs masa efektywna")
     ax.grid(True, alpha=0.3)
     p = f"{out_dir}/{label}_residuals_vs_masa.png"
     fig.savefig(p, dpi=150, bbox_inches="tight")
@@ -195,7 +463,7 @@ def generate_plots(
     plt.close(fig)
     paths.append(p)
 
-    # 5. QQ-plot of residuals (normality check)
+    # 5. QQ-plot of residuals
     fig, ax = plt.subplots(figsize=(6, 6))
     stats.probplot(residuals_kg, dist="norm", plot=ax)
     ax.set_title(f"{label}: QQ-plot residuów")
@@ -208,67 +476,158 @@ def generate_plots(
     return paths
 
 
-def print_model_summary(name: str, fit_result: dict, cv_result: dict):
-    """Print model coefficients, significance, and CV metrics."""
-    print(f"\n{'='*60}")
-    print(f"  {name}")
-    print(f"{'='*60}")
-    print(f"\nWspółczynniki:")
-    for k, v in fit_result["coefficients"].items():
-        p = fit_result["p_values"][k]
-        sig = "***" if p < 0.001 else "**" if p < 0.01 else "*" if p < 0.05 else ""
-        print(f"  {k:>30s} = {v:>10.4f}  (p={p:.4f}) {sig}")
-    print(f"\n  R² (train)  = {fit_result['r_squared']:.4f}")
-    print(f"  R² adj      = {fit_result['r_squared_adj']:.4f}")
-    print(f"\nWalidacja LOOCV:")
-    print(f"  MAE         = {cv_result['mae_kg']:.2f} kg")
-    print(f"  MAPE        = {cv_result['mape_pct']:.1f}%")
-    print(f"  R² (CV)     = {cv_result['r2_cv']:.4f}")
-
-
 def main(out_dir: str = "plots_acid_estimation"):
-    """Run full analysis: load data, fit both models, validate, compare, plot."""
+    """Run full analysis: buffer capacity models comparison."""
     df = load_data("data/kwas.csv")
     df = add_features(df)
     print(f"Załadowano {len(df)} obserwacji z data/kwas.csv")
     print(f"Masy szarż: {sorted(df['masa_kg'].unique())}")
+    print(f"Cel pH: {TARGET_PH}")
+    print(f"\nStatystyki buffer capacity:")
+    print(f"  mean  = {df['buffer_cap'].mean():.4f} kg/tonę/pH")
+    print(f"  std   = {df['buffer_cap'].std():.4f}")
+    print(f"  min   = {df['buffer_cap'].min():.4f}")
+    print(f"  max   = {df['buffer_cap'].max():.4f}")
 
-    # Model A: kwas_per_ton ~ pH_start
-    fit_a = fit_model(df, predictors=["ph_start"])
-    cv_a = run_loocv(df, predictors=["ph_start"])
-    print_model_summary("Model A: kwas_per_ton ~ pH_start", fit_a, cv_a)
+    # Define models to compare
+    models = [
+        # Regression models
+        ("OLS linear",       {"model_type": "ols",   "degree": 1}),
+        ("OLS poly deg=2",   {"model_type": "ols",   "degree": 2}),
+        ("OLS poly deg=3",   {"model_type": "ols",   "degree": 3}),
+        ("Ridge linear a=1", {"model_type": "ridge", "degree": 1, "alpha": 1.0}),
+        ("Ridge poly2 a=1",  {"model_type": "ridge", "degree": 2, "alpha": 1.0}),
+        ("Ridge poly2 a=10", {"model_type": "ridge", "degree": 2, "alpha": 10.0}),
+        # KNN models
+        ("KNN k=3",          {"model_type": "knn",   "degree": 1, "n_neighbors": 3}),
+        ("KNN k=5",          {"model_type": "knn",   "degree": 1, "n_neighbors": 5}),
+        ("KNN k=7",          {"model_type": "knn",   "degree": 1, "n_neighbors": 7}),
+        # Ensemble: Ridge + KNN average
+        ("Ens Ridge+KNN3",   {"ensemble": [
+            {"model_type": "ridge", "degree": 1, "alpha": 1.0},
+            {"model_type": "knn",   "degree": 1, "n_neighbors": 3},
+        ]}),
+        ("Ens Ridge+KNN5",   {"ensemble": [
+            {"model_type": "ridge", "degree": 1, "alpha": 1.0},
+            {"model_type": "knn",   "degree": 1, "n_neighbors": 5},
+        ]}),
+        ("Ens Rdg+OLS+KNN5", {"ensemble": [
+            {"model_type": "ridge", "degree": 1, "alpha": 1.0},
+            {"model_type": "ols",   "degree": 1},
+            {"model_type": "knn",   "degree": 1, "n_neighbors": 5},
+        ]}),
+        ("Ens Rdg+Poly2+K5", {"ensemble": [
+            {"model_type": "ridge", "degree": 1, "alpha": 1.0},
+            {"model_type": "ols",   "degree": 2},
+            {"model_type": "knn",   "degree": 1, "n_neighbors": 5},
+        ]}),
+        # KNN on polynomial features
+        ("KNN k=5 poly2",    {"model_type": "knn",   "degree": 2, "n_neighbors": 5}),
+        ("KNN k=7 poly2",    {"model_type": "knn",   "degree": 2, "n_neighbors": 7}),
+        # Boosted: OLS poly2 base + KNN corrector on residuals
+        ("Boost Poly2+KNN3", {"boosted": {
+            "base": {"model_type": "ols", "degree": 2},
+            "corrector": {"model_type": "knn", "degree": 1, "n_neighbors": 3},
+        }}),
+        ("Boost Poly2+KNN5", {"boosted": {
+            "base": {"model_type": "ols", "degree": 2},
+            "corrector": {"model_type": "knn", "degree": 1, "n_neighbors": 5},
+        }}),
+        ("Boost Poly2+KNN7", {"boosted": {
+            "base": {"model_type": "ols", "degree": 2},
+            "corrector": {"model_type": "knn", "degree": 1, "n_neighbors": 7},
+        }}),
+        # Stacking: OLS poly2 + KNN → Ridge meta
+        ("Stack Poly2+K5",   {"stacked": {
+            "base_models": [
+                {"model_type": "ols", "degree": 2},
+                {"model_type": "knn", "degree": 1, "n_neighbors": 5},
+            ],
+            "meta": {"alpha": 1.0},
+        }}),
+        ("Stack Poly2+K7",   {"stacked": {
+            "base_models": [
+                {"model_type": "ols", "degree": 2},
+                {"model_type": "knn", "degree": 1, "n_neighbors": 7},
+            ],
+            "meta": {"alpha": 1.0},
+        }}),
+        ("Stack OLS+Poly2+K5", {"stacked": {
+            "base_models": [
+                {"model_type": "ols", "degree": 1},
+                {"model_type": "ols", "degree": 2},
+                {"model_type": "knn", "degree": 1, "n_neighbors": 5},
+            ],
+            "meta": {"alpha": 1.0},
+        }}),
+        # H3O+ scaled feature models
+        ("H3O OLS linear",   {"model_type": "ols",   "degree": 1, "feature": "h3o_scaled"}),
+        ("H3O OLS poly2",    {"model_type": "ols",   "degree": 2, "feature": "h3o_scaled"}),
+        ("H3O Ridge lin",    {"model_type": "ridge", "degree": 1, "alpha": 1.0, "feature": "h3o_scaled"}),
+        ("H3O Ridge poly2",  {"model_type": "ridge", "degree": 2, "alpha": 1.0, "feature": "h3o_scaled"}),
+        ("H3O KNN k=5",      {"model_type": "knn",   "degree": 1, "n_neighbors": 5, "feature": "h3o_scaled"}),
+        ("H3O KNN k=7",      {"model_type": "knn",   "degree": 1, "n_neighbors": 7, "feature": "h3o_scaled"}),
+    ]
 
-    # Model B: kwas_per_ton ~ pH_start + woda_refrakcja_per_ton
-    fit_b = fit_model(df, predictors=["ph_start", "woda_refrakcja_per_ton"])
-    cv_b = run_loocv(df, predictors=["ph_start", "woda_refrakcja_per_ton"])
-    print_model_summary("Model B: kwas_per_ton ~ pH_start + woda_refrakcja_per_ton", fit_b, cv_b)
+    results = []
+    for name, params in models:
+        cv = run_loocv(df, **params)
+        fit = fit_full_model(df, **params)
+        results.append((name, params, fit, cv))
 
-    # Compare
-    comparison = compare_models(fit_a, cv_a, fit_b, cv_b)
-    print(f"\n{'='*60}")
-    print(f"  Porównanie modeli")
-    print(f"{'='*60}")
-    for r in comparison["reasons"]:
-        print(f"  • {r}")
-    print(f"\n  Rekomendacja: Model {comparison['winner']}")
+    # Print comparison table
+    print(f"\n{'='*70}")
+    print(f"  Porównanie modeli (LOOCV)")
+    print(f"{'='*70}")
+    print(f"  {'Model':<22s}  {'MAE [kg]':>9s}  {'MAPE [%]':>9s}  {'R² CV':>8s}  {'R² train':>9s}")
+    print(f"  {'-'*22}  {'-'*9}  {'-'*9}  {'-'*8}  {'-'*9}")
 
-    # Prediction example
-    winner_predictors = ["ph_start"] if comparison["winner"] == "A" else ["ph_start", "woda_refrakcja_per_ton"]
-    winner_fit = fit_a if comparison["winner"] == "A" else fit_b
-    print(f"\n{'='*60}")
-    print(f"  Przykład predykcji (zwycięski model)")
-    print(f"{'='*60}")
-    for masa in [7400, 8600, 12600]:
-        coefs = winner_fit["coefficients"]
-        kwas_pt = coefs["const"] + coefs["ph_start"] * 11.70
-        if "woda_refrakcja_per_ton" in coefs:
-            kwas_pt += coefs["woda_refrakcja_per_ton"] * 65.0  # typical value
-        kwas_kg = kwas_pt * masa / 1000.0
-        print(f"  masa={masa} kg, pH=11.70 → kwas ≈ {kwas_kg:.1f} kg")
+    best_mae = min(r[3]["mae_kg"] for r in results)
+    best_idx = 0
+    for i, (name, params, fit, cv) in enumerate(results):
+        marker = " <--" if cv["mae_kg"] == best_mae else ""
+        print(f"  {name:<22s}  {cv['mae_kg']:>9.2f}  {cv['mape_pct']:>9.1f}  {cv['r2_cv']:>8.4f}  {fit['r_squared']:>9.4f}{marker}")
+        if cv["mae_kg"] == best_mae:
+            best_idx = i
 
-    # Plots
-    generate_plots(df, fit_a, cv_a, ["ph_start"], "Model_A", out_dir)
-    generate_plots(df, fit_b, cv_b, ["ph_start", "woda_refrakcja_per_ton"], "Model_B", out_dir)
+    best_name, best_params, best_fit, best_cv = results[best_idx]
+
+    # OLS details for linear model
+    ols_name, _, ols_fit, ols_cv = results[0]
+    if ols_fit["type"] == "ols":
+        print(f"\n{'='*70}")
+        print(f"  Szczegóły: {ols_name}")
+        print(f"{'='*70}")
+        print(f"\n  buffer_cap = β₀ + β₁·pH_start")
+        coefs = ols_fit["coefficients"]
+        pvals = ols_fit["p_values"]
+        labels = ["const", "pH_start"]
+        for j, (c, p) in enumerate(zip(coefs, pvals)):
+            sig = "***" if p < 0.001 else "**" if p < 0.01 else "*" if p < 0.05 else ""
+            print(f"  {labels[j]:>15s} = {c:>10.6f}  (p={p:.4f}) {sig}")
+
+    # Winner summary
+    print(f"\n{'='*70}")
+    print(f"  Zwycięzca: {best_name}")
+    print(f"{'='*70}")
+    print(f"  MAE  = {best_cv['mae_kg']:.2f} kg")
+    print(f"  MAPE = {best_cv['mape_pct']:.1f}%")
+    print(f"  R²   = {best_cv['r2_cv']:.4f}")
+
+    # Prediction examples
+    best_feature = best_params.get("feature", "ph_start")
+    print(f"\n{'='*70}")
+    print(f"  Przykłady predykcji ({best_name}, cel pH={TARGET_PH})")
+    print(f"{'='*70}")
+    for masa, woda_refr in [(7400, 500), (8600, 600), (12600, 850)]:
+        masa_eff_ton = (masa + woda_refr) / 1000.0
+        for ph in [11.50, 11.70, 11.90]:
+            kwas = predict_kwas(best_fit, ph, masa_eff_ton, feature=best_feature)
+            print(f"  masa={masa}, woda_refr={woda_refr}, pH={ph:.2f} → kwas ≈ {kwas:.1f} kg")
+
+    # Generate plots for best model only
+    generate_plots(df, best_fit, best_cv, best_name.replace(" ", "_"), out_dir,
+                   feature=best_feature)
     print(f"\nWykresy zapisane do {out_dir}/")
 
 
