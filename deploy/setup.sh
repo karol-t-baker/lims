@@ -20,7 +20,7 @@ apt-get install -y -qq nginx python3 python3-venv python3-pip git docker.io chro
 echo "[2/8] Enabling Docker..."
 systemctl enable docker
 systemctl start docker
-docker pull gotenberg/gotenberg:8
+docker build -t gotenberg-lims -f $LIMS_DIR/deploy/Dockerfile.gotenberg $LIMS_DIR/deploy/
 
 # --- 3. User ---
 echo "[3/8] Creating lims user..."

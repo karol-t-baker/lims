@@ -1,0 +1,9 @@
+FROM gotenberg/gotenberg:8
+
+# TeX Gyre Bonum — drop-in replacement for Bookman Old Style (GUST license)
+COPY fonts/texgyrebonum-*.otf /usr/share/fonts/
+
+# Rebuild font cache
+USER root
+RUN fc-cache -fv
+USER gotenberg

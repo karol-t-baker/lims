@@ -6,7 +6,7 @@ Requires=docker.service
 [Service]
 Type=simple
 ExecStartPre=-/usr/bin/docker rm -f gotenberg
-ExecStart=/usr/bin/docker run --rm --name gotenberg -p 3000:3000 gotenberg/gotenberg:8
+ExecStart=/usr/bin/docker run --rm --name gotenberg -p 3000:3000 gotenberg-lims:latest
 Restart=always
 RestartSec=5
 
