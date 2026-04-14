@@ -9,7 +9,6 @@ import sqlite3
 from mbr.pipeline.models import (
     get_produkt_pipeline,
     resolve_limity,
-    list_etap_korekty,
     get_etap,
     list_sesje,
     save_pomiar,
@@ -156,35 +155,15 @@ def _build_pole(param: dict, db: sqlite3.Connection) -> dict:
                 (param.get("parametr_id"),),
             ).fetchone()
             if row and row["formula"]:
-                pole["formula"] = row["formula"]
+                f = row["formula"]
+                # Substitute sa_bias placeholder if we have a value
+                sa_bias = param.get("sa_bias")
+                if sa_bias is not None and "sa_bias" in f:
+                    f = f.replace("sa_bias", str(sa_bias))
+                pole["formula"] = f
 
     return pole
 
-
-def _build_korekty_pola(korekty: list[dict]) -> list[dict]:
-    """
-    Convert etap_korekty_katalog rows into additional-input 'pola' for the
-    'dodatki' section (one correction substance → one float field).
-    """
-    pola = []
-    for k in korekty:
-        subst = k["substancja"]
-        pola.append({
-            "kod":              subst,
-            "label":            f"{subst.replace('_', ' ').title()} [{k['jednostka']}]",
-            "skrot":            subst,
-            "tag":              subst,
-            "typ":              "float",
-            "measurement_type": "bezp",
-            "min":              0,
-            "max":              None,
-            "min_limit":        None,
-            "max_limit":        None,
-            "precision":        1,
-            "spec_value":       None,
-            "grupa":            "lab",
-        })
-    return pola
 
 
 # ---------------------------------------------------------------------------
@@ -246,18 +225,16 @@ def build_pipeline_context(
 
         if typ_cyklu == "cykliczny" and etap_id == main_cykliczny_id:
             sekcja_key = "analiza"
-            dodatki_key = "dodatki"
         elif typ_cyklu == "cykliczny":
             sekcja_key = step["kod"]
-            dodatki_key = f"{step['kod']}_dodatki"
         else:
             sekcja_key = step["kod"]
-            dodatki_key = None
 
         # --- primary etap entry ---
         etap_entry: dict = {
             "nr":               nr,
             "nazwa":            nazwa,
+            "kod":              step["kod"],
             "read_only":        False,
             "sekcja_lab":       sekcja_key,
             "pipeline_etap_id": etap_id,
@@ -275,26 +252,6 @@ def build_pipeline_context(
             }
         else:
             parametry_lab[sekcja_key]["pola"].extend(pola)
-
-        # --- main cykliczny only: add companion "dodatki" entry ---
-        # Non-main cyclic stages handle corrections inline via decision panel.
-        if typ_cyklu == "cykliczny" and dodatki_key and etap_id == main_cykliczny_id:
-            korekty = list_etap_korekty(db, etap_id)
-            korekty_pola = _build_korekty_pola(korekty)
-
-            dodatki_entry: dict = {
-                "nr":         nr + 0.5,
-                "nazwa":      f"Dodatki {nazwa.lower()}",
-                "read_only":  False,
-                "sekcja_lab": dodatki_key,
-            }
-            etapy_json.append(dodatki_entry)
-
-            if dodatki_key not in parametry_lab:
-                parametry_lab[dodatki_key] = {
-                    "label": f"Dodatki {nazwa.lower()}",
-                    "pola":  korekty_pola,
-                }
 
     # Enrich each stage with decision options so frontend has them without
     # an extra API call.

@@ -102,7 +102,10 @@ def setup_standaryzacja(db: sqlite3.Connection) -> dict:
         pid = param_id_map.get(kod)
         if pid is None:
             continue
-        add_etap_parametr(db, etap_id, pid, kolejnosc=idx + 1)
+        extra = {}
+        if kod == "sa":
+            extra["sa_bias"] = 0.6
+        add_etap_parametr(db, etap_id, pid, kolejnosc=idx + 1, **extra)
         stats["params"] += 1
 
     # 3. Add gate conditions (all 4 params must be within limits)

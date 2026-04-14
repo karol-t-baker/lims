@@ -92,9 +92,37 @@ def lab_get_etap_form(ebr_id, etap_id):
         current_sesja = sesje[-1] if sesje else None
         pomiary = pm.get_pomiary(db, current_sesja["id"]) if current_sesja else []
 
+        # Build per-session pomiary + korekty for round history
+        sesje_pomiary = {}
+        sesje_korekty = {}
+        for s in sesje:
+            sp = pm.get_pomiary(db, s["id"])
+            if sp:
+                sesje_pomiary[s["id"]] = sp
+                # Attach wpisal (inicjały) from the first pomiar of the session
+                if not s.get("wpisal"):
+                    s["wpisal"] = sp[0].get("wpisal", "")
+            sk = db.execute(
+                """SELECT k.ilosc, k.status, k.zalecil, ek.substancja, ek.jednostka
+                   FROM ebr_korekta_v2 k
+                   JOIN etap_korekty_katalog ek ON ek.id = k.korekta_typ_id
+                   WHERE k.sesja_id = ?
+                   ORDER BY k.id""",
+                (s["id"],),
+            ).fetchall()
+            if sk:
+                sesje_korekty[s["id"]] = [dict(r) for r in sk]
+
         # Decision options for this etap
         decyzje_pass = pm.get_etap_decyzje(db, etap_id, "pass")
         decyzje_fail = pm.get_etap_decyzje(db, etap_id, "fail")
+
+        # Evaluate gate if session has measurements
+        gate = None
+        if current_sesja and pomiary:
+            gate = pm.evaluate_gate(db, etap_id, current_sesja["id"])
+            gate["sesja_id"] = current_sesja["id"]
+            gate["etap_id"] = etap_id
 
         return jsonify({
             "etap": etap,
@@ -102,10 +130,13 @@ def lab_get_etap_form(ebr_id, etap_id):
             "warunki": warunki,
             "korekty_katalog": korekty_katalog,
             "sesje": sesje,
+            "sesje_pomiary": sesje_pomiary,
+            "sesje_korekty": sesje_korekty,
             "current_sesja": current_sesja,
             "pomiary": pomiary,
             "decyzje_pass": decyzje_pass,
             "decyzje_fail": decyzje_fail,
+            "gate": gate,
         })
     finally:
         db.close()
@@ -275,10 +306,25 @@ def lab_create_korekta(ebr_id):
     sesja_id = data.get("sesja_id")
     korekta_typ_id = data.get("korekta_typ_id")
     ilosc = data.get("ilosc")
-    zalecil = session["user"]["login"]
-
+    # Resolve actor to inicjaly (same mechanism as measurement wpisal)
+    from mbr.laborant.routes import _resolve_actor_label
     db = get_db()
     try:
+        zalecil = _resolve_actor_label(db)
+    except Exception:
+        zalecil = session["user"]["login"]
+    try:
+        # Allow lookup by substancja + etap_id if korekta_typ_id not provided
+        if not korekta_typ_id and data.get("substancja") and data.get("etap_id"):
+            row = db.execute(
+                "SELECT id FROM etap_korekty_katalog WHERE etap_id=? AND substancja=?",
+                (data["etap_id"], data["substancja"]),
+            ).fetchone()
+            if row:
+                korekta_typ_id = row["id"]
+        if not korekta_typ_id:
+            return jsonify({"error": "korekta_typ_id or substancja+etap_id required"}), 400
+
         kid = pm.create_ebr_korekta(db, sesja_id, korekta_typ_id, ilosc, zalecil)
         db.commit()
         return jsonify({"id": kid}), 201
@@ -445,3 +491,43 @@ def lab_patch_parametry_etapy(pe_id):
         return jsonify(result)
     finally:
         db.close()
+
+
+# ---------------------------------------------------------------------------
+# Correction targets (global constants per product for formula calculations)
+# ---------------------------------------------------------------------------
+
+@pipeline_bp.route(
+    "/api/pipeline/lab/correction-targets/<int:etap_id>/<produkt>",
+    methods=["GET"],
+)
+@login_required
+def lab_get_correction_targets(etap_id, produkt):
+    """Return correction target values for a product+stage."""
+    db = get_db()
+    rows = db.execute(
+        "SELECT kod, wartosc FROM korekta_cele WHERE etap_id=? AND produkt=?",
+        (etap_id, produkt),
+    ).fetchall()
+    return jsonify({r["kod"]: r["wartosc"] for r in rows})
+
+
+@pipeline_bp.route(
+    "/api/pipeline/lab/correction-targets/<int:etap_id>/<produkt>",
+    methods=["PATCH"],
+)
+@login_required
+def lab_patch_correction_targets(etap_id, produkt):
+    """Upsert one or more correction target values. Body: {kod: wartosc, ...}."""
+    data = request.get_json(silent=True) or {}
+    db = get_db()
+    for kod, wartosc in data.items():
+        val = float(wartosc) if wartosc is not None and wartosc != "" else None
+        db.execute(
+            """INSERT INTO korekta_cele (etap_id, produkt, kod, wartosc)
+               VALUES (?, ?, ?, ?)
+               ON CONFLICT(etap_id, produkt, kod) DO UPDATE SET wartosc=excluded.wartosc""",
+            (etap_id, produkt, kod, val),
+        )
+    db.commit()
+    return jsonify({"ok": True})

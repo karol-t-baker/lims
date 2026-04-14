@@ -234,19 +234,19 @@ def main():
     ).fetchall()
     param_map = {r["kod"]: r["id"] for r in param_rows}
 
-    missing_params = {"so3", "h2o2"} - set(param_map)
+    missing_params = {"so3", "nadtlenki"} - set(param_map)
     if missing_params:
         print(f"WARNING: parametry_analityczne missing: {missing_params} — skipping gate seed")
     else:
         gates = []
         if "sulfonowanie" in etap_map:
-            gates.append((etap_map["sulfonowanie"], param_map["so3"], "<=", 0.1,
-                          "SO₃²⁻ ≤ 0.1"))
+            gates.append((etap_map["sulfonowanie"], param_map["so3"], ">=", 0.09,
+                          "SO₃²⁻ ≥ 0,09"))
         if "utlenienie" in etap_map:
             gates.append((etap_map["utlenienie"], param_map["so3"], "<=", 0.1,
                           "SO₃²⁻ ≤ 0.1"))
-            gates.append((etap_map["utlenienie"], param_map["h2o2"], "<=", 0.1,
-                          "H₂O₂ ≤ 0.1"))
+            gates.append((etap_map["utlenienie"], param_map["nadtlenki"], "<=", 0.1,
+                          "nadtlenki ≤ 0.1"))
 
         seeded_gates = 0
         for etap_id, parametr_id, operator, wartosc, opis in gates:

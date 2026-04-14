@@ -205,6 +205,11 @@ def api_parametry_etapy_update(binding_id):
             updates = {k: v for k, v in data.items() if k in allowed}
             if not updates:
                 return jsonify({"error": "No valid fields"}), 400
+            # For limit fields, store '' (empty string) instead of NULL
+            # to distinguish "explicitly no limit" from "no override".
+            for lf in ("min_limit", "max_limit"):
+                if lf in updates and updates[lf] is None:
+                    updates[lf] = ''
             sets = ", ".join(f"{k}=?" for k in updates)
             vals = list(updates.values()) + [binding_id]
             db.execute(f"UPDATE produkt_etap_limity SET {sets} WHERE id=?", vals)
@@ -280,6 +285,16 @@ def api_parametry_sa_bias():
                 "UPDATE parametry_etapy SET sa_bias=?, formula=? WHERE id=?",
                 (sa_bias, new_formula, row["id"]),
             )
+        # Mirror sa_bias to etap_parametry (pipeline reads from this table)
+        pa_row = db.execute(
+            "SELECT id FROM parametry_analityczne WHERE kod = ?", (kod,)
+        ).fetchone()
+        if pa_row:
+            db.execute(
+                "UPDATE etap_parametry SET sa_bias = ? WHERE parametr_id = ?",
+                (sa_bias, pa_row["id"]),
+            )
+
         # Rebuild parametry_lab snapshot so future form loads see the updated formula
         plab = build_parametry_lab(db, produkt)
         db.execute(

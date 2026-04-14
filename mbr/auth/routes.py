@@ -20,6 +20,7 @@ def login():
                     "login": user["login"],
                     "rola": user["rola"],
                     "imie_nazwisko": user.get("imie_nazwisko"),
+                    "default_grupa": user.get("default_grupa", "lab"),
                 }
                 audit.log_event(
                     audit.EVENT_AUTH_LOGIN,

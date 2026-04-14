@@ -8,36 +8,362 @@ function renderCorrectionPanel(panelType, sekcja, ctx) {
 
     if (panelType === 'perhydrol') {
         _renderPerhydrolPanel(container, sekcja, ctx);
+    } else if (panelType === 'standaryzacja_v2') {
+        _renderStandaryzacjaV2Panel(container, sekcja, ctx);
     } else if (panelType === 'standaryzacja') {
         _renderStandaryzacjaPanel(container, sekcja, ctx);
     }
 }
 
-function _renderPerhydrolPanel(container, sekcja, ctx) {
+async function _renderPerhydrolPanel(container, sekcja, ctx) {
     var wynikSo3 = ctx.wynik_so3 != null ? String(ctx.wynik_so3).replace('.', ',') : '';
-    var targetSo3 = ctx.target_so3 != null ? String(ctx.target_so3).replace('.', ',') : '';
     var masa = ctx.masa_szarzy != null ? String(ctx.masa_szarzy).replace('.', ',') : '';
-    var wsp = ctx.wspolczynnik || '1,0';
+    var nastaw = ctx.masa_szarzy || 0;
+    var Meff = nastaw > 6600 ? nastaw - 1000 : nastaw - 500;
+    var MeffStr = Meff > 0 ? String(Meff).replace('.', ',') : '';
+
+    // Fetch global correction targets for this product + stage
+    var etapId = ctx.etap_id || 0;
+    var produkt = ctx.produkt || '';
+    var targets = {};
+    if (etapId && produkt) {
+        try {
+            var resp = await fetch('/api/pipeline/lab/correction-targets/' + etapId + '/' + encodeURIComponent(produkt));
+            if (resp.ok) targets = await resp.json();
+        } catch(e) {}
+    }
+    var targetSo3 = targets.target_so3 != null ? String(targets.target_so3).replace('.', ',') : '0';
+    var targetNadtlenki = targets.target_nadtlenki != null ? String(targets.target_nadtlenki).replace('.', ',') : '0';
+
+    var recomp = 'recomputePerhydrol(\'' + sekcja + '\')';
+    var saveTarget = 'saveCorrectionTarget(\'' + sekcja + '\',' + etapId + ',\'' + produkt + '\')';
+
+    // Determine action button from gate pass context
+    var isNewRoundUtl = (window._gatePassAction === 'new_round_utl');
+    var actionBtn = '';
+    if (window._gatePassAction === 'pompuj') {
+        actionBtn =
+            '<button class="gate-btn gate-btn-ok" onclick="completePompuj()">Przepompuj na zbiornik</button>' +
+            '<button class="gate-btn gate-btn-sec" onclick="openSmallCorrectionDialog()">Ma\u0142a korekta + przepompuj</button>';
+    } else if (isNewRoundUtl) {
+        actionBtn =
+            '<button class="gate-btn gate-btn-warn" onclick="advanceWithPerhydrol(\'' + sekcja + '\')">Dodaj perhydrol + nowa runda \u2192</button>';
+    } else {
+        actionBtn =
+            '<button class="gate-btn gate-btn-ok" onclick="advanceWithPerhydrol(\'' + sekcja + '\')">Zatwierd\u017A etap &rarr;</button>';
+    }
+
+    var h2o2Badge = isNewRoundUtl
+        ? '<span class="gate-badge gate-badge-fail">KOREKTA</span>'
+        : '<span class="gate-badge gate-badge-ok">PASS</span>';
+    var h2o2Cls = isNewRoundUtl ? 'gate-fail' : 'gate-h2o2';
 
     container.innerHTML =
-        '<div style="border:2px solid var(--blue, #3b82f6);border-radius:10px;background:var(--blue-bg, #eff6ff);padding:14px 16px;margin-top:12px;">' +
-            '<div style="font-weight:700;font-size:13px;color:var(--blue, #3b82f6);margin-bottom:10px;">' +
-                'Korekta utleniania &mdash; dawka perhydrolu' +
+        '<div class="gate-section ' + h2o2Cls + '" style="margin-top:8px;">' +
+            '<div class="gate-head">' +
+                '<div class="gate-icon gate-icon-blue" style="font-size:9px;">H\u2082O\u2082</div>' +
+                '<span class="gate-title">Dodatek procesowy &mdash; perhydrol</span>' +
+                h2o2Badge +
             '</div>' +
-            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;">' +
-                _corrInput('SO\u2083\u00B2\u207B wynik [%]', 'corr-so3-wynik-' + sekcja, wynikSo3, true, 'recomputePerhydrol(\'' + sekcja + '\')') +
-                _corrInput('SO\u2083\u00B2\u207B cel [%]', 'corr-so3-cel-' + sekcja, targetSo3, false, 'recomputePerhydrol(\'' + sekcja + '\')') +
-                _corrInput('Masa szar\u017Cy [kg]', 'corr-masa-' + sekcja, masa, false, 'recomputePerhydrol(\'' + sekcja + '\')') +
-                _corrInput('Wsp\u00F3\u0142czynnik', 'corr-wsp-' + sekcja, wsp, false, 'recomputePerhydrol(\'' + sekcja + '\')',
-                    '<div style="font-size:9px;color:var(--muted, #94a3b8);margin-top:2px;">Edycja = zapis globalny</div>') +
+            '<div class="gate-body">' +
+                '<div class="corr-fields corr-fields-3">' +
+                    _corrField('SO\u2083\u00B2\u207B wynik [%]', 'corr-so3-wynik-' + sekcja, wynikSo3, true, recomp) +
+                    _corrField('Masa szar\u017Cy [kg]', 'corr-masa-' + sekcja, masa, true, recomp) +
+                    _corrField('Masa efektywna [kg]', 'corr-meff-' + sekcja, MeffStr, false, recomp) +
+                '</div>' +
+                '<div class="corr-fields corr-fields-2" style="margin-top:10px;">' +
+                    _corrField('Docelowe SO\u2083\u00B2\u207B [%]', 'corr-target-so3-' + sekcja, targetSo3, false,
+                        recomp + ';' + saveTarget,
+                        '<div class="corr-global-tag">Edycja = zapis globalny</div>') +
+                    _corrField('Docelowe nadtlenki [%]', 'corr-target-nadt-' + sekcja, targetNadtlenki, false,
+                        recomp + ';' + saveTarget,
+                        '<div class="corr-global-tag">Edycja = zapis globalny</div>') +
+                '</div>' +
+                '<div id="corr-result-' + sekcja + '" class="corr-result" style="display:flex;align-items:center;gap:16px;text-align:left;">' +
+                    '<div style="flex:1;">' +
+                        '<div class="corr-result-label">Dawka sugerowana</div>' +
+                        '<div class="corr-result-val" id="corr-calc-val-' + sekcja + '">&mdash; kg</div>' +
+                    '</div>' +
+                    '<div style="flex:1;">' +
+                        '<span class="corr-field-label">Dawka perhydrolu [kg]</span>' +
+                        '<input id="corr-manual-kg-' + sekcja + '" class="corr-field-input" type="text" inputmode="decimal"' +
+                            ' placeholder="wpisz lub zostaw podpowied\u017A" style="font-weight:700;font-size:14px;"' +
+                            ' oninput="onManualPerhydrolInput(\'' + sekcja + '\')">' +
+                    '</div>' +
+                '</div>' +
             '</div>' +
-            '<div id="corr-result-' + sekcja + '" style="margin-top:12px;background:var(--surface, #fff);border:1px solid var(--border, #e2e8f0);border-radius:8px;padding:12px 16px;text-align:center;">' +
-                '<div style="font-size:11px;color:var(--muted, #94a3b8);">Dawka perhydrolu</div>' +
-                '<div style="font-size:22px;font-weight:700;font-family:var(--mono, monospace);color:var(--teal, #14b8a6);margin-top:4px;">&mdash; kg</div>' +
-            '</div>' +
+            '<div class="gate-actions">' + actionBtn + '</div>' +
         '</div>';
 
     recomputePerhydrol(sekcja);
+}
+
+async function _renderStandaryzacjaV2Panel(container, sekcja, ctx) {
+    var wynikNd20 = ctx.wynik_nd20 != null ? String(ctx.wynik_nd20).replace('.', ',') : '';
+    var wynikPh = ctx.wynik_ph != null ? String(ctx.wynik_ph).replace('.', ',') : '';
+    var masa = ctx.masa_szarzy != null ? String(ctx.masa_szarzy).replace('.', ',') : '';
+    var nastaw = ctx.masa_szarzy || 0;
+    var Meff = nastaw > 6600 ? nastaw - 1000 : nastaw - 500;
+    var MeffStr = Meff > 0 ? String(Meff).replace('.', ',') : '';
+
+    var etapId = ctx.etap_id || 0;
+    var produkt = ctx.produkt || '';
+    var targets = {};
+    if (etapId && produkt) {
+        try {
+            var resp = await fetch('/api/pipeline/lab/correction-targets/' + etapId + '/' + encodeURIComponent(produkt));
+            if (resp.ok) targets = await resp.json();
+        } catch(e) {}
+    }
+    var targetNd20 = targets.target_nd20 != null ? String(targets.target_nd20).replace('.', ',') : '1,465';
+    var targetPh = targets.target_ph != null ? String(targets.target_ph).replace('.', ',') : '6,25';
+
+    var recomp = 'recomputeStandV2(\'' + sekcja + '\')';
+    var saveT = 'saveStandV2Targets(\'' + sekcja + '\',' + etapId + ',\'' + produkt + '\')';
+
+    // Action button
+    var isNewRoundStand = (window._gatePassAction === 'new_round_stand');
+    var actionBtn = '';
+    if (window._gatePassAction === 'pompuj') {
+        actionBtn =
+            '<button class="gate-btn gate-btn-ok" onclick="completePompuj()">Przepompuj na zbiornik</button>';
+    } else if (isNewRoundStand) {
+        actionBtn =
+            '<button class="gate-btn gate-btn-warn" onclick="advanceStandNewRound(\'' + sekcja + '\')">Zale\u0107 korekt\u0119 + nowa runda \u2192</button>';
+    } else {
+        actionBtn =
+            '<button class="gate-btn gate-btn-ok" onclick="advanceWithStandV2(\'' + sekcja + '\')">Zatwierd\u017A etap &rarr;</button>';
+    }
+
+    var standBadge = isNewRoundStand
+        ? '<span class="gate-badge gate-badge-fail">KOREKTA</span>'
+        : '<span class="gate-badge gate-badge-ok">PASS</span>';
+    var standCls = isNewRoundStand ? 'gate-fail' : 'gate-h2o2';
+
+    container.innerHTML =
+        '<div class="gate-section ' + standCls + '" style="margin-top:8px;">' +
+            '<div class="gate-head">' +
+                '<div class="gate-icon ' + (isNewRoundStand ? 'gate-icon-warn' : 'gate-icon-blue') + '" style="font-size:10px;">' + (isNewRoundStand ? '!' : '\u2192') + '</div>' +
+                '<span class="gate-title">Korekta standaryzuj\u0105ca &mdash; woda + kwas</span>' +
+                standBadge +
+            '</div>' +
+            '<div class="gate-body">' +
+                '<div class="corr-fields corr-fields-3">' +
+                    _corrField('nD20 wynik', 'corr-nd20-wynik-' + sekcja, wynikNd20, true, recomp) +
+                    _corrField('pH wynik', 'corr-ph-wynik-' + sekcja, wynikPh, true, recomp) +
+                    _corrField('Masa efektywna [kg]', 'corr-meff-st-' + sekcja, MeffStr, false, recomp) +
+                '</div>' +
+                '<div class="corr-fields corr-fields-2" style="margin-top:10px;">' +
+                    _corrField('Docelowe nD20', 'corr-target-nd20-' + sekcja, targetNd20, false,
+                        recomp + ';' + saveT,
+                        '<div class="corr-global-tag">Edycja = zapis globalny</div>') +
+                    _corrField('Docelowe pH', 'corr-target-ph-' + sekcja, targetPh, false,
+                        recomp + ';' + saveT,
+                        '<div class="corr-global-tag">Edycja = zapis globalny</div>') +
+                '</div>' +
+                '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;">' +
+                    '<div class="corr-result">' +
+                        '<div class="corr-result-label">Woda &mdash; dawka sugerowana</div>' +
+                        '<div class="corr-result-val" id="corr-woda-calc-' + sekcja + '">&mdash; kg</div>' +
+                    '</div>' +
+                    '<div class="corr-result">' +
+                        '<div class="corr-result-label">Kwas cytrynowy &mdash; dawka sugerowana (model)</div>' +
+                        '<div class="corr-result-val" id="corr-kwas-calc-' + sekcja + '">&mdash; kg</div>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="corr-fields" style="margin-top:10px;grid-template-columns:1fr 1fr 1fr;">' +
+                    _corrField('Woda [kg]', 'corr-manual-woda-' + sekcja, '', false,
+                        'document.getElementById(\"corr-manual-woda-' + sekcja + '\")._userEdited=true;recomputeStandTotal(\"' + sekcja + '\")') +
+                    _corrField('Kwas cytrynowy [kg]', 'corr-manual-kwas-' + sekcja, '', false,
+                        'document.getElementById(\"corr-manual-kwas-' + sekcja + '\")._userEdited=true;recomputeStandTotal(\"' + sekcja + '\")') +
+                    '<div>' +
+                        '<span class="corr-field-label">WODA \u0141\u0104CZNIE [KG]</span>' +
+                        '<div id="corr-total-woda-' + sekcja + '" style="padding:6px 10px;border:1.5px solid var(--teal);border-radius:6px;font-size:14px;font-family:var(--mono);text-align:center;background:var(--teal-bg);color:var(--teal);font-weight:700;">&mdash;</div>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+            '<div class="gate-actions">' + actionBtn + '</div>' +
+        '</div>';
+
+    recomputeStandV2(sekcja);
+    recomputeStandTotal(sekcja);
+}
+
+function recomputeStandV2(sekcja) {
+    var nd20 = _parsePl(document.getElementById('corr-nd20-wynik-' + sekcja)?.value);
+    var ph = _parsePl(document.getElementById('corr-ph-wynik-' + sekcja)?.value);
+    var Meff = _parsePl(document.getElementById('corr-meff-st-' + sekcja)?.value);
+    var tNd20 = _parsePl(document.getElementById('corr-target-nd20-' + sekcja)?.value);
+    var tPh = _parsePl(document.getElementById('corr-target-ph-' + sekcja)?.value);
+
+    // Woda: (R0 - Rk) * Meff / (Rk - 1.333)
+    var wodaCalcEl = document.getElementById('corr-woda-calc-' + sekcja);
+    var wodaManEl = document.getElementById('corr-manual-woda-' + sekcja);
+    if (wodaCalcEl) {
+        if (!isNaN(nd20) && !isNaN(tNd20) && !isNaN(Meff) && (tNd20 - 1.333) > 0) {
+            var woda = (nd20 - tNd20) * Meff / (tNd20 - 1.333);
+            if (!isFinite(woda) || woda < 0) woda = 0;
+            var wFmt = woda.toFixed(1).replace('.', ',');
+            wodaCalcEl.textContent = wFmt + ' kg';
+            if (wodaManEl && !wodaManEl._userEdited) wodaManEl.value = wFmt;
+        } else {
+            wodaCalcEl.textContent = '\u2014 kg';
+        }
+    }
+
+    // Kwas cytrynowy: Linear(pH, masa) model
+    // coef = intercept + b_ph * pH_start + b_masa * masa_kg
+    // dawka = coef * masa_eff_kg * (pH_start - pH_target)
+    // masa_eff_kg = Meff + woda_kg - kwas_kg (≈ Meff + woda for prediction)
+    var kwasCalcEl = document.getElementById('corr-kwas-calc-' + sekcja);
+    var kwasManEl = document.getElementById('corr-manual-kwas-' + sekcja);
+    if (kwasCalcEl) {
+        if (!isNaN(ph) && !isNaN(tPh) && !isNaN(Meff) && Meff > 0) {
+            var wodaKg = 0;
+            if (wodaManEl && wodaManEl.value) {
+                wodaKg = _parsePl(wodaManEl.value);
+                if (isNaN(wodaKg)) wodaKg = 0;
+            }
+            var masaEffKg = Meff + wodaKg;
+            var masaKg = ebrNastaw || Meff;
+            var kwas = _acidModelPredict(ph, tPh, masaKg, masaEffKg);
+            if (kwas !== null) {
+                var kFmt = kwas.toFixed(1).replace('.', ',');
+                kwasCalcEl.textContent = kFmt + ' kg';
+                if (kwasManEl && !kwasManEl._userEdited) kwasManEl.value = kFmt;
+            } else {
+                kwasCalcEl.textContent = '\u2014 kg';
+            }
+        } else {
+            kwasCalcEl.textContent = '\u2014 kg';
+        }
+    }
+
+    recomputeStandTotal(sekcja);
+}
+
+// Acid estimation model — Linear(pH, masa)
+// Trained on data/kwas.csv (45 obs, LOO-CV MAE=5.44 kg, MAPE=6.3%)
+// Target: kwas_per_kg_per_dph = kwas_kg / masa_eff / delta_pH
+// coef = -0.006285 + 0.00068015 * pH + (-0.000000026318) * masa_kg
+// dawka = coef * masa_eff_kg * (pH_start - pH_target)
+function _acidModelPredict(phStart, phTarget, masaKg, masaEffKg) {
+    var coef = -0.006285 + 0.00068015 * phStart + (-0.000000026318) * masaKg;
+    if (coef <= 0) return null;
+    var dawka = coef * masaEffKg * (phStart - phTarget);
+    if (!isFinite(dawka) || dawka < 0) return 0;
+    return dawka;
+}
+
+function recomputeStandTotal(sekcja) {
+    var wodaEl = document.getElementById('corr-manual-woda-' + sekcja);
+    var kwasEl = document.getElementById('corr-manual-kwas-' + sekcja);
+    var totalEl = document.getElementById('corr-total-woda-' + sekcja);
+    if (!totalEl) return;
+    var woda = wodaEl ? _parsePl(wodaEl.value) : NaN;
+    var kwas = kwasEl ? _parsePl(kwasEl.value) : NaN;
+    if (isNaN(woda)) woda = 0;
+    if (isNaN(kwas)) kwas = 0;
+    var total = woda + kwas;
+    totalEl.textContent = total > 0 ? total.toFixed(1).replace('.', ',') : '\u2014';
+}
+
+function saveStandV2Targets(sekcja, etapId, produkt) {
+    var tNd20 = _parsePl(document.getElementById('corr-target-nd20-' + sekcja)?.value);
+    var tPh = _parsePl(document.getElementById('corr-target-ph-' + sekcja)?.value);
+    fetch('/api/pipeline/lab/correction-targets/' + etapId + '/' + encodeURIComponent(produkt), {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            target_nd20: isNaN(tNd20) ? null : tNd20,
+            target_ph: isNaN(tPh) ? null : tPh
+        })
+    });
+}
+
+async function advanceStandNewRound(sekcja) {
+    var gate = window._lastGate;
+    if (!gate || !gate.etap_id || !gate.sesja_id) return;
+
+    // Save woda correction
+    var wodaEl = document.getElementById('corr-manual-woda-' + sekcja);
+    if (wodaEl && wodaEl.value) {
+        var wKg = parseFloat(wodaEl.value.replace(',', '.'));
+        if (!isNaN(wKg) && wKg > 0) {
+            await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Woda', ilosc: wKg })
+            });
+        }
+    }
+    // Save kwas correction
+    var kwasEl = document.getElementById('corr-manual-kwas-' + sekcja);
+    if (kwasEl && kwasEl.value) {
+        var kKg = parseFloat(kwasEl.value.replace(',', '.'));
+        if (!isNaN(kKg) && kKg > 0) {
+            await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Kwas cytrynowy', ilosc: kKg })
+            });
+        }
+    }
+
+    // Close session + start new round
+    await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + gate.etap_id + '/close', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ sesja_id: gate.sesja_id, decyzja: 'new_round' })
+    });
+
+    if (typeof loadBatch === 'function') loadBatch(ebrId);
+    else location.reload();
+}
+
+async function advanceWithStandV2(sekcja) {
+    var gate = window._lastGate;
+    if (!gate || !gate.etap_id) return;
+
+    // Save woda correction
+    var wodaEl = document.getElementById('corr-manual-woda-' + sekcja);
+    if (wodaEl && wodaEl.value) {
+        var wKg = parseFloat(wodaEl.value.replace(',', '.'));
+        if (!isNaN(wKg) && wKg > 0 && gate.sesja_id) {
+            await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Woda', ilosc: wKg })
+            });
+        }
+    }
+    // Save kwas correction
+    var kwasEl = document.getElementById('corr-manual-kwas-' + sekcja);
+    if (kwasEl && kwasEl.value) {
+        var kKg = parseFloat(kwasEl.value.replace(',', '.'));
+        if (!isNaN(kKg) && kKg > 0 && gate.sesja_id) {
+            await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Kwas cytrynowy', ilosc: kKg })
+            });
+        }
+    }
+
+    // Advance to standaryzacja
+    var pipelineStages = etapy.filter(function(e) { return !!e.pipeline_etap_id; });
+    var baseSekcja = sekcja.split('__')[0];
+    var currentIdx = -1;
+    for (var i = 0; i < pipelineStages.length; i++) {
+        if (pipelineStages[i].sekcja_lab === baseSekcja) { currentIdx = i; break; }
+    }
+    var nextStage = currentIdx >= 0 && currentIdx < pipelineStages.length - 1 ? pipelineStages[currentIdx + 1] : null;
+    if (nextStage) {
+        await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + nextStage.pipeline_etap_id + '/start', { method: 'POST' });
+        window._activePipelineStage = nextStage.sekcja_lab;
+    }
+    if (typeof loadBatch === 'function') loadBatch(ebrId);
+    else location.reload();
 }
 
 function _renderStandaryzacjaPanel(container, sekcja, ctx) {
@@ -89,34 +415,122 @@ function _corrInput(label, id, value, readonly, oninputFn, extra) {
     '</div>';
 }
 
+function _corrField(label, id, value, readonly, oninputFn, extra) {
+    return '<div>' +
+        '<span class="corr-field-label">' + label + '</span>' +
+        '<input id="' + id + '" class="corr-field-input" type="text" inputmode="decimal" value="' + (value || '') + '"' +
+            (readonly ? ' readonly' : '') +
+            ' oninput="' + oninputFn + '">' +
+        (extra || '') +
+    '</div>';
+}
+
 function _parsePl(val) {
     if (val == null || val === '') return NaN;
     return parseFloat(String(val).replace(',', '.'));
 }
 
 function recomputePerhydrol(sekcja) {
-    var wynikSo3 = _parsePl(document.getElementById('corr-so3-wynik-' + sekcja)?.value);
-    var celSo3   = _parsePl(document.getElementById('corr-so3-cel-' + sekcja)?.value);
-    var masa     = _parsePl(document.getElementById('corr-masa-' + sekcja)?.value);
-    var wsp      = _parsePl(document.getElementById('corr-wsp-' + sekcja)?.value);
+    var C_so3 = _parsePl(document.getElementById('corr-so3-wynik-' + sekcja)?.value);
+    var Meff  = _parsePl(document.getElementById('corr-meff-' + sekcja)?.value);
+    var target_so3 = _parsePl(document.getElementById('corr-target-so3-' + sekcja)?.value);
+    var target_nadtlenki = _parsePl(document.getElementById('corr-target-nadt-' + sekcja)?.value);
 
     var resultEl = document.getElementById('corr-result-' + sekcja);
     if (!resultEl) return;
 
-    if (isNaN(wynikSo3) || isNaN(celSo3) || isNaN(masa) || isNaN(wsp) || wsp === 0) {
-        resultEl.innerHTML =
-            '<div style="font-size:11px;color:var(--muted, #94a3b8);">Dawka perhydrolu</div>' +
-            '<div style="font-size:22px;font-weight:700;font-family:var(--mono, monospace);color:var(--teal, #14b8a6);margin-top:4px;">&mdash; kg</div>';
+    var calcEl = document.getElementById('corr-calc-val-' + sekcja);
+    var manualEl = document.getElementById('corr-manual-kg-' + sekcja);
+
+    if (isNaN(C_so3) || isNaN(Meff) || Meff <= 0) {
+        if (calcEl) calcEl.textContent = '\u2014 kg';
         return;
     }
 
-    var dawka = (celSo3 - wynikSo3) * masa * wsp;
-    if (!isFinite(dawka) || dawka < 0) dawka = 0;
-    var formatted = dawka.toFixed(2).replace('.', ',');
+    if (isNaN(target_so3)) target_so3 = 0;
+    if (isNaN(target_nadtlenki)) target_nadtlenki = 0;
 
-    resultEl.innerHTML =
-        '<div style="font-size:11px;color:var(--muted, #94a3b8);">Dawka perhydrolu</div>' +
-        '<div style="font-size:22px;font-weight:700;font-family:var(--mono, monospace);color:var(--teal, #14b8a6);margin-top:4px;">' + formatted + ' kg</div>';
+    // Formula: (C_so3 - target_so3) * 0.01214 * Meff + (target_nadtlenki > 0 ? target_nadtlenki * Meff / 350 : 0)
+    var dawka = (C_so3 - target_so3) * 0.01214 * Meff;
+    if (target_nadtlenki > 0) {
+        dawka += target_nadtlenki * Meff / 350;
+    }
+    if (!isFinite(dawka) || dawka < 0) dawka = 0;
+    var formatted = dawka.toFixed(1).replace('.', ',');
+
+    if (calcEl) calcEl.textContent = formatted + ' kg';
+    // Pre-fill manual field if empty (user hasn't typed anything yet)
+    if (manualEl && !manualEl.value && !manualEl._userEdited) {
+        manualEl.value = formatted;
+    }
+}
+
+function onManualPerhydrolInput(sekcja) {
+    var manualEl = document.getElementById('corr-manual-kg-' + sekcja);
+    if (manualEl) manualEl._userEdited = true;
+}
+
+async function advanceWithPerhydrol(sekcja) {
+    var gate = window._lastGate;
+    if (!gate || !gate.etap_id) return;
+
+    // Save perhydrol correction amount
+    var manualEl = document.getElementById('corr-manual-kg-' + sekcja);
+    if (manualEl && manualEl.value) {
+        var kg = parseFloat(manualEl.value.replace(',', '.'));
+        if (!isNaN(kg) && kg > 0 && gate.sesja_id) {
+            await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    sesja_id: gate.sesja_id,
+                    etap_id: gate.etap_id,
+                    substancja: 'Perhydrol 34%',
+                    ilosc: kg
+                })
+            });
+        }
+    }
+
+    if (window._gatePassAction === 'new_round_utl') {
+        // Utlenienie FAIL → new round (same stage)
+        await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + gate.etap_id + '/start', {
+            method: 'POST'
+        });
+    } else {
+        // Normal PASS → advance to next stage
+        var baseSekcja = sekcja.split('__')[0];
+        var currentIdx = -1;
+        var pipelineStages = etapy.filter(function(e) { return !!e.pipeline_etap_id; });
+        for (var i = 0; i < pipelineStages.length; i++) {
+            if (pipelineStages[i].sekcja_lab === baseSekcja) { currentIdx = i; break; }
+        }
+        var nextStage = currentIdx >= 0 && currentIdx < pipelineStages.length - 1
+            ? pipelineStages[currentIdx + 1] : null;
+
+        if (nextStage) {
+            await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + nextStage.pipeline_etap_id + '/start', {
+                method: 'POST'
+            });
+            window._activePipelineStage = nextStage.sekcja_lab;
+        }
+    }
+
+    if (typeof loadBatch === 'function') loadBatch(ebrId);
+    else location.reload();
+}
+
+function saveCorrectionTarget(sekcja, etapId, produkt) {
+    var targetSo3 = _parsePl(document.getElementById('corr-target-so3-' + sekcja)?.value);
+    var targetNadt = _parsePl(document.getElementById('corr-target-nadt-' + sekcja)?.value);
+    var body = {};
+    body.target_so3 = isNaN(targetSo3) ? null : targetSo3;
+    body.target_nadtlenki = isNaN(targetNadt) ? null : targetNadt;
+    fetch('/api/pipeline/lab/correction-targets/' + etapId + '/' + encodeURIComponent(produkt), {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+    });
 }
 
 function recomputeStandaryzacja(sekcja) {
@@ -161,7 +575,7 @@ function recomputeStandaryzacja(sekcja) {
 function _getCorrectionContext(sekcja) {
     var baseSekcja = sekcja.split('__')[0];
     var activeEtap = etapy.find(function(e) { return e.sekcja_lab === baseSekcja; });
-    var etapKod = activeEtap ? (activeEtap.sekcja_lab || '') : '';
+    var etapKod = activeEtap ? (activeEtap.kod || activeEtap.sekcja_lab || '') : '';
 
     // Get measurement values from wyniki
     var sekWyniki = wyniki[sekcja] || wyniki[baseSekcja] || {};
@@ -191,21 +605,50 @@ function _getCorrectionContext(sekcja) {
 
 function tryRenderCorrectionAfterGate(sekcja) {
     var ctx = _getCorrectionContext(sekcja);
+    var produkt = window._batchProdukt || '';
 
     if (ctx.etapKod === 'sulfonowanie') {
+        var activeEtap = etapy.find(function(e) { return e.sekcja_lab === 'sulfonowanie'; });
         renderCorrectionPanel('perhydrol', sekcja, {
             wynik_so3:   ctx.getWynik('so3'),
-            target_so3:  ctx.getTarget('so3'),
             masa_szarzy: ctx.masa,
-            wspolczynnik: '1,0'
+            etap_id:     activeEtap ? activeEtap.pipeline_etap_id : 0,
+            produkt:     produkt,
         });
     } else if (ctx.etapKod === 'utlenienie') {
-        renderCorrectionPanel('standaryzacja', sekcja, {
-            wynik_sm:    ctx.getWynik('sm'),
-            target_sm:   ctx.getTarget('sm'),
-            wynik_nacl:  ctx.getWynik('nacl'),
-            target_nacl: ctx.getTarget('nacl'),
-            masa_szarzy: ctx.masa
+        var utlEtap = etapy.find(function(e) { return e.sekcja_lab === 'utlenienie'; });
+        var etapId = utlEtap ? utlEtap.pipeline_etap_id : 0;
+
+        if (window._gatePassAction === 'new_round_utl') {
+            // Utlenienie FAIL → show perhydrol panel + new round button
+            renderCorrectionPanel('perhydrol', sekcja, {
+                wynik_so3:   ctx.getWynik('so3'),
+                masa_szarzy: ctx.masa,
+                etap_id:     etapId,
+                produkt:     produkt,
+            });
+        } else {
+            // Utlenienie PASS → show woda + kwas cytrynowy panel
+            renderCorrectionPanel('standaryzacja_v2', sekcja, {
+                wynik_nd20:  ctx.getWynik('nd20'),
+                wynik_ph:    ctx.getWynik('ph_10proc'),
+                masa_szarzy: ctx.masa,
+                etap_id:     etapId,
+                produkt:     produkt,
+            });
+        }
+    } else if (ctx.etapKod === 'standaryzacja') {
+        var standEtap = etapy.find(function(e) { return e.kod === 'standaryzacja'; });
+        var standEtapId = standEtap ? standEtap.pipeline_etap_id : 0;
+
+        // Standaryzacja PASS or FAIL → show standaryzacja V2 panel
+        // (action button adapts via _gatePassAction: 'new_round_stand' / 'pompuj')
+        renderCorrectionPanel('standaryzacja_v2', sekcja, {
+            wynik_nd20:  ctx.getWynik('nd20'),
+            wynik_ph:    ctx.getWynik('ph_10proc'),
+            masa_szarzy: ctx.masa,
+            etap_id:     standEtapId,
+            produkt:     produkt,
         });
     }
 }

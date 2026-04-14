@@ -24,7 +24,17 @@
   <span class="bc-nr">{{ b.nr_partii }}</span>
   {% if b.typ == 'zbiornik' %}<span class="bc-typ-badge">{{ b.nr_zbiornika or 'ZB' }}</span>{% endif %}
   <span class="bc-product-sticker {{ product_color(b.produkt) }}">{{ b.produkt|short_product }}</span>
-  {% if b.stage_name and b.typ not in ('zbiornik', 'platkowanie') %}
+  {% if b.stages_list and b.stages_list|length > 0 and b.typ not in ('zbiornik', 'platkowanie') %}
+  {# Multi-stage pipeline display — show all stages with status indicators #}
+  <span class="bc-stages-row">
+    {%- for st in b.stages_list -%}
+    <span class="bc-etap-mini {{ st.css }} bc-st-{{ st.status }}" title="{{ st.label }}">
+      {{- st.abbr -}}
+    </span>
+    {%- endfor -%}
+  </span>
+  {% elif b.stage_name and b.typ not in ('zbiornik', 'platkowanie') %}
+  {# Fallback: single stage badge for products without pipeline #}
   <span class="bc-etap-badge {% if 'Amidowanie' in b.stage_name|default('') or 'SMCA' in b.stage_name|default('') %}etap-amid{% elif 'Czwartorzęd' in b.stage_name|default('') %}etap-czwart{% elif 'Sulfonowanie' in b.stage_name|default('') %}etap-sulfon{% elif 'Utlenienie' in b.stage_name|default('') or 'Rozjaśnianie' in b.stage_name|default('') %}etap-utlen{% elif 'Standaryzacja' in b.stage_name|default('') and 'Analiza' not in b.stage_name|default('') %}etap-st{% elif 'końcowa' in b.stage_name|default('') %}etap-ak{% elif 'Analiza' in b.stage_name|default('') %}etap-an{% elif 'Gotowy' in b.stage_name|default('') %}etap-go{% endif %}">
     {%- if 'Amidowanie' in b.stage_name|default('') -%}AM
     {%- elif 'SMCA' in b.stage_name|default('') -%}SM
@@ -39,7 +49,6 @@
     {%- else -%}{{ b.stage_name|default('')|truncate(2, True, '') }}
     {%- endif -%}
   </span>
-  {% endif %}
   <span class="bc-stage">
     {% if b.out_of_limit > 0 %}
       <span class="bc-st-err">!!</span>
@@ -51,5 +60,6 @@
       <span class="bc-st-wait">○</span>
     {% endif %}
   </span>
+  {% endif %}
 </div>
 {% endmacro %}

@@ -556,7 +556,7 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             id              INTEGER PRIMARY KEY,
             etap_id         INTEGER NOT NULL REFERENCES etapy_analityczne(id),
             parametr_id     INTEGER NOT NULL REFERENCES parametry_analityczne(id),
-            operator        TEXT NOT NULL CHECK(operator IN ('<', '<=', '>=', '>', 'between', '=')),
+            operator        TEXT NOT NULL CHECK(operator IN ('<', '<=', '>=', '>', 'between', '=', 'w_limicie')),
             wartosc         REAL,
             wartosc_max     REAL,
             opis_warunku    TEXT
@@ -648,6 +648,16 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             status          TEXT NOT NULL DEFAULT 'zalecona'
                             CHECK(status IN ('zalecona', 'wykonana', 'anulowana')),
             komentarz       TEXT
+        )
+    """)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS korekta_cele (
+            id       INTEGER PRIMARY KEY AUTOINCREMENT,
+            etap_id  INTEGER NOT NULL,
+            produkt  TEXT NOT NULL,
+            kod      TEXT NOT NULL,
+            wartosc  REAL,
+            UNIQUE(etap_id, produkt, kod)
         )
     """)
     for col, typ in [("zlecenie_id", "INTEGER REFERENCES ebr_korekta_zlecenie(id)"),

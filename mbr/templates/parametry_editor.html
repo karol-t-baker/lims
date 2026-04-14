@@ -161,6 +161,7 @@
           <th style="width:80px;">Min</th>
           <th style="width:80px;">Target</th>
           <th style="width:80px;">Max</th>
+          <th style="width:70px;">Grupa</th>
           <th style="width:40px;"></th>
         </tr>
       </thead>
@@ -174,6 +175,11 @@
       <input type="text" id="etap-add-naw" placeholder="Naważka [g]" style="width:90px;" inputmode="decimal">
       <input type="text" id="etap-add-min" placeholder="Min" style="width:70px;" inputmode="decimal">
       <input type="text" id="etap-add-max" placeholder="Max" style="width:70px;" inputmode="decimal">
+      <select id="etap-add-grupa" style="width:66px;font-size:10px;">
+        <option value="lab">lab</option>
+        <option value="kj">kj</option>
+        <option value="rnd">rnd</option>
+      </select>
       <button onclick="addEtapBinding()">+ Dodaj</button>
     </div>
   </div>
@@ -335,15 +341,20 @@ function renderEtapTable(data) {
       '<td><input class="pa-input" type="text" inputmode="decimal" value="' + (b.min_limit != null ? String(b.min_limit).replace('.',',') : '') + '" onblur="saveEtapField(' + b.id + ',\'min_limit\',this)" style="width:70px;text-align:center;"></td>' +
       '<td><input class="pa-input" type="text" inputmode="decimal" value="' + (b.target != null ? String(b.target).replace('.',',') : '') + '" onblur="saveEtapField(' + b.id + ',\'target\',this)" style="width:70px;text-align:center;"></td>' +
       '<td><input class="pa-input" type="text" inputmode="decimal" value="' + (b.max_limit != null ? String(b.max_limit).replace('.',',') : '') + '" onblur="saveEtapField(' + b.id + ',\'max_limit\',this)" style="width:70px;text-align:center;"></td>' +
+      '<td><select class="pa-input" onchange="saveEtapField(' + b.id + ',\'grupa\',this)" style="width:66px;font-size:10px;padding:3px 4px;">' +
+        '<option value="lab"' + ((b.grupa||'lab')==='lab'?' selected':'') + '>lab</option>' +
+        '<option value="kj"' + (b.grupa==='kj'?' selected':'') + '>kj</option>' +
+        '<option value="rnd"' + (b.grupa==='rnd'?' selected':'') + '>rnd</option>' +
+      '</select></td>' +
       '<td><button class="pe-bind-del" onclick="deleteEtapBinding(' + b.id + ')">&times;</button></td>' +
     '</tr>';
   });
   document.getElementById('etap-body').innerHTML = html ||
-    '<tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:20px;">Brak przypisań dla tego etapu</td></tr>';
+    '<tr><td colspan="9" style="text-align:center;color:var(--text-dim);padding:20px;">Brak przypisań dla tego etapu</td></tr>';
 }
 
 function saveEtapField(id, field, input) {
-  var val = parseNum(input.value);
+  var val = field === 'grupa' ? input.value : parseNum(input.value);
   var body = {}; body[field] = val;
   fetch('/api/parametry/etapy/' + id, {
     method: 'PUT', headers: {'Content-Type': 'application/json'},
@@ -365,6 +376,7 @@ function addEtapBinding() {
       nawazka_g: parseNum(document.getElementById('etap-add-naw').value),
       min_limit: parseNum(document.getElementById('etap-add-min').value),
       max_limit: parseNum(document.getElementById('etap-add-max').value),
+      grupa: document.getElementById('etap-add-grupa').value,
     })
   }).then(function(r){return r.json();}).then(function(d) {
     if (d.ok) {

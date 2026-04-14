@@ -178,15 +178,6 @@ def test_etapy_json_structure(db):
     assert first["sekcja_lab"] == "analiza"
 
 
-def test_cykliczny_generates_dodatki_stage(db):
-    """For a cykliczny stage, a companion 'dodatki' entry must also appear."""
-    _seed(db)
-    from mbr.pipeline.adapter import build_pipeline_context
-    ctx = build_pipeline_context(db, "TestProd")
-    sekcje = [e["sekcja_lab"] for e in ctx["etapy_json"]]
-    assert "dodatki" in sekcje
-
-
 def test_parametry_lab_has_sekcja(db):
     """For cykliczny stage, parametry_lab key must be 'analiza' (not the stage kod)."""
     _seed(db)
@@ -246,18 +237,6 @@ def test_obliczeniowy_has_formula(db):
     assert sa["measurement_type"] == "obliczeniowy"
     assert "formula" in sa
     assert sa["formula"]  # must be non-empty
-
-
-def test_dodatki_sekcja_from_korekty(db):
-    """'dodatki' section pola must come from etap_korekty_katalog."""
-    _seed(db)
-    from mbr.pipeline.adapter import build_pipeline_context
-    ctx = build_pipeline_context(db, "TestProd")
-    plab = ctx["parametry_lab"]
-    assert "dodatki" in plab
-    kody = [p["kod"] for p in plab["dodatki"]["pola"]]
-    assert "korekta_woda" in kody
-    assert "korekta_nacl" in kody
 
 
 def test_empty_pipeline_returns_none(db):

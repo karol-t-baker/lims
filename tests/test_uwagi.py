@@ -283,7 +283,7 @@ def test_api_put_uwagi_create(client, ebr_batch):
     assert resp.status_code == 200
     data = resp.get_json()
     assert data["tekst"] == "Dodano 500 kg NaOH"
-    assert data["autor"] == "testuser"
+    assert data["autor"] == "TU"
     assert len(data["historia"]) == 1
     assert data["historia"][0]["action"] == "create"
 

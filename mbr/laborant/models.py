@@ -73,6 +73,110 @@ def next_nr_partii(db: sqlite3.Connection, produkt: str) -> str:
 # EBR Dashboard queries
 # ---------------------------------------------------------------------------
 
+_STAGE_LABELS = {
+    "amidowanie": "Amidowanie", "namca": "Wytworzenie SMCA",
+    "smca": "Wytworzenie SMCA", "czwartorzedowanie": "Czwartorzędowanie",
+    "sulfonowanie": "Sulfonowanie", "utlenienie": "Utlenienie",
+    "rozjasnianie": "Rozjaśnianie", "standaryzacja": "Standaryzacja",
+    "analiza_koncowa": "Analiza końcowa", "przepompowanie": "Przepompowanie",
+}
+
+_STAGE_ABBR = {
+    "amidowanie": "AM", "namca": "SM", "smca": "SM",
+    "czwartorzedowanie": "CZ", "sulfonowanie": "SF",
+    "utlenienie": "UT", "rozjasnianie": "RZ",
+    "standaryzacja": "ST", "analiza_koncowa": "AK",
+    "przepompowanie": "PP",
+}
+
+_STAGE_CSS = {
+    "amidowanie": "etap-amid", "namca": "etap-amid", "smca": "etap-amid",
+    "czwartorzedowanie": "etap-czwart", "sulfonowanie": "etap-sulfon",
+    "utlenienie": "etap-utlen", "rozjasnianie": "etap-utlen",
+    "standaryzacja": "etap-st", "analiza_koncowa": "etap-ak",
+    "przepompowanie": "etap-go",
+}
+
+
+def _build_stages_list(
+    db: sqlite3.Connection, ebr_id: int, produkt: str
+) -> list[dict]:
+    """Build ordered list of pipeline stages with their status for multi-stage badge display.
+
+    Status logic (stages never go backwards):
+    - At creation: first stage = in_progress, rest = pending
+    - Current stage = highest-order stage that has data (ebr_wyniki or ebr_pomiar)
+    - Stages before current = done, current = in_progress, after = pending
+    - If a stage session is 'zamkniety' it counts as having data
+    """
+    pipeline_rows = db.execute(
+        """SELECT ea.id as etap_id, ea.kod, ea.nazwa, pp.kolejnosc
+           FROM produkt_pipeline pp
+           JOIN etapy_analityczne ea ON ea.id = pp.etap_id
+           WHERE pp.produkt = ?
+           ORDER BY pp.kolejnosc""",
+        (produkt,),
+    ).fetchall()
+    if not pipeline_rows:
+        return []
+
+    # Determine which stages have data via ebr_etap_sesja + ebr_pomiar
+    sesja_rows = db.execute(
+        """SELECT es.etap_id, es.status,
+                  (SELECT COUNT(*) FROM ebr_pomiar ep
+                   WHERE ep.sesja_id = es.id AND ep.wartosc IS NOT NULL) as pomiar_cnt
+           FROM ebr_etap_sesja es
+           WHERE es.ebr_id = ?""",
+        (ebr_id,),
+    ).fetchall()
+    etap_has_data: dict[int, bool] = {}
+    etap_is_closed: dict[int, bool] = {}
+    for s in sesja_rows:
+        eid = s["etap_id"]
+        if s["pomiar_cnt"] > 0 or s["status"] == "zamkniety":
+            etap_has_data[eid] = True
+        if s["status"] == "zamkniety":
+            etap_is_closed[eid] = True
+
+    # Also check ebr_wyniki (legacy path — save_wyniki writes here too)
+    wyniki_sekcje = {r["sekcja"].split("__")[0] for r in db.execute(
+        "SELECT DISTINCT sekcja FROM ebr_wyniki WHERE ebr_id = ? AND wartosc IS NOT NULL",
+        (ebr_id,),
+    ).fetchall()}
+
+    # Find highest-order stage with data (current stage never goes back)
+    highest_idx = -1
+    for i, row in enumerate(pipeline_rows):
+        has_data = etap_has_data.get(row["etap_id"], False)
+        # Match ebr_wyniki sekcja: standaryzacja uses "analiza" as sekcja key
+        kod = row["kod"]
+        sekcja_match = kod in wyniki_sekcje or (kod == "standaryzacja" and "analiza" in wyniki_sekcje)
+        if has_data or sekcja_match:
+            highest_idx = i
+
+    # If no data anywhere, first stage is current
+    if highest_idx < 0:
+        highest_idx = 0
+
+    stages = []
+    for i, row in enumerate(pipeline_rows):
+        kod = row["kod"]
+        if i < highest_idx:
+            status = "done"
+        elif i == highest_idx:
+            status = "done" if etap_is_closed.get(row["etap_id"], False) else "in_progress"
+        else:
+            status = "pending"
+        stages.append({
+            "kod": kod,
+            "label": _STAGE_LABELS.get(kod, row["nazwa"]),
+            "abbr": _STAGE_ABBR.get(kod, kod[:2].upper()),
+            "css": _STAGE_CSS.get(kod, ""),
+            "status": status,
+        })
+    return stages
+
+
 def list_ebr_open(
     db: sqlite3.Connection, produkt: str | None = None, typ: str | None = None
 ) -> list[dict]:
@@ -112,6 +216,9 @@ def list_ebr_open(
     result = []
     for r in rows:
         d = dict(r)
+        # Build stages_list from pipeline + ebr_etapy_status for multi-stage display
+        d["stages_list"] = _build_stages_list(db, d["ebr_id"], d.get("produkt", ""))
+
         # Check process stage status first
         ps_stage = db.execute(
             "SELECT etap, status FROM ebr_etapy_status WHERE ebr_id=? AND status='in_progress'",
@@ -483,19 +590,46 @@ def save_wyniki(
         min_limit = pole.get("min")
         max_limit = pole.get("max")
 
-        # Prefer limits from parametry_etapy (DB) over embedded JSON blob
+        # Prefer limits from pipeline resolve_limity (produkt_etap_limity),
+        # then parametry_etapy, then embedded JSON blob.
         try:
-            from mbr.parametry_registry import get_parametry_for_kontekst
             produkt = ebr.get("produkt", "")
-            db_params = get_parametry_for_kontekst(db, produkt, base_sekcja)
-            if not db_params and base_sekcja == "analiza":
-                db_params = get_parametry_for_kontekst(db, produkt, "analiza_koncowa")
-            db_pole = next((p for p in db_params if p["kod"] == kod), None)
-            if db_pole:
-                min_limit = db_pole["min"]
-                max_limit = db_pole["max"]
-                if db_pole.get("precision") is not None:
-                    prec = db_pole["precision"]
+            resolved_pole = None
+
+            # Try pipeline resolve_limity first (authoritative for pipeline products)
+            from mbr.pipeline.models import get_produkt_pipeline, resolve_limity
+            pipeline = get_produkt_pipeline(db, produkt)
+            if pipeline:
+                # Map sekcja to pipeline etap_id
+                cykliczne = [s for s in pipeline if s["typ_cyklu"] == "cykliczny"]
+                main_cykliczny_id = cykliczne[-1]["etap_id"] if cykliczne else None
+                for step in pipeline:
+                    if step["typ_cyklu"] == "cykliczny" and step["etap_id"] == main_cykliczny_id and base_sekcja in ("analiza", "analiza_koncowa"):
+                        resolved = resolve_limity(db, produkt, step["etap_id"])
+                        resolved_pole = next((p for p in resolved if p["kod"] == kod), None)
+                        break
+                    elif step["kod"] == base_sekcja:
+                        resolved = resolve_limity(db, produkt, step["etap_id"])
+                        resolved_pole = next((p for p in resolved if p["kod"] == kod), None)
+                        break
+
+            if resolved_pole:
+                min_limit = resolved_pole["min_limit"]
+                max_limit = resolved_pole["max_limit"]
+                if resolved_pole.get("precision") is not None:
+                    prec = resolved_pole["precision"]
+            else:
+                # Fallback to parametry_etapy
+                from mbr.parametry_registry import get_parametry_for_kontekst
+                db_params = get_parametry_for_kontekst(db, produkt, base_sekcja)
+                if not db_params and base_sekcja == "analiza":
+                    db_params = get_parametry_for_kontekst(db, produkt, "analiza_koncowa")
+                db_pole = next((p for p in db_params if p["kod"] == kod), None)
+                if db_pole:
+                    min_limit = db_pole["min"]
+                    max_limit = db_pole["max"]
+                    if db_pole.get("precision") is not None:
+                        prec = db_pole["precision"]
         except Exception:
             pass  # Fallback to JSON blob limits
 

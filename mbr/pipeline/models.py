@@ -574,6 +574,7 @@ _GATE_OPERATORS = {
     ">=": lambda v, w, wmax: v >= w,
     "=": lambda v, w, wmax: v == w,
     "between": lambda v, w, wmax: (wmax is not None) and (w <= v <= wmax),
+    "w_limicie": lambda v, w, wmax: True,  # checked via pomiar.w_limicie below
 }
 
 
@@ -624,8 +625,13 @@ def evaluate_gate(
             })
             continue
 
-        op_fn = _GATE_OPERATORS.get(w["operator"])
-        ok = op_fn(wartosc, w["wartosc"], w["wartosc_max"]) if op_fn else True
+        # "w_limicie" operator: use the pre-computed w_limicie flag from pomiar
+        # (already evaluated against product-specific limits during save_pomiar)
+        if w["operator"] == "w_limicie":
+            ok = pomiary[pid].get("w_limicie") == 1
+        else:
+            op_fn = _GATE_OPERATORS.get(w["operator"])
+            ok = op_fn(wartosc, w["wartosc"], w["wartosc_max"]) if op_fn else True
         if not ok:
             failures.append({
                 "kod": w["kod"],
@@ -808,6 +814,19 @@ def compute_formula_hint(
         return None
 
 
+def _resolve_ovr(ovr, cat):
+    """Resolve product override vs catalog value for a limit field.
+
+    Convention: empty string '' in override means 'explicitly no limit'
+    (one-sided range). NULL in override means 'no override, use catalog'.
+    """
+    if ovr is None:
+        return cat
+    if ovr == '':
+        return None
+    return ovr
+
+
 def resolve_limity(db: sqlite3.Connection, produkt: str, etap_id: int) -> list[dict]:
     """Merge catalog limits with product-level overrides.
 
@@ -853,8 +872,8 @@ def resolve_limity(db: sqlite3.Connection, produkt: str, etap_id: int) -> list[d
             "typ": r["typ"],
             "skrot": r["skrot"],
             "jednostka": r["jednostka"],
-            "min_limit": r["ovr_min"] if r["ovr_min"] is not None else r["cat_min"],
-            "max_limit": r["ovr_max"] if r["ovr_max"] is not None else r["cat_max"],
+            "min_limit": _resolve_ovr(r["ovr_min"], r["cat_min"]),
+            "max_limit": _resolve_ovr(r["ovr_max"], r["cat_max"]),
             "nawazka_g": r["ovr_nawazka"] if r["ovr_nawazka"] is not None else r["cat_nawazka"],
             "precision": r["ovr_precision"] if r["ovr_precision"] is not None else r["cat_precision"],
             "spec_value": r["ovr_spec_value"] if r["ovr_spec_value"] is not None else r["cat_spec_value"],

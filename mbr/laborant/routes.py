@@ -44,7 +44,7 @@ def _resolve_actor_label(db, override: str = None) -> str:
             shift_ids,
         ).fetchall()
         if rows:
-            return ", ".join((r["nickname"] or r["inicjaly"]) for r in rows)
+            return ", ".join((r["inicjaly"] or r["nickname"]) for r in rows)
 
     rola = session.get("user", {}).get("rola")
     if rola in ("lab", "cert"):

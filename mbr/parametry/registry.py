@@ -54,7 +54,8 @@ def get_parametry_for_kontekst(
             pa.metoda_formula,
             pa.metoda_factor,
             pe.produkt,
-            pe.kolejnosc
+            pe.kolejnosc,
+            pe.grupa
         FROM parametry_etapy pe
         JOIN parametry_analityczne pa ON pa.id = pe.parametr_id
         WHERE pe.kontekst = ?
@@ -116,6 +117,7 @@ def get_parametry_for_kontekst(
             "metoda": metoda,
             "target": r["target"],
             "jednostka": r["jednostka"],
+            "grupa": r["grupa"] or "lab",
         })
 
     return result
@@ -239,6 +241,7 @@ def build_parametry_lab(db: sqlite3.Connection, produkt: str) -> dict:
             pole["target"] = p["target"]
         if p.get("jednostka"):
             pole["jednostka"] = p["jednostka"]
+        pole["grupa"] = p.get("grupa", "lab")
         return pole
 
     if produkt in FULL_PIPELINE_PRODUCTS:
@@ -275,20 +278,19 @@ def get_cert_params(db: sqlite3.Connection, produkt: str) -> list[dict]:
     """Get certificate parameters for a product from parametry_etapy.
 
     Returns base params (on_cert=1, cert_variant_id IS NULL) ordered by cert_kolejnosc.
-    Each row includes name_pl/name_en/method resolved from parametry_analityczne.
+    Decoupled from kontekst — params from any grupa (lab/kj/rnd) can appear on cert.
     """
     rows = db.execute("""
         SELECT
             pa.kod, pa.label, pa.name_en, pa.method_code,
             pe.cert_requirement, pe.cert_format, pe.cert_qualitative_result,
-            pe.cert_kolejnosc, pe.parametr_id,
+            pe.cert_kolejnosc, pe.parametr_id, pe.kontekst, pe.grupa,
             pc.name_pl AS cert_name_pl, pc.name_en AS cert_name_en, pc.method AS cert_method
         FROM parametry_etapy pe
         JOIN parametry_analityczne pa ON pa.id = pe.parametr_id
         LEFT JOIN parametry_cert pc ON pc.produkt = pe.produkt
             AND pc.parametr_id = pe.parametr_id AND pc.variant_id IS NULL
-        WHERE pe.produkt = ? AND pe.kontekst = 'analiza_koncowa'
-          AND pe.on_cert = 1 AND pe.cert_variant_id IS NULL
+        WHERE pe.produkt = ? AND pe.on_cert = 1 AND pe.cert_variant_id IS NULL
         ORDER BY pe.cert_kolejnosc
     """, (produkt,)).fetchall()
 

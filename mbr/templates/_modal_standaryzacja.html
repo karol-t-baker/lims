@@ -1,65 +1,75 @@
 {# ═══ KALKULATOR STANDARYZACJI — global modal (base.html) ═══ #}
-<div class="sc-overlay" id="sc-overlay" onclick="if(event.target===this)closeStanModal()">
-  <div class="sc-modal">
-    <div class="sc-ribbon"></div>
-    <div class="sc-top">
-      <span class="sc-top-title">Kalkulator standaryzacji</span>
-      <span style="margin-left:6px;font-size:9px;color:var(--text-dim);">S</span>
-      <button class="sc-top-close" onclick="closeStanModal()">&times;</button>
+<div class="modal-overlay" id="sc-overlay" onclick="if(event.target===this)closeStanModal()">
+  <div class="modal" style="width:560px;">
+    <div class="modal-head">
+      <div class="modal-icon" style="background:linear-gradient(135deg, var(--stage-stand-bg), #e9e0ff);color:var(--stage-stand);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 3h6v2H9V3zm3 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z" stroke-width="1.75" stroke-linecap="round"/><path d="M12 10v4l2 2" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="modal-titles">
+        <div class="modal-title">Kalkulator standaryzacji</div>
+        <div class="modal-subtitle">Korekta wody, pH i chlorków</div>
+      </div>
+      <button class="modal-close" onclick="closeStanModal()">&times;</button>
     </div>
-    <div class="sc-body" id="sc-body"></div>
-    <div class="sc-summary" id="sc-summary"></div>
+    <div class="modal-body" id="sc-body" style="padding:20px 24px;"></div>
+    <div class="modal-footer" id="sc-summary" style="gap:20px;"></div>
   </div>
 </div>
 
 <style>
-.sc-overlay { position:fixed;inset:0;background:rgba(26,26,26,0.5);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;z-index:200; }
-.sc-overlay.show { display:flex;animation:scFadeIn .18s ease; }
-@keyframes scFadeIn { from{opacity:0}to{opacity:1} }
-.sc-modal { width:94vw;max-height:90vh;background:var(--surface);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 16px 56px rgba(0,0,0,.22),0 0 0 1px rgba(0,0,0,.06);animation:scSlideUp .22s cubic-bezier(.2,.9,.3,1); }
-@keyframes scSlideUp { from{opacity:0;transform:translateY(16px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)} }
-.sc-ribbon { height:3px;background:linear-gradient(90deg,var(--stage-stand),#a855f7,var(--stage-stand));flex-shrink:0; }
-.sc-top { display:flex;align-items:center;padding:14px 24px;border-bottom:1px solid var(--border);flex-shrink:0; }
-.sc-top-title { font-size:15px;font-weight:700;color:var(--text); }
-.sc-top-close { margin-left:auto;background:none;border:none;font-size:22px;color:var(--text-dim);cursor:pointer;width:34px;height:34px;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:all .12s;line-height:1; }
-.sc-top-close:hover { background:var(--red-bg);color:var(--red); }
-
-.sc-body { flex:1;overflow-y:auto;padding:20px 28px; }
-.sc-body::-webkit-scrollbar { width:3px; } .sc-body::-webkit-scrollbar-thumb { background:var(--border);border-radius:3px; }
-
-/* Product tiles */
-.sc-tiles { display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap; }
-.sc-tile { padding:8px 16px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;transition:all .12s;font-size:14px;color:var(--text-sec);background:var(--surface); }
+/* Product tiles in standaryzacja modal */
+.sc-tiles { display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap; }
+.sc-tile {
+  padding:7px 14px;border:1.5px solid var(--border);border-radius:8px;
+  cursor:pointer;transition:all .15s;font-size:13px;color:var(--text-sec);
+  background:var(--surface);font-family:var(--font);font-weight:500;
+}
 .sc-tile:hover { border-color:var(--stage-stand);color:var(--stage-stand); }
-.sc-tile.act { background:var(--stage-stand-bg);border-color:var(--stage-stand);color:var(--stage-stand);font-weight:600; }
-.sc-tile-rk { font-size:11px;color:var(--text-dim);font-family:var(--mono);margin-top:2px; }
+.sc-tile.act {
+  background:var(--stage-stand-bg);border-color:var(--stage-stand);
+  color:var(--stage-stand);font-weight:600;
+}
+.sc-tile-rk { font-size:10px;color:var(--text-dim);font-family:var(--mono);margin-top:1px; }
 .sc-tile.act .sc-tile-rk { color:var(--stage-stand); }
 
-/* Section */
-.sc-section { margin-bottom:18px;border:1px solid var(--border-subtle);border-radius:10px;overflow:hidden; }
-.sc-sec-hdr { display:flex;align-items:center;gap:10px;padding:12px 18px;background:var(--surface-alt); }
-.sc-step { width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;flex-shrink:0; }
-.sc-sec-title { font-size:14px;font-weight:700;color:var(--text); }
-.sc-sec-res { margin-left:auto;font-family:var(--mono);font-size:15px;font-weight:700;color:var(--text-dim); }
+/* Sections reuse gate-section pattern */
+.sc-section { margin-bottom:10px; }
+.sc-sec-hdr {
+  display:flex;align-items:center;gap:10px;
+  padding:10px 16px;background:var(--surface-alt);
+  border-bottom:1px solid var(--border);
+}
+.sc-step {
+  width:24px;height:24px;border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;color:#fff;flex-shrink:0;
+}
+.sc-sec-title { font-size:13px;font-weight:700;letter-spacing:-0.2px;color:var(--text); }
+.sc-sec-res {
+  margin-left:auto;font-family:var(--mono);font-size:13px;
+  font-weight:700;color:var(--text-dim);
+}
 .sc-sec-res.has-val { color:var(--stage-stand); }
-.sc-sec-body { padding:14px 18px;display:grid;gap:10px; }
-.sc-fg { }
-.sc-lbl { font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text-dim);margin-bottom:4px; }
-.sc-inp { width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:6px;font-size:15px;font-family:var(--mono);text-align:center;background:var(--surface);color:var(--text);-moz-appearance:textfield; }
-.sc-inp::-webkit-outer-spin-button,.sc-inp::-webkit-inner-spin-button { -webkit-appearance:none;margin:0; }
-.sc-inp:focus { border-color:var(--stage-stand);outline:none;box-shadow:0 0 0 3px var(--stage-stand-bg); }
-.sc-inp::placeholder { color:var(--border);font-size:10px; }
-.sc-formula { font-size:11px;color:var(--text-dim);font-family:var(--mono);padding:6px 18px 10px; }
+.sc-sec-body { padding:12px 16px; }
+.sc-formula {
+  font-size:10px;color:var(--text-dim);font-family:var(--mono);
+  padding:4px 16px 10px;border-top:1px solid var(--border-subtle,var(--border));
+  background:var(--surface-alt);
+}
 
-/* Summary footer */
-.sc-summary { flex-shrink:0;padding:14px 24px;border-top:1px solid var(--border);background:var(--surface-alt);display:flex;gap:20px;align-items:center; }
+/* Summary footer items */
 .sc-sum-item { }
-.sc-sum-lbl { font-size:10px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:var(--text-dim); }
-.sc-sum-val { font-size:22px;font-weight:700;font-family:var(--mono);color:var(--text); }
+.sc-sum-lbl {
+  font-size:9px;font-weight:700;letter-spacing:1px;
+  text-transform:uppercase;color:var(--text-dim);
+}
+.sc-sum-val {
+  font-size:20px;font-weight:700;font-family:var(--mono);color:var(--text);
+}
 .sc-sum-val.accent { color:var(--stage-stand); }
-.sc-sum-unit { font-size:12px;color:var(--text-dim);margin-left:2px; }
+.sc-sum-unit { font-size:11px;color:var(--text-dim);margin-left:2px; }
 .sc-sum-total { margin-left:auto;text-align:right; }
-.sc-sum-total .sc-sum-val { font-size:28px;color:var(--stage-stand); }
+.sc-sum-total .sc-sum-val { font-size:24px;color:var(--stage-stand); }
 </style>
 
 <script>
@@ -88,12 +98,9 @@ function scRender(){
       '<div>'+p.name+'</div><div class="sc-tile-rk">Rk = '+p.Rk+'</div></div>';
   }).join('');
 
-  // Calculate results
   var res = scCalc(prod);
-
   var body = document.getElementById('sc-body');
 
-  // Section 3 result — NaCl or final concentration after dilution
   var sec3res = res.nacl !== null ? res.nacl.toFixed(2).replace('.',',')+' kg' : (res.clKoncowe !== null ? 'Cl\u207b po rozcie\u0144czeniu: '+res.clKoncowe.toFixed(3).replace('.',',')+'%' : '\u2014');
   var sec3cls = (res.nacl !== null || res.clKoncowe !== null) ? ' has-val' : '';
 
@@ -101,34 +108,40 @@ function scRender(){
     '<div class="sc-tiles">'+tiles+'</div>'+
 
     // Section 1: Woda (refrakcja)
-    '<div class="sc-section">'+
+    '<div class="gate-section sc-section" style="border-color:var(--teal);">' +
       '<div class="sc-sec-hdr"><div class="sc-step" style="background:var(--teal)">1</div><div class="sc-sec-title">Refrakcja \u2014 korekta wody</div>'+
         '<div class="sc-sec-res'+(res.woda!==null?' has-val':'')+'">'+( res.woda!==null?res.woda.toFixed(1).replace('.',',')+' kg':'\u2014')+'</div></div>'+
-      '<div class="sc-sec-body" style="grid-template-columns:1fr 1fr">'+
-        '<div class="sc-fg"><div class="sc-lbl">Masa nastawu [kg]</div><input class="sc-inp" type="number" inputmode="decimal" placeholder="np. 6500" value="'+_sc.nastaw+'" oninput="_sc.nastaw=this.value;scUpdate()"></div>'+
-        '<div class="sc-fg"><div class="sc-lbl">Refrakcja R\u2080</div><input class="sc-inp" type="number" inputmode="decimal" step="0.0001" placeholder="np. 1.4120" value="'+_sc.R0+'" oninput="_sc.R0=this.value;scUpdate()"></div>'+
+      '<div class="sc-sec-body">' +
+        '<div class="corr-fields corr-fields-2">'+
+          '<div><span class="corr-field-label">MASA NASTAWU [KG]</span><input class="corr-field-input" type="number" inputmode="decimal" placeholder="np. 6500" value="'+_sc.nastaw+'" oninput="_sc.nastaw=this.value;scUpdate()"></div>'+
+          '<div><span class="corr-field-label">REFRAKCJA R\u2080</span><input class="corr-field-input" type="number" inputmode="decimal" step="0.0001" placeholder="np. 1.4120" value="'+_sc.R0+'" oninput="_sc.R0=this.value;scUpdate()"></div>'+
+        '</div>' +
       '</div>'+
       '<div class="sc-formula">Rk='+prod.Rk+' \u00b7 ((R\u2080\u2212Rk) \u00d7 (nastaw\u2212korekta)) / '+prod.den+'</div>'+
     '</div>'+
 
     // Section 2: pH — kwas
-    '<div class="sc-section">'+
+    '<div class="gate-section sc-section" style="border-color:var(--amber);">' +
       '<div class="sc-sec-hdr"><div class="sc-step" style="background:var(--amber)">2</div><div class="sc-sec-title">Korekta pH \u2014 kwas</div>'+
         '<div class="sc-sec-res'+(res.kwas!==null?' has-val':'')+'">'+( res.kwas!==null?res.kwas.toFixed(2).replace('.',',')+' kg':'\u2014')+'</div></div>'+
-      '<div class="sc-sec-body" style="grid-template-columns:1fr 1fr 1fr">'+
-        '<div class="sc-fg"><div class="sc-lbl">pH zmierzone</div><input class="sc-inp" type="number" inputmode="decimal" step="0.01" placeholder="np. 12.0" value="'+_sc.pH0+'" oninput="_sc.pH0=this.value;scUpdate()"></div>'+
-        '<div class="sc-fg"><div class="sc-lbl">pH docelowe</div><input class="sc-inp" type="number" inputmode="decimal" step="0.01" placeholder="np. 5.0" value="'+_sc.pHk+'" oninput="_sc.pHk=this.value;scUpdate()"></div>'+
-        '<div class="sc-fg"><div class="sc-lbl">Kwas \u2014 dawka [kg]</div><input class="sc-inp" type="number" inputmode="decimal" placeholder="kg" value="'+_sc.kwas+'" oninput="_sc.kwas=this.value;scUpdate()"></div>'+
+      '<div class="sc-sec-body">' +
+        '<div class="corr-fields corr-fields-3">'+
+          '<div><span class="corr-field-label">PH ZMIERZONE</span><input class="corr-field-input" type="number" inputmode="decimal" step="0.01" placeholder="np. 12.0" value="'+_sc.pH0+'" oninput="_sc.pH0=this.value;scUpdate()"></div>'+
+          '<div><span class="corr-field-label">PH DOCELOWE</span><input class="corr-field-input" type="number" inputmode="decimal" step="0.01" placeholder="np. 5.0" value="'+_sc.pHk+'" oninput="_sc.pHk=this.value;scUpdate()"></div>'+
+          '<div><span class="corr-field-label">KWAS \u2014 DAWKA [KG]</span><input class="corr-field-input" type="number" inputmode="decimal" placeholder="kg" value="'+_sc.kwas+'" oninput="_sc.kwas=this.value;scUpdate()"></div>'+
+        '</div>' +
       '</div>'+
     '</div>'+
 
     // Section 3: Chlorki — NaCl
-    '<div class="sc-section">'+
+    '<div class="gate-section sc-section" style="border-color:var(--green);">' +
       '<div class="sc-sec-hdr"><div class="sc-step" style="background:var(--green)">3</div><div class="sc-sec-title">Chlorki \u2014 NaCl</div>'+
         '<div class="sc-sec-res'+sec3cls+'">'+sec3res+'</div></div>'+
-      '<div class="sc-sec-body" style="grid-template-columns:1fr 1fr">'+
-        '<div class="sc-fg"><div class="sc-lbl">Chlorki zmierzone [%]</div><input class="sc-inp" type="number" inputmode="decimal" step="0.01" placeholder="np. 0.35" value="'+_sc.Ccl+'" oninput="_sc.Ccl=this.value;scUpdate()"></div>'+
-        '<div class="sc-fg"><div class="sc-lbl">Chlorki docelowe [%]</div><input class="sc-inp" type="number" inputmode="decimal" step="0.01" placeholder="np. 0.50" value="'+_sc.Ck+'" oninput="_sc.Ck=this.value;scUpdate()"></div>'+
+      '<div class="sc-sec-body">' +
+        '<div class="corr-fields corr-fields-2">'+
+          '<div><span class="corr-field-label">CHLORKI ZMIERZONE [%]</span><input class="corr-field-input" type="number" inputmode="decimal" step="0.01" placeholder="np. 0.35" value="'+_sc.Ccl+'" oninput="_sc.Ccl=this.value;scUpdate()"></div>'+
+          '<div><span class="corr-field-label">CHLORKI DOCELOWE [%]</span><input class="corr-field-input" type="number" inputmode="decimal" step="0.01" placeholder="np. 0.50" value="'+_sc.Ck+'" oninput="_sc.Ck=this.value;scUpdate()"></div>'+
+        '</div>' +
       '</div>'+
     '</div>';
 
@@ -147,13 +160,11 @@ function scCalc(prod){
   var korekta = nastaw > 7000 ? 1000 : 500;
   var woda = null, nacl = null;
 
-  // Woda z refrakcji
   if(nastaw > 0 && R0 > 0 && R0 > prod.Rk){
     woda = ((R0 - prod.Rk) * (nastaw - korekta)) / prod.den;
     if(woda < 0) woda = 0;
   }
 
-  // NaCl + końcowe stężenie
   var Mn = nastaw > 0 ? nastaw - korekta : 0;
   var Mc = Mn + (woda || 0) + kwas;
   var clKoncowe = null;
@@ -163,12 +174,10 @@ function scCalc(prod){
     if(nacl < 0) nacl = 0;
   }
 
-  // Jeśli nie podano Ck (docelowe) ale jest Ccl i woda — pokaż końcowe stężenie po rozcieńczeniu
   if(nastaw > 0 && Ccl > 0 && Mc > 0 && nacl === null){
     clKoncowe = (Mn * Ccl / 100) / Mc * 100;
   }
 
-  // Woda łącznie
   var wodaTotal = (woda || 0) + kwas;
 
   return {woda: woda, kwas: kwas > 0 ? kwas : null, nacl: nacl, clKoncowe: clKoncowe, wodaTotal: wodaTotal};
@@ -178,10 +187,9 @@ function scUpdate(){
   var prod = _scProducts.find(function(p){return p.id===_sc.produkt}) || _scProducts[0];
   var res = scCalc(prod);
 
-  // Update section results inline
   var secs = document.querySelectorAll('.sc-sec-res');
-  if(secs[0]){ secs[0].textContent = res.woda !== null ? res.woda.toFixed(1).replace('.',',')+' kg' : '—'; secs[0].className = 'sc-sec-res'+(res.woda!==null?' has-val':''); }
-  if(secs[1]){ secs[1].textContent = res.kwas !== null ? res.kwas.toFixed(2).replace('.',',')+' kg' : '—'; secs[1].className = 'sc-sec-res'+(res.kwas!==null?' has-val':''); }
+  if(secs[0]){ secs[0].textContent = res.woda !== null ? res.woda.toFixed(1).replace('.',',')+' kg' : '\u2014'; secs[0].className = 'sc-sec-res'+(res.woda!==null?' has-val':''); }
+  if(secs[1]){ secs[1].textContent = res.kwas !== null ? res.kwas.toFixed(2).replace('.',',')+' kg' : '\u2014'; secs[1].className = 'sc-sec-res'+(res.kwas!==null?' has-val':''); }
   if(secs[2]){
     var s3txt = res.nacl !== null ? res.nacl.toFixed(2).replace('.',',')+' kg' : (res.clKoncowe !== null ? 'Cl\u207b po rozc.: '+res.clKoncowe.toFixed(3).replace('.',',')+'%' : '\u2014');
     secs[2].textContent = s3txt;
@@ -195,14 +203,14 @@ function scUpdateSummary(res){
   var el = document.getElementById('sc-summary');
   var hasAny = res.woda !== null || res.kwas !== null || res.nacl !== null;
   if(!hasAny){
-    el.innerHTML = '<div style="font-size:10px;color:var(--text-dim);font-style:italic">Wprowadź dane</div>';
+    el.innerHTML = '<div style="font-size:11px;color:var(--text-dim);font-style:italic">Wprowad\u017A dane</div>';
     return;
   }
   el.innerHTML =
-    '<div class="sc-sum-item"><div class="sc-sum-lbl">Woda</div><div class="sc-sum-val">'+(res.woda!==null?res.woda.toFixed(1).replace('.',','):'—')+'<span class="sc-sum-unit">kg</span></div></div>'+
-    '<div class="sc-sum-item"><div class="sc-sum-lbl">Kwas</div><div class="sc-sum-val">'+(res.kwas!==null?res.kwas.toFixed(1).replace('.',','):'—')+'<span class="sc-sum-unit">kg</span></div></div>'+
+    '<div class="sc-sum-item"><div class="sc-sum-lbl">Woda</div><div class="sc-sum-val">'+(res.woda!==null?res.woda.toFixed(1).replace('.',','):'\u2014')+'<span class="sc-sum-unit">kg</span></div></div>'+
+    '<div class="sc-sum-item"><div class="sc-sum-lbl">Kwas</div><div class="sc-sum-val">'+(res.kwas!==null?res.kwas.toFixed(1).replace('.',','):'\u2014')+'<span class="sc-sum-unit">kg</span></div></div>'+
     '<div class="sc-sum-item"><div class="sc-sum-lbl">'+(res.nacl!==null?'NaCl':(res.clKoncowe!==null?'Cl\u207b ko\u0144c.':'NaCl'))+'</div><div class="sc-sum-val">'+(res.nacl!==null?res.nacl.toFixed(1).replace('.',','):(res.clKoncowe!==null?res.clKoncowe.toFixed(3).replace('.',','):'\u2014'))+'<span class="sc-sum-unit">'+(res.nacl!==null?'kg':(res.clKoncowe!==null?'%':''))+'</span></div></div>'+
-    '<div class="sc-sum-total"><div class="sc-sum-lbl">Woda łącznie</div><div class="sc-sum-val accent">'+res.wodaTotal.toFixed(1).replace('.',',')+'<span class="sc-sum-unit">kg</span></div></div>';
+    '<div class="sc-sum-total"><div class="sc-sum-lbl">Woda \u0142\u0105cznie</div><div class="sc-sum-val accent">'+res.wodaTotal.toFixed(1).replace('.',',')+'<span class="sc-sum-unit">kg</span></div></div>';
 }
 
 // Global shortcut: S
