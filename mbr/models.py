@@ -19,7 +19,7 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             user_id         INTEGER PRIMARY KEY AUTOINCREMENT,
             login           TEXT UNIQUE NOT NULL,
             password_hash   TEXT NOT NULL,
-            rola            TEXT NOT NULL CHECK(rola IN ('technolog', 'lab', 'cert', 'admin')),
+            rola            TEXT NOT NULL CHECK(rola IN ('technolog', 'lab', 'cert', 'kj', 'admin')),
             imie_nazwisko   TEXT
         );
 
@@ -963,7 +963,7 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
                         user_id         INTEGER PRIMARY KEY AUTOINCREMENT,
                         login           TEXT UNIQUE NOT NULL,
                         password_hash   TEXT NOT NULL,
-                        rola            TEXT NOT NULL CHECK(rola IN ('technolog', 'lab', 'cert', 'admin')),
+                        rola            TEXT NOT NULL CHECK(rola IN ('technolog', 'lab', 'cert', 'kj', 'admin')),
                         imie_nazwisko   TEXT
                     );
                     INSERT INTO mbr_users_new SELECT * FROM mbr_users;

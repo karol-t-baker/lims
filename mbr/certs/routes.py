@@ -204,13 +204,13 @@ def api_cert_list():
 
 
 @certs_bp.route("/admin/wzory-cert")
-@role_required("admin")
+@role_required("admin", "kj")
 def admin_wzory_cert():
     return render_template("admin/wzory_cert.html")
 
 
 @certs_bp.route("/api/cert/config/products")
-@role_required("admin")
+@role_required("admin", "kj")
 def api_cert_config_products():
     """List all products that have cert variants defined (from DB)."""
     with db_session() as db:
@@ -226,7 +226,7 @@ def api_cert_config_products():
 
 
 @certs_bp.route("/api/cert/config/product/<key>")
-@role_required("admin")
+@role_required("admin", "kj")
 def api_cert_config_product_get(key):
     """Full product data from DB, same JSON shape as the old JSON-based endpoint."""
     with db_session() as db:
@@ -369,7 +369,7 @@ def api_cert_config_product_get(key):
 
 
 @certs_bp.route("/api/cert/config/product/<key>", methods=["PUT"])
-@role_required("admin")
+@role_required("admin", "kj")
 def api_cert_config_product_put(key):
     """Save product parameters + variants to DB, regenerate JSON export."""
     from mbr.certs.generator import save_cert_config_export
@@ -542,7 +542,7 @@ def api_cert_config_product_put(key):
 
 
 @certs_bp.route("/api/cert/config/product", methods=["POST"])
-@role_required("admin")
+@role_required("admin", "kj")
 def api_cert_config_product_create():
     """Create a new product with cert config in DB."""
     import re
@@ -587,7 +587,7 @@ def api_cert_config_product_create():
 
 
 @certs_bp.route("/api/cert/config/product/<key>", methods=["DELETE"])
-@role_required("admin")
+@role_required("admin", "kj")
 def api_cert_config_product_delete(key):
     """Delete a product's cert config from DB."""
     from mbr.certs.generator import save_cert_config_export
@@ -625,7 +625,7 @@ def api_cert_config_product_delete(key):
 
 
 @certs_bp.route("/api/cert/config/export")
-@role_required("admin")
+@role_required("admin", "kj")
 def api_cert_config_export():
     """Export cert config from DB, regenerate JSON file, and return it."""
     with db_session() as db:
@@ -636,7 +636,7 @@ def api_cert_config_export():
 
 
 @certs_bp.route("/api/cert/config/preview", methods=["POST"])
-@role_required("admin")
+@role_required("admin", "kj")
 def api_cert_config_preview():
     """Generate a live PDF preview from editor JSON payload (no DB)."""
     data = request.get_json(silent=True) or {}
@@ -676,7 +676,7 @@ def pdf_mbr(mbr_id):
 
 
 @certs_bp.route("/api/cert/<int:cert_id>/audit-history")
-@role_required("admin", "technolog", "cert", "lab")
+@role_required("admin", "kj", "technolog", "cert", "lab")
 def cert_audit_history(cert_id):
     """Return per-cert audit history (sorted DESC by dt, with actors)."""
     from mbr.shared import audit

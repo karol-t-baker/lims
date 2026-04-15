@@ -1051,6 +1051,7 @@ SEED_USERS = [
     {"login": "technolog", "password": "tech123", "rola": "technolog", "imie_nazwisko": "Jan Technolog"},
     {"login": "lab",       "password": "lab",     "rola": "lab",       "imie_nazwisko": "Laborant KJ"},
     {"login": "cert",      "password": "cert",    "rola": "cert",      "imie_nazwisko": "Świadectwa KJ"},
+    {"login": "kj",        "password": "kj",      "rola": "kj",        "imie_nazwisko": "Kierownik KJ"},
 ]
 
 

@@ -47,7 +47,7 @@ def _resolve_actor_label(db, override: str = None) -> str:
             return ", ".join((r["inicjaly"] or r["nickname"]) for r in rows)
 
     rola = session.get("user", {}).get("rola")
-    if rola in ("lab", "cert"):
+    if rola in ("lab", "cert", "kj"):
         from mbr.shared.audit import ShiftRequiredError
         raise ShiftRequiredError()
 
@@ -55,7 +55,7 @@ def _resolve_actor_label(db, override: str = None) -> str:
 
 
 @laborant_bp.route("/laborant/szarze")
-@role_required("lab", "cert", "admin")
+@role_required("lab", "cert", "kj", "admin")
 def szarze_list():
     from mbr.registry.models import list_completed_products
     with db_session() as db:
@@ -232,7 +232,7 @@ def fast_entry_partial(ebr_id):
 
 
 @laborant_bp.route("/laborant/ebr/<int:ebr_id>/save", methods=["POST"])
-@role_required("lab", "cert", "admin")
+@role_required("lab", "cert", "kj", "admin")
 def save_entry(ebr_id):
     data = request.get_json(silent=True)
     if not data:
@@ -352,7 +352,7 @@ def toggle_golden(ebr_id):
 
 
 @laborant_bp.route("/api/ebr/<int:ebr_id>/audit-history")
-@role_required("lab", "cert", "admin", "technolog")
+@role_required("lab", "cert", "kj", "admin", "technolog")
 def ebr_audit_history(ebr_id):
     """Return per-EBR audit history (sorted DESC by dt, with actors)."""
     from mbr.shared import audit
@@ -475,7 +475,7 @@ def api_get_uwagi(ebr_id):
 
 
 @laborant_bp.route("/api/ebr/<int:ebr_id>/uwagi", methods=["PUT"])
-@role_required("lab", "cert", "admin")
+@role_required("lab", "cert", "kj", "admin")
 def api_put_uwagi(ebr_id):
     """Create or update uwagi_koncowe for an EBR batch.
 
@@ -515,7 +515,7 @@ def api_put_uwagi(ebr_id):
 
 
 @laborant_bp.route("/api/ebr/<int:ebr_id>/uwagi", methods=["DELETE"])
-@role_required("lab", "cert", "admin")
+@role_required("lab", "cert", "kj", "admin")
 def api_delete_uwagi(ebr_id):
     """Clear uwagi_koncowe for an EBR batch (equivalent to PUT with tekst='')."""
     body = request.get_json(silent=True) or {}

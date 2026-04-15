@@ -1760,7 +1760,7 @@ function renderCompletedView() {
     if (isZbiornik && userRola !== 'lab') {
         html += '<div class="cv-certs" id="cv-certs"></div>';
     }
-    if (userRola === 'cert' || userRola === 'technolog') {
+    if (userRola === 'cert' || userRola === 'kj' || userRola === 'technolog') {
         html += '<button onclick="openCertMappingEditor()" title="Konfiguracja pól świadectwa" style="margin-top:10px;display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border:1.5px solid var(--border);border-radius:6px;background:var(--surface);cursor:pointer;font-family:var(--font);font-size:10px;font-weight:600;color:var(--text-sec);transition:all 0.15s;" onmouseover="this.style.borderColor=\'var(--teal)\';this.style.color=\'var(--teal)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-sec)\'">' +
             '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>' +
             'Konfiguracja pól świadectwa</button>';
@@ -1907,7 +1907,7 @@ async function loadCompletedCerts() {
         });
     }
 
-    var canIssueCerts = userRola === 'cert' || userRola === 'technolog';
+    var canIssueCerts = userRola === 'cert' || userRola === 'kj' || userRola === 'technolog';
     if (tmplData.templates.length > 0 && canIssueCerts) {
         // Laborant selector — who issues the certificate
         html += '<div class="cv-list-sep">Wystaw nowe</div>';
