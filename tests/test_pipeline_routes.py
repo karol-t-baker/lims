@@ -655,13 +655,21 @@ def test_start_sesja(lab_client, db):
 
 
 def test_start_sesja_increments_runda(lab_client, db):
-    """Second call creates runda=2."""
+    """Start returns existing open session; after close, creates next runda."""
     _, ebr_id = _seed_ebr(db)
     etap_id = _seed_pipeline_etap(db)
 
     r1 = lab_client.post(f"/api/pipeline/lab/ebr/{ebr_id}/etap/{etap_id}/start").get_json()
     assert r1["runda"] == 1
 
+    # Calling /start again while session is open returns the same session
+    r1b = lab_client.post(f"/api/pipeline/lab/ebr/{ebr_id}/etap/{etap_id}/start").get_json()
+    assert r1b["sesja_id"] == r1["sesja_id"]
+    assert r1b["runda"] == 1
+
+    # Close session, then /start creates new runda
+    lab_client.post(f"/api/pipeline/lab/ebr/{ebr_id}/etap/{etap_id}/close",
+                    json={"sesja_id": r1["sesja_id"], "decyzja": "przejscie"})
     r2 = lab_client.post(f"/api/pipeline/lab/ebr/{ebr_id}/etap/{etap_id}/start").get_json()
     assert r2["runda"] == 2
     assert r2["sesja_id"] != r1["sesja_id"]

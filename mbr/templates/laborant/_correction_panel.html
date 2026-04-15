@@ -283,29 +283,35 @@ async function advanceStandNewRound(sekcja) {
     var gate = window._lastGate;
     if (!gate || !gate.etap_id || !gate.sesja_id) return;
 
-    // Save woda correction
+    // Save corrections — check responses
+    var corrErrors = [];
     var wodaEl = document.getElementById('corr-manual-woda-' + sekcja);
     if (wodaEl && wodaEl.value) {
         var wKg = parseFloat(wodaEl.value.replace(',', '.'));
         if (!isNaN(wKg) && wKg > 0) {
-            await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
+            var rw = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Woda', ilosc: wKg })
             });
+            if (!rw.ok) corrErrors.push('Woda');
         }
     }
-    // Save kwas correction
     var kwasEl = document.getElementById('corr-manual-kwas-' + sekcja);
     if (kwasEl && kwasEl.value) {
         var kKg = parseFloat(kwasEl.value.replace(',', '.'));
         if (!isNaN(kKg) && kKg > 0) {
-            await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
+            var rk = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Kwas cytrynowy', ilosc: kKg })
             });
+            if (!rk.ok) corrErrors.push('Kwas cytrynowy');
         }
+    }
+    if (corrErrors.length > 0) {
+        alert('B\u0142\u0105d zapisu korekt: ' + corrErrors.join(', ') + '. Spr\u00f3buj ponownie.');
+        return;
     }
 
     // Close session + start new round
@@ -323,29 +329,35 @@ async function advanceWithStandV2(sekcja) {
     var gate = window._lastGate;
     if (!gate || !gate.etap_id) return;
 
-    // Save woda correction
+    // Save corrections — check responses
+    var corrErrors = [];
     var wodaEl = document.getElementById('corr-manual-woda-' + sekcja);
     if (wodaEl && wodaEl.value) {
         var wKg = parseFloat(wodaEl.value.replace(',', '.'));
         if (!isNaN(wKg) && wKg > 0 && gate.sesja_id) {
-            await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
+            var rw = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Woda', ilosc: wKg })
             });
+            if (!rw.ok) corrErrors.push('Woda');
         }
     }
-    // Save kwas correction
     var kwasEl = document.getElementById('corr-manual-kwas-' + sekcja);
     if (kwasEl && kwasEl.value) {
         var kKg = parseFloat(kwasEl.value.replace(',', '.'));
         if (!isNaN(kKg) && kKg > 0 && gate.sesja_id) {
-            await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
+            var rk = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Kwas cytrynowy', ilosc: kKg })
             });
+            if (!rk.ok) corrErrors.push('Kwas cytrynowy');
         }
+    }
+    if (corrErrors.length > 0) {
+        alert('B\u0142\u0105d zapisu korekt: ' + corrErrors.join(', ') + '. Spr\u00f3buj ponownie.');
+        return;
     }
 
     // Close current session before advancing

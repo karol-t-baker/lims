@@ -153,6 +153,11 @@ def lab_start_sesja(ebr_id, etap_id):
     db = get_db()
     try:
         existing = pm.list_sesje(db, ebr_id, etap_id=etap_id)
+        # Guard: don't create new round if last session is still open
+        if existing:
+            last = existing[-1]
+            if last["status"] in ("nierozpoczety", "w_trakcie"):
+                return jsonify({"sesja_id": last["id"], "runda": last["runda"]}), 200
         runda = len(existing) + 1
         laborant = session["user"]["login"]
         sesja_id = pm.create_sesja(db, ebr_id, etap_id, runda=runda, laborant=laborant)
