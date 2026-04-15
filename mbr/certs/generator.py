@@ -23,11 +23,17 @@ from docxtpl import DocxTemplate, RichText
 _RT_RE = re.compile(r"(\^\{[^}]*\}|_\{[^}]*\})")
 
 
+_CERT_FONT = "TeX Gyre Bonum"
+_CERT_SIZE = 22  # 11pt in half-points (docxtpl w:sz unit)
+
+
 def _md_to_richtext(text: str) -> RichText:
     """Convert a string with `^{sup}` / `_{sub}` markers into a docxtpl RichText.
 
     Plain strings (no markers) are still returned as RichText — the template uses
     `{{r ... }}` tags everywhere, so values must be RichText objects.
+    Font and size set explicitly because {{r}} replaces the entire run,
+    losing the template's formatting.
     """
     rt = RichText()
     if not text:
@@ -36,11 +42,11 @@ def _md_to_richtext(text: str) -> RichText:
         if not part:
             continue
         if part.startswith("^{") and part.endswith("}"):
-            rt.add(part[2:-1], superscript=True)
+            rt.add(part[2:-1], superscript=True, font=_CERT_FONT, size=_CERT_SIZE)
         elif part.startswith("_{") and part.endswith("}"):
-            rt.add(part[2:-1], subscript=True)
+            rt.add(part[2:-1], subscript=True, font=_CERT_FONT, size=_CERT_SIZE)
         else:
-            rt.add(part)
+            rt.add(part, font=_CERT_FONT, size=_CERT_SIZE)
     return rt
 
 _CONFIG_PATH = Path(__file__).resolve().parent.parent / "cert_config.json"
@@ -283,7 +289,7 @@ def build_context(
 
             rows.append({
                 "name_pl": _md_to_richtext(name_pl),
-                "name_en": _md_to_richtext(f"/{name_en}") if name_en else _md_to_richtext(""),
+                "name_en": _md_to_richtext(f"/{name_en}") if name_en else None,
                 "requirement": r["requirement"],
                 "method": method,
                 "result": result,
