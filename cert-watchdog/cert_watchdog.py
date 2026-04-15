@@ -35,9 +35,12 @@ def move_certificate(filepath: Path, dest_dir: Path):
     if not product:
         return
 
+    # Rename: "Chegina K7 4.pdf" → "Świadectwo_certificate-Chegina K7 4.pdf"
+    new_name = f"Świadectwo_certificate-{filepath.name}"
+
     year = str(datetime.now().year)
     target_dir = dest_dir / year / product
-    target_path = target_dir / filepath.name
+    target_path = target_dir / new_name
 
     target_dir.mkdir(parents=True, exist_ok=True)
 
@@ -46,11 +49,12 @@ def move_certificate(filepath: Path, dest_dir: Path):
         archive_dir = target_dir / "_archiwum"
         archive_dir.mkdir(exist_ok=True)
         ts = datetime.now().strftime("%Y-%m-%d %H-%M")
-        archive_path = archive_dir / f"{filepath.stem} ({ts}).pdf"
+        new_stem = Path(new_name).stem
+        archive_path = archive_dir / f"{new_stem} ({ts}).pdf"
         shutil.move(str(target_path), str(archive_path))
 
     shutil.move(str(filepath), str(target_path))
-    print(f"[{datetime.now().strftime('%H:%M:%S')}] {filepath.name} -> {year}/{product}/")
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] {filepath.name} -> {year}/{product}/{new_name}")
 
 
 class CertHandler(FileSystemEventHandler):
