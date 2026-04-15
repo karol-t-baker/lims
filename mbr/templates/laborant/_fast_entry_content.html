@@ -1760,12 +1760,6 @@ function renderCompletedView() {
     if (isZbiornik && userRola !== 'lab') {
         html += '<div class="cv-certs" id="cv-certs"></div>';
     }
-    if (userRola === 'cert' || userRola === 'kj' || userRola === 'technolog') {
-        html += '<button onclick="openCertMappingEditor()" title="Konfiguracja pól świadectwa" style="margin-top:10px;display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border:1.5px solid var(--border);border-radius:6px;background:var(--surface);cursor:pointer;font-family:var(--font);font-size:10px;font-weight:600;color:var(--text-sec);transition:all 0.15s;" onmouseover="this.style.borderColor=\'var(--teal)\';this.style.color=\'var(--teal)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-sec)\'">' +
-            '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>' +
-            'Konfiguracja pól świadectwa</button>';
-    }
-
     // Zbiorniki section for completed batch (not for platkowanie — no tanks)
     if (!isPlatkowanie) {
     html += '<div class="cv-params" id="cv-zbiorniki">' +
@@ -5303,13 +5297,6 @@ function peSaveLimits() {
   });
 }
 
-// ═══ CERT MAPPING EDITOR (moved to /admin/wzory-cert) ═══
-
-function openCertMappingEditor() {
-  var goToEditor = confirm('Edytor parametrów świadectw został przeniesiony do Admin → Wzory świadectw.\n\nCzy chcesz przejść do nowego edytora?');
-  if (goToEditor) window.open('/admin/wzory-cert', '_blank');
-}
-
 // ═══ INIT (must be after all function definitions) ═══
 renderSections();
 setupComputedFields();
@@ -5324,8 +5311,6 @@ window.showPipelineStage = function(sekcjaLab, readonly) {
     if (typeof renderSidebarEtapy === 'function') renderSidebarEtapy();
 };
 </script>
-
-{# Cert mapping modal removed — replaced by /admin/wzory-cert #}
 
 {# ═══ PARAM EDITOR MODAL ═══ #}
 <div class="pe-modal-overlay" id="pe-modal-overlay" onclick="if(event.target===this)closeParamEditor()">
