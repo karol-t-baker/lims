@@ -1602,31 +1602,25 @@ function renderCompletedView() {
     var hasSingleAnaliza = isZbiornik || isPlatkowanie;
 
     // Find last analiza round's wyniki (final results)
-    // Pipeline products: merge results from all stages for the completed view
+    // Pipeline products: show last standaryzacja round (main cykliczny = 'analiza')
     var isPipeline = etapy.some(function(e) { return e.pipeline_etap_id; });
     var lastAnaliza = null;
     var lastN = 0;
     var finalWyniki = {};
 
     if (isPipeline) {
-        // Pipeline: 'analiza' is standaryzacja (main cykliczny), use it as primary
-        // Also merge sulfonowanie/utlenienie results for full picture
-        lastAnaliza = 'analiza';
-        var allPipelineSekcje = etapy.filter(function(e) { return e.pipeline_etap_id; }).map(function(e) { return e.sekcja_lab; });
-        // Collect all pipeline wyniki, later stages override earlier for same kod
-        allPipelineSekcje.forEach(function(sek) {
-            var sekW = wyniki[sek] || {};
-            Object.keys(sekW).forEach(function(kod) {
-                finalWyniki[kod] = sekW[kod];
-            });
-        });
-        // Also check analiza__N rounds (higher rounds override)
+        // Pipeline: standaryzacja stores under 'analiza' (main cykliczny)
+        // Check for analiza__N rounds (higher rounds = later corrections)
         for (var key in wyniki) {
-            if (key.startsWith('analiza__')) {
-                var sekW = wyniki[key];
-                Object.keys(sekW).forEach(function(kod) { finalWyniki[kod] = sekW[kod]; });
+            if (key === 'analiza' && lastN === 0) {
+                lastAnaliza = key;
+                lastN = 0.5;
+            } else if (key.startsWith('analiza__')) {
+                var n = parseInt(key.split('__')[1]);
+                if (n > lastN) { lastN = n; lastAnaliza = key; }
             }
         }
+        finalWyniki = wyniki[lastAnaliza] || {};
     } else {
         for (var key in wyniki) {
             if (key.startsWith('analiza__')) {
@@ -1643,15 +1637,6 @@ function renderCompletedView() {
     var fallbackSekcja = hasSingleAnaliza ? 'analiza_koncowa' : 'analiza';
     var pola = getPola(lastAnaliza || fallbackSekcja, null);
     if (!pola.length && lastAnaliza) pola = getPola(fallbackSekcja, null);
-    // For pipeline: collect pola from ALL stages
-    if (isPipeline && pola.length === 0) {
-        etapy.filter(function(e) { return e.pipeline_etap_id; }).forEach(function(e) {
-            var stagePola = getPola(e.sekcja_lab, null);
-            stagePola.forEach(function(p) {
-                if (!pola.some(function(x) { return x.kod === p.kod; })) pola.push(p);
-            });
-        });
-    }
     var errCount = 0;
     var okCount = 0;
     Object.values(finalWyniki).forEach(function(r) {
@@ -1698,20 +1683,11 @@ function renderCompletedView() {
         '</div>';
     var lastSekcja = lastAnaliza || fallbackSekcja;
 
-    // For pipeline: build a map of kod → sekcja (which stage owns which parameter)
-    var kodToSekcja = {};
-    if (isPipeline) {
-        etapy.filter(function(e) { return e.pipeline_etap_id; }).forEach(function(e) {
-            var stagePola = getPola(e.sekcja_lab, null);
-            stagePola.forEach(function(p) { kodToSekcja[p.kod] = e.sekcja_lab; });
-        });
-    }
-
     pola.forEach(function(pole) {
         var r = finalWyniki[pole.kod];
         var val = r ? r.wartosc : '';
         var ok = r ? r.w_limicie === 1 : true;
-        var editSekcja = isPipeline ? (kodToSekcja[pole.kod] || lastSekcja) : lastSekcja;
+        var editSekcja = lastSekcja;
         var normText = '';
         if (pole.min != null && pole.max != null) normText = fmtDec(pole.min) + ' – ' + fmtDec(pole.max);
         else if (pole.min != null) normText = '> ' + fmtDec(pole.min);

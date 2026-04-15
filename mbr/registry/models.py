@@ -32,10 +32,14 @@ def list_completed_registry(
     for r in rows:
         d = dict(r)
         wyniki = db.execute(
-            "SELECT kod_parametru, tag, wartosc, w_limicie FROM ebr_wyniki WHERE ebr_id = ?",
+            "SELECT kod_parametru, sekcja, tag, wartosc, w_limicie FROM ebr_wyniki WHERE ebr_id = ? ORDER BY sekcja",
             (d["ebr_id"],)
         ).fetchall()
-        d["wyniki"] = {w["kod_parametru"]: dict(w) for w in wyniki}
+        # For pipeline products: prefer 'analiza' (standaryzacja) results over earlier stages
+        # Dict comprehension: later sekcje override earlier for same kod
+        # ORDER BY sekcja puts 'analiza' first alphabetically, so re-sort to put it last
+        sorted_wyniki = sorted(wyniki, key=lambda w: (0 if w["sekcja"] not in ("analiza", "analiza_koncowa") else 1, w["sekcja"] or ""))
+        d["wyniki"] = {w["kod_parametru"]: dict(w) for w in sorted_wyniki}
         cert = db.execute(
             "SELECT COUNT(*) as cnt FROM swiadectwa WHERE ebr_id = ? AND nieaktualne = 0",
             (d["ebr_id"],)
