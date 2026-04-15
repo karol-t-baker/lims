@@ -16,6 +16,9 @@ fi
 
 echo "$(date): New commits detected, deploying..."
 
+# Clean any dirty tracked files (e.g. __pycache__ .pyc)
+git checkout -- .
+
 # Backup database before deploy
 mkdir -p data/backups
 cp data/batch_db.sqlite "data/backups/pre-deploy-$(date +%Y%m%d-%H%M%S).sqlite"
