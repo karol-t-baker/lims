@@ -628,7 +628,7 @@ def evaluate_gate(
         # "w_limicie" operator: use the pre-computed w_limicie flag from pomiar
         # (already evaluated against product-specific limits during save_pomiar)
         if w["operator"] == "w_limicie":
-            ok = pomiary[pid].get("w_limicie") == 1
+            ok = pomiary[pid].get("w_limicie") in (1, None)  # NULL = no limits = pass
         else:
             op_fn = _GATE_OPERATORS.get(w["operator"])
             ok = op_fn(wartosc, w["wartosc"], w["wartosc_max"]) if op_fn else True

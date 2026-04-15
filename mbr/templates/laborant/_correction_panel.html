@@ -115,8 +115,8 @@ async function _renderStandaryzacjaV2Panel(container, sekcja, ctx) {
             if (resp.ok) targets = await resp.json();
         } catch(e) {}
     }
-    var targetNd20 = targets.target_nd20 != null ? String(targets.target_nd20).replace('.', ',') : '1,465';
-    var targetPh = targets.target_ph != null ? String(targets.target_ph).replace('.', ',') : '6,25';
+    var targetNd20 = targets.target_nd20 != null ? String(targets.target_nd20).replace('.', ',') : '';
+    var targetPh = targets.target_ph != null ? String(targets.target_ph).replace('.', ',') : '';
 
     var recomp = 'recomputeStandV2(\'' + sekcja + '\')';
     var saveT = 'saveStandV2Targets(\'' + sekcja + '\',' + etapId + ',\'' + produkt + '\')';
@@ -348,7 +348,16 @@ async function advanceWithStandV2(sekcja) {
         }
     }
 
-    // Advance to standaryzacja
+    // Close current session before advancing
+    if (gate.sesja_id && gate.etap_id) {
+        await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + gate.etap_id + '/close', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ sesja_id: gate.sesja_id, decyzja: 'przejscie' })
+        });
+    }
+
+    // Advance to next stage
     var pipelineStages = etapy.filter(function(e) { return !!e.pipeline_etap_id; });
     var baseSekcja = sekcja.split('__')[0];
     var currentIdx = -1;
