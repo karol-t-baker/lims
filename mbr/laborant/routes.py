@@ -256,6 +256,7 @@ def save_entry(ebr_id):
                 ebr["parametry_lab"] = _json.dumps(pipeline_ctx["parametry_lab"])
 
         # For completed zbiornik: check if values actually changed before marking certs outdated
+        from mbr.shared.filters import parse_decimal
         values_changed = False
         if ebr and ebr["status"] == "completed" and ebr.get("typ") == "zbiornik":
             old_wyniki = get_ebr_wyniki(db, ebr_id)
