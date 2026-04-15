@@ -35,7 +35,7 @@ Standaryzacja is the **last cykliczny** stage → gets `sekcja_lab = "analiza"` 
 
 **K7 limits:** nadtlenki 0.002–0.005, SO₃ max=0.0
 
-**Gate:** `so3 <= 0.1` AND `nadtlenki <= 0.1`
+**Gate:** `so3 w_limicie` AND `nadtlenki w_limicie` (product-specific limits)
 
 **Corrections:** Perhydrol 34%, Woda, Kwas cytrynowy
 

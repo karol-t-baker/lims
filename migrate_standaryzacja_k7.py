@@ -144,6 +144,26 @@ def migrate(db: sqlite3.Connection) -> dict:
     stats["cele_set"] = True
     print("  Set correction targets: nD20=1.3922, pH=6.0")
 
+    # 5. Update utlenienie gate: w_limicie instead of hardcoded <= 0.1
+    utl_etap_id = db.execute(
+        "SELECT id FROM etapy_analityczne WHERE kod = 'utlenienie'"
+    ).fetchone()
+    if utl_etap_id:
+        utl_etap_id = utl_etap_id[0]
+        so3_id = db.execute("SELECT id FROM parametry_analityczne WHERE kod = 'so3'").fetchone()[0]
+        nadt_id = db.execute("SELECT id FROM parametry_analityczne WHERE kod = 'nadtlenki'").fetchone()[0]
+        db.execute("DELETE FROM etap_warunki WHERE etap_id = ?", (utl_etap_id,))
+        db.execute(
+            "INSERT INTO etap_warunki (etap_id, parametr_id, operator, wartosc, wartosc_max, opis_warunku) VALUES (?, ?, ?, ?, ?, ?)",
+            (utl_etap_id, so3_id, "w_limicie", None, None, "SO3 w zakresie limitów produktu"),
+        )
+        db.execute(
+            "INSERT INTO etap_warunki (etap_id, parametr_id, operator, wartosc, wartosc_max, opis_warunku) VALUES (?, ?, ?, ?, ?, ?)",
+            (utl_etap_id, nadt_id, "w_limicie", None, None, "nadtlenki w zakresie limitów produktu"),
+        )
+        stats["utl_gate_updated"] = True
+        print("  Updated utlenienie gate: w_limicie for SO3, nadtlenki")
+
     db.commit()
     return stats
 
