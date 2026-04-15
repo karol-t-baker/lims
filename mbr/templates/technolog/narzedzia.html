@@ -125,14 +125,6 @@
 
       <!-- RIGHT: Stats + Generator (60%) -->
       <div class="pal-right">
-        <div class="pal-sec-label">Parametry</div>
-        <div class="pal-stats">
-          <div class="pal-st"><div class="pal-st-label">Ryczałt</div><div class="pal-st-val pal-st-teal">345,00</div></div>
-          <div class="pal-st"><div class="pal-st-label">Stawka/dzień</div><div class="pal-st-val">15,68</div></div>
-          <div class="pal-st"><div class="pal-st-label">Potrącenie</div><div class="pal-st-val" id="pal-stat-pot">0,00</div></div>
-          <div class="pal-st pal-st-accent"><div class="pal-st-label">Do wypłaty</div><div class="pal-st-val" id="pal-stat-wyp">345,00</div></div>
-        </div>
-
         <div class="pal-sec-label">Generator</div>
         <div class="pal-gen">
           <!-- Toggle 1/2 -->
@@ -713,8 +705,6 @@ async function palRecalc() {
   document.getElementById('pal-gen-potracenie').textContent = d.potracenie + ' zł';
   document.getElementById('pal-gen-wyplata').textContent = d.ryczalt_do_wyplaty + ' zł';
   document.getElementById('pal-gen-slownie').textContent = d.kwota_slownie;
-  document.getElementById('pal-stat-pot').textContent = d.potracenie;
-  document.getElementById('pal-stat-wyp').textContent = d.ryczalt_do_wyplaty;
 }
 async function palRecalc2() {
   var dni = parseInt(document.getElementById('pal-gen-dni-2').value) || 0;
