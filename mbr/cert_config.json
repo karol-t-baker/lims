@@ -1634,7 +1634,7 @@
           "name_en": "Refraction (n_{D}^{20})",
           "requirement": "1,3800-1,3950",
           "method": "PN-EN ISO 6320:2017-04",
-          "format": "1",
+          "format": "4",
           "data_field": "nd20"
         },
         {
