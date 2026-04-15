@@ -404,20 +404,6 @@ def lab_wykonaj_korekte(ebr_id):
 # Compute a formula hint for a correction type.
 # ---------------------------------------------------------------------------
 
-@pipeline_bp.route("/api/pipeline/lab/formula-hint", methods=["GET"])
-@login_required
-def lab_formula_hint():
-    korekta_typ_id = request.args.get("korekta_typ_id", type=int)
-    zmienne = {k: float(v) for k, v in request.args.items() if k != "korekta_typ_id"}
-
-    db = get_db()
-    try:
-        result = pm.compute_formula_hint(db, korekta_typ_id, zmienne)
-        return jsonify({"ok": True, "hint": result})
-    finally:
-        db.close()
-
-
 # ---------------------------------------------------------------------------
 # POST /api/pipeline/lab/ebr/<ebr_id>/formula-resolve
 # Full variable resolution for a correction type in context of a session.

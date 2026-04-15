@@ -703,10 +703,6 @@ async function acceptCalc() {
     showSaveStatus('saved');
 }
 
-// Aliases matching spec naming
-function openCalc(tag, kod, sekcja, calcMethod) { openCalculator(tag, kod, sekcja, calcMethod); }
-function recalc() { renderCalculator(); }
-
 // Titrant concentration change — update local + save to DB + recalculate
 var _saveTitrantTimer = null;
 function onTitrantChange(titrantId, value) {
@@ -730,8 +726,6 @@ function onTitrantChange(titrantId, value) {
 // Export
 window.openCalculator = openCalculator;
 window.openCalculatorFull = openCalculatorFull;
-window.openCalc = openCalc;
-window.recalc = recalc;
 window.acceptCalc = acceptCalc;
 window.addSample = addSample;
 window.addSampleFull = addSampleFull;

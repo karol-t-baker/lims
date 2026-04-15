@@ -550,40 +550,6 @@ def test_list_zlecenia_for_sesja(db, setup_pipeline):
     assert all("items" in z for z in zlecenia)
 
 
-def test_compute_formula_hint(db, setup_pipeline):
-    """Formula hint should compute amount from formula_ilosc."""
-    from mbr.pipeline.models import compute_formula_hint
-
-    db.execute(
-        """UPDATE etap_korekty_katalog
-           SET formula_ilosc = ':masa_wsadu * (:spec - :wynik) / 100',
-               formula_zmienne = 'masa_wsadu,spec,wynik'
-           WHERE id = ?""",
-        (setup_pipeline["korekta_typ_id_1"],)
-    )
-    db.commit()
-
-    result = compute_formula_hint(
-        db,
-        korekta_typ_id=setup_pipeline["korekta_typ_id_1"],
-        zmienne={"masa_wsadu": 1000, "spec": 12.0, "wynik": 10.0},
-    )
-    assert result is not None
-    assert abs(result - 20.0) < 0.01
-
-
-def test_compute_formula_hint_no_formula(db, setup_pipeline):
-    """Returns None when no formula is set."""
-    from mbr.pipeline.models import compute_formula_hint
-
-    result = compute_formula_hint(
-        db,
-        korekta_typ_id=setup_pipeline["korekta_typ_id_1"],
-        zmienne={"masa_wsadu": 1000},
-    )
-    assert result is None
-
-
 from scripts.migrate_parametry_etapy import migrate_parametry_etapy
 
 

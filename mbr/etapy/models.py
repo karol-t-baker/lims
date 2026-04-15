@@ -191,15 +191,6 @@ def get_etapy_status(db: sqlite3.Connection, ebr_id: int) -> list[dict]:
     return [dict(r) for r in rows]
 
 
-def get_aktualny_etap(db: sqlite3.Connection, ebr_id: int) -> str | None:
-    """Get the name of the current (in_progress) process stage, or None if all done."""
-    row = db.execute(
-        "SELECT etap FROM ebr_etapy_status WHERE ebr_id = ? AND status = 'in_progress'",
-        (ebr_id,),
-    ).fetchone()
-    return row["etap"] if row else None
-
-
 def zatwierdz_etap(db: sqlite3.Connection, ebr_id: int, etap: str, user: str, produkt: str) -> str | None:
     """Approve current stage, advance to next. Returns next stage name or None if last.
     For parallel stages (amid/smca): czwartorzedowanie activates only when BOTH are done."""

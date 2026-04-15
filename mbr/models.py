@@ -5,7 +5,7 @@ models.py — Database helpers and user CRUD for MBR/EBR webapp.
 import sqlite3
 from pathlib import Path
 
-from mbr.db import get_db, db_session  # noqa: F401
+from mbr.db import get_db  # noqa: F401
 
 DB_PATH = Path(__file__).parent.parent / "data" / "batch_db_v4.sqlite"
 
@@ -1369,21 +1369,14 @@ from mbr.laborant.models import next_nr_partii  # noqa: F401
 # User CRUD
 # ---------------------------------------------------------------------------
 
-from mbr.auth.models import create_user, verify_user  # noqa: F401
-
-
-# ---------------------------------------------------------------------------
-# Workers
-# ---------------------------------------------------------------------------
-
-from mbr.workers.models import list_workers, update_worker_profile, update_worker_nickname  # noqa: F401
+from mbr.auth.models import create_user  # noqa: F401
 
 
 # ---------------------------------------------------------------------------
 # MBR CRUD — moved to mbr.technolog.models, re-exported for backward compat
 # ---------------------------------------------------------------------------
 
-from mbr.technolog.models import list_mbr, get_mbr, get_active_mbr, save_mbr, activate_mbr, clone_mbr  # noqa: F401, E402
+from mbr.technolog.models import get_mbr  # noqa: F401, E402
 
 
 # ---------------------------------------------------------------------------
@@ -1392,18 +1385,7 @@ from mbr.technolog.models import list_mbr, get_mbr, get_active_mbr, save_mbr, ac
 
 from mbr.laborant.models import (  # noqa: F401, E402
     list_ebr_open,
-    _compute_stage_info,
     list_ebr_completed,
-    list_ebr_recent,
-)
-
-
-# Re-exports for backward compatibility — implementations moved to mbr.registry.models
-from mbr.registry.models import (  # noqa: E402, F401
-    list_completed_registry,
-    get_registry_columns,
-    list_completed_products,
-    export_wyniki_csv,
 )
 
 
@@ -1419,12 +1401,4 @@ from mbr.laborant.models import (  # noqa: F401, E402
     save_wyniki,
     complete_ebr,
     sync_ebr_to_v4,
-    migrate_wyniki_to_rounds,
 )
-
-
-# ---------------------------------------------------------------------------
-# Certificates (Świadectwa)
-# ---------------------------------------------------------------------------
-
-from mbr.certs.models import create_swiadectwo, list_swiadectwa, mark_swiadectwa_outdated  # noqa: F401

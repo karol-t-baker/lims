@@ -6,7 +6,7 @@ from pathlib import Path
 from flask import Response, abort, jsonify, render_template, request, send_file, session
 
 from mbr.certs import certs_bp
-from mbr.certs.generator import generate_certificate_pdf, get_required_fields, get_variants, save_certificate_data, load_config, build_preview_context, _docxtpl_render, _gotenberg_convert
+from mbr.certs.generator import generate_certificate_pdf, get_required_fields, get_variants, save_certificate_data, build_preview_context, _docxtpl_render, _gotenberg_convert
 from mbr.certs.models import create_swiadectwo, list_swiadectwa
 from mbr.db import db_session
 from mbr.models import get_ebr, get_ebr_wyniki, get_mbr

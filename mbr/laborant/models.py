@@ -6,7 +6,6 @@ import json
 import sqlite3
 from datetime import datetime
 
-from mbr.db import get_db, db_session
 
 PRODUCTS = [
     # Grupa 1: Chegina betainy (2 sekcje lab)
@@ -866,40 +865,6 @@ def sync_ebr_to_v4(db: sqlite3.Connection, ebr_id: int, ebr: dict | None = None)
 # ---------------------------------------------------------------------------
 # Data migration
 # ---------------------------------------------------------------------------
-
-def migrate_wyniki_to_rounds(db: sqlite3.Connection) -> int:
-    """Migrate legacy sekcja names to round-suffixed format.
-    przed_standaryzacja → analiza__1
-    analiza_koncowa → analiza__2 (only for products that had przed_standaryzacja)
-    Returns count of updated rows.
-    """
-    updated = 0
-
-    # Find EBRs that have przed_standaryzacja results
-    ebr_ids_with_przed = db.execute(
-        "SELECT DISTINCT ebr_id FROM ebr_wyniki WHERE sekcja = 'przed_standaryzacja'"
-    ).fetchall()
-    ebr_ids_with_przed = {r[0] for r in ebr_ids_with_przed}
-
-    if ebr_ids_with_przed:
-        placeholders = ",".join(["?"] * len(ebr_ids_with_przed))
-        # Rename przed_standaryzacja → analiza__1
-        c = db.execute(
-            f"UPDATE ebr_wyniki SET sekcja = 'analiza__1' WHERE sekcja = 'przed_standaryzacja' AND ebr_id IN ({placeholders})",
-            list(ebr_ids_with_przed),
-        )
-        updated += c.rowcount
-
-        # Rename analiza_koncowa → analiza__2 for same EBRs
-        c = db.execute(
-            f"UPDATE ebr_wyniki SET sekcja = 'analiza__2' WHERE sekcja = 'analiza_koncowa' AND ebr_id IN ({placeholders})",
-            list(ebr_ids_with_przed),
-        )
-        updated += c.rowcount
-
-    db.commit()
-    return updated
-
 
 # ---------------------------------------------------------------------------
 # Uwagi końcowe (final batch notes)

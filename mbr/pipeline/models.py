@@ -792,28 +792,6 @@ def list_zlecenia_for_sesja(db: sqlite3.Connection, sesja_id: int) -> list[dict]
 # Task 6: formula hint computation
 # ---------------------------------------------------------------------------
 
-def compute_formula_hint(
-    db: sqlite3.Connection,
-    korekta_typ_id: int,
-    zmienne: dict[str, float],
-) -> float | None:
-    row = db.execute(
-        "SELECT formula_ilosc, formula_zmienne FROM etap_korekty_katalog WHERE id=?",
-        (korekta_typ_id,),
-    ).fetchone()
-    if not row or not row["formula_ilosc"]:
-        return None
-
-    formula = row["formula_ilosc"]
-    for key, val in zmienne.items():
-        formula = formula.replace(f":{key}", str(float(val)))
-
-    try:
-        return eval(formula, {"__builtins__": {}})
-    except Exception:
-        return None
-
-
 def _resolve_ovr(ovr, cat):
     """Resolve product override vs catalog value for a limit field.
 
