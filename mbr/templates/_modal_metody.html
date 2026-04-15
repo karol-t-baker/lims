@@ -83,6 +83,20 @@
 </style>
 
 <script>
+// Stats helper — shared by modal and calculator.js
+if (typeof calcStats === 'undefined') {
+  function calcStats(results) {
+    if (results.length < 2) return null;
+    var n = results.length;
+    var mean = results.reduce(function(a, b) { return a + b; }, 0) / n;
+    var delta = Math.max.apply(null, results) - Math.min.apply(null, results);
+    var variance = results.reduce(function(a, b) { return a + (b - mean) * (b - mean); }, 0) / (n - 1);
+    var stdDev = Math.sqrt(variance);
+    var rsd = mean !== 0 ? (stdDev / Math.abs(mean)) * 100 : 0;
+    var rsm = rsd / Math.sqrt(n);
+    return { mean: mean, delta: delta, stdDev: stdDev, rsd: rsd, rsm: rsm, convergent: delta < 0.5 };
+  }
+}
 var _mcM=[],_mcA=null,_mcR=[],_mcT={},_mcHighlight=-1;
 
 function openMetodyModal(){

@@ -1636,7 +1636,7 @@ function renderCompletedView() {
     '</div>';
 
     // Params list — editable for completed batches (zbiornik + szarza, but not for COA)
-    var canEdit = userRola !== 'cert';
+    var canEdit = true;
     var paramsHtml = '<div class="cv-params">' +
         '<div class="cv-params-head" style="display:flex;align-items:center;justify-content:space-between;">' +
             '<span>Parametry końcowe</span>' +
