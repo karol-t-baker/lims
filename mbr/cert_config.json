@@ -1134,21 +1134,21 @@
           "id": "cert_qual_cert_qual_odour",
           "name_pl": "Zapach",
           "name_en": "Odour",
-          "requirement": "słaby/faint",
-          "method": "organoleptycznie/organoleptic",
+          "requirement": "słaby\n/faint",
+          "method": "organoleptycznie\n/organoleptic",
           "format": "1",
           "data_field": "cert_qual_cert_qual_odour",
-          "qualitative_result": "zgodny/right"
+          "qualitative_result": "zgodny\n/right"
         },
         {
           "id": "cert_qual_cert_qual_appearance",
           "name_pl": "Wygląd",
           "name_en": "Appearance",
-          "requirement": "klarowna ciecz/clear liquid",
-          "method": "organoleptycznie/organoleptic",
+          "requirement": "klarowna ciecz\n/clear liquid",
+          "method": "organoleptycznie\n/organoleptic",
           "format": "1",
           "data_field": "cert_qual_cert_qual_appearance",
-          "qualitative_result": "zgodny/right"
+          "qualitative_result": "zgodny\n/right"
         },
         {
           "id": "sa",
@@ -1228,7 +1228,7 @@
           "name_pl": "MCA [ppm]",
           "name_en": "MCA [ppm]",
           "requirement": "<100 ppm",
-          "method": "metoda zew./external method",
+          "method": "metoda zew.\n/external method",
           "format": "1",
           "data_field": "mca"
         },
@@ -1237,7 +1237,7 @@
           "name_pl": "DCA [ppm]",
           "name_en": "DCA [ppm]",
           "requirement": "< 100 ppm",
-          "method": "metoda zew./external method",
+          "method": "metoda zew.\n/external method",
           "format": "1",
           "data_field": "dca"
         },
@@ -1246,14 +1246,14 @@
           "name_pl": "DMAPA [ppm]",
           "name_en": "DMAPA [ppm]",
           "requirement": "< 10 ppm",
-          "method": "metoda zew./ external method",
+          "method": "metoda zew.\n/ external method",
           "format": "1",
           "data_field": "dmapa"
         },
         {
           "id": "wkt",
           "name_pl": "%WKT",
-          "name_en": "Free fatty acids (Coconut fatty acids, MW=220) [%]",
+          "name_en": "Free fatty acids \n(Coconut fatty acids, MW=220) [%]",
           "requirement": "1,8-2,2",
           "method": "L925",
           "format": "1",
@@ -1306,6 +1306,17 @@
             "remove_parameters": [
               "sm",
               "h2o"
+            ],
+            "add_parameters": [
+              {
+                "id": "kwas_hcl",
+                "name_pl": "Barwa wg Hazen",
+                "name_en": "blala",
+                "requirement": "",
+                "method": "",
+                "format": "1",
+                "data_field": "kwas_hcl"
+              }
             ]
           }
         },
@@ -1619,8 +1630,8 @@
         },
         {
           "id": "nd20",
-          "name_pl": "Wsp. załamania światła (nD20)",
-          "name_en": "Refraction (nD20)",
+          "name_pl": "Wsp. załamania światła (n_{D}^{20})",
+          "name_en": "Refraction (n_{D}^{20})",
           "requirement": "1,3800-1,3950",
           "method": "PN-EN ISO 6320:2017-04",
           "format": "1",

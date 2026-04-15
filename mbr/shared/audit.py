@@ -277,7 +277,7 @@ def log_event(
         # No Flask app / request context — e.g. migrations, startup
         pass
 
-    dt = _dt.now(_tz.utc).isoformat()
+    dt = _dt.now().isoformat(timespec="seconds")
 
     cur = db.execute(
         """INSERT INTO audit_log

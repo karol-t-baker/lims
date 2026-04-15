@@ -109,8 +109,28 @@ def audit_panel():
             "SELECT id, nickname, inicjaly FROM workers WHERE aktywny=1 ORDER BY inicjaly"
         ).fetchall()
 
+    # Enrich entity_label for ebr rows missing it — resolve nr_partii from DB
+    with db_session() as db:
+        ebr_ids_missing = {r["entity_id"] for r in rows
+                           if r.get("entity_type") == "ebr" and not r.get("entity_label") and r.get("entity_id")}
+        ebr_labels = {}
+        if ebr_ids_missing:
+            placeholders = ",".join("?" * len(ebr_ids_missing))
+            for row in db.execute(
+                f"""SELECT e.ebr_id, m.produkt, e.nr_partii
+                    FROM ebr_batches e JOIN mbr_templates m ON m.mbr_id = e.mbr_id
+                    WHERE e.ebr_id IN ({placeholders})""",
+                list(ebr_ids_missing),
+            ).fetchall():
+                ebr_labels[row["ebr_id"]] = f"{row['produkt'].replace('_', ' ')} {row['nr_partii']}"
+
     # Parse JSON columns inside rows for template rendering
     for r in rows:
+        if r.get("entity_type") == "ebr" and not r.get("entity_label") and r.get("entity_id"):
+            label = ebr_labels.get(r["entity_id"])
+            if label:
+                r["entity_label"] = label
+
         if r.get("diff_json"):
             try:
                 r["diff_parsed"] = _json.loads(r["diff_json"])
