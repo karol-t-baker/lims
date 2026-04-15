@@ -238,7 +238,7 @@
             <th>Wymaganie</th>
             <th>Metoda</th>
             <th style="width:130px;">Powiąż z pomiarem</th>
-            <th style="width:90px;">Miejsca po ,</th>
+            <th style="width:90px;">Precyzja</th>
             <th>Wynik opisowy</th>
             <th style="width:28px;"></th>
           </tr>
@@ -286,7 +286,7 @@
               <th>Wymaganie</th>
               <th>Metoda</th>
               <th style="width:130px;">Powiąż z pomiarem</th>
-              <th style="width:90px;">Miejsca po ,</th>
+              <th style="width:90px;">Precyzja</th>
               <th>Wynik opisowy</th>
               <th style="width:28px;"></th>
             </tr>
@@ -370,7 +370,7 @@ function _codeOptions(current) {
 }
 
 function _fmtOptions(current) {
-  var opts = [{v:'',l:'—'},{v:'0',l:'0'},{v:'1',l:'1'},{v:'2',l:'2'},{v:'3',l:'3'}];
+  var opts = [{v:'',l:'—'},{v:'0',l:'0'},{v:'1',l:'1'},{v:'2',l:'2'},{v:'3',l:'3'},{v:'4',l:'4'}];
   var html = '';
   opts.forEach(function(o) {
     html += '<option value="' + o.v + '"' + (String(current||'') === o.v ? ' selected' : '') + '>' + o.l + '</option>';
