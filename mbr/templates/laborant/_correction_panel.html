@@ -242,15 +242,13 @@ function recomputeStandV2(sekcja) {
     recomputeStandTotal(sekcja);
 }
 
-// Acid estimation model — Linear(pH, masa)
-// Trained on data/kwas.csv (45 obs, LOO-CV MAE=5.44 kg, MAPE=6.3%)
-// Target: kwas_per_kg_per_dph = kwas_kg / masa_eff / delta_pH
-// coef = -0.006285 + 0.00068015 * pH + (-0.000000026318) * masa_kg
-// dawka = coef * masa_eff_kg * (pH_start - pH_target)
+// Acid estimation model — DIRECT regression
+// Trained on data/kwas.csv (45 obs, LOO-CV MAE=5.06 kg, MAPE=6.1%)
+// kwas = -524.86 + 0.010864 * masa_eff + 9.2878 * delta_pH + 33.218 * pH_start + 488181 / masa_kg
 function _acidModelPredict(phStart, phTarget, masaKg, masaEffKg) {
-    var coef = -0.006285 + 0.00068015 * phStart + (-0.000000026318) * masaKg;
-    if (coef <= 0) return null;
-    var dawka = coef * masaEffKg * (phStart - phTarget);
+    var deltaPh = phStart - phTarget;
+    if (deltaPh <= 0 || masaKg <= 0 || masaEffKg <= 0) return null;
+    var dawka = -524.86 + 0.010864 * masaEffKg + 9.2878 * deltaPh + 33.218 * phStart + 488181 / masaKg;
     if (!isFinite(dawka) || dawka < 0) return 0;
     return dawka;
 }
