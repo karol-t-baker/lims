@@ -232,7 +232,7 @@ def fast_entry_partial(ebr_id):
 
 
 @laborant_bp.route("/laborant/ebr/<int:ebr_id>/save", methods=["POST"])
-@role_required("lab", "admin")
+@role_required("lab", "cert", "admin")
 def save_entry(ebr_id):
     data = request.get_json(silent=True)
     if not data:
