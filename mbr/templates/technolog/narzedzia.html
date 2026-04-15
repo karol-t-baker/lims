@@ -64,6 +64,22 @@
     </div>
   </div>
 
+  {# ═══ ChZT Ścieków ═══ #}
+  <div class="narz-section">
+    <div class="narz-section-label">Ścieki</div>
+    <div class="narz-grid">
+      <div class="narz-card" onclick="openChztModal()" style="cursor:pointer;">
+        <div class="narz-card-icon" style="background:#fef3c7;color:#b45309;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/></svg>
+        </div>
+        <div class="narz-card-body">
+          <div class="narz-card-name">ChZT Ścieków</div>
+          <div class="narz-card-desc">pH + 5 pomiarów ChZT — hala, rura, kontenery, szambiarka</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   {# ═══ PALIWO — card entry point ═══ #}
   {% if session.get('user', {}).get('rola') != 'lab' %}
   <div class="narz-section">
@@ -738,5 +754,154 @@ async function palGeneruj() {
     alert('Błąd: ' + (err.error || 'Nieznany'));
   }
 }
+// ═══ ChZT Ścieków Modal ═══
+
+var _chztKontenery = 8;
+
+function openChztModal() {
+  document.getElementById('chzt-overlay').classList.add('show');
+  chztRender();
+}
+function closeChztModal() {
+  document.getElementById('chzt-overlay').classList.remove('show');
+}
+
+function chztSetKontenery() {
+  var v = parseInt(document.getElementById('chzt-n-kontenery').value);
+  if (!isNaN(v) && v >= 0 && v <= 20) {
+    _chztKontenery = v;
+    chztRender();
+  }
+}
+
+function chztRender() {
+  var today = new Date().toLocaleDateString('pl-PL', {day:'2-digit',month:'2-digit',year:'numeric'});
+  document.getElementById('chzt-date').textContent = today;
+
+  var punkty = ['hala', 'rura'];
+  for (var i = 1; i <= _chztKontenery; i++) punkty.push('kontener ' + i);
+  punkty.push('szambiarka');
+
+  var html = '<table class="chzt-table">' +
+    '<thead><tr><th>Punkt</th><th>pH</th><th>P1</th><th>P2</th><th>P3</th><th>P4</th><th>P5</th><th>\u015arednia</th></tr></thead><tbody>';
+
+  punkty.forEach(function(p) {
+    var id = p.replace(/ /g, '_');
+    html += '<tr>' +
+      '<td class="chzt-punkt">' + p + '</td>' +
+      '<td><input class="chzt-inp chzt-ph" type="number" id="chzt-ph-' + id + '" min="0" max="14" step="1" inputmode="numeric"></td>';
+    for (var j = 1; j <= 5; j++) {
+      html += '<td><input class="chzt-inp" type="number" id="chzt-' + id + '-' + j + '" inputmode="numeric" oninput="chztCalcAvg(\'' + id + '\')"></td>';
+    }
+    html += '<td class="chzt-avg" id="chzt-avg-' + id + '">\u2014</td></tr>';
+  });
+
+  html += '</tbody></table>';
+  document.getElementById('chzt-body').innerHTML = html;
+}
+
+function chztCalcAvg(id) {
+  var vals = [];
+  for (var j = 1; j <= 5; j++) {
+    var el = document.getElementById('chzt-' + id + '-' + j);
+    if (el && el.value) {
+      var v = parseFloat(el.value);
+      if (!isNaN(v)) vals.push(v);
+    }
+  }
+  var avgEl = document.getElementById('chzt-avg-' + id);
+  if (vals.length >= 2) {
+    var avg = vals.reduce(function(a,b){return a+b;}, 0) / vals.length;
+    avgEl.textContent = Math.round(avg).toLocaleString('pl-PL');
+    avgEl.style.color = avg > 40000 ? 'var(--red)' : 'var(--teal)';
+  } else {
+    avgEl.textContent = '\u2014';
+    avgEl.style.color = '';
+  }
+}
+
+async function chztSave() {
+  var punkty = ['hala', 'rura'];
+  for (var i = 1; i <= _chztKontenery; i++) punkty.push('kontener ' + i);
+  punkty.push('szambiarka');
+
+  var data = [];
+  var hasError = false;
+  punkty.forEach(function(p) {
+    var id = p.replace(/ /g, '_');
+    var phEl = document.getElementById('chzt-ph-' + id);
+    var ph = phEl ? parseInt(phEl.value) : null;
+    var probki = [];
+    for (var j = 1; j <= 5; j++) {
+      var el = document.getElementById('chzt-' + id + '-' + j);
+      probki.push(el && el.value ? parseFloat(el.value) : null);
+    }
+    var filled = probki.filter(function(v) { return v !== null; });
+    if (filled.length < 2) { hasError = true; }
+    var avg = filled.length >= 2 ? Math.round(filled.reduce(function(a,b){return a+b;},0) / filled.length) : null;
+    data.push({nazwa: p, ph: ph, chzt_probki: probki, chzt_srednia: avg});
+  });
+
+  if (hasError) {
+    alert('Ka\u017Cdy punkt musi mie\u0107 minimum 2 pomiary ChZT.');
+    return;
+  }
+
+  var btn = document.getElementById('chzt-save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Zapisywanie...';
+
+  try {
+    var resp = await fetch('/api/chzt/save', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({data: data})
+    });
+    var result = await resp.json();
+    if (result.ok) {
+      btn.textContent = 'Zapisano!';
+      setTimeout(function() { btn.disabled = false; btn.textContent = 'Zapisz'; }, 2000);
+    } else {
+      alert('B\u0142\u0105d: ' + (result.error || 'nieznany'));
+      btn.disabled = false; btn.textContent = 'Zapisz';
+    }
+  } catch(e) {
+    alert('B\u0142\u0105d po\u0142\u0105czenia');
+    btn.disabled = false; btn.textContent = 'Zapisz';
+  }
+}
 </script>
+
+{# ═══ ChZT MODAL ═══ #}
+<div class="pal-overlay" id="chzt-overlay" onclick="if(event.target===this)closeChztModal()" style="display:none;">
+  <div class="pal-modal" style="max-width:850px;">
+    <div class="pal-top">
+      <span class="pal-top-title">ChZT \u015aci\u0119k\u00f3w</span>
+      <span class="pal-top-badge" id="chzt-date"></span>
+      <button class="pal-top-close" onclick="closeChztModal()">&times;</button>
+    </div>
+    <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;">
+      <span style="font-size:11px;font-weight:600;color:var(--text-sec);">Kontenery:</span>
+      <input type="number" id="chzt-n-kontenery" value="8" min="0" max="20" style="width:50px;padding:4px 8px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;text-align:center;font-family:var(--mono);" onchange="chztSetKontenery()">
+      <button class="pal-btn-save" onclick="chztSetKontenery()" style="padding:4px 10px;font-size:10px;">Generuj</button>
+    </div>
+    <div id="chzt-body" style="padding:12px 16px;overflow-y:auto;max-height:60vh;"></div>
+    <div style="padding:12px 16px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;">
+      <button class="pal-btn-save" id="chzt-save-btn" onclick="chztSave()">Zapisz</button>
+    </div>
+  </div>
+</div>
+
+<style>
+.chzt-table { width:100%; border-collapse:collapse; font-size:11px; }
+.chzt-table th { padding:6px 4px; background:var(--surface-alt); font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-dim); text-align:center; border-bottom:1px solid var(--border); }
+.chzt-table td { padding:4px 3px; border-bottom:1px solid var(--border-subtle,#e8e4dc); text-align:center; }
+.chzt-punkt { font-weight:600; font-size:11px; text-align:left !important; white-space:nowrap; padding-left:8px !important; }
+.chzt-inp { width:58px; padding:4px 4px; border:1.5px solid var(--border); border-radius:4px; font-size:11px; font-family:var(--mono); text-align:center; }
+.chzt-inp:focus { border-color:var(--teal); outline:none; box-shadow:0 0 0 2px var(--teal-bg); }
+.chzt-ph { width:36px; }
+.chzt-avg { font-weight:700; font-family:var(--mono); font-size:12px; color:var(--teal); }
+#chzt-overlay.show { display:flex !important; align-items:center; justify-content:center; }
+</style>
+
 {% endblock %}
