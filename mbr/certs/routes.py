@@ -270,10 +270,13 @@ def api_cert_config_product_get(key):
 
         parameters = []
         for bp in base_params:
+            # name_en: use DB value if explicitly set (even empty string means "no EN name"),
+            # fall back to parametry_analityczne only if parametry_cert.name_en is NULL
+            name_en = bp["name_en"] if bp["name_en"] is not None else (bp["pa_name_en"] or "")
             param = {
                 "id": bp["kod"] or f"param_{bp['parametr_id']}",
                 "name_pl": bp["name_pl"] or bp["pa_label"] or "",
-                "name_en": bp["name_en"] or bp["pa_name_en"] or "",
+                "name_en": name_en,
                 "requirement": bp["requirement"] or "",
                 "method": bp["method"] or bp["pa_method_code"] or "",
                 "format": bp["format"] or "1",
@@ -331,10 +334,11 @@ def api_cert_config_product_get(key):
             if add_params_db:
                 add_parameters = []
                 for ap in add_params_db:
+                    ap_name_en = ap["name_en"] if ap["name_en"] is not None else (ap["pa_name_en"] or "")
                     param = {
                         "id": ap["kod"] or f"param_{ap['parametr_id']}",
                         "name_pl": ap["name_pl"] or ap["pa_label"] or "",
-                        "name_en": ap["name_en"] or ap["pa_name_en"] or "",
+                        "name_en": ap_name_en,
                         "requirement": ap["requirement"] or "",
                         "method": ap["method"] or ap["pa_method_code"] or "",
                         "format": ap["format"] or "1",
@@ -473,7 +477,7 @@ def api_cert_config_product_put(key):
                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)",
                     (key, parametr_id, idx, p.get("requirement", ""), p.get("format", "1"),
                      p.get("qualitative_result") or None,
-                     p.get("name_pl") or None, p.get("name_en") or None, p.get("method") or None),
+                     p.get("name_pl") or None, p.get("name_en", None), p.get("method") or None),
                 )
 
         # Replace variants
@@ -516,7 +520,7 @@ def api_cert_config_product_put(key):
                         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         (key, ap_parametr_id, ap_idx, ap.get("requirement", ""), ap.get("format", "1"),
                          ap.get("qualitative_result") or None,
-                         ap.get("name_pl") or None, ap.get("name_en") or None, ap.get("method") or None,
+                         ap.get("name_pl") or None, ap.get("name_en", None), ap.get("method") or None,
                          new_cv_id),
                     )
 

@@ -223,7 +223,7 @@ def build_context(
                     "kod": r["kod"],
                     "parametr_id": r["parametr_id"],
                     "name_pl": r["name_pl"] or r["pa_label"] or "",
-                    "name_en": r["name_en"] or r["pa_name_en"] or "",
+                    "name_en": r["name_en"] if r["name_en"] is not None else (r["pa_name_en"] or ""),
                     "method": r["method"] or r["pa_method_code"] or "",
                     "requirement": r["requirement"] or "",
                     "format": r["format"] or "1",
@@ -254,7 +254,7 @@ def build_context(
                     "kod": r["kod"],
                     "parametr_id": r["parametr_id"],
                     "name_pl": r["name_pl"] or r["pa_label"] or "",
-                    "name_en": r["name_en"] or r["pa_name_en"] or "",
+                    "name_en": r["name_en"] if r["name_en"] is not None else (r["pa_name_en"] or ""),
                     "method": r["method"] or r["pa_method_code"] or "",
                     "requirement": r["requirement"] or "",
                     "format": r["format"] or "1",
@@ -426,7 +426,7 @@ def build_preview_context(product_json: dict, variant_id: str) -> dict:
         _ne = param.get("name_en", "")
         rows.append({
             "name_pl": _md_to_richtext(param.get("name_pl", "")),
-            "name_en": _md_to_richtext(f"/{_ne}") if _ne else _md_to_richtext(""),
+            "name_en": _md_to_richtext(f"/{_ne}") if _ne else None,
             "requirement": param.get("requirement", ""),
             "method": param.get("method", ""),
             "result": result,
@@ -660,10 +660,53 @@ def _escape_xml_chars(context: dict) -> dict:
     return _esc(context)
 
 
+def _fix_single_line_valign(doc) -> None:
+    """Fix vertical centering for single-paragraph cells in the params table.
+
+    LibreOffice ignores vAlign=center when a cell has only 1 paragraph.
+    Workaround: for cells without name_en (1 paragraph), add a tiny empty
+    paragraph with minimal line spacing to match the 2-paragraph structure
+    of cells with name_en, keeping visual height balanced.
+    """
+    from lxml import etree
+    WNS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+
+    if not doc.tables:
+        return
+    table = doc.tables[0]
+    for ri in range(1, len(table.rows)):
+        cell = table.rows[ri].cells[0]
+        paras = cell._element.findall(f'{{{WNS}}}p')
+        if len(paras) != 1:
+            continue
+        # Clone paragraph properties from existing paragraph
+        existing_pPr = paras[0].find(f'{{{WNS}}}pPr')
+        # Create empty paragraph with small font
+        new_p = etree.SubElement(cell._element, f'{{{WNS}}}p')
+        new_pPr = etree.SubElement(new_p, f'{{{WNS}}}pPr')
+        # Copy alignment (center)
+        if existing_pPr is not None:
+            jc = existing_pPr.find(f'{{{WNS}}}jc')
+            if jc is not None:
+                new_pPr.append(copy.deepcopy(jc))
+        # Set small line spacing so empty paragraph takes minimal height
+        sp = etree.SubElement(new_pPr, f'{{{WNS}}}spacing')
+        sp.set(f'{{{WNS}}}line', '120')  # 6pt line spacing
+        sp.set(f'{{{WNS}}}lineRule', 'exact')
+        # Add empty run with same font but smaller size
+        new_r = etree.SubElement(new_p, f'{{{WNS}}}r')
+        new_rPr = etree.SubElement(new_r, f'{{{WNS}}}rPr')
+        sz = etree.SubElement(new_rPr, f'{{{WNS}}}sz')
+        sz.set(f'{{{WNS}}}val', '12')  # 6pt font
+        new_t = etree.SubElement(new_r, f'{{{WNS}}}t')
+        new_t.text = ' '
+
+
 def _docxtpl_render(context: dict) -> bytes:
     """Render the master .docx template with context, return .docx bytes."""
     tpl = DocxTemplate(str(_TEMPLATE_PATH))
     tpl.render(_escape_xml_chars(context))
+    _fix_single_line_valign(tpl.docx)
     buf = io.BytesIO()
     tpl.save(buf)
     return buf.getvalue()
