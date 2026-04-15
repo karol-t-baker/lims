@@ -2355,29 +2355,6 @@ details[open].rh-round > .rh-summary::before { transform: rotate(90deg); }
 .ak-flow .section { margin-bottom: 0; }
 .ak-flow .sec-icon { display: none; }
 
-/* ═══ Inset panel style (correction panels) ═══ */
-.gate-section.gate-inset {
-  background: var(--surface-alt); border: 1px solid var(--border);
-  box-shadow: inset 0 1px 3px rgba(0,0,0,0.04); border-radius: 10px;
-}
-.gate-section.gate-inset .gate-head {
-  background: #fff; margin: -1px -1px 0; padding: 12px 16px;
-  border-radius: 10px 10px 0 0; border-bottom: 1px solid var(--border);
-}
-.gate-section.gate-inset .gate-body { padding: 14px 16px; }
-.gate-section.gate-inset .gate-actions {
-  background: transparent; border-top: 1px solid var(--border);
-}
-.gate-section.gate-inset .corr-field-input {
-  background: #fff; border-color: #d4d0c8;
-}
-.gate-section.gate-inset .corr-result {
-  background: #fff; border: 1px solid var(--border); border-radius: 8px;
-}
-.gate-section.gate-inset.gate-inset-fail {
-  border-color: var(--amber);
-  box-shadow: inset 0 1px 3px rgba(0,0,0,0.04), 0 0 0 2px var(--amber-bg);
-}
 
 /* ═══ Dziennik zdarzeń (event log table) ═══ */
 .dz-wrap {
