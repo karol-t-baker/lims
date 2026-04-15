@@ -517,12 +517,22 @@ async function advanceWithPerhydrol(sekcja) {
     }
 
     if (window._gatePassAction === 'new_round_utl') {
-        // Utlenienie FAIL → new round (same stage)
-        await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + gate.etap_id + '/start', {
-            method: 'POST'
+        // Utlenienie FAIL → close + new round (same stage)
+        await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + gate.etap_id + '/close', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ sesja_id: gate.sesja_id, decyzja: 'new_round' })
         });
     } else {
-        // Normal PASS → advance to next stage
+        // Normal PASS → close current session + advance to next stage
+        if (gate.sesja_id && gate.etap_id) {
+            await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + gate.etap_id + '/close', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ sesja_id: gate.sesja_id, decyzja: 'przejscie' })
+            });
+        }
+
         var baseSekcja = sekcja.split('__')[0];
         var currentIdx = -1;
         var pipelineStages = etapy.filter(function(e) { return !!e.pipeline_etap_id; });
