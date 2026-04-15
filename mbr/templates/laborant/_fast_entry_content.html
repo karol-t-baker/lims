@@ -1608,6 +1608,10 @@ function renderCompletedView() {
         if (key.startsWith('analiza__')) {
             var n = parseInt(key.split('__')[1]);
             if (n > lastN) { lastN = n; lastAnaliza = key; }
+        } else if (key === 'analiza' && lastN === 0) {
+            // Pipeline standaryzacja stores under 'analiza' (no suffix for first round)
+            lastAnaliza = key;
+            lastN = 0.5; // lower priority than analiza__N but higher than nothing
         } else if (key === 'analiza_koncowa') {
             lastAnaliza = key;
             lastN = 999;
