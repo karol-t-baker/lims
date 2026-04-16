@@ -1160,7 +1160,7 @@ function renderNonMainCyclicSection(container, activeSekcja, activeEtap, isReado
     if (activeSekcja === 'sulfonowanie') {
         var receptVal = (wyniki['sulfonowanie'] || {})['na2so3_recept_kg'];
         var hasRecept = receptVal && receptVal.wartosc != null;
-        if (!hasRecept || !(isReadonly || activeReadonly)) {
+        if (!hasRecept) {
             var receptDiv = document.createElement('div');
             var editable = !(isReadonly || activeReadonly);
             receptDiv.innerHTML =
