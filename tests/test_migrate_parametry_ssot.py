@@ -280,3 +280,59 @@ def test_migrate_sa_bias_preserves_per_product_override(db):
         "SELECT sa_bias FROM produkt_etap_limity WHERE produkt='A' AND parametr_id=1"
     ).fetchone()
     assert row["sa_bias"] == 0.75
+
+
+def test_migrate_cert_fields_inserts_into_parametry_cert(db):
+    from scripts.migrate_parametry_ssot import migrate_cert_fields
+    _seed_minimal_catalog(db)
+    db.execute(
+        "INSERT INTO parametry_etapy "
+        "(parametr_id, kontekst, produkt, on_cert, cert_requirement, cert_format, "
+        " cert_qualitative_result, cert_kolejnosc) "
+        "VALUES (1, 'analiza_koncowa', 'Chelamid_DK', 1, 'max 11', '2', NULL, 3)"
+    )
+    db.commit()
+    migrate_cert_fields(db)
+    row = db.execute(
+        "SELECT requirement, format, qualitative_result, kolejnosc, variant_id "
+        "FROM parametry_cert WHERE produkt='Chelamid_DK' AND parametr_id=1"
+    ).fetchone()
+    assert row is not None
+    assert row["requirement"] == "max 11"
+    assert row["format"] == "2"
+    assert row["qualitative_result"] is None
+    assert row["kolejnosc"] == 3
+    assert row["variant_id"] is None  # base cert (no variant)
+
+
+def test_migrate_cert_fields_handles_variant(db):
+    from scripts.migrate_parametry_ssot import migrate_cert_fields
+    _seed_minimal_catalog(db)
+    db.execute("INSERT INTO cert_variants (id, produkt, variant_id, label) VALUES (10, 'Chelamid_DK', 'pelna', 'Chelamid DK — PEŁNA')")
+    db.execute(
+        "INSERT INTO parametry_etapy "
+        "(parametr_id, kontekst, produkt, on_cert, cert_requirement, cert_format, cert_variant_id, cert_kolejnosc) "
+        "VALUES (2, 'cert_variant', 'Chelamid_DK', 1, '80-90', '1', 10, 5)"
+    )
+    db.commit()
+    migrate_cert_fields(db)
+    row = db.execute(
+        "SELECT requirement, variant_id, kolejnosc FROM parametry_cert "
+        "WHERE produkt='Chelamid_DK' AND parametr_id=2"
+    ).fetchone()
+    assert row["requirement"] == "80-90"
+    assert row["variant_id"] == 10
+    assert row["kolejnosc"] == 5
+
+
+def test_migrate_cert_fields_skips_non_cert_rows(db):
+    from scripts.migrate_parametry_ssot import migrate_cert_fields
+    _seed_minimal_catalog(db)
+    db.execute(
+        "INSERT INTO parametry_etapy (parametr_id, kontekst, produkt, on_cert) "
+        "VALUES (1, 'analiza_koncowa', 'Chelamid_DK', 0)"
+    )
+    db.commit()
+    migrate_cert_fields(db)
+    n = db.execute("SELECT COUNT(*) AS n FROM parametry_cert").fetchone()["n"]
+    assert n == 0

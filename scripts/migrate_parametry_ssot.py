@@ -216,6 +216,48 @@ def migrate_sa_bias(db: sqlite3.Connection) -> int:
     return updated
 
 
+def migrate_cert_fields(db: sqlite3.Connection) -> int:
+    """Copy on_cert=1 rows from parametry_etapy into parametry_cert.
+    UPSERT by (produkt, parametr_id, variant_id)."""
+    src_rows = db.execute(
+        "SELECT parametr_id, produkt, cert_requirement, cert_format, "
+        "       cert_qualitative_result, cert_kolejnosc, cert_variant_id "
+        "FROM parametry_etapy "
+        "WHERE on_cert=1 AND produkt IS NOT NULL"
+    ).fetchall()
+    touched = 0
+    for r in src_rows:
+        existing = db.execute(
+            "SELECT id FROM parametry_cert "
+            "WHERE produkt=? AND parametr_id=? "
+            "  AND ((variant_id IS NULL AND ? IS NULL) OR variant_id = ?)",
+            (r["produkt"], r["parametr_id"], r["cert_variant_id"], r["cert_variant_id"]),
+        ).fetchone()
+        if existing:
+            db.execute(
+                "UPDATE parametry_cert SET "
+                " requirement         = COALESCE(?, requirement), "
+                " format              = COALESCE(?, format), "
+                " qualitative_result  = COALESCE(?, qualitative_result), "
+                " kolejnosc           = COALESCE(?, kolejnosc) "
+                "WHERE id=?",
+                (r["cert_requirement"], r["cert_format"],
+                 r["cert_qualitative_result"], r["cert_kolejnosc"], existing["id"]),
+            )
+        else:
+            db.execute(
+                "INSERT INTO parametry_cert "
+                "(produkt, parametr_id, variant_id, requirement, format, "
+                " qualitative_result, kolejnosc) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (r["produkt"], r["parametr_id"], r["cert_variant_id"],
+                 r["cert_requirement"], r["cert_format"],
+                 r["cert_qualitative_result"], r["cert_kolejnosc"]),
+            )
+        touched += 1
+    return touched
+
+
 def postflight(db: sqlite3.Connection) -> list[str]:
     """Return list of post-migration validation errors. Empty list = OK."""
     return []  # filled in later tasks
@@ -250,6 +292,9 @@ def migrate(db: sqlite3.Connection, dry_run: bool = False) -> None:
     n_sa = migrate_sa_bias(db)
     if n_sa:
         print(f"Propagated sa_bias to {n_sa} produkt_etap_limity rows.")
+
+    n_cert = migrate_cert_fields(db)
+    print(f"Migrated {n_cert} cert metadata rows to parametry_cert.")
 
     errors = postflight(db)
     if errors:
