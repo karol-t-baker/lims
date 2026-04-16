@@ -1159,23 +1159,26 @@ function renderNonMainCyclicSection(container, activeSekcja, activeEtap, isReado
     // 1b. Recipe Na2SO3 field for sulfonowanie
     if (activeSekcja === 'sulfonowanie') {
         var receptVal = (wyniki['sulfonowanie'] || {})['na2so3_recept_kg'];
-        var receptDiv = document.createElement('div');
-        receptDiv.innerHTML =
-            '<div class="gate-section" style="margin-bottom:12px;padding:12px 16px;">' +
-                '<div style="font-weight:600;font-size:12px;color:var(--text-dim);margin-bottom:6px;">Recepturowy dodatek Na\u2082SO\u2083</div>' +
-                '<div style="display:flex;align-items:center;gap:8px;">' +
-                    '<input id="recept-na2so3-kg" class="corr-field-input" type="text" inputmode="decimal"' +
-                        ' value="' + (receptVal && receptVal.wartosc != null ? String(receptVal.wartosc).replace('.', ',') : '') + '"' +
-                        ' placeholder="z karty recepturowej"' +
-                        ' style="max-width:160px;font-size:14px;font-weight:700;"' +
-                        (isReadonly || activeReadonly ? ' readonly' : '') + '>' +
-                    '<span style="font-size:13px;color:var(--text-dim);">kg</span>' +
+        var hasRecept = receptVal && receptVal.wartosc != null;
+        if (!hasRecept || !(isReadonly || activeReadonly)) {
+            var receptDiv = document.createElement('div');
+            receptDiv.className = 'ff';
+            receptDiv.style.cssText = 'border-bottom:1px dashed var(--border-subtle, #e8e4dc);background:var(--surface);';
+            receptDiv.innerHTML =
+                '<label style="color:var(--text-dim);">Na\u2082SO\u2083 recept.</label>' +
+                '<input id="recept-na2so3-kg" type="text" inputmode="decimal"' +
+                    ' value="' + (hasRecept ? String(receptVal.wartosc).replace('.', ',') : '') + '"' +
+                    ' placeholder="\u2014"' +
+                    ' style="font-size:16px;font-family:var(--mono);color:var(--text);text-align:center;flex:1;border:none;background:transparent;padding:8px 6px;"' +
+                    (isReadonly || activeReadonly ? ' readonly' : '') + '>' +
+                '<div class="ff-right" style="display:flex;align-items:center;gap:6px;">' +
+                    '<span style="font-size:11px;color:var(--text-dim);">kg</span>' +
                     (!(isReadonly || activeReadonly) ?
-                        '<button class="gate-btn gate-btn-sec" style="font-size:11px;padding:4px 10px;" onclick="saveReceptNa2so3()">Zapisz</button>'
+                        '<button onclick="saveReceptNa2so3()" style="font-size:10px;padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text-dim);cursor:pointer;font-family:var(--font);">Zapisz</button>'
                     : '') +
-                '</div>' +
-            '</div>';
-        container.appendChild(receptDiv);
+                '</div>';
+            container.appendChild(receptDiv);
+        }
     }
 
     // 2. ANALIZA block (current round)
@@ -5486,8 +5489,14 @@ window.saveReceptNa2so3 = async function() {
         })
     });
     if (resp.ok) {
-        input.style.outline = '2px solid var(--green, #16a34a)';
-        setTimeout(function() { input.style.outline = ''; }, 1500);
+        var row = input.closest('.ff');
+        if (row) {
+            row.style.transition = 'opacity 0.3s, height 0.3s';
+            row.style.opacity = '0';
+            row.style.height = '0';
+            row.style.overflow = 'hidden';
+            setTimeout(function() { row.remove(); }, 350);
+        }
     } else {
         alert('Błąd zapisu');
     }
