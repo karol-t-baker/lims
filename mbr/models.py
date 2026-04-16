@@ -56,7 +56,8 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
                                 CHECK(typ IN ('szarza', 'zbiornik', 'platkowanie')),
             nastaw              INTEGER,
             przepompowanie_json TEXT,
-            uwagi_koncowe       TEXT
+            uwagi_koncowe       TEXT,
+            pakowanie_bezposrednie TEXT
         );
 
         CREATE TABLE IF NOT EXISTS ebr_wyniki (
@@ -917,6 +918,13 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
         db.commit()
     except Exception:
         pass  # already exists
+
+    # Migration: add pakowanie_bezposrednie column (IBC / Beczki / NULL)
+    try:
+        db.execute("ALTER TABLE ebr_batches ADD COLUMN pakowanie_bezposrednie TEXT")
+        db.commit()
+    except Exception:
+        pass
 
     # Migration: wartosc_text for hybrid fields (mętność: number or text like "mętna jasna")
     try:

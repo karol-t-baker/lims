@@ -25,3 +25,11 @@ python -m scripts.add_ph1_barwa_gardner
 ```
 
 Dodaje `ph_1proc` (pH roztworu 1%) i `barwa_gardner` (Barwa wg Gardnera) do `parametry_analityczne`.
+
+## Pakowanie bezpośrednie:
+
+```bash
+python -m scripts.migrate_pakowanie_bezposrednie
+```
+
+Dodaje kolumnę `pakowanie_bezposrednie` do `ebr_batches`.
