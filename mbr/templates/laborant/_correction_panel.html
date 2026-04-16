@@ -792,15 +792,32 @@ function tryRenderCorrectionAfterGate(sekcja) {
         var standEtap = etapy.find(function(e) { return e.kod === 'standaryzacja'; });
         var standEtapId = standEtap ? standEtap.pipeline_etap_id : 0;
 
-        // Standaryzacja PASS or FAIL → show standaryzacja V2 panel
-        // (action button adapts via _gatePassAction: 'new_round_stand' / 'pompuj')
-        renderCorrectionPanel('standaryzacja_v2', sekcja, {
-            wynik_nd20:  ctx.getWynik('nd20'),
-            wynik_ph:    ctx.getWynik('ph_10proc'),
-            masa_szarzy: ctx.masa,
-            etap_id:     standEtapId,
-            produkt:     produkt,
-        });
+        if (window._gatePassAction === 'pompuj') {
+            // All params in-spec → no correction panel, just Przepompuj button
+            var container = document.getElementById('correction-panel-' + sekcja);
+            if (container) {
+                container.innerHTML =
+                    '<div class="gate-section gate-h2o2" style="margin-top:8px;">' +
+                        '<div class="gate-head">' +
+                            '<div class="gate-icon gate-icon-blue" style="font-size:10px;">\u2714</div>' +
+                            '<span class="gate-title">Wszystkie parametry w celu</span>' +
+                            '<span class="gate-badge gate-badge-ok">PASS</span>' +
+                        '</div>' +
+                        '<div class="gate-actions">' +
+                            '<button class="gate-btn gate-btn-ok" onclick="completePompuj()">Przepompuj na zbiornik</button>' +
+                        '</div>' +
+                    '</div>';
+            }
+        } else {
+            // FAIL (pH/nD20 out of range) → show correction panel
+            renderCorrectionPanel('standaryzacja_v2', sekcja, {
+                wynik_nd20:  ctx.getWynik('nd20'),
+                wynik_ph:    ctx.getWynik('ph_10proc'),
+                masa_szarzy: ctx.masa,
+                etap_id:     standEtapId,
+                produkt:     produkt,
+            });
+        }
     }
 }
 </script>

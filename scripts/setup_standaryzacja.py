@@ -119,7 +119,7 @@ def setup_standaryzacja(db: sqlite3.Connection) -> dict:
         if pid is None or pid in existing_warunki_pids:
             continue
         add_etap_warunek(
-            db, etap_id, pid, "between", 0, wartosc_max=9999,
+            db, etap_id, pid, "w_limicie", None,
             opis_warunku=f"{kod} w zakresie limitów produktu",
         )
         stats["warunki"] += 1
