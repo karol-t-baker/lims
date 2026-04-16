@@ -957,7 +957,11 @@ function _updateCorrPanelMeasurements(sekcja) {
         if (phEl.value !== newPh) { phEl.value = newPh; updated = true; }
     }
     if (updated) {
-        // Recalculate suggestions (only overwrites non-edited fields)
+        // Measurement changed → old correction drafts are stale, clear them
+        FD.del('corr-manual-woda-' + sekcja);
+        FD.del('corr-manual-kwas-' + sekcja);
+        FD.del('corr-total-woda-' + sekcja);
+        // Recalculate with fresh suggestions
         if (typeof recomputeStandV2 === 'function') recomputeStandV2(sekcja);
     }
 
@@ -968,6 +972,8 @@ function _updateCorrPanelMeasurements(sekcja) {
         var newSo3 = String(sek['so3'].wartosc).replace('.', ',');
         if (so3El.value !== newSo3) {
             so3El.value = newSo3;
+            // Measurement changed → old perhydrol draft is stale
+            FD.del('corr-manual-kg-' + sekcja);
             if (typeof recomputePerhydrol === 'function') recomputePerhydrol(sekcja);
         }
     }
