@@ -411,3 +411,57 @@ def test_postflight_fails_on_orphan_binding(db):
     db.commit()
     errors = postflight(db)
     assert any("orphan" in e.lower() for e in errors)
+
+
+def test_full_migration_end_to_end_chelamid_dk_shape(db):
+    """Seed DB in the legacy shape, run migrate(), verify the new SSOT shape."""
+    from scripts.migrate_parametry_ssot import migrate, already_applied
+
+    _seed_minimal_catalog(db)
+    db.execute("INSERT INTO mbr_templates (mbr_id, produkt, status, dt_utworzenia) VALUES (1, 'Chelamid_DK', 'active', '2026-04-16T00:00:00')")
+    # Legacy-style bindings: parametry_etapy with limits + on_cert for dietanolamina
+    db.execute(
+        "INSERT INTO parametry_etapy "
+        "(parametr_id, kontekst, produkt, min_limit, max_limit, nawazka_g, precision, "
+        " kolejnosc, grupa, on_cert, cert_requirement, cert_format, cert_kolejnosc) "
+        "VALUES (2, 'analiza_koncowa', 'Chelamid_DK', 80, 9999, 0.5, 1, 1, 'lab', "
+        "        1, '80-90', '1', 5)"
+    )
+    db.execute(
+        "INSERT INTO parametry_etapy "
+        "(parametr_id, kontekst, produkt, min_limit, max_limit, precision, kolejnosc) "
+        "VALUES (1, 'analiza_koncowa', 'Chelamid_DK', 0, 11, 2, 2)"
+    )
+    # Note: no produkt_pipeline row — migration will create it.
+    db.commit()
+
+    migrate(db)
+
+    # Pipeline entry created
+    pp = db.execute("SELECT etap_id FROM produkt_pipeline WHERE produkt='Chelamid_DK'").fetchall()
+    assert len(pp) == 1
+    assert pp[0]["etap_id"] == 6
+
+    # Two produkt_etap_limity rows exist with default typ flags
+    bindings = db.execute(
+        "SELECT parametr_id, min_limit, max_limit, nawazka_g, precision, kolejnosc, "
+        "       dla_szarzy, dla_zbiornika, dla_platkowania "
+        "FROM produkt_etap_limity WHERE produkt='Chelamid_DK' ORDER BY kolejnosc"
+    ).fetchall()
+    assert len(bindings) == 2
+    for b in bindings:
+        assert b["dla_szarzy"] == 1
+        assert b["dla_zbiornika"] == 1
+        assert b["dla_platkowania"] == 0
+
+    # Cert metadata migrated for dietanolamina
+    cert = db.execute(
+        "SELECT requirement, format, kolejnosc FROM parametry_cert "
+        "WHERE produkt='Chelamid_DK' AND parametr_id=2"
+    ).fetchone()
+    assert cert["requirement"] == "80-90"
+    assert cert["format"] == "1"
+    assert cert["kolejnosc"] == 5
+
+    # _migrations marker set
+    assert already_applied(db) is True
