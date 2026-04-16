@@ -104,3 +104,30 @@ def test_preflight_reports_products_without_pipeline(db):
     blockers = preflight(db)
     # Legacy-only products are NOT blockers — script auto-creates pipeline entries.
     assert blockers == []
+
+
+def test_alter_schema_adds_flag_columns(db):
+    from scripts.migrate_parametry_ssot import alter_schema
+    alter_schema(db)
+    cols = {r["name"] for r in db.execute("PRAGMA table_info(produkt_etap_limity)").fetchall()}
+    for expected in (
+        "kolejnosc", "formula", "sa_bias", "krok", "wymagany", "grupa",
+        "dla_szarzy", "dla_zbiornika", "dla_platkowania",
+    ):
+        assert expected in cols, f"missing column {expected}"
+
+
+def test_alter_schema_idempotent(db):
+    from scripts.migrate_parametry_ssot import alter_schema
+    alter_schema(db)
+    alter_schema(db)  # second call must not raise
+    # Still valid schema
+    db.execute("INSERT INTO parametry_analityczne (id, kod, label, typ) VALUES (99, 'x', 'X', 'bezposredni')")
+    db.execute("INSERT INTO etapy_analityczne (id, kod, nazwa, typ_cyklu) VALUES (99, 'e', 'E', 'jednorazowy')")
+    db.execute(
+        "INSERT INTO produkt_etap_limity (produkt, etap_id, parametr_id, dla_szarzy, dla_zbiornika, dla_platkowania) "
+        "VALUES ('TEST', 99, 99, 1, 0, 0)"
+    )
+    row = db.execute("SELECT dla_szarzy, dla_zbiornika, dla_platkowania FROM produkt_etap_limity WHERE produkt='TEST'").fetchone()
+    assert row["dla_szarzy"] == 1
+    assert row["dla_zbiornika"] == 0

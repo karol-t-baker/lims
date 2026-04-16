@@ -549,6 +549,15 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             nawazka_g       REAL,
             precision       INTEGER,
             spec_value      REAL,
+            kolejnosc       INTEGER NOT NULL DEFAULT 0,
+            formula         TEXT,
+            sa_bias         REAL,
+            krok            INTEGER,
+            wymagany        INTEGER NOT NULL DEFAULT 0 CHECK(wymagany IN (0,1)),
+            grupa           TEXT NOT NULL DEFAULT 'lab',
+            dla_szarzy      INTEGER NOT NULL DEFAULT 1 CHECK(dla_szarzy IN (0,1)),
+            dla_zbiornika   INTEGER NOT NULL DEFAULT 1 CHECK(dla_zbiornika IN (0,1)),
+            dla_platkowania INTEGER NOT NULL DEFAULT 0 CHECK(dla_platkowania IN (0,1)),
             UNIQUE(produkt, etap_id, parametr_id)
         )
     """)

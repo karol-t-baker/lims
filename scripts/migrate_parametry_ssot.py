@@ -64,6 +64,32 @@ def preflight(db: sqlite3.Connection) -> list[str]:
     return blockers
 
 
+# Columns to add to produkt_etap_limity. ALTER TABLE ADD COLUMN can't add CHECK
+# inline in SQLite, but values are controlled by application + init_mbr_tables
+# CREATE TABLE (which does include CHECK) for fresh DBs.
+_NEW_COLUMNS = [
+    ("kolejnosc",       "INTEGER NOT NULL DEFAULT 0"),
+    ("formula",         "TEXT"),
+    ("sa_bias",         "REAL"),
+    ("krok",            "INTEGER"),
+    ("wymagany",        "INTEGER NOT NULL DEFAULT 0"),
+    ("grupa",           "TEXT NOT NULL DEFAULT 'lab'"),
+    ("dla_szarzy",      "INTEGER NOT NULL DEFAULT 1"),
+    ("dla_zbiornika",   "INTEGER NOT NULL DEFAULT 1"),
+    ("dla_platkowania", "INTEGER NOT NULL DEFAULT 0"),
+]
+
+
+def alter_schema(db: sqlite3.Connection) -> None:
+    """Add new columns to produkt_etap_limity if missing. Idempotent."""
+    existing = {r["name"] for r in db.execute(
+        "PRAGMA table_info(produkt_etap_limity)"
+    ).fetchall()}
+    for name, decl in _NEW_COLUMNS:
+        if name not in existing:
+            db.execute(f"ALTER TABLE produkt_etap_limity ADD COLUMN {name} {decl}")
+
+
 def postflight(db: sqlite3.Connection) -> list[str]:
     """Return list of post-migration validation errors. Empty list = OK."""
     return []  # filled in later tasks
@@ -85,7 +111,7 @@ def migrate(db: sqlite3.Connection, dry_run: bool = False) -> None:
     if dry_run:
         print("Dry run — no changes will be committed.")
 
-    # Migration steps filled in by later tasks.
+    alter_schema(db)
 
     errors = postflight(db)
     if errors:
