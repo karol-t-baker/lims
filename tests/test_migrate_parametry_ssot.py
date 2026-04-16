@@ -37,3 +37,13 @@ def _seed_minimal_catalog(db):
         ],
     )
     db.commit()
+
+
+def test_migrate_script_importable():
+    """Module should expose migrate() and main() callables."""
+    from scripts import migrate_parametry_ssot as mod
+
+    assert callable(mod.migrate)
+    assert callable(mod.main)
+    assert callable(mod.preflight)
+    assert callable(mod.postflight)
