@@ -2734,9 +2734,9 @@ function renderGateBanner(sekcja, gate) {
                         '<span class="gate-badge gate-badge-fail">KOREKTA</span>' +
                     '</div>' +
                     '<div class="gate-body">' +
-                        '<div class="gate-desc">St\u0119\u017Cenie siarczynów poni\u017Cej wymaganego minimum. Wymagany dodatek siarczynianu i powtórzenie analizy.</div>' +
+                        '<div class="gate-desc">St\u0119\u017Cenie siarczynów poni\u017Cej wymaganego minimum. Wymagany dodatek siarczynu sodu i powtórzenie analizy.</div>' +
                         '<div class="gate-sulfite-row">' +
-                            '<label>Dodatek siarczynianu:</label>' +
+                            '<label>Dodatek siarczynu sodu [kg]:</label>' +
                             '<input id="sulfo-sulfite-kg-' + sekcja + '" type="text" inputmode="decimal" placeholder="kg">' +
                             '<span>kg</span>' +
                         '</div>' +
@@ -2981,16 +2981,20 @@ async function startNewPipelineRound(sekcja) {
     if (sulfiteInput && sulfiteInput.value) {
         var kg = parseFloat(sulfiteInput.value.replace(',', '.'));
         if (!isNaN(kg) && kg > 0 && gate.sesja_id) {
-            await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
+            var resp = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({
                     sesja_id: gate.sesja_id,
                     etap_id: gate.etap_id,
-                    substancja: 'Siarczynian sodu',
+                    substancja: 'Na2SO3',
                     ilosc: kg
                 })
             });
+            if (!resp.ok) {
+                alert('Błąd zapisu korekty siarczynu. Sprawdź i spróbuj ponownie.');
+                return;
+            }
         }
     }
 
