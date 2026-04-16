@@ -7,11 +7,11 @@ from flask import request, Response
 from mbr.ml_export import ml_export_bp
 from mbr.ml_export.query import export_k7_batches, CSV_COLUMNS
 from mbr.db import get_db
-from mbr.shared.decorators import login_required
+from mbr.shared.decorators import role_required
 
 
 @ml_export_bp.route("/api/export/ml/k7.csv", methods=["GET"])
-@login_required
+@role_required("admin")
 def export_k7_csv():
     after_id = request.args.get("after_id", 0, type=int)
     db = get_db()
