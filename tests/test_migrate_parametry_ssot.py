@@ -19,21 +19,27 @@ def db():
 
 
 def _seed_minimal_catalog(db):
-    """Seed just enough parametry_analityczne + etapy_analityczne for migration tests."""
+    """Seed just enough parametry_analityczne + etapy_analityczne for migration tests.
+
+    init_mbr_tables() seeds one row (id=1 nadtlenki) in parametry_analityczne; we
+    delete it so tests can use id=1 without collision. etapy_analityczne is empty
+    post-init so nothing to clear there.
+    """
+    db.execute("DELETE FROM parametry_analityczne")
     db.executemany(
         "INSERT INTO parametry_analityczne (id, kod, label, typ, precision, aktywny) VALUES (?, ?, ?, ?, ?, 1)",
         [
-            (100, "ph", "pH", "bezposredni", 2),
-            (101, "dietanolamina", "%dietanolaminy", "titracja", 1),
-            (102, "barwa_I2", "Barwa jodowa", "bezposredni", 0),
-            (103, "gliceryny", "%gliceryny", "bezposredni", 2),
+            (1, "ph", "pH", "bezposredni", 2),
+            (2, "dietanolamina", "%dietanolaminy", "titracja", 1),
+            (3, "barwa_I2", "Barwa jodowa", "bezposredni", 0),
+            (4, "gliceryny", "%gliceryny", "bezposredni", 2),
         ],
     )
     db.executemany(
         "INSERT INTO etapy_analityczne (id, kod, nazwa, typ_cyklu) VALUES (?, ?, ?, ?)",
         [
-            (106, "analiza_koncowa", "Analiza końcowa", "jednorazowy"),
-            (107, "dodatki", "Dodatki standaryzacyjne", "cykliczny"),
+            (6, "analiza_koncowa", "Analiza końcowa", "jednorazowy"),
+            (7, "dodatki", "Dodatki standaryzacyjne", "cykliczny"),
         ],
     )
     db.commit()
