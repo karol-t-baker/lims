@@ -198,30 +198,30 @@ async function _renderStandaryzacjaV2Panel(container, sekcja, ctx) {
 }
 
 // ═══ DRAFT STORE ═══
-// Stores manual correction edits per batch. Survives:
-// - gate re-evaluation (same partial, gate-skip handles this)
-// - batch switch (loadBatch replaces DOM, but window._drafts persists)
-// Does NOT survive full page reload (F5) — acceptable on kiosk.
-// Cleared on correction submit.
-if (!window._drafts) window._drafts = {};
-
-function _draftKey(field) {
-    return (window.ebrId || 0) + '/' + field;
-}
+// Stores manual correction edits in sessionStorage.
+// Survives: F5, batch switch, re-renders. Cleared on submit or tab close.
+var _DRAFT_PREFIX = 'cd_';  // correction draft
 
 function _saveDraft(field, value) {
-    window._drafts[_draftKey(field)] = value;
+    try { sessionStorage.setItem(_DRAFT_PREFIX + (window.ebrId || 0) + '_' + field, value); } catch(e) {}
 }
 
 function _getDraft(field) {
-    return window._drafts[_draftKey(field)];
+    try { return sessionStorage.getItem(_DRAFT_PREFIX + (window.ebrId || 0) + '_' + field); } catch(e) { return null; }
 }
 
 function _clearDrafts() {
-    var prefix = (window.ebrId || 0) + '/';
-    Object.keys(window._drafts).forEach(function(k) {
-        if (k.startsWith(prefix)) delete window._drafts[k];
-    });
+    try {
+        var ebrId = window.ebrId || 0;
+        var toRemove = [];
+        for (var i = 0; i < sessionStorage.length; i++) {
+            var k = sessionStorage.key(i);
+            if (k && (k.startsWith(_DRAFT_PREFIX + ebrId + '_') || k.startsWith('gk_' + ebrId + '_'))) {
+                toRemove.push(k);
+            }
+        }
+        toRemove.forEach(function(k) { sessionStorage.removeItem(k); });
+    } catch(e) {}
 }
 
 function _markCorrEdited(sekcja, field, el) {
@@ -608,9 +608,7 @@ function recomputePerhydrol(sekcja) {
 
     if (calcEl) calcEl.textContent = formatted + ' kg';
     // Pre-fill manual field — restore draft or use calculated value
-    var restored = manualEl ? _restoreDraft(sekcja, 'perhydrol', manualEl) : false;
-    console.log('[perhydrol]', sekcja, 'restored=' + restored, 'value=' + (manualEl ? manualEl.value : 'N/A'), '_userEdited=' + (manualEl ? manualEl._userEdited : 'N/A'), 'drafts=', JSON.stringify(window._drafts));
-    if (manualEl && !restored) {
+    if (manualEl && !_restoreDraft(sekcja, 'perhydrol', manualEl)) {
         if (!manualEl.value && !manualEl._userEdited) {
             manualEl.value = formatted;
         }

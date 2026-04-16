@@ -2682,9 +2682,11 @@ function renderGateBanner(sekcja, gate) {
 
     // Skip re-render if gate result unchanged (preserves manual correction edits)
     var gateKey = gate.passed + '|' + (gate.failures || []).map(function(f) { return f.kod; }).join(',');
-    console.log('[gate]', sekcja, 'key=' + gateKey, 'prev=' + (banner._lastGateKey || 'none'), gateKey === banner._lastGateKey ? 'SKIP' : 'REBUILD');
-    if (banner._lastGateKey === gateKey) return;
+    var gateStoreKey = 'gk_' + (window.ebrId || 0) + '_' + sekcja;
+    var prevKey = banner._lastGateKey || (function() { try { return sessionStorage.getItem(gateStoreKey); } catch(e) { return null; } })();
+    if (prevKey === gateKey) return;
     banner._lastGateKey = gateKey;
+    try { sessionStorage.setItem(gateStoreKey, gateKey); } catch(e) {}
 
     // Clean up existing correction panel — gate result changed
     var oldCorrPanel = document.getElementById('correction-panel-' + sekcja);
