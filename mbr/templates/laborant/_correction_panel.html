@@ -179,9 +179,9 @@ async function _renderStandaryzacjaV2Panel(container, sekcja, ctx) {
                 '</div>' +
                 '<div class="corr-fields" style="margin-top:10px;grid-template-columns:1fr 1fr 1fr;">' +
                     _corrField('Woda [kg]', 'corr-manual-woda-' + sekcja, '', false,
-                        '_markCorrEdited(\"' + sekcja + '\",\"woda\",this);recomputeStandTotal(\"' + sekcja + '\")') +
+                        '_markCorrEdited(\"' + sekcja + '\",\"woda\",this);_resetTotalEdited(\"' + sekcja + '\");recomputeStandTotal(\"' + sekcja + '\")') +
                     _corrField('Kwas cytrynowy [kg]', 'corr-manual-kwas-' + sekcja, '', false,
-                        '_markCorrEdited(\"' + sekcja + '\",\"kwas\",this);recomputeStandTotal(\"' + sekcja + '\")') +
+                        '_markCorrEdited(\"' + sekcja + '\",\"kwas\",this);_resetTotalEdited(\"' + sekcja + '\");recomputeStandTotal(\"' + sekcja + '\")') +
                     '<div>' +
                         '<span class="corr-field-label">WODA \u0141\u0104CZNIE [KG]</span>' +
                         '<input id="corr-total-woda-' + sekcja + '" class="corr-field-input" type="text" inputmode="decimal"' +
@@ -301,6 +301,11 @@ function _acidModelPredict(phStart, phTarget, masaKg, masaEffKg) {
     var dawka = -524.86 + 0.010864 * masaEffKg + 9.2878 * deltaPh + 33.218 * phStart + 488181 / masaKg;
     if (!isFinite(dawka) || dawka < 0) return 0;
     return dawka;
+}
+
+function _resetTotalEdited(sekcja) {
+    var totalEl = document.getElementById('corr-total-woda-' + sekcja);
+    if (totalEl) totalEl._userEdited = false;
 }
 
 function recomputeStandTotal(sekcja) {
