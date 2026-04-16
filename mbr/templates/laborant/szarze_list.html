@@ -339,7 +339,7 @@
         <div style="color:var(--text-dim);font-size:11px;padding:16px 4px;">Wybierz szarżę aby zobaczyć etapy.</div>
       </div>
       <div id="sb-dziennik-btn" style="display:none;padding:12px 12px;">
-        <button class="sb-dz-btn" onclick="toggleDziennikView()">
+        <button class="sb-dz-btn" onclick="openDziennik()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:14px;height:14px;"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg>
           Dziennik zdarzeń
         </button>
@@ -1117,6 +1117,15 @@ function openProcessStage(etapKey) {
 }
 
 // ═══ DZIENNIK ZDARZEŃ ═══
+function openDziennik() {
+  var isPipeline = typeof etapy !== 'undefined' && etapy.some(function(e) { return e.pipeline_etap_id; });
+  if (isPipeline && typeof showDziennikView === 'function') {
+    showDziennikView();
+  } else {
+    toggleDziennikView();
+  }
+}
+
 window._dzOpen = false;
 var PARAM_LABELS = {le:'LE',la:'LA',lk:'LK',nd20:'nD20',ph:'pH',ph_10proc:'pH 10%',aa:'%AA',so3:'%SO₃²⁻',h2o2:'%H₂O₂'};
 
@@ -1237,8 +1246,9 @@ function updateDziennikButton() {
   var btn = document.getElementById('sb-dziennik-btn');
   if (!btn) return;
   var esData = window._etapyStatus || [];
+  var isPipeline = typeof etapy !== 'undefined' && etapy.some(function(e) { return e.pipeline_etap_id; });
   var isEtapyTab = typeof currentSidebarTab === 'undefined' || currentSidebarTab === 'etapy';
-  btn.style.display = esData.length > 0 && isEtapyTab ? '' : 'none';
+  btn.style.display = (esData.length > 0 || isPipeline) && isEtapyTab ? '' : 'none';
 }
 
 // ═══ TABLE FILTERS ═══

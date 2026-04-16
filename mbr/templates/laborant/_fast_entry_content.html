@@ -1239,13 +1239,6 @@ function renderPipelineSections() {
     if (activeEtap.typ_cyklu === 'cykliczny') {
         renderNonMainCyclicSection(container, activeSekcja, activeEtap, isReadonly, activeReadonly, entryGrupa);
 
-        // Dziennik zdarzeń button
-        var dzBtn = document.createElement('div');
-        dzBtn.style.cssText = 'margin-top:8px;text-align:center;';
-        dzBtn.innerHTML = '<button class="gate-btn gate-btn-sec" onclick="showDziennikView()" id="btn-dziennik">' +
-            '<span style="margin-right:4px;">\u270E</span> Dziennik zdarze\u0144</button>';
-        container.appendChild(dzBtn);
-
         setupComputedFields();
         updateSpecPanel();
         return;
@@ -1275,13 +1268,6 @@ function renderPipelineSections() {
         prevOutOfLimit: [],
         saveBtnLabel: null
     });
-
-    // Dziennik zdarzeń button
-    var dzBtn = document.createElement('div');
-    dzBtn.style.cssText = 'margin-top:8px;text-align:center;';
-    dzBtn.innerHTML = '<button class="gate-btn gate-btn-sec" onclick="showDziennikView()" id="btn-dziennik">' +
-        '<span style="margin-right:4px;">\u270E</span> Dziennik zdarze\u0144</button>';
-    container.appendChild(dzBtn);
 
     setupComputedFields();
     updateSpecPanel();
@@ -5424,8 +5410,7 @@ async function showDziennikView() {
             '<span class="dz-toolbar-title">Dziennik zdarze\u0144</span>' +
             '<button class="gate-btn gate-btn-sec dz-toolbar-back" onclick="hideDziennikView()">Powr\u00f3t do etapu</button>' +
         '</div>' +
-        '<table class="dz-table">' +
-        '<tr><th>Runda</th><th>Parametry</th><th>Status</th><th>Korekta</th><th>Kto</th></tr>';
+        '<table class="dz-table">';
 
     allRows.forEach(function(row) {
         if (row.type === 'stage') {
