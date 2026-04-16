@@ -179,14 +179,14 @@ async function _renderStandaryzacjaV2Panel(container, sekcja, ctx) {
                 '</div>' +
                 '<div class="corr-fields" style="margin-top:10px;grid-template-columns:1fr 1fr 1fr;">' +
                     _corrField('Woda [kg]', 'corr-manual-woda-' + sekcja, '', false,
-                        'document.getElementById(\"corr-manual-woda-' + sekcja + '\")._userEdited=true;recomputeStandTotal(\"' + sekcja + '\")') +
+                        '_markCorrEdited(\"' + sekcja + '\",\"woda\",this);recomputeStandTotal(\"' + sekcja + '\")') +
                     _corrField('Kwas cytrynowy [kg]', 'corr-manual-kwas-' + sekcja, '', false,
-                        'document.getElementById(\"corr-manual-kwas-' + sekcja + '\")._userEdited=true;recomputeStandTotal(\"' + sekcja + '\")') +
+                        '_markCorrEdited(\"' + sekcja + '\",\"kwas\",this);recomputeStandTotal(\"' + sekcja + '\")') +
                     '<div>' +
                         '<span class="corr-field-label">WODA \u0141\u0104CZNIE [KG]</span>' +
                         '<input id="corr-total-woda-' + sekcja + '" class="corr-field-input" type="text" inputmode="decimal"' +
                             ' style="font-weight:700;font-size:14px;border-color:var(--teal);background:var(--teal-bg);color:var(--teal);text-align:center;"' +
-                            ' oninput="document.getElementById(\'corr-total-woda-' + sekcja + '\')._userEdited=true;">' +
+                            ' oninput="_markCorrEdited(\'' + sekcja + '\',\'total\',this);">' +
                     '</div>' +
                 '</div>' +
             '</div>' +
@@ -195,6 +195,26 @@ async function _renderStandaryzacjaV2Panel(container, sekcja, ctx) {
 
     recomputeStandV2(sekcja);
     recomputeStandTotal(sekcja);
+}
+
+// Persist manual correction edits across re-renders
+window._corrManualEdits = window._corrManualEdits || {};
+
+function _markCorrEdited(sekcja, field, el) {
+    el._userEdited = true;
+    var key = sekcja + '__' + field;
+    window._corrManualEdits[key] = el.value;
+}
+
+function _restoreCorrEdit(sekcja, field, el) {
+    var key = sekcja + '__' + field;
+    var saved = window._corrManualEdits[key];
+    if (saved != null && saved !== '') {
+        el.value = saved;
+        el._userEdited = true;
+        return true;
+    }
+    return false;
 }
 
 function recomputeStandV2(sekcja) {
@@ -213,7 +233,7 @@ function recomputeStandV2(sekcja) {
             if (!isFinite(woda) || woda < 0) woda = 0;
             var wFmt = woda.toFixed(1).replace('.', ',');
             wodaCalcEl.textContent = wFmt + ' kg';
-            if (wodaManEl && !wodaManEl._userEdited) wodaManEl.value = wFmt;
+            if (wodaManEl && !wodaManEl._userEdited && !_restoreCorrEdit(sekcja, 'woda', wodaManEl)) wodaManEl.value = wFmt;
         } else {
             wodaCalcEl.textContent = '\u2014 kg';
         }
@@ -238,7 +258,7 @@ function recomputeStandV2(sekcja) {
             if (kwas !== null) {
                 var kFmt = kwas.toFixed(1).replace('.', ',');
                 kwasCalcEl.textContent = kFmt + ' kg';
-                if (kwasManEl && !kwasManEl._userEdited) kwasManEl.value = kFmt;
+                if (kwasManEl && !kwasManEl._userEdited && !_restoreCorrEdit(sekcja, 'kwas', kwasManEl)) kwasManEl.value = kFmt;
             } else {
                 kwasCalcEl.textContent = '\u2014 kg';
             }
@@ -266,7 +286,7 @@ function recomputeStandTotal(sekcja) {
     var kwasEl = document.getElementById('corr-manual-kwas-' + sekcja);
     var totalEl = document.getElementById('corr-total-woda-' + sekcja);
     if (!totalEl) return;
-    if (totalEl._userEdited) return;
+    if (totalEl._userEdited || _restoreCorrEdit(sekcja, 'total', totalEl)) return;
     var woda = wodaEl ? _parsePl(wodaEl.value) : NaN;
     var kwas = kwasEl ? _parsePl(kwasEl.value) : NaN;
     if (isNaN(woda)) woda = 0;
@@ -328,6 +348,9 @@ async function advanceStandNewRound(sekcja) {
         return;
     }
 
+    // Clear saved manual edits after successful correction save
+    window._corrManualEdits = {};
+
     // Close session + start new round
     await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + gate.etap_id + '/close', {
         method: 'POST',
@@ -382,6 +405,8 @@ async function approveStandWithUwagi(sekcja) {
         alert('Błąd zapisu korekt: ' + corrErrors.join(', '));
         return;
     }
+
+    window._corrManualEdits = {};
 
     // Close stage with pass (override gate) + save uwagi
     await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + gate.etap_id + '/close', {
@@ -439,6 +464,8 @@ async function advanceWithStandV2(sekcja) {
         alert('B\u0142\u0105d zapisu korekt: ' + corrErrors.join(', ') + '. Spr\u00f3buj ponownie.');
         return;
     }
+
+    window._corrManualEdits = {};
 
     // Close current session before advancing
     if (gate.sesja_id && gate.etap_id) {
@@ -590,6 +617,8 @@ async function advanceWithPerhydrol(sekcja) {
             });
         }
     }
+
+    window._corrManualEdits = {};
 
     if (window._gatePassAction === 'new_round_utl') {
         // Utlenienie FAIL → close + new round (same stage)
