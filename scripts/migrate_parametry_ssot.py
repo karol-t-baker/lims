@@ -49,30 +49,102 @@ def mark_applied(db: sqlite3.Connection) -> None:
 
 
 def preflight(db: sqlite3.Connection) -> list[str]:
-    """Return list of blocker messages. Empty list = OK to proceed."""
+    """Pre-migration validation. Returns list of blockers; empty = OK.
+
+    Currently no blockers — pre-existing data debris is auto-fixed by
+    cleanup_legacy_orphans() as the first step of migrate(). This stays
+    as an extension point for future blockers (e.g. schema mismatch detection).
+    """
     return []
 
 
 def cleanup_legacy_orphans(db: sqlite3.Connection) -> dict:
-    """Auto-cleanup pre-existing data issues that would block the migration.
+    """Auto-fix pre-existing data issues that would block the new SSOT model.
 
-    Three categories, all pre-existing legacy debris:
-    - NULL-produkt rows in parametry_etapy (pre-pipeline shared bindings)
-    - Rows with dangling cert_variant_id (referenced variant was deleted)
-    - Orphan rows are NOT deleted here — ensure_pipeline_for_legacy creates
-      missing produkt_pipeline entries instead.
+    Handles three cases:
 
-    Returns counts: {'null_produkt': N, 'dangling_cert_variant': N}.
+    1. NULL-produkt parametry_etapy rows (pre-pipeline shared bindings).
+       These are currently served to the UI via the
+       `WHERE produkt = ? OR produkt IS NULL` fallback in
+       mbr/parametry/registry.py::get_parametry_for_kontekst. Silent delete
+       would break those reads. Instead, we FAN OUT: for every product whose
+       produkt_pipeline includes the matching etap, create a per-product row
+       in parametry_etapy (unless one already exists). Then safely delete
+       the NULL row — legacy reads continue to return equivalent data.
+
+    2. Dangling cert_variant_id (points to a deleted cert_variants row).
+       Downgrade to base-cert (variant_id NULL) instead of deleting — preserves
+       cert metadata. If the row is also a cert_variant kontekst row with no
+       other identifying info, then and only then delete.
+
+    3. Orphan produkt_etap_limity rows are NOT touched here —
+       ensure_pipeline_for_legacy creates missing produkt_pipeline entries.
+
+    Returns counts dict with keys:
+      null_fanned_out — number of new per-product parametry_etapy rows created
+      null_deleted    — number of NULL-produkt rows deleted after fan-out
+      cert_variant_downgraded — rows where cert_variant_id was set to NULL
     """
-    counts = {}
-    cur = db.execute("DELETE FROM parametry_etapy WHERE produkt IS NULL")
-    counts["null_produkt"] = cur.rowcount
+    counts = {
+        "null_fanned_out": 0,
+        "null_deleted": 0,
+        "cert_variant_downgraded": 0,
+    }
+
+    # 1. Fan out NULL-produkt rows to per-product copies, then delete originals.
+    null_rows = db.execute(
+        "SELECT id, parametr_id, kontekst, min_limit, max_limit, nawazka_g, "
+        "       precision, target, kolejnosc, formula, sa_bias, krok, grupa, "
+        "       on_cert, cert_requirement, cert_format, cert_qualitative_result, "
+        "       cert_kolejnosc, cert_variant_id "
+        "FROM parametry_etapy WHERE produkt IS NULL"
+    ).fetchall()
+    for nr in null_rows:
+        etap_id = _kontekst_to_etap_id(db, nr["kontekst"])
+        # For non-etap konteksty (cert_variant) or unknown etapy, just skip
+        # fan-out — they'll be deleted below, and copy_limits would skip them
+        # regardless.
+        if etap_id is not None:
+            products = db.execute(
+                "SELECT DISTINCT produkt FROM produkt_pipeline WHERE etap_id=?",
+                (etap_id,),
+            ).fetchall()
+            for p in products:
+                exists = db.execute(
+                    "SELECT 1 FROM parametry_etapy "
+                    "WHERE produkt=? AND kontekst=? AND parametr_id=?",
+                    (p["produkt"], nr["kontekst"], nr["parametr_id"]),
+                ).fetchone()
+                if exists:
+                    continue
+                db.execute(
+                    "INSERT INTO parametry_etapy "
+                    "(produkt, kontekst, parametr_id, min_limit, max_limit, "
+                    " nawazka_g, precision, target, kolejnosc, formula, sa_bias, "
+                    " krok, grupa, on_cert, cert_requirement, cert_format, "
+                    " cert_qualitative_result, cert_kolejnosc, cert_variant_id) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (p["produkt"], nr["kontekst"], nr["parametr_id"],
+                     nr["min_limit"], nr["max_limit"], nr["nawazka_g"],
+                     nr["precision"], nr["target"], nr["kolejnosc"],
+                     nr["formula"], nr["sa_bias"], nr["krok"], nr["grupa"],
+                     nr["on_cert"], nr["cert_requirement"], nr["cert_format"],
+                     nr["cert_qualitative_result"], nr["cert_kolejnosc"],
+                     nr["cert_variant_id"]),
+                )
+                counts["null_fanned_out"] += 1
+        # Delete the NULL row after fan-out.
+        db.execute("DELETE FROM parametry_etapy WHERE id=?", (nr["id"],))
+        counts["null_deleted"] += 1
+
+    # 2. Dangling cert_variant_id — downgrade to NULL, preserve rest of the row.
     cur = db.execute(
-        "DELETE FROM parametry_etapy "
+        "UPDATE parametry_etapy SET cert_variant_id=NULL "
         "WHERE cert_variant_id IS NOT NULL "
         "  AND cert_variant_id NOT IN (SELECT id FROM cert_variants)"
     )
-    counts["dangling_cert_variant"] = cur.rowcount
+    counts["cert_variant_downgraded"] = cur.rowcount
+
     return counts
 
 
@@ -333,9 +405,12 @@ def migrate(db: sqlite3.Connection, dry_run: bool = False) -> None:
         print("Dry run — no changes will be committed.")
 
     cleanup_counts = cleanup_legacy_orphans(db)
-    if cleanup_counts["null_produkt"] or cleanup_counts["dangling_cert_variant"]:
-        print(f"Cleaned up {cleanup_counts['null_produkt']} NULL-produkt rows, "
-              f"{cleanup_counts['dangling_cert_variant']} dangling cert_variant_id rows.")
+    if any(cleanup_counts.values()):
+        print(
+            f"Cleanup: fanned out {cleanup_counts['null_fanned_out']} NULL-produkt rows "
+            f"to per-product copies, deleted {cleanup_counts['null_deleted']} NULL originals, "
+            f"downgraded {cleanup_counts['cert_variant_downgraded']} dangling cert_variant refs."
+        )
     alter_schema(db)
     created_pipelines = ensure_pipeline_for_legacy(db)
     if created_pipelines:

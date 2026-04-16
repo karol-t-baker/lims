@@ -75,17 +75,95 @@ def test_migrate_skips_when_already_applied(db, capsys):
     assert "already applied — skipping" in captured.out
 
 
-def test_cleanup_legacy_orphans_removes_null_produkt(db):
+def test_cleanup_fans_out_null_produkt_to_pipeline_products(db):
+    """NULL-produkt rows should be duplicated per-product (for every product
+    whose pipeline includes the matching etap), then the NULL row removed.
+    Legacy reads via 'produkt IS NULL' fallback continue to work equivalently
+    because each product now has its own row with identical values."""
     from scripts.migrate_parametry_ssot import cleanup_legacy_orphans
     _seed_minimal_catalog(db)
+    # Two products have sulfonowanie (etap_id=1 in fixture? no, use 6 for analiza_koncowa as test proxy)
+    # Actually we need a kontekst that maps to an etap — use analiza_koncowa (id=6).
+    db.execute("INSERT INTO produkt_pipeline (produkt, etap_id, kolejnosc) VALUES ('A', 6, 1)")
+    db.execute("INSERT INTO produkt_pipeline (produkt, etap_id, kolejnosc) VALUES ('B', 6, 1)")
+    # One NULL-produkt row for analiza_koncowa with specific limits
     db.execute(
-        "INSERT INTO parametry_etapy (parametr_id, kontekst, produkt) VALUES (1, 'analiza_koncowa', NULL)"
+        "INSERT INTO parametry_etapy "
+        "(parametr_id, kontekst, produkt, min_limit, max_limit, precision) "
+        "VALUES (1, 'analiza_koncowa', NULL, 0, 11, 2)"
     )
     db.commit()
     counts = cleanup_legacy_orphans(db)
-    assert counts["null_produkt"] == 1
-    remaining = db.execute("SELECT COUNT(*) AS n FROM parametry_etapy WHERE produkt IS NULL").fetchone()["n"]
-    assert remaining == 0
+    assert counts["null_fanned_out"] == 2  # one per product
+    assert counts["null_deleted"] == 1
+    # NULL row gone
+    assert db.execute(
+        "SELECT COUNT(*) AS n FROM parametry_etapy WHERE produkt IS NULL"
+    ).fetchone()["n"] == 0
+    # Each product now has its own row
+    rows = db.execute(
+        "SELECT produkt, min_limit, max_limit, precision FROM parametry_etapy "
+        "WHERE kontekst='analiza_koncowa' AND parametr_id=1 ORDER BY produkt"
+    ).fetchall()
+    assert [(r["produkt"], r["min_limit"], r["max_limit"], r["precision"]) for r in rows] == [
+        ("A", 0, 11, 2), ("B", 0, 11, 2)
+    ]
+
+
+def test_cleanup_skips_fanout_when_no_pipeline_matches(db):
+    """If no product has the matching etap in its pipeline, NULL row is just deleted."""
+    from scripts.migrate_parametry_ssot import cleanup_legacy_orphans
+    _seed_minimal_catalog(db)
+    db.execute(
+        "INSERT INTO parametry_etapy (parametr_id, kontekst, produkt) "
+        "VALUES (1, 'analiza_koncowa', NULL)"
+    )
+    db.commit()
+    counts = cleanup_legacy_orphans(db)
+    assert counts["null_fanned_out"] == 0
+    assert counts["null_deleted"] == 1
+
+
+def test_cleanup_preserves_existing_per_product_rows(db):
+    """Fan-out should not clobber a product that already has a per-product row
+    for (kontekst, parametr_id)."""
+    from scripts.migrate_parametry_ssot import cleanup_legacy_orphans
+    _seed_minimal_catalog(db)
+    db.execute("INSERT INTO produkt_pipeline (produkt, etap_id, kolejnosc) VALUES ('A', 6, 1)")
+    # Per-product row with custom min_limit
+    db.execute(
+        "INSERT INTO parametry_etapy "
+        "(parametr_id, kontekst, produkt, min_limit) VALUES (1, 'analiza_koncowa', 'A', 99)"
+    )
+    # NULL-produkt row with different min_limit
+    db.execute(
+        "INSERT INTO parametry_etapy "
+        "(parametr_id, kontekst, produkt, min_limit) VALUES (1, 'analiza_koncowa', NULL, 0)"
+    )
+    db.commit()
+    cleanup_legacy_orphans(db)
+    row = db.execute(
+        "SELECT min_limit FROM parametry_etapy WHERE produkt='A' AND kontekst='analiza_koncowa' AND parametr_id=1"
+    ).fetchone()
+    assert row["min_limit"] == 99  # unchanged
+
+
+def test_cleanup_downgrades_dangling_cert_variant(db):
+    from scripts.migrate_parametry_ssot import cleanup_legacy_orphans
+    _seed_minimal_catalog(db)
+    db.execute(
+        "INSERT INTO parametry_etapy "
+        "(parametr_id, kontekst, produkt, cert_variant_id, cert_requirement) "
+        "VALUES (1, 'cert_variant', 'P', 999, 'max 5')"  # variant 999 doesn't exist
+    )
+    db.commit()
+    counts = cleanup_legacy_orphans(db)
+    assert counts["cert_variant_downgraded"] == 1
+    row = db.execute(
+        "SELECT cert_variant_id, cert_requirement FROM parametry_etapy WHERE produkt='P'"
+    ).fetchone()
+    assert row["cert_variant_id"] is None  # downgraded
+    assert row["cert_requirement"] == "max 5"  # preserved
 
 
 def test_preflight_passes_on_clean_db(db):
