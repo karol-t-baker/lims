@@ -219,6 +219,7 @@ if (!window.FD) window.FD = {
     // Fill element: draft wins over autoValue. Returns true if draft used.
     fill: function(id, el, autoValue) {
         var saved = this.get(id);
+        console.log('[FD.fill]', id, 'draft=' + saved, 'auto=' + autoValue, 'elVal=' + el.value);
         if (saved !== null) { el.value = saved; return true; }
         if (autoValue != null && autoValue !== '') { el.value = autoValue; }
         return false;
