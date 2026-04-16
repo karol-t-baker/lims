@@ -50,7 +50,18 @@ def mark_applied(db: sqlite3.Connection) -> None:
 
 def preflight(db: sqlite3.Connection) -> list[str]:
     """Return list of blocker messages. Empty list = OK to proceed."""
-    return []  # filled in later tasks
+    blockers: list[str] = []
+
+    null_rows = db.execute(
+        "SELECT COUNT(*) AS n FROM parametry_etapy WHERE produkt IS NULL"
+    ).fetchone()["n"]
+    if null_rows > 0:
+        blockers.append(
+            f"{null_rows} parametry_etapy rows with NULL produkt (shared) — "
+            "resolve manually (assign to product or delete) before migrating."
+        )
+
+    return blockers
 
 
 def postflight(db: sqlite3.Connection) -> list[str]:

@@ -73,3 +73,20 @@ def test_migrate_skips_when_already_applied(db, capsys):
     migrate(db)  # second call
     captured = capsys.readouterr()
     assert "already applied — skipping" in captured.out
+
+
+def test_preflight_blocks_on_null_produkt(db):
+    from scripts.migrate_parametry_ssot import preflight
+    _seed_minimal_catalog(db)
+    db.execute(
+        "INSERT INTO parametry_etapy (parametr_id, kontekst, produkt) VALUES (1, 'analiza_koncowa', NULL)"
+    )
+    db.commit()
+    blockers = preflight(db)
+    assert any("NULL produkt" in b for b in blockers)
+
+
+def test_preflight_passes_on_clean_db(db):
+    from scripts.migrate_parametry_ssot import preflight
+    _seed_minimal_catalog(db)
+    assert preflight(db) == []
