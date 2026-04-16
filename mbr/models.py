@@ -1074,7 +1074,11 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             requirement         TEXT,
             format              TEXT DEFAULT '1',
             qualitative_result  TEXT,
-            UNIQUE(produkt, parametr_id)
+            variant_id          INTEGER REFERENCES cert_variants(id),
+            name_pl             TEXT,
+            name_en             TEXT,
+            method              TEXT,
+            UNIQUE(produkt, parametr_id, variant_id)
         )
     """)
     db.commit()

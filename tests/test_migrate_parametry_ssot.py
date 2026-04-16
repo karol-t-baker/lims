@@ -336,3 +336,38 @@ def test_migrate_cert_fields_skips_non_cert_rows(db):
     migrate_cert_fields(db)
     n = db.execute("SELECT COUNT(*) AS n FROM parametry_cert").fetchone()["n"]
     assert n == 0
+
+
+def test_migrate_cert_fields_handles_base_and_variant_same_param(db):
+    """Same (produkt, parametr_id) can have both base cert row (variant_id=NULL)
+    AND variant cert row (variant_id=10) — 3-column UNIQUE allows this."""
+    from scripts.migrate_parametry_ssot import migrate_cert_fields
+    _seed_minimal_catalog(db)
+    db.execute("INSERT INTO cert_variants (id, produkt, variant_id, label) "
+               "VALUES (10, 'Chelamid_DK', 'pelna', 'Chelamid DK — PEŁNA')")
+    # base cert for dietanolamina (DEA limits)
+    db.execute(
+        "INSERT INTO parametry_etapy "
+        "(parametr_id, kontekst, produkt, on_cert, cert_requirement, cert_format) "
+        "VALUES (2, 'analiza_koncowa', 'Chelamid_DK', 1, 'max 3', '2')"
+    )
+    # variant cert for dietanolamina (Dietanoloamid limits)
+    db.execute(
+        "INSERT INTO parametry_etapy "
+        "(parametr_id, kontekst, produkt, on_cert, cert_requirement, cert_format, cert_variant_id) "
+        "VALUES (2, 'cert_variant', 'Chelamid_DK', 1, '80-90', '1', 10)"
+    )
+    db.commit()
+    migrate_cert_fields(db)
+    rows = db.execute(
+        "SELECT variant_id, requirement FROM parametry_cert "
+        "WHERE produkt='Chelamid_DK' AND parametr_id=2 "
+        "ORDER BY COALESCE(variant_id, 0)"
+    ).fetchall()
+    assert len(rows) == 2
+    # First row: base (variant_id NULL), requirement 'max 3'
+    assert rows[0]["variant_id"] is None
+    assert rows[0]["requirement"] == "max 3"
+    # Second row: variant 10, requirement '80-90'
+    assert rows[1]["variant_id"] == 10
+    assert rows[1]["requirement"] == "80-90"
