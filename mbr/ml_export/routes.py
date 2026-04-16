@@ -6,7 +6,7 @@ import math
 from flask import request, Response, render_template
 
 from mbr.ml_export import ml_export_bp
-from mbr.ml_export.query import export_k7_batches, CSV_COLUMNS
+from mbr.ml_export.query import export_k7_batches, get_csv_columns
 from mbr.db import get_db
 from mbr.shared.decorators import role_required
 
@@ -20,11 +20,12 @@ def export_k7_csv():
     db = get_db()
     try:
         rows = export_k7_batches(db, after_id=after_id)
+        columns = get_csv_columns(db)
     finally:
         db.close()
 
     output = io.StringIO()
-    writer = csv.DictWriter(output, fieldnames=CSV_COLUMNS, extrasaction="ignore")
+    writer = csv.DictWriter(output, fieldnames=columns, extrasaction="ignore")
     writer.writeheader()
     for row in rows:
         writer.writerow(row)
@@ -45,6 +46,7 @@ def ml_export_page():
     db = get_db()
     try:
         all_rows = export_k7_batches(db)
+        columns = get_csv_columns(db)
     finally:
         db.close()
 
@@ -56,5 +58,5 @@ def ml_export_page():
     rows = all_rows[start:start + PER_PAGE]
 
     return render_template("ml_export/ml_export.html",
-                           rows=rows, columns=CSV_COLUMNS,
+                           rows=rows, columns=columns,
                            page=page, total_pages=total_pages, total=total)

@@ -2,7 +2,7 @@
 import sqlite3
 import pytest
 from mbr.models import init_mbr_tables
-from mbr.ml_export.query import export_k7_batches, CSV_COLUMNS
+from mbr.ml_export.query import export_k7_batches, get_csv_columns
 
 
 @pytest.fixture
@@ -33,6 +33,21 @@ def db():
     conn.execute("INSERT INTO produkt_pipeline (produkt, etap_id, kolejnosc) VALUES ('Chegina_K7',4,1)")
     conn.execute("INSERT INTO produkt_pipeline (produkt, etap_id, kolejnosc) VALUES ('Chegina_K7',5,2)")
     conn.execute("INSERT INTO produkt_pipeline (produkt, etap_id, kolejnosc) VALUES ('Chegina_K7',9,3)")
+    # Etap parametry (required for dynamic schema)
+    conn.execute("INSERT INTO etap_parametry (etap_id, parametr_id, kolejnosc) VALUES (4,1,1)")
+    conn.execute("INSERT INTO etap_parametry (etap_id, parametr_id, kolejnosc) VALUES (4,2,2)")
+    conn.execute("INSERT INTO etap_parametry (etap_id, parametr_id, kolejnosc) VALUES (4,3,3)")
+    conn.execute("INSERT INTO etap_parametry (etap_id, parametr_id, kolejnosc) VALUES (4,4,4)")
+    conn.execute("INSERT INTO etap_parametry (etap_id, parametr_id, kolejnosc) VALUES (5,1,1)")
+    conn.execute("INSERT INTO etap_parametry (etap_id, parametr_id, kolejnosc) VALUES (5,2,2)")
+    conn.execute("INSERT INTO etap_parametry (etap_id, parametr_id, kolejnosc) VALUES (5,3,3)")
+    conn.execute("INSERT INTO etap_parametry (etap_id, parametr_id, kolejnosc) VALUES (5,4,4)")
+    conn.execute("INSERT INTO etap_parametry (etap_id, parametr_id, kolejnosc) VALUES (5,5,5)")
+    conn.execute("INSERT INTO etap_parametry (etap_id, parametr_id, kolejnosc) VALUES (9,1,1)")
+    conn.execute("INSERT INTO etap_parametry (etap_id, parametr_id, kolejnosc) VALUES (9,2,2)")
+    conn.execute("INSERT INTO etap_parametry (etap_id, parametr_id, kolejnosc) VALUES (9,6,3)")
+    conn.execute("INSERT INTO etap_parametry (etap_id, parametr_id, kolejnosc) VALUES (9,7,4)")
+    conn.execute("INSERT INTO etap_parametry (etap_id, parametr_id, kolejnosc) VALUES (9,8,5)")
     conn.execute("INSERT INTO mbr_templates (mbr_id, produkt, wersja, dt_utworzenia) VALUES (1,'Chegina_K7',1,'2026-01-01')")
     conn.execute("""INSERT INTO ebr_batches (ebr_id, mbr_id, batch_id, nr_partii, wielkosc_szarzy_kg, nastaw,
                     dt_start, dt_end, status, typ)
@@ -92,16 +107,19 @@ def test_export_returns_all_columns(db):
     assert row["sulf_na2so3_recept_kg"] == 15.0
     assert row["sulf_r1_ph"] == 11.89
     assert row["sulf_r1_so3"] == 0.12
-    assert row["sulf_na2so3_kor_kg"] == 15.0
+    # Sulfonowanie: 1 round → corrections without round suffix
+    assert row["sulf_na2so3_kg"] == 15.0
     assert row["sulf_perhydrol_kg"] == 19.0
     assert row["sulf_rundy"] == 1
+    # Utlenienie: 2 rounds → corrections with round suffix
     assert row["utl_r1_nadtlenki"] == 0.0
     assert row["utl_r2_nadtlenki"] == 0.003
     assert row["utl_perhydrol_r1_kg"] == 5.0
-    assert row["utl_woda_kg"] == 1200.0
-    assert row["utl_kwas_kg"] == 100.0
-    assert row["utl_kwas_sugest_kg"] == 110.5
+    assert row["utl_woda_r2_kg"] == 1200.0
+    assert row["utl_kwas_r2_kg"] == 100.0
+    assert row["utl_kwas_r2_sugest_kg"] == 110.5
     assert row["utl_rundy"] == 2
+    # Standaryzacja: 1 round → corrections without round suffix
     assert row["stand_r1_ph"] == 6.25
     assert row["stand_r1_sm"] == 43.0
     assert row["stand_rundy"] == 1
@@ -123,8 +141,9 @@ def test_export_incremental(db):
 
 def test_csv_columns_match_dict_keys(db):
     rows = export_k7_batches(db)
+    columns = get_csv_columns(db)
     assert len(rows) == 1
-    for col in CSV_COLUMNS:
+    for col in columns:
         assert col in rows[0], f"Missing column: {col}"
 
 
