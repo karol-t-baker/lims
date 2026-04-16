@@ -179,14 +179,14 @@ async function _renderStandaryzacjaV2Panel(container, sekcja, ctx) {
                 '</div>' +
                 '<div class="corr-fields" style="margin-top:10px;grid-template-columns:1fr 1fr 1fr;">' +
                     _corrField('Woda [kg]', 'corr-manual-woda-' + sekcja, '', false,
-                        '_markCorrEdited(\"' + sekcja + '\",\"woda\",this);_resetTotalEdited(\"' + sekcja + '\");recomputeStandTotal(\"' + sekcja + '\")') +
+                        'FD.set(this.id,this.value);FD.del(\"corr-total-woda-' + sekcja + '\");recomputeStandTotal(\"' + sekcja + '\")') +
                     _corrField('Kwas cytrynowy [kg]', 'corr-manual-kwas-' + sekcja, '', false,
-                        '_markCorrEdited(\"' + sekcja + '\",\"kwas\",this);_resetTotalEdited(\"' + sekcja + '\");recomputeStandTotal(\"' + sekcja + '\")') +
+                        'FD.set(this.id,this.value);FD.del(\"corr-total-woda-' + sekcja + '\");recomputeStandTotal(\"' + sekcja + '\")') +
                     '<div>' +
                         '<span class="corr-field-label">WODA \u0141\u0104CZNIE [KG]</span>' +
                         '<input id="corr-total-woda-' + sekcja + '" class="corr-field-input" type="text" inputmode="decimal"' +
                             ' style="font-weight:700;font-size:14px;border-color:var(--teal);background:var(--teal-bg);color:var(--teal);text-align:center;"' +
-                            ' oninput="_markCorrEdited(\'' + sekcja + '\',\'total\',this);">' +
+                            ' oninput="FD.set(this.id,this.value);">' +
                     '</div>' +
                 '</div>' +
             '</div>' +
@@ -197,47 +197,33 @@ async function _renderStandaryzacjaV2Panel(container, sekcja, ctx) {
     recomputeStandTotal(sekcja);
 }
 
-// ═══ DRAFT STORE ═══
-// Stores manual correction edits in sessionStorage.
-// Survives: F5, batch switch, re-renders. Cleared on submit or tab close.
-var _DRAFT_PREFIX = 'cd_';  // correction draft
-
-function _saveDraft(field, value) {
-    try { sessionStorage.setItem(_DRAFT_PREFIX + (window.ebrId || 0) + '_' + field, value); } catch(e) {}
-}
-
-function _getDraft(field) {
-    try { return sessionStorage.getItem(_DRAFT_PREFIX + (window.ebrId || 0) + '_' + field); } catch(e) { return null; }
-}
-
-function _clearDrafts() {
-    try {
-        var ebrId = window.ebrId || 0;
-        var toRemove = [];
-        for (var i = 0; i < sessionStorage.length; i++) {
-            var k = sessionStorage.key(i);
-            if (k && (k.startsWith(_DRAFT_PREFIX + ebrId + '_') || k.startsWith('gk_' + ebrId + '_'))) {
-                toRemove.push(k);
+// ═══ FD — Form Draft ═══
+// One system for all temp form values. sessionStorage-backed.
+// Survives: F5, batch switch, re-renders. Cleared on submit.
+if (!window.FD) window.FD = {
+    _key: function(id) { return 'fd_' + (window.ebrId || 0) + '_' + id; },
+    set: function(id, val) { try { sessionStorage.setItem(this._key(id), val); } catch(e) {} },
+    get: function(id) { try { return sessionStorage.getItem(this._key(id)); } catch(e) { return null; } },
+    del: function(id) { try { sessionStorage.removeItem(this._key(id)); } catch(e) {} },
+    clear: function() {
+        try {
+            var p = 'fd_' + (window.ebrId || 0) + '_';
+            var rm = [];
+            for (var i = 0; i < sessionStorage.length; i++) {
+                var k = sessionStorage.key(i);
+                if (k && k.startsWith(p)) rm.push(k);
             }
-        }
-        toRemove.forEach(function(k) { sessionStorage.removeItem(k); });
-    } catch(e) {}
-}
-
-function _markCorrEdited(sekcja, field, el) {
-    el._userEdited = true;
-    _saveDraft(sekcja + '__' + field, el.value);
-}
-
-function _restoreDraft(sekcja, field, el) {
-    var val = _getDraft(sekcja + '__' + field);
-    if (val != null && val !== '') {
-        el.value = val;
-        el._userEdited = true;
-        return true;
+            rm.forEach(function(k) { sessionStorage.removeItem(k); });
+        } catch(e) {}
+    },
+    // Fill element: draft wins over autoValue. Returns true if draft used.
+    fill: function(id, el, autoValue) {
+        var saved = this.get(id);
+        if (saved !== null) { el.value = saved; return true; }
+        if (autoValue != null && autoValue !== '') { el.value = autoValue; }
+        return false;
     }
-    return false;
-}
+};
 
 function recomputeStandV2(sekcja) {
     var nd20 = _parsePl(document.getElementById('corr-nd20-wynik-' + sekcja)?.value);
@@ -255,7 +241,7 @@ function recomputeStandV2(sekcja) {
             if (!isFinite(woda) || woda < 0) woda = 0;
             var wFmt = woda.toFixed(1).replace('.', ',');
             wodaCalcEl.textContent = wFmt + ' kg';
-            if (wodaManEl && !wodaManEl._userEdited && !_restoreDraft(sekcja, 'woda', wodaManEl)) wodaManEl.value = wFmt;
+            if (wodaManEl) FD.fill(wodaManEl.id, wodaManEl, wFmt);
         } else {
             wodaCalcEl.textContent = '\u2014 kg';
         }
@@ -280,7 +266,7 @@ function recomputeStandV2(sekcja) {
             if (kwas !== null) {
                 var kFmt = kwas.toFixed(1).replace('.', ',');
                 kwasCalcEl.textContent = kFmt + ' kg';
-                if (kwasManEl && !kwasManEl._userEdited && !_restoreDraft(sekcja, 'kwas', kwasManEl)) kwasManEl.value = kFmt;
+                if (kwasManEl) FD.fill(kwasManEl.id, kwasManEl, kFmt);
             } else {
                 kwasCalcEl.textContent = '\u2014 kg';
             }
@@ -303,17 +289,13 @@ function _acidModelPredict(phStart, phTarget, masaKg, masaEffKg) {
     return dawka;
 }
 
-function _resetTotalEdited(sekcja) {
-    var totalEl = document.getElementById('corr-total-woda-' + sekcja);
-    if (totalEl) totalEl._userEdited = false;
-}
-
 function recomputeStandTotal(sekcja) {
     var wodaEl = document.getElementById('corr-manual-woda-' + sekcja);
     var kwasEl = document.getElementById('corr-manual-kwas-' + sekcja);
     var totalEl = document.getElementById('corr-total-woda-' + sekcja);
     if (!totalEl) return;
-    if (totalEl._userEdited) return;
+    // If total has a draft (operator edited it directly), don't overwrite
+    if (FD.get(totalEl.id) !== null) return;
     var woda = wodaEl ? _parsePl(wodaEl.value) : NaN;
     var kwas = kwasEl ? _parsePl(kwasEl.value) : NaN;
     if (isNaN(woda)) woda = 0;
@@ -376,7 +358,7 @@ async function advanceStandNewRound(sekcja) {
     }
 
     // Clear saved manual edits after successful correction save
-    _clearDrafts();
+    FD.clear();
 
     // Close session + start new round
     await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + gate.etap_id + '/close', {
@@ -433,7 +415,7 @@ async function approveStandWithUwagi(sekcja) {
         return;
     }
 
-    _clearDrafts();
+    FD.clear();
 
     // Close stage with pass (override gate) + save uwagi
     await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + gate.etap_id + '/close', {
@@ -492,7 +474,7 @@ async function advanceWithStandV2(sekcja) {
         return;
     }
 
-    _clearDrafts();
+    FD.clear();
 
     // Close current session before advancing
     if (gate.sesja_id && gate.etap_id) {
@@ -612,17 +594,13 @@ function recomputePerhydrol(sekcja) {
     var formatted = dawka.toFixed(1).replace('.', ',');
 
     if (calcEl) calcEl.textContent = formatted + ' kg';
-    // Pre-fill manual field — restore draft or use calculated value
-    if (manualEl && !_restoreDraft(sekcja, 'perhydrol', manualEl)) {
-        if (!manualEl.value && !manualEl._userEdited) {
-            manualEl.value = formatted;
-        }
-    }
+    // Fill: draft wins, otherwise use calculated value
+    if (manualEl) FD.fill(manualEl.id, manualEl, formatted);
 }
 
 function onManualPerhydrolInput(sekcja) {
     var manualEl = document.getElementById('corr-manual-kg-' + sekcja);
-    if (manualEl) _markCorrEdited(sekcja, 'perhydrol', manualEl);
+    if (manualEl) FD.set(manualEl.id, manualEl.value);
 }
 
 async function advanceWithPerhydrol(sekcja) {
@@ -647,7 +625,7 @@ async function advanceWithPerhydrol(sekcja) {
         }
     }
 
-    _clearDrafts();
+    FD.clear();
 
     if (window._gatePassAction === 'new_round_utl') {
         // Utlenienie FAIL → close + new round (same stage)
@@ -723,13 +701,12 @@ async function showPerhydrolWithStand(sekcja) {
                     '<span class="corr-field-label">PERHYDROL 34% [KG]</span>' +
                     '<input id="corr-perhydrol-stand-' + sekcja + '" class="corr-field-input" type="text" inputmode="decimal"' +
                         ' value="' + (perhydrolVal || '') + '" style="font-weight:700;border-color:var(--amber);"' +
-                        ' oninput="_markCorrEdited(\'' + sekcja + '\',\'perhydrol_stand\',this);recomputeStandTotal(\'' + sekcja + '\')">' +
+                        ' oninput="FD.set(this.id,this.value);recomputeStandTotal(\'' + sekcja + '\')">' +
                 '</div>' +
             '</div>';
         gateBody.insertAdjacentHTML('beforeend', perhydrolHtml);
-        // Restore draft if operator edited this field before
         var pStandEl = document.getElementById('corr-perhydrol-stand-' + sekcja);
-        if (pStandEl) _restoreDraft(sekcja, 'perhydrol_stand', pStandEl);
+        if (pStandEl) FD.fill(pStandEl.id, pStandEl, perhydrolVal);
     }, 50);
 }
 
