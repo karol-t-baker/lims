@@ -203,6 +203,21 @@
     </div>
   </div>
 
+  {# ═══ ML EXPORT ═══ #}
+  <div class="adm-section">
+    <div class="adm-sec-head">
+      <div class="adm-sec-icon" style="background:#0891b2;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12"/><path d="m8 11 4 4 4-4"/><path d="M8 5H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-4"/></svg>
+      </div>
+      <div class="adm-sec-title">ML Export &mdash; K7 Pipeline</div>
+      <a href="/api/export/ml/k7.csv" class="btn btn-sm" style="margin-left:auto;font-size:12px;padding:4px 12px;text-decoration:none;border:1px solid var(--teal);border-radius:4px;color:var(--teal);font-weight:600;">&#11015; Pobierz CSV</a>
+    </div>
+    <div class="adm-sec-body" style="font-size:12px;color:var(--text-dim);line-height:1.5;">
+      Flat CSV z ukonczonymi szarzami K7 (sulfonowanie &rarr; utlenienie &rarr; standaryzacja).<br>
+      Incremental: <code>/api/export/ml/k7.csv?after_id=N</code> &mdash; header <code>X-Last-Id</code> w odpowiedzi.
+    </div>
+  </div>
+
   {# ═══ FEEDBACK ═══ #}
   <div class="adm-section">
     <div class="adm-sec-head">
