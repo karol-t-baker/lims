@@ -1245,6 +1245,27 @@ function renderPipelineSections() {
     }
 
     // Jednorazowy: single section + decision
+    // Recipe Na2SO3 field for sulfonowanie
+    if (activeSekcja === 'sulfonowanie') {
+        var receptVal = (wyniki['sulfonowanie'] || {})['na2so3_recept_kg'];
+        var receptHtml =
+            '<div class="gate-section" style="margin-bottom:12px;padding:12px 16px;">' +
+                '<div style="font-weight:600;font-size:12px;color:var(--text-dim);margin-bottom:6px;">Recepturowy dodatek Na\u2082SO\u2083</div>' +
+                '<div style="display:flex;align-items:center;gap:8px;">' +
+                    '<input id="recept-na2so3-kg" class="corr-field-input" type="text" inputmode="decimal"' +
+                        ' value="' + (receptVal && receptVal.wartosc != null ? String(receptVal.wartosc).replace('.', ',') : '') + '"' +
+                        ' placeholder="z karty recepturowej"' +
+                        ' style="max-width:160px;font-size:14px;font-weight:700;"' +
+                        (isReadonly || activeReadonly ? ' readonly' : '') + '>' +
+                    '<span style="font-size:13px;color:var(--text-dim);">kg</span>' +
+                    (!(isReadonly || activeReadonly) ?
+                        '<button class="gate-btn gate-btn-sec" style="font-size:11px;padding:4px 10px;" onclick="saveReceptNa2so3()">Zapisz</button>'
+                    : '') +
+                '</div>' +
+            '</div>';
+        container.insertAdjacentHTML('beforeend', receptHtml);
+    }
+
     var pola = getPola(activeSekcja, entryGrupa);
     if (pola.length === 0) {
         container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim);font-size:13px;">Brak parametrów dla tego etapu.</div>';
@@ -5450,6 +5471,26 @@ renderSections();
 setupComputedFields();
 loadBatchZbiorniki();
 updateSpecPanel();
+
+window.saveReceptNa2so3 = async function() {
+    var input = document.getElementById('recept-na2so3-kg');
+    if (!input || !input.value) return;
+    var val = input.value.replace(',', '.');
+    var resp = await fetch('/laborant/ebr/' + ebrId + '/save', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            sekcja: 'sulfonowanie',
+            values: { na2so3_recept_kg: { wartosc: val } }
+        })
+    });
+    if (resp.ok) {
+        input.style.outline = '2px solid var(--green, #16a34a)';
+        setTimeout(function() { input.style.outline = ''; }, 1500);
+    } else {
+        alert('Błąd zapisu');
+    }
+};
 
 window.showPipelineStage = function(sekcjaLab, readonly) {
     window._activePipelineStage = sekcjaLab;
