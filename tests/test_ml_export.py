@@ -73,6 +73,9 @@ def db():
     conn.execute("INSERT INTO ebr_pomiar (sesja_id, parametr_id, wartosc, w_limicie, dt_wpisu, wpisal) VALUES (4,6,43.0,1,?,?)", (_DT, _WHO))
     conn.execute("INSERT INTO ebr_pomiar (sesja_id, parametr_id, wartosc, w_limicie, dt_wpisu, wpisal) VALUES (4,7,4.5,1,?,?)", (_DT, _WHO))
     conn.execute("INSERT INTO ebr_pomiar (sesja_id, parametr_id, wartosc, w_limicie, dt_wpisu, wpisal) VALUES (4,8,37.7,1,?,?)", (_DT, _WHO))
+    # Targets
+    conn.execute("INSERT INTO korekta_cele (etap_id, produkt, kod, wartosc) VALUES (9,'Chegina_K7','target_ph',6.25)")
+    conn.execute("INSERT INTO korekta_cele (etap_id, produkt, kod, wartosc) VALUES (9,'Chegina_K7','target_nd20',1.3922)")
     conn.commit()
     yield conn
     conn.close()
@@ -102,6 +105,10 @@ def test_export_returns_all_columns(db):
     assert row["stand_r1_ph"] == 6.25
     assert row["stand_r1_sm"] == 43.0
     assert row["stand_rundy"] == 1
+    # Targets
+    assert row["target_ph"] == 6.25
+    assert row["target_nd20"] == 1.3922
+    # Final
     assert row["final_ph"] == 6.25
     assert row["final_nd20"] == 1.3922
     assert row["final_all_ok"] == 1

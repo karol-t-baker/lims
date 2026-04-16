@@ -30,6 +30,8 @@ CSV_COLUMNS = [
     "stand_woda_kg", "stand_kwas_kg", "stand_kwas_sugest_kg",
     "stand_r2_ph", "stand_r2_nd20", "stand_r2_sm", "stand_r2_nacl", "stand_r2_sa",
     "stand_rundy",
+    # Targets (from korekta_cele, per product)
+    "target_ph", "target_nd20",
     # Final
     "final_ph", "final_nd20", "final_sm", "final_nacl", "final_sa", "final_all_ok",
 ]
@@ -70,6 +72,18 @@ def export_k7_batches(db: sqlite3.Connection, after_id: int = 0) -> list[dict]:
         row["meff_kg"] = meff
         row["dt_start"] = b["dt_start"]
         row["dt_end"] = b["dt_end"]
+
+        # Targets (pH, nD20) from korekta_cele for this product
+        produkt = b["produkt"]
+        cele = db.execute(
+            "SELECT kod, wartosc FROM korekta_cele WHERE produkt = ?",
+            (produkt,),
+        ).fetchall()
+        for c in cele:
+            if c["kod"] == "target_ph":
+                row["target_ph"] = c["wartosc"]
+            elif c["kod"] == "target_nd20":
+                row["target_nd20"] = c["wartosc"]
 
         # Recipe Na2SO3
         recept = db.execute(
