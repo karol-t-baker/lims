@@ -218,8 +218,8 @@ async function openCalculator(tag, kod, sekcja, calcMethod) {
 var _metodaCache = {};
 
 async function openCalculatorFull(metoda_id, kod, sekcja, nawazka) {
-    // Skip re-render if same method+kod+sekcja already active
-    if (_calcState.fullMethod && _calcState.kod === kod && _calcState.sekcja === sekcja && _calcState.method) {
+    // Skip re-render if same method+kod+sekcja+batch already active
+    if (_calcState.fullMethod && _calcState.kod === kod && _calcState.sekcja === sekcja && _calcState.ebrId === window.ebrId && _calcState.method) {
         return;
     }
 
