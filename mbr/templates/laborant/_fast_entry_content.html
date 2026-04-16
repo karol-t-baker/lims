@@ -3749,6 +3749,17 @@ async function loadBatchZbiorniki() {
         window._batchZbiorniki = [];
     }
     _renderZbiornikiBadges();
+
+    // Show pakowanie bezpośrednie badge if no zbiorniki
+    var pakBezp = '{{ ebr.pakowanie_bezposrednie|default("", true) }}';
+    if (pakBezp && (!window._batchZbiorniki || window._batchZbiorniki.length === 0)) {
+        var zbContainer = document.getElementById('cv-h2-zbiorniki');
+        if (zbContainer) {
+            zbContainer.innerHTML = '<span class="cv-zb-badge" style="background:var(--amber-bg);color:var(--amber);border-color:var(--amber);">' + pakBezp + '</span>';
+        }
+        var tbZb = document.getElementById('cv-tb-zbiorniki');
+        if (tbZb) tbZb.textContent = pakBezp;
+    }
 }
 
 function _renderZbiornikiBadges() {

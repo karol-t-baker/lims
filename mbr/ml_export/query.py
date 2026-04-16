@@ -134,7 +134,7 @@ def build_columns(db: sqlite3.Connection, after_id: int = 0) -> tuple[list[str],
     schema = _load_pipeline_schema(db)
     max_rounds = _discover_max_rounds(db, after_id)
 
-    columns = ["ebr_id", "batch_id", "nr_partii", "masa_kg", "meff_kg", "dt_start", "dt_end"]
+    columns = ["ebr_id", "batch_id", "nr_partii", "masa_kg", "meff_kg", "dt_start", "dt_end", "pakowanie"]
 
     # Extra fields per stage
     _extra_before = {"sulfonowanie": ["sulf_na2so3_recept_kg"]}
@@ -214,6 +214,13 @@ def export_k7_batches(db: sqlite3.Connection, after_id: int = 0) -> list[dict]:
         row["meff_kg"] = meff
         row["dt_start"] = b["dt_start"]
         row["dt_end"] = b["dt_end"]
+
+        # Pakowanie type
+        pak_row = db.execute(
+            "SELECT pakowanie_bezposrednie FROM ebr_batches WHERE ebr_id = ?",
+            (ebr_id,),
+        ).fetchone()
+        row["pakowanie"] = pak_row["pakowanie_bezposrednie"] if pak_row and pak_row["pakowanie_bezposrednie"] else "zbiornik"
 
         produkt = b["produkt"]
 
