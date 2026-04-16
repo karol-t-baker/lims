@@ -183,7 +183,9 @@ async function _renderStandaryzacjaV2Panel(container, sekcja, ctx) {
                         'document.getElementById(\"corr-manual-kwas-' + sekcja + '\")._userEdited=true;recomputeStandTotal(\"' + sekcja + '\")') +
                     '<div>' +
                         '<span class="corr-field-label">WODA \u0141\u0104CZNIE [KG]</span>' +
-                        '<div id="corr-total-woda-' + sekcja + '" style="padding:6px 10px;border:1.5px solid var(--teal);border-radius:6px;font-size:14px;font-family:var(--mono);text-align:center;background:var(--teal-bg);color:var(--teal);font-weight:700;">&mdash;</div>' +
+                        '<input id="corr-total-woda-' + sekcja + '" class="corr-field-input" type="text" inputmode="decimal"' +
+                            ' style="font-weight:700;font-size:14px;border-color:var(--teal);background:var(--teal-bg);color:var(--teal);text-align:center;"' +
+                            ' oninput="document.getElementById(\'corr-total-woda-' + sekcja + '\')._userEdited=true;">' +
                     '</div>' +
                 '</div>' +
             '</div>' +
@@ -263,12 +265,13 @@ function recomputeStandTotal(sekcja) {
     var kwasEl = document.getElementById('corr-manual-kwas-' + sekcja);
     var totalEl = document.getElementById('corr-total-woda-' + sekcja);
     if (!totalEl) return;
+    if (totalEl._userEdited) return;
     var woda = wodaEl ? _parsePl(wodaEl.value) : NaN;
     var kwas = kwasEl ? _parsePl(kwasEl.value) : NaN;
     if (isNaN(woda)) woda = 0;
     if (isNaN(kwas)) kwas = 0;
     var total = woda + kwas;
-    totalEl.textContent = total > 0 ? total.toFixed(1).replace('.', ',') : '\u2014';
+    totalEl.value = total > 0 ? total.toFixed(1).replace('.', ',') : '';
 }
 
 function saveStandV2Targets(sekcja, etapId, produkt) {
@@ -290,9 +293,9 @@ async function advanceStandNewRound(sekcja) {
 
     // Save corrections — check responses
     var corrErrors = [];
-    var wodaEl = document.getElementById('corr-manual-woda-' + sekcja);
-    if (wodaEl && wodaEl.value) {
-        var wKg = parseFloat(wodaEl.value.replace(',', '.'));
+    var totalWodaEl = document.getElementById('corr-total-woda-' + sekcja);
+    if (totalWodaEl && totalWodaEl.value) {
+        var wKg = parseFloat(totalWodaEl.value.replace(',', '.'));
         if (!isNaN(wKg) && wKg > 0) {
             var rw = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
                 method: 'POST',
@@ -336,9 +339,9 @@ async function advanceWithStandV2(sekcja) {
 
     // Save corrections — check responses
     var corrErrors = [];
-    var wodaEl = document.getElementById('corr-manual-woda-' + sekcja);
-    if (wodaEl && wodaEl.value) {
-        var wKg = parseFloat(wodaEl.value.replace(',', '.'));
+    var totalWodaEl = document.getElementById('corr-total-woda-' + sekcja);
+    if (totalWodaEl && totalWodaEl.value) {
+        var wKg = parseFloat(totalWodaEl.value.replace(',', '.'));
         if (!isNaN(wKg) && wKg > 0 && gate.sesja_id) {
             var rw = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
                 method: 'POST',
@@ -616,10 +619,10 @@ async function advancePerhydrolWithStand(sekcja) {
             if (!rp.ok) corrErrors.push('Perhydrol');
         }
     }
-    // Save woda correction
-    var wodaEl = document.getElementById('corr-manual-woda-' + sekcja);
-    if (wodaEl && wodaEl.value) {
-        var wKg = parseFloat(wodaEl.value.replace(',', '.'));
+    // Save woda correction (total = woda + kwas)
+    var totalWodaEl = document.getElementById('corr-total-woda-' + sekcja);
+    if (totalWodaEl && totalWodaEl.value) {
+        var wKg = parseFloat(totalWodaEl.value.replace(',', '.'));
         if (!isNaN(wKg) && wKg > 0) {
             var rw = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
                 method: 'POST',
