@@ -25,7 +25,8 @@ _PARAM_SHORT = {
     "nadtlenki": "nadtlenki", "sm": "sm", "nacl": "nacl", "sa": "sa",
     "aa": "aa", "gestosc": "gestosc", "le_liczba_kwasowa": "le",
     "la_liczba_aminowa": "la", "barwa_hz": "barwa_hz", "metnosc_fau": "metnosc",
-    "h2o2": "h2o2", "ph": "ph",
+    "h2o2": "h2o2", "ph": "ph", "ph_1proc": "ph1",
+    "barwa_gardner": "barwa_g",
 }
 
 # Short names for correction substances

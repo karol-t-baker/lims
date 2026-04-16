@@ -17,3 +17,11 @@ UPDATE etap_korekty_katalog SET substancja = 'Siarczyn sodu' WHERE substancja = 
 ```
 
 Bez tego korekta siarczynu przy sulfonowaniu nie zapisuje sie do DB (JS wysyla `Siarczyn sodu`, lookup failuje).
+
+## Nowe parametry analityczne:
+
+```bash
+python -m scripts.add_ph1_barwa_gardner
+```
+
+Dodaje `ph_1proc` (pH roztworu 1%) i `barwa_gardner` (Barwa wg Gardnera) do `parametry_analityczne`.

@@ -24,6 +24,8 @@ PARAMETRY = [
     # --- bezposredni ---
     {"kod": "ph",         "label": "pH roztworu",          "skrot": "pH",       "typ": "bezposredni", "precision": 2,  "name_en": "pH",                            "method_code": "L905"},
     {"kod": "ph_10proc",  "label": "pH roztworu 10%",      "skrot": "pH 10%",   "typ": "bezposredni", "precision": 2,  "name_en": "pH (20°C)",                     "method_code": "L905"},
+    {"kod": "ph_1proc",   "label": "pH roztworu 1%",       "skrot": "pH 1%",    "typ": "bezposredni", "precision": 2,  "name_en": "pH (1%)",                       "method_code": ""},
+    {"kod": "barwa_gardner", "label": "Barwa wg Gardnera", "skrot": "Barwa G",  "typ": "bezposredni", "precision": 0,  "name_en": "Gardner color",                 "method_code": ""},
     {"kod": "nd20",       "label": "Współczynnik załamania nD20", "skrot": "nD20", "typ": "bezposredni", "precision": 4, "name_en": "Refraction index nD20",        "method_code": "PN-EN ISO 6320:2017-04"},
     {"kod": "sm",         "label": "Sucha masa",           "skrot": "SM",       "typ": "bezposredni", "precision": 1,  "name_en": "Dry matter [%]",                "method_code": "L903"},
     {"kod": "le",         "label": "Liczba estrowa",       "skrot": "LE",       "typ": "bezposredni", "precision": 2,  "name_en": "Ether volatile [%]",            "method_code": ""},
