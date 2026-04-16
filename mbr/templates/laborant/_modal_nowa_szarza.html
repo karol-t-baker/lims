@@ -178,19 +178,27 @@
             <input type="hidden" id="zbiornik-id-input" value="">
           </div>
 
-          <div style="margin-top:12px;padding-top:12px;border-top:1px dashed var(--border);">
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;font-weight:600;color:var(--text);">
-              <input type="checkbox" id="chk-pakowanie-bezp" onchange="togglePakBezp()">
-              Pakowanie bezpośrednie (bez zbiornika)
-            </label>
-            <div id="pak-bezp-fields" style="display:none;margin-top:10px;padding:12px 16px;background:var(--surface-alt);border-radius:8px;border:1px solid var(--border);">
-              <div class="form-label" style="margin-bottom:6px;">Rodzaj opakowania</div>
-              <div style="display:flex;gap:8px;">
-                <button type="button" class="pm-tank-pill" id="pak-ibc" onclick="selectPakType('IBC')" style="padding:8px 20px;font-size:13px;">IBC</button>
-                <button type="button" class="pm-tank-pill" id="pak-beczki" onclick="selectPakType('Beczki')" style="padding:8px 20px;font-size:13px;">Beczki</button>
+          <div style="margin-top:16px;">
+            <div class="pm-section-label" id="pak-bezp-label">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font:inherit;color:inherit;text-transform:inherit;letter-spacing:inherit;">
+                <input type="checkbox" id="chk-pakowanie-bezp" onchange="togglePakBezp()" style="accent-color:var(--amber);">
+                Bez zbiornika
+              </label>
+            </div>
+            <div id="pak-bezp-fields" style="display:none;margin-top:8px;">
+              <div class="pm-tank-grid">
+                <button type="button" class="pm-tank-pill" id="pak-ibc" onclick="selectPakType('IBC')">
+                  <span class="pm-pill-nr">IBC</span>
+                  <span class="pm-pill-cap">kontener</span>
+                </button>
+                <button type="button" class="pm-tank-pill" id="pak-beczki" onclick="selectPakType('Beczki')">
+                  <span class="pm-pill-nr">Beczki</span>
+                  <span class="pm-pill-cap">200L</span>
+                </button>
               </div>
-              <div class="form-label" style="margin-top:10px;margin-bottom:4px;">Uwagi (np. parametry klienta)</div>
-              <textarea id="pak-bezp-uwagi" name="pak_bezp_uwagi" class="form-input" rows="2" placeholder="np. klient X, pH 5.5-6.0" style="font-size:12px;resize:vertical;"></textarea>
+              <textarea id="pak-bezp-uwagi" name="pak_bezp_uwagi" class="form-input" rows="2"
+                        placeholder="Uwagi — np. klient X, specjalne parametry pH 5.5-6.0"
+                        style="margin-top:12px;font-size:12px;resize:vertical;width:100%;box-sizing:border-box;"></textarea>
             </div>
             <input type="hidden" name="pakowanie_bezposrednie" id="pak-bezp-value" value="">
           </div>
@@ -823,7 +831,16 @@ function togglePakBezp() {
 
 function selectPakType(typ) {
     document.getElementById('pak-bezp-value').value = typ;
-    document.querySelectorAll('#pak-bezp-fields .pm-tank-pill').forEach(function(b) { b.classList.remove('pm-pill-active'); });
-    document.getElementById('pak-' + typ.toLowerCase()).classList.add('pm-pill-active');
+    document.querySelectorAll('#pak-bezp-fields .pm-tank-pill').forEach(function(b) {
+        b.classList.remove('pm-pill-active');
+        b.style.background = '';
+        b.style.borderColor = '';
+        b.style.boxShadow = '';
+    });
+    var btn = document.getElementById('pak-' + typ.toLowerCase());
+    btn.classList.add('pm-pill-active');
+    btn.style.background = 'linear-gradient(135deg, var(--amber), #b45309)';
+    btn.style.borderColor = 'var(--amber)';
+    btn.style.boxShadow = '0 3px 14px rgba(180,83,9,0.25), inset 0 1px 0 rgba(255,255,255,0.1)';
 }
 </script>
