@@ -199,6 +199,23 @@ def copy_limits(db: sqlite3.Connection) -> int:
     return touched
 
 
+def migrate_sa_bias(db: sqlite3.Connection) -> int:
+    """Copy non-null sa_bias from etap_parametry to every matching produkt_etap_limity
+    row, ONLY where the destination sa_bias is NULL. Returns updates made."""
+    src_rows = db.execute(
+        "SELECT etap_id, parametr_id, sa_bias FROM etap_parametry WHERE sa_bias IS NOT NULL"
+    ).fetchall()
+    updated = 0
+    for r in src_rows:
+        cur = db.execute(
+            "UPDATE produkt_etap_limity SET sa_bias=? "
+            "WHERE etap_id=? AND parametr_id=? AND sa_bias IS NULL",
+            (r["sa_bias"], r["etap_id"], r["parametr_id"]),
+        )
+        updated += cur.rowcount
+    return updated
+
+
 def postflight(db: sqlite3.Connection) -> list[str]:
     """Return list of post-migration validation errors. Empty list = OK."""
     return []  # filled in later tasks
@@ -229,6 +246,10 @@ def migrate(db: sqlite3.Connection, dry_run: bool = False) -> None:
 
     n_limits = copy_limits(db)
     print(f"Copied/verified {n_limits} limit bindings.")
+
+    n_sa = migrate_sa_bias(db)
+    if n_sa:
+        print(f"Propagated sa_bias to {n_sa} produkt_etap_limity rows.")
 
     errors = postflight(db)
     if errors:

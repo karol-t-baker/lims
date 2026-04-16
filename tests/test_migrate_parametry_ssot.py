@@ -235,3 +235,48 @@ def test_copy_limits_skips_cert_variant_kontekst(db):
     copy_limits(db)
     n = db.execute("SELECT COUNT(*) AS n FROM produkt_etap_limity").fetchone()["n"]
     assert n == 0
+
+
+def test_migrate_sa_bias_copies_global_to_per_product(db):
+    from scripts.migrate_parametry_ssot import alter_schema, migrate_sa_bias
+    _seed_minimal_catalog(db)
+    alter_schema(db)
+    # Parameter 1 has sa_bias set globally in etap_parametry for etap 6
+    db.execute(
+        "INSERT INTO etap_parametry (etap_id, parametr_id, sa_bias) VALUES (6, 1, 0.25)"
+    )
+    # Two products both bound to parametr_id=1 via produkt_etap_limity
+    db.execute("INSERT INTO produkt_pipeline (produkt, etap_id, kolejnosc) VALUES ('A', 6, 1)")
+    db.execute("INSERT INTO produkt_pipeline (produkt, etap_id, kolejnosc) VALUES ('B', 6, 1)")
+    db.execute(
+        "INSERT INTO produkt_etap_limity (produkt, etap_id, parametr_id) VALUES ('A', 6, 1)"
+    )
+    db.execute(
+        "INSERT INTO produkt_etap_limity (produkt, etap_id, parametr_id) VALUES ('B', 6, 1)"
+    )
+    db.commit()
+    migrate_sa_bias(db)
+    rows = db.execute(
+        "SELECT produkt, sa_bias FROM produkt_etap_limity WHERE parametr_id=1 ORDER BY produkt"
+    ).fetchall()
+    assert [(r["produkt"], r["sa_bias"]) for r in rows] == [("A", 0.25), ("B", 0.25)]
+
+
+def test_migrate_sa_bias_preserves_per_product_override(db):
+    """If produkt_etap_limity.sa_bias is already set, do NOT overwrite with etap_parametry value."""
+    from scripts.migrate_parametry_ssot import alter_schema, migrate_sa_bias
+    _seed_minimal_catalog(db)
+    alter_schema(db)
+    db.execute(
+        "INSERT INTO etap_parametry (etap_id, parametr_id, sa_bias) VALUES (6, 1, 0.25)"
+    )
+    db.execute("INSERT INTO produkt_pipeline (produkt, etap_id, kolejnosc) VALUES ('A', 6, 1)")
+    db.execute(
+        "INSERT INTO produkt_etap_limity (produkt, etap_id, parametr_id, sa_bias) VALUES ('A', 6, 1, 0.75)"
+    )
+    db.commit()
+    migrate_sa_bias(db)
+    row = db.execute(
+        "SELECT sa_bias FROM produkt_etap_limity WHERE produkt='A' AND parametr_id=1"
+    ).fetchone()
+    assert row["sa_bias"] == 0.75
