@@ -16,8 +16,9 @@ fi
 
 echo "$(date): New commits detected, deploying..."
 
-# Clean any dirty tracked files (e.g. __pycache__ .pyc)
+# Clean any dirty tracked files + stale __pycache__
 git checkout -- .
+find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 
 # Backup database before deploy
 mkdir -p data/backups
