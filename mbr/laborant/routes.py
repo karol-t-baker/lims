@@ -95,6 +95,21 @@ def szarze_new():
                 back = url_for("laborant.szarze_list")
             return redirect(back)
 
+        # Save pakowanie bezpośrednie if set
+        if ebr_id:
+            pak_bezp = request.form.get("pakowanie_bezposrednie", "").strip()
+            if pak_bezp:
+                uwagi_pak = request.form.get("pak_bezp_uwagi", "").strip()
+                db.execute(
+                    "UPDATE ebr_batches SET pakowanie_bezposrednie = ? WHERE ebr_id = ?",
+                    (pak_bezp, ebr_id),
+                )
+                if uwagi_pak:
+                    db.execute(
+                        "UPDATE ebr_batches SET uwagi_koncowe = ? WHERE ebr_id = ?",
+                        (f"[Pakowanie bezpośrednie: {pak_bezp}] {uwagi_pak}", ebr_id),
+                    )
+
         # Save pre-selected zbiorniki (optional, from modal pill selection)
         if ebr_id:
             zbiorniki_ids = request.form.get("zbiorniki_ids", "")
