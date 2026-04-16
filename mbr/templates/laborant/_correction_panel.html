@@ -608,7 +608,9 @@ function recomputePerhydrol(sekcja) {
 
     if (calcEl) calcEl.textContent = formatted + ' kg';
     // Pre-fill manual field — restore draft or use calculated value
-    if (manualEl && !_restoreDraft(sekcja, 'perhydrol', manualEl)) {
+    var restored = manualEl ? _restoreDraft(sekcja, 'perhydrol', manualEl) : false;
+    console.log('[perhydrol]', sekcja, 'restored=' + restored, 'value=' + (manualEl ? manualEl.value : 'N/A'), '_userEdited=' + (manualEl ? manualEl._userEdited : 'N/A'), 'drafts=', JSON.stringify(window._drafts));
+    if (manualEl && !restored) {
         if (!manualEl.value && !manualEl._userEdited) {
             manualEl.value = formatted;
         }

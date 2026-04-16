@@ -2682,6 +2682,7 @@ function renderGateBanner(sekcja, gate) {
 
     // Skip re-render if gate result unchanged (preserves manual correction edits)
     var gateKey = gate.passed + '|' + (gate.failures || []).map(function(f) { return f.kod; }).join(',');
+    console.log('[gate]', sekcja, 'key=' + gateKey, 'prev=' + (banner._lastGateKey || 'none'), gateKey === banner._lastGateKey ? 'SKIP' : 'REBUILD');
     if (banner._lastGateKey === gateKey) return;
     banner._lastGateKey = gateKey;
 
