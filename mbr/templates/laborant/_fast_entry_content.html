@@ -2680,7 +2680,12 @@ function renderGateBanner(sekcja, gate) {
     }
     if (!banner) return;
 
-    // Always clean up any existing correction panel from a previous gate result
+    // Skip re-render if gate result unchanged (preserves manual correction edits)
+    var gateKey = gate.passed + '|' + (gate.failures || []).map(function(f) { return f.kod; }).join(',');
+    if (banner._lastGateKey === gateKey) return;
+    banner._lastGateKey = gateKey;
+
+    // Clean up existing correction panel — gate result changed
     var oldCorrPanel = document.getElementById('correction-panel-' + sekcja);
     if (!oldCorrPanel) {
         var baseS = sekcja.split('__')[0];

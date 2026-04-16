@@ -197,55 +197,9 @@ async function _renderStandaryzacjaV2Panel(container, sekcja, ctx) {
     recomputeStandTotal(sekcja);
 }
 
-// Persist manual correction edits across re-renders AND page refreshes
-// Uses sessionStorage keyed by ebrId so values are per-batch, per-tab
-function _corrStorageKey() {
-    return 'corrEdits_' + (window.ebrId || 0);
-}
-
-function _loadCorrEdits() {
-    try {
-        var raw = sessionStorage.getItem(_corrStorageKey());
-        return raw ? JSON.parse(raw) : {};
-    } catch(e) { return {}; }
-}
-
-function _saveCorrEdits(edits) {
-    try { sessionStorage.setItem(_corrStorageKey(), JSON.stringify(edits)); } catch(e) {}
-}
-
-function _clearCorrEdits() {
-    try { sessionStorage.removeItem(_corrStorageKey()); } catch(e) {}
-}
-
-// Clean up old correction edits (keep only current batch)
-function _cleanOldCorrEdits() {
-    var currentKey = _corrStorageKey();
-    var toRemove = [];
-    for (var i = 0; i < sessionStorage.length; i++) {
-        var k = sessionStorage.key(i);
-        if (k && k.startsWith('corrEdits_') && k !== currentKey) toRemove.push(k);
-    }
-    toRemove.forEach(function(k) { sessionStorage.removeItem(k); });
-}
-_cleanOldCorrEdits();
-
+// Manual correction edit tracking (DOM-level, preserved by gate skip-rerender)
 function _markCorrEdited(sekcja, field, el) {
     el._userEdited = true;
-    var edits = _loadCorrEdits();
-    edits[sekcja + '__' + field] = el.value;
-    _saveCorrEdits(edits);
-}
-
-function _restoreCorrEdit(sekcja, field, el) {
-    var edits = _loadCorrEdits();
-    var saved = edits[sekcja + '__' + field];
-    if (saved != null && saved !== '') {
-        el.value = saved;
-        el._userEdited = true;
-        return true;
-    }
-    return false;
 }
 
 function recomputeStandV2(sekcja) {
@@ -264,7 +218,7 @@ function recomputeStandV2(sekcja) {
             if (!isFinite(woda) || woda < 0) woda = 0;
             var wFmt = woda.toFixed(1).replace('.', ',');
             wodaCalcEl.textContent = wFmt + ' kg';
-            if (wodaManEl && !wodaManEl._userEdited && !_restoreCorrEdit(sekcja, 'woda', wodaManEl)) wodaManEl.value = wFmt;
+            if (wodaManEl && !wodaManEl._userEdited) wodaManEl.value = wFmt;
         } else {
             wodaCalcEl.textContent = '\u2014 kg';
         }
@@ -289,7 +243,7 @@ function recomputeStandV2(sekcja) {
             if (kwas !== null) {
                 var kFmt = kwas.toFixed(1).replace('.', ',');
                 kwasCalcEl.textContent = kFmt + ' kg';
-                if (kwasManEl && !kwasManEl._userEdited && !_restoreCorrEdit(sekcja, 'kwas', kwasManEl)) kwasManEl.value = kFmt;
+                if (kwasManEl && !kwasManEl._userEdited) kwasManEl.value = kFmt;
             } else {
                 kwasCalcEl.textContent = '\u2014 kg';
             }
@@ -317,7 +271,7 @@ function recomputeStandTotal(sekcja) {
     var kwasEl = document.getElementById('corr-manual-kwas-' + sekcja);
     var totalEl = document.getElementById('corr-total-woda-' + sekcja);
     if (!totalEl) return;
-    if (totalEl._userEdited || _restoreCorrEdit(sekcja, 'total', totalEl)) return;
+    if (totalEl._userEdited) return;
     var woda = wodaEl ? _parsePl(wodaEl.value) : NaN;
     var kwas = kwasEl ? _parsePl(kwasEl.value) : NaN;
     if (isNaN(woda)) woda = 0;
@@ -380,7 +334,7 @@ async function advanceStandNewRound(sekcja) {
     }
 
     // Clear saved manual edits after successful correction save
-    _clearCorrEdits();
+    // Manual edits cleared by panel rebuild on next gate change
 
     // Close session + start new round
     await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + gate.etap_id + '/close', {
@@ -437,7 +391,7 @@ async function approveStandWithUwagi(sekcja) {
         return;
     }
 
-    _clearCorrEdits();
+    // Manual edits cleared by panel rebuild on next gate change
 
     // Close stage with pass (override gate) + save uwagi
     await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + gate.etap_id + '/close', {
@@ -496,7 +450,7 @@ async function advanceWithStandV2(sekcja) {
         return;
     }
 
-    _clearCorrEdits();
+    // Manual edits cleared by panel rebuild on next gate change
 
     // Close current session before advancing
     if (gate.sesja_id && gate.etap_id) {
@@ -617,14 +571,14 @@ function recomputePerhydrol(sekcja) {
 
     if (calcEl) calcEl.textContent = formatted + ' kg';
     // Pre-fill manual field if empty (user hasn't typed anything yet)
-    if (manualEl && !manualEl.value && !manualEl._userEdited && !_restoreCorrEdit(sekcja, 'perhydrol', manualEl)) {
+    if (manualEl && !manualEl.value && !manualEl._userEdited) {
         manualEl.value = formatted;
     }
 }
 
 function onManualPerhydrolInput(sekcja) {
     var manualEl = document.getElementById('corr-manual-kg-' + sekcja);
-    if (manualEl) _markCorrEdited(sekcja, 'perhydrol', manualEl);
+    if (manualEl) manualEl._userEdited = true;
 }
 
 async function advanceWithPerhydrol(sekcja) {
@@ -649,7 +603,7 @@ async function advanceWithPerhydrol(sekcja) {
         }
     }
 
-    _clearCorrEdits();
+    // Manual edits cleared by panel rebuild on next gate change
 
     if (window._gatePassAction === 'new_round_utl') {
         // Utlenienie FAIL → close + new round (same stage)
