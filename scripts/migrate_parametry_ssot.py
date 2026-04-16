@@ -137,6 +137,68 @@ def alter_schema(db: sqlite3.Connection) -> None:
             db.execute(f"ALTER TABLE produkt_etap_limity ADD COLUMN {name} {decl}")
 
 
+def copy_limits(db: sqlite3.Connection) -> int:
+    """Copy limits from parametry_etapy into produkt_etap_limity. Returns rows touched.
+
+    - Skips kontekst='cert_variant' (handled by migrate_cert_fields instead)
+    - If target row exists and destination value is NOT NULL, keep destination
+    - Default typ flags: dla_szarzy=1, dla_zbiornika=1, dla_platkowania=0
+    - Assumes ensure_pipeline_for_legacy has already run
+    """
+    src_rows = db.execute(
+        "SELECT parametr_id, kontekst, produkt, min_limit, max_limit, nawazka_g, "
+        "       precision, target, kolejnosc, formula, sa_bias, krok, grupa "
+        "FROM parametry_etapy WHERE produkt IS NOT NULL"
+    ).fetchall()
+    touched = 0
+    for r in src_rows:
+        etap_id = _kontekst_to_etap_id(db, r["kontekst"])
+        if etap_id is None:
+            continue
+        dst = db.execute(
+            "SELECT id, min_limit, max_limit, nawazka_g, precision, spec_value, "
+            "       kolejnosc, formula, sa_bias, krok, grupa "
+            "FROM produkt_etap_limity WHERE produkt=? AND etap_id=? AND parametr_id=?",
+            (r["produkt"], etap_id, r["parametr_id"]),
+        ).fetchone()
+        if dst is None:
+            db.execute(
+                "INSERT INTO produkt_etap_limity "
+                "(produkt, etap_id, parametr_id, min_limit, max_limit, nawazka_g, precision, "
+                " spec_value, kolejnosc, formula, sa_bias, krok, grupa, "
+                " dla_szarzy, dla_zbiornika, dla_platkowania) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, 0)",
+                (r["produkt"], etap_id, r["parametr_id"],
+                 r["min_limit"], r["max_limit"], r["nawazka_g"], r["precision"],
+                 r["target"], r["kolejnosc"] or 0, r["formula"], r["sa_bias"],
+                 r["krok"], r["grupa"] or "lab"),
+            )
+        else:
+            # Partial update: fill only NULLs in destination with non-NULL from source
+            updates: list[tuple[str, object]] = []
+            src_map = {
+                "min_limit": r["min_limit"],
+                "max_limit": r["max_limit"],
+                "nawazka_g": r["nawazka_g"],
+                "precision": r["precision"],
+                "spec_value": r["target"],
+                "kolejnosc": r["kolejnosc"],
+                "formula":   r["formula"],
+                "sa_bias":   r["sa_bias"],
+                "krok":      r["krok"],
+                "grupa":     r["grupa"],
+            }
+            for col, src_val in src_map.items():
+                if src_val is not None and dst[col] is None:
+                    updates.append((col, src_val))
+            if updates:
+                sets = ", ".join(f"{c}=?" for c, _ in updates)
+                vals = [v for _, v in updates] + [dst["id"]]
+                db.execute(f"UPDATE produkt_etap_limity SET {sets} WHERE id=?", vals)
+        touched += 1
+    return touched
+
+
 def postflight(db: sqlite3.Connection) -> list[str]:
     """Return list of post-migration validation errors. Empty list = OK."""
     return []  # filled in later tasks
@@ -164,6 +226,9 @@ def migrate(db: sqlite3.Connection, dry_run: bool = False) -> None:
         print(f"Created {len(created_pipelines)} produkt_pipeline entries for legacy products:")
         for produkt, etap_id in created_pipelines:
             print(f"  - {produkt} → etap_id={etap_id}")
+
+    n_limits = copy_limits(db)
+    print(f"Copied/verified {n_limits} limit bindings.")
 
     errors = postflight(db)
     if errors:

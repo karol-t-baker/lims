@@ -164,3 +164,74 @@ def test_ensure_pipeline_idempotent(db):
         "SELECT COUNT(*) AS n FROM produkt_pipeline WHERE produkt='Chegina_K40GL'"
     ).fetchone()["n"]
     assert n == 1
+
+
+def test_copy_limits_inserts_rows_with_default_typ_flags(db):
+    from scripts.migrate_parametry_ssot import alter_schema, ensure_pipeline_for_legacy, copy_limits
+    _seed_minimal_catalog(db)
+    alter_schema(db)
+    # Legacy row: Chelamid_DK has parametry_etapy row for 'dietanolamina'
+    db.execute(
+        "INSERT INTO parametry_etapy "
+        "(parametr_id, kontekst, produkt, min_limit, max_limit, nawazka_g, precision, target, "
+        " kolejnosc, formula, sa_bias, krok, grupa) "
+        "VALUES (2, 'analiza_koncowa', 'Chelamid_DK', 80, 9999, 0.5, 1, NULL, 3, NULL, NULL, NULL, 'lab')"
+    )
+    # produkt_pipeline entry (or ensure_pipeline_for_legacy creates it)
+    db.execute("INSERT INTO produkt_pipeline (produkt, etap_id, kolejnosc) VALUES ('Chelamid_DK', 6, 1)")
+    db.commit()
+    copy_limits(db)
+    row = db.execute(
+        "SELECT min_limit, max_limit, nawazka_g, precision, kolejnosc, grupa, "
+        "dla_szarzy, dla_zbiornika, dla_platkowania "
+        "FROM produkt_etap_limity WHERE produkt='Chelamid_DK' AND etap_id=6 AND parametr_id=2"
+    ).fetchone()
+    assert row is not None
+    assert row["min_limit"] == 80
+    assert row["max_limit"] == 9999
+    assert row["nawazka_g"] == 0.5
+    assert row["precision"] == 1
+    assert row["kolejnosc"] == 3
+    assert row["dla_szarzy"] == 1
+    assert row["dla_zbiornika"] == 1
+    assert row["dla_platkowania"] == 0
+
+
+def test_copy_limits_preserves_existing_produkt_etap_limity_values(db):
+    """If a pipeline product already has produkt_etap_limity rows, do not overwrite
+    non-null values with NULLs from parametry_etapy."""
+    from scripts.migrate_parametry_ssot import alter_schema, copy_limits
+    _seed_minimal_catalog(db)
+    alter_schema(db)
+    db.execute("INSERT INTO produkt_pipeline (produkt, etap_id, kolejnosc) VALUES ('Chelamid_DK', 6, 1)")
+    db.execute(
+        "INSERT INTO produkt_etap_limity (produkt, etap_id, parametr_id, min_limit, max_limit, precision) "
+        "VALUES ('Chelamid_DK', 6, 2, 85, 99, 2)"  # already-set values
+    )
+    db.execute(
+        "INSERT INTO parametry_etapy (parametr_id, kontekst, produkt, min_limit, max_limit, precision) "
+        "VALUES (2, 'analiza_koncowa', 'Chelamid_DK', NULL, NULL, NULL)"
+    )
+    db.commit()
+    copy_limits(db)
+    row = db.execute(
+        "SELECT min_limit, max_limit, precision FROM produkt_etap_limity "
+        "WHERE produkt='Chelamid_DK' AND etap_id=6 AND parametr_id=2"
+    ).fetchone()
+    assert row["min_limit"] == 85
+    assert row["max_limit"] == 99
+    assert row["precision"] == 2
+
+
+def test_copy_limits_skips_cert_variant_kontekst(db):
+    """cert_variant rows are cert metadata, not pomiar bindings."""
+    from scripts.migrate_parametry_ssot import alter_schema, copy_limits
+    _seed_minimal_catalog(db)
+    alter_schema(db)
+    db.execute(
+        "INSERT INTO parametry_etapy (parametr_id, kontekst, produkt) VALUES (1, 'cert_variant', 'Chelamid_DK')"
+    )
+    db.commit()
+    copy_limits(db)
+    n = db.execute("SELECT COUNT(*) AS n FROM produkt_etap_limity").fetchone()["n"]
+    assert n == 0
