@@ -122,6 +122,30 @@
               <div class="pm-empty-hint">Wybierz produkt aby zobaczyć zbiorniki</div>
             </div>
           </div>
+          <div style="margin-top:16px;">
+            <div class="pm-section-label">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font:inherit;color:inherit;text-transform:inherit;letter-spacing:inherit;">
+                <input type="checkbox" id="chk-pakowanie-bezp" onchange="togglePakBezp()" style="accent-color:var(--amber);">
+                Bez zbiornika
+              </label>
+            </div>
+            <div id="pak-bezp-fields" style="display:none;margin-top:8px;">
+              <div class="pm-tank-grid">
+                <button type="button" class="pm-tank-pill" id="pak-ibc" onclick="selectPakType('IBC')">
+                  <span class="pm-pill-nr">IBC</span>
+                  <span class="pm-pill-cap">kontener</span>
+                </button>
+                <button type="button" class="pm-tank-pill" id="pak-beczki" onclick="selectPakType('Beczki')">
+                  <span class="pm-pill-nr">Beczki</span>
+                  <span class="pm-pill-cap">200L</span>
+                </button>
+              </div>
+              <textarea id="pak-bezp-uwagi" name="pak_bezp_uwagi" class="form-input" rows="2"
+                        placeholder="Uwagi — np. klient X, specjalne parametry pH 5.5-6.0"
+                        style="margin-top:12px;font-size:12px;resize:vertical;width:100%;box-sizing:border-box;"></textarea>
+            </div>
+            <input type="hidden" name="pakowanie_bezposrednie" id="pak-bezp-value" value="">
+          </div>
         </div>
 
         {# Step 2b: Zbiornik form #}
@@ -176,31 +200,6 @@
             </div>
             <input type="hidden" id="zbiornik-nr-input" value="">
             <input type="hidden" id="zbiornik-id-input" value="">
-          </div>
-
-          <div style="margin-top:16px;">
-            <div class="pm-section-label" id="pak-bezp-label">
-              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font:inherit;color:inherit;text-transform:inherit;letter-spacing:inherit;">
-                <input type="checkbox" id="chk-pakowanie-bezp" onchange="togglePakBezp()" style="accent-color:var(--amber);">
-                Bez zbiornika
-              </label>
-            </div>
-            <div id="pak-bezp-fields" style="display:none;margin-top:8px;">
-              <div class="pm-tank-grid">
-                <button type="button" class="pm-tank-pill" id="pak-ibc" onclick="selectPakType('IBC')">
-                  <span class="pm-pill-nr">IBC</span>
-                  <span class="pm-pill-cap">kontener</span>
-                </button>
-                <button type="button" class="pm-tank-pill" id="pak-beczki" onclick="selectPakType('Beczki')">
-                  <span class="pm-pill-nr">Beczki</span>
-                  <span class="pm-pill-cap">200L</span>
-                </button>
-              </div>
-              <textarea id="pak-bezp-uwagi" name="pak_bezp_uwagi" class="form-input" rows="2"
-                        placeholder="Uwagi — np. klient X, specjalne parametry pH 5.5-6.0"
-                        style="margin-top:12px;font-size:12px;resize:vertical;width:100%;box-sizing:border-box;"></textarea>
-            </div>
-            <input type="hidden" name="pakowanie_bezposrednie" id="pak-bezp-value" value="">
           </div>
         </div>
 
@@ -815,14 +814,9 @@ if (manualPlatkowanie) {
 function togglePakBezp() {
     var checked = document.getElementById('chk-pakowanie-bezp').checked;
     document.getElementById('pak-bezp-fields').style.display = checked ? '' : 'none';
-    // Hide zbiornik selection in step-2b when pakowanie bezpośrednie is checked
-    var zbRow = document.getElementById('zb-pick-zbiornik');
+    // Hide zbiorniki docelowe in step-2a when pakowanie bezpośrednie is checked
+    var zbRow = document.getElementById('zb-pick-szarza');
     if (zbRow) zbRow.closest('.form-row').style.display = checked ? 'none' : '';
-    // Clear zbiornik selection when switching to pakowanie
-    if (checked) {
-        document.getElementById('zbiornik-nr-input').value = '';
-        document.getElementById('zbiornik-id-input').value = '';
-    }
     if (!checked) {
         document.getElementById('pak-bezp-value').value = '';
         document.querySelectorAll('#pak-bezp-fields .pm-tank-pill').forEach(function(b) { b.classList.remove('pm-pill-active'); });
