@@ -573,10 +573,15 @@ def save_wyniki(
     has_inserts = False
     has_updates = False
 
+    # Extra fields that bypass parametry_lab validation (informational inputs)
+    _EXTRA_FIELDS = {"na2so3_recept_kg"}
+
     for kod, entry in values.items():
         pole = pola_map.get(kod)
-        if pole is None:
+        if pole is None and kod not in _EXTRA_FIELDS:
             continue
+        if pole is None:
+            pole = {"kod": kod, "tag": "", "precision": 1}
         wartosc_raw = entry.get("wartosc", "")
         komentarz = entry.get("komentarz", "")
         try:
