@@ -1156,6 +1156,28 @@ function renderNonMainCyclicSection(container, activeSekcja, activeEtap, isReado
         _loadPipelineRoundHistory(activeSekcja.split('__')[0], activeEtap.pipeline_etap_id);
     }
 
+    // 1b. Recipe Na2SO3 field for sulfonowanie
+    if (activeSekcja === 'sulfonowanie') {
+        var receptVal = (wyniki['sulfonowanie'] || {})['na2so3_recept_kg'];
+        var receptDiv = document.createElement('div');
+        receptDiv.innerHTML =
+            '<div class="gate-section" style="margin-bottom:12px;padding:12px 16px;">' +
+                '<div style="font-weight:600;font-size:12px;color:var(--text-dim);margin-bottom:6px;">Recepturowy dodatek Na\u2082SO\u2083</div>' +
+                '<div style="display:flex;align-items:center;gap:8px;">' +
+                    '<input id="recept-na2so3-kg" class="corr-field-input" type="text" inputmode="decimal"' +
+                        ' value="' + (receptVal && receptVal.wartosc != null ? String(receptVal.wartosc).replace('.', ',') : '') + '"' +
+                        ' placeholder="z karty recepturowej"' +
+                        ' style="max-width:160px;font-size:14px;font-weight:700;"' +
+                        (isReadonly || activeReadonly ? ' readonly' : '') + '>' +
+                    '<span style="font-size:13px;color:var(--text-dim);">kg</span>' +
+                    (!(isReadonly || activeReadonly) ?
+                        '<button class="gate-btn gate-btn-sec" style="font-size:11px;padding:4px 10px;" onclick="saveReceptNa2so3()">Zapisz</button>'
+                    : '') +
+                '</div>' +
+            '</div>';
+        container.appendChild(receptDiv);
+    }
+
     // 2. ANALIZA block (current round)
     var pola = getPola(activeSekcja, entryGrupa);
     if (pola.length === 0) {
@@ -1245,27 +1267,6 @@ function renderPipelineSections() {
     }
 
     // Jednorazowy: single section + decision
-    // Recipe Na2SO3 field for sulfonowanie
-    if (activeSekcja === 'sulfonowanie') {
-        var receptVal = (wyniki['sulfonowanie'] || {})['na2so3_recept_kg'];
-        var receptHtml =
-            '<div class="gate-section" style="margin-bottom:12px;padding:12px 16px;">' +
-                '<div style="font-weight:600;font-size:12px;color:var(--text-dim);margin-bottom:6px;">Recepturowy dodatek Na\u2082SO\u2083</div>' +
-                '<div style="display:flex;align-items:center;gap:8px;">' +
-                    '<input id="recept-na2so3-kg" class="corr-field-input" type="text" inputmode="decimal"' +
-                        ' value="' + (receptVal && receptVal.wartosc != null ? String(receptVal.wartosc).replace('.', ',') : '') + '"' +
-                        ' placeholder="z karty recepturowej"' +
-                        ' style="max-width:160px;font-size:14px;font-weight:700;"' +
-                        (isReadonly || activeReadonly ? ' readonly' : '') + '>' +
-                    '<span style="font-size:13px;color:var(--text-dim);">kg</span>' +
-                    (!(isReadonly || activeReadonly) ?
-                        '<button class="gate-btn gate-btn-sec" style="font-size:11px;padding:4px 10px;" onclick="saveReceptNa2so3()">Zapisz</button>'
-                    : '') +
-                '</div>' +
-            '</div>';
-        container.insertAdjacentHTML('beforeend', receptHtml);
-    }
-
     var pola = getPola(activeSekcja, entryGrupa);
     if (pola.length === 0) {
         container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-dim);font-size:13px;">Brak parametrów dla tego etapu.</div>';
