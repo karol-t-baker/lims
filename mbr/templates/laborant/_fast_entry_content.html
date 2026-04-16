@@ -3421,6 +3421,11 @@ function doSaveField(input, sekcja, kod, fromBlur) {
             if (data.gate) {
                 renderGateBanner(sekcja, data.gate);
             }
+
+            // Update correction panel inputs if panel exists (gate-skip preserved it)
+            if (typeof _updateCorrPanelMeasurements === 'function') {
+                _updateCorrPanelMeasurements(sekcja);
+            }
         } else {
             input.style.outline = '2px solid var(--red, #dc2626)';
             setTimeout(function() { input.style.outline = ''; }, 2000);

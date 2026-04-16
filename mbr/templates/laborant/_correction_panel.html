@@ -308,7 +308,7 @@ function recomputeStandTotal(sekcja) {
     var kwasEl = document.getElementById('corr-manual-kwas-' + sekcja);
     var totalEl = document.getElementById('corr-total-woda-' + sekcja);
     if (!totalEl) return;
-    if (totalEl._userEdited || _restoreDraft(sekcja, 'total', totalEl)) return;
+    if (totalEl._userEdited) return;
     var woda = wodaEl ? _parsePl(wodaEl.value) : NaN;
     var kwas = kwasEl ? _parsePl(kwasEl.value) : NaN;
     if (isNaN(woda)) woda = 0;
@@ -950,6 +950,43 @@ function tryRenderCorrectionAfterGate(sekcja) {
                 etap_id:     standEtapId,
                 produkt:     produkt,
             });
+        }
+    }
+}
+
+// Update correction panel measurement inputs after a field save
+// Called when gate-skip prevented re-render but analytical values changed
+function _updateCorrPanelMeasurements(sekcja) {
+    var baseSekcja = sekcja.split('__')[0];
+    var sek = wyniki[baseSekcja] || wyniki[sekcja] || {};
+
+    // Standaryzacja V2 panel: update nD20 + pH wynik fields → recalculate
+    var nd20El = document.getElementById('corr-nd20-wynik-' + sekcja) ||
+                 document.getElementById('corr-nd20-wynik-' + baseSekcja);
+    var phEl = document.getElementById('corr-ph-wynik-' + sekcja) ||
+               document.getElementById('corr-ph-wynik-' + baseSekcja);
+    var updated = false;
+    if (nd20El && sek['nd20']) {
+        var newNd20 = String(sek['nd20'].wartosc).replace('.', ',');
+        if (nd20El.value !== newNd20) { nd20El.value = newNd20; updated = true; }
+    }
+    if (phEl && sek['ph_10proc']) {
+        var newPh = String(sek['ph_10proc'].wartosc).replace('.', ',');
+        if (phEl.value !== newPh) { phEl.value = newPh; updated = true; }
+    }
+    if (updated) {
+        // Recalculate suggestions (only overwrites non-edited fields)
+        if (typeof recomputeStandV2 === 'function') recomputeStandV2(sekcja);
+    }
+
+    // Perhydrol panel: update SO3 wynik → recalculate
+    var so3El = document.getElementById('corr-so3-wynik-' + sekcja) ||
+                document.getElementById('corr-so3-wynik-' + baseSekcja);
+    if (so3El && sek['so3']) {
+        var newSo3 = String(sek['so3'].wartosc).replace('.', ',');
+        if (so3El.value !== newSo3) {
+            so3El.value = newSo3;
+            if (typeof recomputePerhydrol === 'function') recomputePerhydrol(sekcja);
         }
     }
 }
