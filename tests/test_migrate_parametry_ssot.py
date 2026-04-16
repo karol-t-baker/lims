@@ -23,17 +23,17 @@ def _seed_minimal_catalog(db):
     db.executemany(
         "INSERT INTO parametry_analityczne (id, kod, label, typ, precision, aktywny) VALUES (?, ?, ?, ?, ?, 1)",
         [
-            (1, "ph", "pH", "bezposredni", 2),
-            (2, "dietanolamina", "%dietanolaminy", "titracja", 1),
-            (3, "barwa_I2", "Barwa jodowa", "bezposredni", 0),
-            (4, "gliceryny", "%gliceryny", "bezposredni", 2),
+            (100, "ph", "pH", "bezposredni", 2),
+            (101, "dietanolamina", "%dietanolaminy", "titracja", 1),
+            (102, "barwa_I2", "Barwa jodowa", "bezposredni", 0),
+            (103, "gliceryny", "%gliceryny", "bezposredni", 2),
         ],
     )
     db.executemany(
         "INSERT INTO etapy_analityczne (id, kod, nazwa, typ_cyklu) VALUES (?, ?, ?, ?)",
         [
-            (6, "analiza_koncowa", "Analiza końcowa", "jednorazowy"),
-            (7, "dodatki", "Dodatki standaryzacyjne", "cykliczny"),
+            (106, "analiza_koncowa", "Analiza końcowa", "jednorazowy"),
+            (107, "dodatki", "Dodatki standaryzacyjne", "cykliczny"),
         ],
     )
     db.commit()
@@ -47,3 +47,23 @@ def test_migrate_script_importable():
     assert callable(mod.main)
     assert callable(mod.preflight)
     assert callable(mod.postflight)
+
+
+def test_migrate_marks_as_applied(db):
+    """Migration should mark itself as applied in _migrations."""
+    from scripts.migrate_parametry_ssot import migrate, already_applied
+
+    _seed_minimal_catalog(db)
+    migrate(db)
+    assert already_applied(db) is True
+
+
+def test_migrate_skips_when_already_applied(db, capsys):
+    """Second call to migrate() should skip and print message."""
+    from scripts.migrate_parametry_ssot import migrate
+
+    _seed_minimal_catalog(db)
+    migrate(db)
+    migrate(db)  # second call
+    captured = capsys.readouterr()
+    assert "already applied — skipping" in captured.out
