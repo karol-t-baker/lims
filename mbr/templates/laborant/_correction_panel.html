@@ -310,10 +310,15 @@ async function advanceStandNewRound(sekcja) {
     if (kwasEl && kwasEl.value) {
         var kKg = parseFloat(kwasEl.value.replace(',', '.'));
         if (!isNaN(kKg) && kKg > 0) {
+            var kwasCalcEl = document.getElementById('corr-kwas-calc-' + sekcja);
+            var kwasCalcTxt = kwasCalcEl ? kwasCalcEl.textContent.replace(',', '.').replace(/[^0-9.]/g, '') : '';
+            var kwasWyliczona = parseFloat(kwasCalcTxt);
+            var kwasBody = { sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Kwas cytrynowy', ilosc: kKg };
+            if (!isNaN(kwasWyliczona) && kwasWyliczona > 0) kwasBody.ilosc_wyliczona = kwasWyliczona;
             var rk = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Kwas cytrynowy', ilosc: kKg })
+                body: JSON.stringify(kwasBody)
             });
             if (!rk.ok) corrErrors.push('Kwas cytrynowy');
         }
@@ -360,10 +365,15 @@ async function approveStandWithUwagi(sekcja) {
     if (kwasEl && kwasEl.value) {
         var kKg = parseFloat(kwasEl.value.replace(',', '.'));
         if (!isNaN(kKg) && kKg > 0) {
+            var kwasCalcEl = document.getElementById('corr-kwas-calc-' + sekcja);
+            var kwasCalcTxt = kwasCalcEl ? kwasCalcEl.textContent.replace(',', '.').replace(/[^0-9.]/g, '') : '';
+            var kwasWyliczona = parseFloat(kwasCalcTxt);
+            var kwasBody = { sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Kwas cytrynowy', ilosc: kKg };
+            if (!isNaN(kwasWyliczona) && kwasWyliczona > 0) kwasBody.ilosc_wyliczona = kwasWyliczona;
             var rk = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Kwas cytrynowy', ilosc: kKg })
+                body: JSON.stringify(kwasBody)
             });
             if (!rk.ok) corrErrors.push('Kwas cytrynowy');
         }
@@ -412,10 +422,15 @@ async function advanceWithStandV2(sekcja) {
     if (kwasEl && kwasEl.value) {
         var kKg = parseFloat(kwasEl.value.replace(',', '.'));
         if (!isNaN(kKg) && kKg > 0 && gate.sesja_id) {
+            var kwasCalcEl = document.getElementById('corr-kwas-calc-' + sekcja);
+            var kwasCalcTxt = kwasCalcEl ? kwasCalcEl.textContent.replace(',', '.').replace(/[^0-9.]/g, '') : '';
+            var kwasWyliczona = parseFloat(kwasCalcTxt);
+            var kwasBody = { sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Kwas cytrynowy', ilosc: kKg };
+            if (!isNaN(kwasWyliczona) && kwasWyliczona > 0) kwasBody.ilosc_wyliczona = kwasWyliczona;
             var rk = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Kwas cytrynowy', ilosc: kKg })
+                body: JSON.stringify(kwasBody)
             });
             if (!rk.ok) corrErrors.push('Kwas cytrynowy');
         }
@@ -694,10 +709,15 @@ async function advancePerhydrolWithStand(sekcja) {
     if (kwasEl && kwasEl.value) {
         var kKg = parseFloat(kwasEl.value.replace(',', '.'));
         if (!isNaN(kKg) && kKg > 0) {
+            var kwasCalcEl = document.getElementById('corr-kwas-calc-' + sekcja);
+            var kwasCalcTxt = kwasCalcEl ? kwasCalcEl.textContent.replace(',', '.').replace(/[^0-9.]/g, '') : '';
+            var kwasWyliczona = parseFloat(kwasCalcTxt);
+            var kwasBody = { sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Kwas cytrynowy', ilosc: kKg };
+            if (!isNaN(kwasWyliczona) && kwasWyliczona > 0) kwasBody.ilosc_wyliczona = kwasWyliczona;
             var rk = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Kwas cytrynowy', ilosc: kKg })
+                body: JSON.stringify(kwasBody)
             });
             if (!rk.ok) corrErrors.push('Kwas cytrynowy');
         }
