@@ -27,7 +27,7 @@ Standaryzacja is the **last cykliczny** stage → gets `sekcja_lab = "analiza"` 
 
 **Gate:** `so3 >= 0.09`
 
-**Corrections:** Na2SO3 (siarczyn sodu) (kg), Perhydrol 34% (kg, `jest_przejscie=1`)
+**Corrections:** Siarczyn sodu / Na₂SO₃ (kg), Perhydrol 34% (kg, `jest_przejscie=1`)
 
 ### Utlenienie (etap_id=5)
 
