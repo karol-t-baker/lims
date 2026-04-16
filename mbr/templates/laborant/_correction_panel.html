@@ -586,14 +586,14 @@ function recomputePerhydrol(sekcja) {
 
     if (calcEl) calcEl.textContent = formatted + ' kg';
     // Pre-fill manual field if empty (user hasn't typed anything yet)
-    if (manualEl && !manualEl.value && !manualEl._userEdited) {
+    if (manualEl && !manualEl.value && !manualEl._userEdited && !_restoreCorrEdit(sekcja, 'perhydrol', manualEl)) {
         manualEl.value = formatted;
     }
 }
 
 function onManualPerhydrolInput(sekcja) {
     var manualEl = document.getElementById('corr-manual-kg-' + sekcja);
-    if (manualEl) manualEl._userEdited = true;
+    if (manualEl) _markCorrEdited(sekcja, 'perhydrol', manualEl);
 }
 
 async function advanceWithPerhydrol(sekcja) {
