@@ -5414,9 +5414,9 @@ async function showDziennikView() {
 
     allRows.forEach(function(row) {
         if (row.type === 'stage') {
-            html += '<tr class="dz-stage-row"><td colspan="5">' + esc(row.nazwa) + '</td></tr>';
+            html += '<tr class="dz-stage-row"><td colspan="4">' + esc(row.nazwa) + '</td></tr>';
         } else if (row.type === 'empty') {
-            html += '<tr class="dz-data-row"><td></td><td colspan="3" style="color:var(--text-dim);font-size:10px;">' + esc(row.text) + '</td><td></td></tr>';
+            html += '<tr class="dz-data-row"><td></td><td colspan="2" style="color:var(--text-dim);font-size:10px;">' + esc(row.text) + '</td><td></td></tr>';
         } else if (row.type === 'data') {
             var statusHtml = '';
             if (row.errCnt > 0) statusHtml = '<span class="rh-badge rh-badge-err">' + row.errCnt + ' poza</span>';
@@ -5425,13 +5425,12 @@ async function showDziennikView() {
                 '<td><span class="dz-runda-nr">R' + row.runda + '</span></td>' +
                 '<td class="dz-mono">' + esc(row.vals) + '</td>' +
                 '<td>' + statusHtml + '</td>' +
-                '<td>\u2014</td>' +
                 '<td class="dz-actor">' + esc(row.wpisal) + (row.dt ? ' \u00b7 ' + row.dt : '') + '</td>' +
             '</tr>';
         } else if (row.type === 'kor') {
             html += '<tr class="dz-kor-row">' +
                 '<td></td>' +
-                '<td colspan="3">\u2192 ' + esc(row.substancja) + ' \u2014 ' + row.ilosc + ' ' + esc(row.jednostka) + '</td>' +
+                '<td colspan="2">\u2192 ' + esc(row.substancja) + ' \u2014 ' + row.ilosc + ' ' + esc(row.jednostka) + '</td>' +
                 '<td class="dz-actor">' + esc(row.zalecil) + '</td>' +
             '</tr>';
         }
