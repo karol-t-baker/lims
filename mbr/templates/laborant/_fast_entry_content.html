@@ -3528,6 +3528,15 @@ async function openPumpModal() {
     html += '<div class="pm-section-label" style="margin-top:16px;">Uwagi (opcjonalnie)</div>' +
         _uwagiFieldHtml('pm-uwagi');
 
+    // Direct packaging option
+    html += '<div style="margin-top:16px;padding-top:14px;border-top:1px dashed var(--border);">' +
+        '<div class="pm-section-label">Lub pakowanie bezpośrednie</div>' +
+        '<div style="display:flex;gap:8px;margin-top:6px;">' +
+            '<button class="pm-tank-pill" id="pm-pak-ibc" onclick="selectPumpPakType(\'IBC\')" style="padding:8px 20px;font-size:13px;">IBC</button>' +
+            '<button class="pm-tank-pill" id="pm-pak-beczki" onclick="selectPumpPakType(\'Beczki\')" style="padding:8px 20px;font-size:13px;">Beczki</button>' +
+        '</div>' +
+    '</div>';
+
     html += '</div>'; // end modal-body
 
     // Footer
@@ -3556,7 +3565,23 @@ function closePumpModal() {
     if (m) m.remove();
 }
 
+window._pumpPakBezp = null;
+
+function selectPumpPakType(typ) {
+    window._pumpPakBezp = typ;
+    _pumpSelected = {};
+    document.querySelectorAll('.pm-tank-pill[data-zid]').forEach(function(b) { b.classList.remove('pm-pill-active'); });
+    document.querySelectorAll('#pm-pak-ibc,#pm-pak-beczki').forEach(function(b) { b.classList.remove('pm-pill-active'); });
+    document.getElementById('pm-pak-' + typ.toLowerCase()).classList.add('pm-pill-active');
+    var btn = document.getElementById('pm-confirm-btn');
+    if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+    var ms = document.getElementById('pm-mass-section');
+    if (ms) ms.style.display = 'none';
+}
+
 function toggleTank(btn, zid, nr, cap) {
+    window._pumpPakBezp = null;
+    document.querySelectorAll('#pm-pak-ibc,#pm-pak-beczki').forEach(function(b) { b.classList.remove('pm-pill-active'); });
     if (_pumpSelected[zid]) {
         delete _pumpSelected[zid];
         btn.classList.remove('pm-pill-active');
@@ -3625,6 +3650,20 @@ function recalcLastMass() {
 
 async function confirmPump() {
     var keys = Object.keys(_pumpSelected);
+    if (window._pumpPakBezp && keys.length === 0) {
+        var btn = document.getElementById('pm-confirm-btn');
+        if (btn) { btn.textContent = 'Zatwierdzanie...'; btn.disabled = true; }
+        var uwagi = (document.getElementById('pm-uwagi') || {}).value || '';
+        var bodyObj = { zbiorniki: [], pakowanie_bezposrednie: window._pumpPakBezp };
+        if (uwagi.trim()) bodyObj.uwagi = uwagi.trim();
+        var resp = await fetch('/laborant/ebr/' + ebrId + '/complete', {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(bodyObj)
+        });
+        if (resp.ok || resp.redirected) { location.href = '/laborant/szarze'; }
+        return;
+    }
     if (keys.length === 0) return;
 
     // Edit mode: if batch already completed, just save links without re-completing
@@ -3754,7 +3793,20 @@ function editCompletedZbiorniki() {
     openPumpModal();
 }
 
-function completePompuj() { openPumpModal(); }
+var _batchPakBezp = '{{ ebr.pakowanie_bezposrednie|default("", true) }}';
+function completePompuj() {
+    if (_batchPakBezp) {
+        if (confirm('Zakończyć szarżę → ' + _batchPakBezp + '?')) {
+            fetch('/laborant/ebr/' + ebrId + '/complete', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({zbiorniki: [], pakowanie_bezposrednie: _batchPakBezp})
+            }).then(function(r) { if (r.ok) location.href = '/laborant/szarze'; });
+        }
+    } else {
+        openPumpModal();
+    }
+}
 
 async function loadCompletedSubstraty() {
     var el = document.getElementById('cv-substraty-list');
