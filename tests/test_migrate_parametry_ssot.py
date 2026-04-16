@@ -131,3 +131,36 @@ def test_alter_schema_idempotent(db):
     row = db.execute("SELECT dla_szarzy, dla_zbiornika, dla_platkowania FROM produkt_etap_limity WHERE produkt='TEST'").fetchone()
     assert row["dla_szarzy"] == 1
     assert row["dla_zbiornika"] == 0
+
+
+def test_ensure_pipeline_creates_entries_for_legacy_products(db):
+    from scripts.migrate_parametry_ssot import ensure_pipeline_for_legacy
+    _seed_minimal_catalog(db)
+    # Legacy product with no pipeline row, parametry_etapy uses kontekst='analiza_koncowa'
+    db.execute(
+        "INSERT INTO parametry_etapy (parametr_id, kontekst, produkt, min_limit, max_limit) "
+        "VALUES (1, 'analiza_koncowa', 'Chegina_K40GL', 0, 10)"
+    )
+    db.commit()
+    ensure_pipeline_for_legacy(db)
+    row = db.execute(
+        "SELECT etap_id FROM produkt_pipeline WHERE produkt='Chegina_K40GL'"
+    ).fetchone()
+    assert row is not None
+    assert row["etap_id"] == 6  # analiza_koncowa's etap_id from _seed_minimal_catalog
+
+
+def test_ensure_pipeline_idempotent(db):
+    from scripts.migrate_parametry_ssot import ensure_pipeline_for_legacy
+    _seed_minimal_catalog(db)
+    db.execute(
+        "INSERT INTO parametry_etapy (parametr_id, kontekst, produkt, min_limit, max_limit) "
+        "VALUES (1, 'analiza_koncowa', 'Chegina_K40GL', 0, 10)"
+    )
+    db.commit()
+    ensure_pipeline_for_legacy(db)
+    ensure_pipeline_for_legacy(db)  # must not duplicate
+    n = db.execute(
+        "SELECT COUNT(*) AS n FROM produkt_pipeline WHERE produkt='Chegina_K40GL'"
+    ).fetchone()["n"]
+    assert n == 1

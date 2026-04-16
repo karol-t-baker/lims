@@ -80,6 +80,53 @@ _NEW_COLUMNS = [
 ]
 
 
+# Known kontekst → etap kod mappings. cert_variant is not a measurement etap —
+# those rows go to parametry_cert instead and are NOT added to produkt_pipeline.
+_NON_ETAP_KONTEKSTY = {"cert_variant"}
+
+
+def _kontekst_to_etap_id(db: sqlite3.Connection, kontekst: str) -> int | None:
+    """Resolve kontekst name to etapy_analityczne.id. None if non-etap (cert_variant)."""
+    if kontekst in _NON_ETAP_KONTEKSTY:
+        return None
+    row = db.execute(
+        "SELECT id FROM etapy_analityczne WHERE kod=?", (kontekst,)
+    ).fetchone()
+    return row["id"] if row else None
+
+
+def ensure_pipeline_for_legacy(db: sqlite3.Connection) -> list[tuple[str, int]]:
+    """For each (produkt, kontekst) in parametry_etapy lacking a produkt_pipeline row,
+    create one. Returns list of (produkt, etap_id) inserts made."""
+    pairs = db.execute(
+        "SELECT DISTINCT produkt, kontekst FROM parametry_etapy "
+        "WHERE produkt IS NOT NULL"
+    ).fetchall()
+    inserted: list[tuple[str, int]] = []
+    for pair in pairs:
+        produkt = pair["produkt"]
+        kontekst = pair["kontekst"]
+        etap_id = _kontekst_to_etap_id(db, kontekst)
+        if etap_id is None:
+            continue
+        exists = db.execute(
+            "SELECT 1 FROM produkt_pipeline WHERE produkt=? AND etap_id=?",
+            (produkt, etap_id),
+        ).fetchone()
+        if exists:
+            continue
+        next_kol = db.execute(
+            "SELECT COALESCE(MAX(kolejnosc), 0) + 1 AS k FROM produkt_pipeline WHERE produkt=?",
+            (produkt,),
+        ).fetchone()["k"]
+        db.execute(
+            "INSERT INTO produkt_pipeline (produkt, etap_id, kolejnosc) VALUES (?, ?, ?)",
+            (produkt, etap_id, next_kol),
+        )
+        inserted.append((produkt, etap_id))
+    return inserted
+
+
 def alter_schema(db: sqlite3.Connection) -> None:
     """Add new columns to produkt_etap_limity if missing. Idempotent."""
     existing = {r["name"] for r in db.execute(
@@ -112,6 +159,11 @@ def migrate(db: sqlite3.Connection, dry_run: bool = False) -> None:
         print("Dry run — no changes will be committed.")
 
     alter_schema(db)
+    created_pipelines = ensure_pipeline_for_legacy(db)
+    if created_pipelines:
+        print(f"Created {len(created_pipelines)} produkt_pipeline entries for legacy products:")
+        for produkt, etap_id in created_pipelines:
+            print(f"  - {produkt} → etap_id={etap_id}")
 
     errors = postflight(db)
     if errors:
