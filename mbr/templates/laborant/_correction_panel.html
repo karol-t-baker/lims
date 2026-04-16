@@ -197,18 +197,37 @@ async function _renderStandaryzacjaV2Panel(container, sekcja, ctx) {
     recomputeStandTotal(sekcja);
 }
 
-// Persist manual correction edits across re-renders
-window._corrManualEdits = window._corrManualEdits || {};
+// Persist manual correction edits across re-renders AND page refreshes
+// Uses sessionStorage keyed by ebrId so values are per-batch, per-tab
+function _corrStorageKey() {
+    return 'corrEdits_' + (window.ebrId || 0);
+}
+
+function _loadCorrEdits() {
+    try {
+        var raw = sessionStorage.getItem(_corrStorageKey());
+        return raw ? JSON.parse(raw) : {};
+    } catch(e) { return {}; }
+}
+
+function _saveCorrEdits(edits) {
+    try { sessionStorage.setItem(_corrStorageKey(), JSON.stringify(edits)); } catch(e) {}
+}
+
+function _clearCorrEdits() {
+    try { sessionStorage.removeItem(_corrStorageKey()); } catch(e) {}
+}
 
 function _markCorrEdited(sekcja, field, el) {
     el._userEdited = true;
-    var key = sekcja + '__' + field;
-    window._corrManualEdits[key] = el.value;
+    var edits = _loadCorrEdits();
+    edits[sekcja + '__' + field] = el.value;
+    _saveCorrEdits(edits);
 }
 
 function _restoreCorrEdit(sekcja, field, el) {
-    var key = sekcja + '__' + field;
-    var saved = window._corrManualEdits[key];
+    var edits = _loadCorrEdits();
+    var saved = edits[sekcja + '__' + field];
     if (saved != null && saved !== '') {
         el.value = saved;
         el._userEdited = true;
@@ -349,7 +368,7 @@ async function advanceStandNewRound(sekcja) {
     }
 
     // Clear saved manual edits after successful correction save
-    window._corrManualEdits = {};
+    _clearCorrEdits();
 
     // Close session + start new round
     await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + gate.etap_id + '/close', {
@@ -406,7 +425,7 @@ async function approveStandWithUwagi(sekcja) {
         return;
     }
 
-    window._corrManualEdits = {};
+    _clearCorrEdits();
 
     // Close stage with pass (override gate) + save uwagi
     await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + gate.etap_id + '/close', {
@@ -465,7 +484,7 @@ async function advanceWithStandV2(sekcja) {
         return;
     }
 
-    window._corrManualEdits = {};
+    _clearCorrEdits();
 
     // Close current session before advancing
     if (gate.sesja_id && gate.etap_id) {
@@ -618,7 +637,7 @@ async function advanceWithPerhydrol(sekcja) {
         }
     }
 
-    window._corrManualEdits = {};
+    _clearCorrEdits();
 
     if (window._gatePassAction === 'new_round_utl') {
         // Utlenienie FAIL → close + new round (same stage)
