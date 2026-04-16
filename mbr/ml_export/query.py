@@ -10,7 +10,7 @@ import sqlite3
 from functools import lru_cache
 
 # Products with extended pipeline
-K7_PRODUCTS = {"Chegina_K7", "Chegina_K40GL", "Chegina_K40GLO", "Chegina_K40GLOL"}
+K7_PRODUCTS = {"Chegina_K7"}
 
 # Short prefixes for stage codes
 _STAGE_PREFIX = {
