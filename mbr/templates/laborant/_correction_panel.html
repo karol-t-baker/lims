@@ -131,7 +131,8 @@ async function _renderStandaryzacjaV2Panel(container, sekcja, ctx) {
             '<button class="gate-btn gate-btn-ok" onclick="completePompuj()">Przepompuj na zbiornik</button>';
     } else if (isNewRoundStand) {
         actionBtn =
-            '<button class="gate-btn gate-btn-warn" onclick="advanceStandNewRound(\'' + sekcja + '\')">Zale\u0107 korekt\u0119 + nowa runda \u2192</button>';
+            '<button class="gate-btn gate-btn-warn" onclick="advanceStandNewRound(\'' + sekcja + '\')">Zale\u0107 korekt\u0119 + nowa runda \u2192</button>' +
+            '<button class="gate-btn gate-btn-sec" style="margin-left:8px;" onclick="approveStandWithUwagi(\'' + sekcja + '\')">Zatwierd\u017A z uwagami</button>';
     } else if (isPerhydrolWithStand) {
         actionBtn =
             '<button class="gate-btn gate-btn-ok" onclick="advancePerhydrolWithStand(\'' + sekcja + '\')">Dodaj korekty + przejd\u017A do standaryzacji \u2192</button>';
@@ -331,6 +332,62 @@ async function advanceStandNewRound(sekcja) {
 
     if (typeof loadBatch === 'function') loadBatch(ebrId);
     else location.reload();
+}
+
+async function approveStandWithUwagi(sekcja) {
+    var gate = window._lastGate;
+    if (!gate || !gate.etap_id || !gate.sesja_id) return;
+
+    var uwagi = prompt('Wpisz uwagę dotyczącą małej korekty (np. "mały dodatek wody 5kg, pominięto powtórną analizę"):');
+    if (uwagi === null) return;
+    if (!uwagi.trim()) { alert('Uwaga nie może być pusta.'); return; }
+
+    // Save corrections if any entered
+    var corrErrors = [];
+    var totalWodaEl = document.getElementById('corr-total-woda-' + sekcja);
+    if (totalWodaEl && totalWodaEl.value) {
+        var wKg = parseFloat(totalWodaEl.value.replace(',', '.'));
+        if (!isNaN(wKg) && wKg > 0) {
+            var rw = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Woda', ilosc: wKg })
+            });
+            if (!rw.ok) corrErrors.push('Woda');
+        }
+    }
+    var kwasEl = document.getElementById('corr-manual-kwas-' + sekcja);
+    if (kwasEl && kwasEl.value) {
+        var kKg = parseFloat(kwasEl.value.replace(',', '.'));
+        if (!isNaN(kKg) && kKg > 0) {
+            var rk = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Kwas cytrynowy', ilosc: kKg })
+            });
+            if (!rk.ok) corrErrors.push('Kwas cytrynowy');
+        }
+    }
+    if (corrErrors.length > 0) {
+        alert('Błąd zapisu korekt: ' + corrErrors.join(', '));
+        return;
+    }
+
+    // Close stage with pass (override gate) + save uwagi
+    await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + gate.etap_id + '/close', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ sesja_id: gate.sesja_id, decyzja: 'przejscie', komentarz: uwagi })
+    });
+
+    // Save uwagi_koncowe
+    await fetch('/api/ebr/' + ebrId + '/uwagi', {
+        method: 'PUT',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ tekst: uwagi })
+    });
+
+    completePompuj();
 }
 
 async function advanceWithStandV2(sekcja) {
