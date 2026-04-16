@@ -23,8 +23,8 @@ find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 # Backup database before deploy
 mkdir -p data/backups
 cp data/batch_db.sqlite "data/backups/pre-deploy-$(date +%Y%m%d-%H%M%S).sqlite"
-# Keep only 10 newest backups
-ls -t data/backups/pre-deploy-*.sqlite 2>/dev/null | tail -n +11 | xargs rm -f 2>/dev/null
+# Disk cleanup: old backups, __pycache__, stale WAL
+/opt/lims/venv/bin/python -m scripts.cleanup_disk 2>/dev/null || true
 
 git pull origin main --quiet
 

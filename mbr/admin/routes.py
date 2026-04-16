@@ -72,11 +72,21 @@ def admin_panel():
         ).fetchall()
         feedback = [dict(r) for r in feedback]
     backups = _list_backups(backup_dir)
+    # Disk usage
+    import shutil
+    disk = shutil.disk_usage("/")
+    disk_info = {
+        "total_gb": round(disk.total / (1024**3), 1),
+        "used_gb": round(disk.used / (1024**3), 1),
+        "free_gb": round(disk.free / (1024**3), 1),
+        "percent": round(disk.used / disk.total * 100),
+    }
     return render_template(
         "admin/panel.html",
         backup_dir=str(backup_dir),
         backups=backups,
         feedback=feedback,
+        disk=disk_info,
     )
 
 
