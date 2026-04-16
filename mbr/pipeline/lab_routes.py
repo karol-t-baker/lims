@@ -330,7 +330,14 @@ def lab_create_korekta(ebr_id):
         if not korekta_typ_id:
             return jsonify({"error": "korekta_typ_id or substancja+etap_id required"}), 400
 
-        kid = pm.create_ebr_korekta(db, sesja_id, korekta_typ_id, ilosc, zalecil)
+        ilosc_wyliczona = data.get("ilosc_wyliczona")
+        if ilosc_wyliczona is not None:
+            try:
+                ilosc_wyliczona = float(ilosc_wyliczona)
+            except (ValueError, TypeError):
+                ilosc_wyliczona = None
+        kid = pm.create_ebr_korekta(db, sesja_id, korekta_typ_id, ilosc, zalecil,
+                                     ilosc_wyliczona=ilosc_wyliczona)
         db.commit()
         return jsonify({"id": kid}), 201
     finally:

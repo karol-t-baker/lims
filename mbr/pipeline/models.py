@@ -657,14 +657,15 @@ def create_ebr_korekta(
     korekta_typ_id: int,
     ilosc: float | None,
     zalecil: str | None,
+    ilosc_wyliczona: float | None = None,
 ) -> int:
     """Insert a correction recommendation. Returns new id."""
     now = datetime.now().isoformat(timespec="seconds")
     cur = db.execute(
         """INSERT INTO ebr_korekta_v2
-               (sesja_id, korekta_typ_id, ilosc, zalecil, dt_zalecenia)
-           VALUES (?, ?, ?, ?, ?)""",
-        (sesja_id, korekta_typ_id, ilosc, zalecil, now),
+               (sesja_id, korekta_typ_id, ilosc, ilosc_wyliczona, zalecil, dt_zalecenia)
+           VALUES (?, ?, ?, ?, ?, ?)""",
+        (sesja_id, korekta_typ_id, ilosc, ilosc_wyliczona, zalecil, now),
     )
     return cur.lastrowid
 
