@@ -260,7 +260,38 @@ def migrate_cert_fields(db: sqlite3.Connection) -> int:
 
 def postflight(db: sqlite3.Connection) -> list[str]:
     """Return list of post-migration validation errors. Empty list = OK."""
-    return []  # filled in later tasks
+    errors: list[str] = []
+
+    # Check 1: every active MBR template has at least one visible binding
+    rows = db.execute("""
+        SELECT mt.produkt
+        FROM mbr_templates mt
+        WHERE mt.status = 'active'
+          AND NOT EXISTS (
+            SELECT 1 FROM produkt_etap_limity pel
+             WHERE pel.produkt = mt.produkt
+               AND (pel.dla_szarzy=1 OR pel.dla_zbiornika=1 OR pel.dla_platkowania=1)
+          )
+    """).fetchall()
+    for r in rows:
+        errors.append(f"Active product '{r['produkt']}' has no visible bindings in produkt_etap_limity.")
+
+    # Check 2: no orphan bindings (etap_id not in that produkt's pipeline)
+    rows = db.execute("""
+        SELECT pel.produkt, pel.etap_id
+        FROM produkt_etap_limity pel
+        WHERE NOT EXISTS (
+            SELECT 1 FROM produkt_pipeline pp
+             WHERE pp.produkt = pel.produkt AND pp.etap_id = pel.etap_id
+        )
+    """).fetchall()
+    for r in rows:
+        errors.append(
+            f"Orphan binding: produkt='{r['produkt']}' etap_id={r['etap_id']} "
+            "has no matching produkt_pipeline row."
+        )
+
+    return errors
 
 
 def migrate(db: sqlite3.Connection, dry_run: bool = False) -> None:

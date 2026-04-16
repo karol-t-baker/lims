@@ -371,3 +371,43 @@ def test_migrate_cert_fields_handles_base_and_variant_same_param(db):
     # Second row: variant 10, requirement '80-90'
     assert rows[1]["variant_id"] == 10
     assert rows[1]["requirement"] == "80-90"
+
+
+def test_postflight_passes_on_healthy_migration(db):
+    from scripts.migrate_parametry_ssot import alter_schema, postflight
+    _seed_minimal_catalog(db)
+    alter_schema(db)
+    db.execute("INSERT INTO mbr_templates (mbr_id, produkt, status, dt_utworzenia) VALUES (1, 'Chelamid_DK', 'active', '2026-04-16T00:00:00')")
+    db.execute("INSERT INTO produkt_pipeline (produkt, etap_id, kolejnosc) VALUES ('Chelamid_DK', 6, 1)")
+    db.execute(
+        "INSERT INTO produkt_etap_limity (produkt, etap_id, parametr_id, dla_szarzy) "
+        "VALUES ('Chelamid_DK', 6, 1, 1)"
+    )
+    db.commit()
+    assert postflight(db) == []
+
+
+def test_postflight_fails_on_active_product_with_no_bindings(db):
+    from scripts.migrate_parametry_ssot import alter_schema, postflight
+    _seed_minimal_catalog(db)
+    alter_schema(db)
+    db.execute("INSERT INTO mbr_templates (mbr_id, produkt, status, dt_utworzenia) VALUES (1, 'Chelamid_DK', 'active', '2026-04-16T00:00:00')")
+    db.commit()
+    errors = postflight(db)
+    assert any("Chelamid_DK" in e and "no visible bindings" in e for e in errors)
+
+
+def test_postflight_fails_on_orphan_binding(db):
+    """produkt_etap_limity row for etap_id not in that produkt's pipeline."""
+    from scripts.migrate_parametry_ssot import alter_schema, postflight
+    _seed_minimal_catalog(db)
+    alter_schema(db)
+    db.execute("INSERT INTO mbr_templates (mbr_id, produkt, status, dt_utworzenia) VALUES (1, 'Chelamid_DK', 'active', '2026-04-16T00:00:00')")
+    db.execute("INSERT INTO produkt_pipeline (produkt, etap_id, kolejnosc) VALUES ('Chelamid_DK', 6, 1)")
+    db.execute(
+        "INSERT INTO produkt_etap_limity (produkt, etap_id, parametr_id, dla_szarzy) "
+        "VALUES ('Chelamid_DK', 7, 1, 1)"  # etap_id 7 NOT in pipeline for this produkt
+    )
+    db.commit()
+    errors = postflight(db)
+    assert any("orphan" in e.lower() for e in errors)
