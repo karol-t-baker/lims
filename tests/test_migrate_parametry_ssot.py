@@ -90,3 +90,17 @@ def test_preflight_passes_on_clean_db(db):
     from scripts.migrate_parametry_ssot import preflight
     _seed_minimal_catalog(db)
     assert preflight(db) == []
+
+
+def test_preflight_reports_products_without_pipeline(db):
+    from scripts.migrate_parametry_ssot import preflight
+    _seed_minimal_catalog(db)
+    # Chegina_K40GL has parametry_etapy rows but no produkt_pipeline row
+    db.execute(
+        "INSERT INTO parametry_etapy (parametr_id, kontekst, produkt, min_limit, max_limit) "
+        "VALUES (1, 'analiza_koncowa', 'Chegina_K40GL', 0, 10)"
+    )
+    db.commit()
+    blockers = preflight(db)
+    # Legacy-only products are NOT blockers — script auto-creates pipeline entries.
+    assert blockers == []
