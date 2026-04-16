@@ -2998,6 +2998,15 @@ async function startNewPipelineRound(sekcja) {
         }
     }
 
+    // Close current session before starting new round
+    if (gate.sesja_id) {
+        await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + gate.etap_id + '/close', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ sesja_id: gate.sesja_id, decyzja: 'new_round' })
+        });
+    }
+
     var resp = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + gate.etap_id + '/start', {
         method: 'POST'
     });
