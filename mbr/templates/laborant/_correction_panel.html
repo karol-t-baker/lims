@@ -218,6 +218,18 @@ function _clearCorrEdits() {
     try { sessionStorage.removeItem(_corrStorageKey()); } catch(e) {}
 }
 
+// Clean up old correction edits (keep only current batch)
+function _cleanOldCorrEdits() {
+    var currentKey = _corrStorageKey();
+    var toRemove = [];
+    for (var i = 0; i < sessionStorage.length; i++) {
+        var k = sessionStorage.key(i);
+        if (k && k.startsWith('corrEdits_') && k !== currentKey) toRemove.push(k);
+    }
+    toRemove.forEach(function(k) { sessionStorage.removeItem(k); });
+}
+_cleanOldCorrEdits();
+
 function _markCorrEdited(sekcja, field, el) {
     el._userEdited = true;
     var edits = _loadCorrEdits();
