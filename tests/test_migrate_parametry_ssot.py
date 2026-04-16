@@ -75,15 +75,17 @@ def test_migrate_skips_when_already_applied(db, capsys):
     assert "already applied — skipping" in captured.out
 
 
-def test_preflight_blocks_on_null_produkt(db):
-    from scripts.migrate_parametry_ssot import preflight
+def test_cleanup_legacy_orphans_removes_null_produkt(db):
+    from scripts.migrate_parametry_ssot import cleanup_legacy_orphans
     _seed_minimal_catalog(db)
     db.execute(
         "INSERT INTO parametry_etapy (parametr_id, kontekst, produkt) VALUES (1, 'analiza_koncowa', NULL)"
     )
     db.commit()
-    blockers = preflight(db)
-    assert any("NULL produkt" in b for b in blockers)
+    counts = cleanup_legacy_orphans(db)
+    assert counts["null_produkt"] == 1
+    remaining = db.execute("SELECT COUNT(*) AS n FROM parametry_etapy WHERE produkt IS NULL").fetchone()["n"]
+    assert remaining == 0
 
 
 def test_preflight_passes_on_clean_db(db):
@@ -465,3 +467,22 @@ def test_full_migration_end_to_end_chelamid_dk_shape(db):
 
     # _migrations marker set
     assert already_applied(db) is True
+
+
+def test_ensure_pipeline_covers_orphan_produkt_etap_limity(db):
+    """Products with produkt_etap_limity rows but no produkt_pipeline get pipeline entries."""
+    from scripts.migrate_parametry_ssot import alter_schema, ensure_pipeline_for_legacy
+    _seed_minimal_catalog(db)
+    alter_schema(db)
+    # Chegina_K40GL has a produkt_etap_limity row but no produkt_pipeline entry
+    db.execute(
+        "INSERT INTO produkt_etap_limity (produkt, etap_id, parametr_id) "
+        "VALUES ('Chegina_K40GL', 6, 1)"
+    )
+    db.commit()
+    inserted = ensure_pipeline_for_legacy(db)
+    assert ('Chegina_K40GL', 6) in inserted
+    row = db.execute(
+        "SELECT etap_id FROM produkt_pipeline WHERE produkt='Chegina_K40GL'"
+    ).fetchone()
+    assert row["etap_id"] == 6

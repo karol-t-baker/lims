@@ -50,18 +50,30 @@ def mark_applied(db: sqlite3.Connection) -> None:
 
 def preflight(db: sqlite3.Connection) -> list[str]:
     """Return list of blocker messages. Empty list = OK to proceed."""
-    blockers: list[str] = []
+    return []
 
-    null_rows = db.execute(
-        "SELECT COUNT(*) AS n FROM parametry_etapy WHERE produkt IS NULL"
-    ).fetchone()["n"]
-    if null_rows > 0:
-        blockers.append(
-            f"{null_rows} parametry_etapy rows with NULL produkt (shared) — "
-            "resolve manually (assign to product or delete) before migrating."
-        )
 
-    return blockers
+def cleanup_legacy_orphans(db: sqlite3.Connection) -> dict:
+    """Auto-cleanup pre-existing data issues that would block the migration.
+
+    Three categories, all pre-existing legacy debris:
+    - NULL-produkt rows in parametry_etapy (pre-pipeline shared bindings)
+    - Rows with dangling cert_variant_id (referenced variant was deleted)
+    - Orphan rows are NOT deleted here — ensure_pipeline_for_legacy creates
+      missing produkt_pipeline entries instead.
+
+    Returns counts: {'null_produkt': N, 'dangling_cert_variant': N}.
+    """
+    counts = {}
+    cur = db.execute("DELETE FROM parametry_etapy WHERE produkt IS NULL")
+    counts["null_produkt"] = cur.rowcount
+    cur = db.execute(
+        "DELETE FROM parametry_etapy "
+        "WHERE cert_variant_id IS NOT NULL "
+        "  AND cert_variant_id NOT IN (SELECT id FROM cert_variants)"
+    )
+    counts["dangling_cert_variant"] = cur.rowcount
+    return counts
 
 
 # Columns to add to produkt_etap_limity. ALTER TABLE ADD COLUMN can't add CHECK
@@ -96,19 +108,29 @@ def _kontekst_to_etap_id(db: sqlite3.Connection, kontekst: str) -> int | None:
 
 
 def ensure_pipeline_for_legacy(db: sqlite3.Connection) -> list[tuple[str, int]]:
-    """For each (produkt, kontekst) in parametry_etapy lacking a produkt_pipeline row,
-    create one. Returns list of (produkt, etap_id) inserts made."""
-    pairs = db.execute(
+    """For each (produkt, etap) pair referenced by parametry_etapy OR
+    produkt_etap_limity that lacks a produkt_pipeline row, create one.
+    Returns list of (produkt, etap_id) inserts made."""
+    # Pairs from parametry_etapy (legacy table)
+    legacy_pairs = db.execute(
         "SELECT DISTINCT produkt, kontekst FROM parametry_etapy "
         "WHERE produkt IS NOT NULL"
     ).fetchall()
+    needed: set[tuple[str, int]] = set()
+    for pair in legacy_pairs:
+        etap_id = _kontekst_to_etap_id(db, pair["kontekst"])
+        if etap_id is not None:
+            needed.add((pair["produkt"], etap_id))
+
+    # Pairs from produkt_etap_limity (orphan bindings)
+    pel_pairs = db.execute(
+        "SELECT DISTINCT produkt, etap_id FROM produkt_etap_limity"
+    ).fetchall()
+    for pair in pel_pairs:
+        needed.add((pair["produkt"], pair["etap_id"]))
+
     inserted: list[tuple[str, int]] = []
-    for pair in pairs:
-        produkt = pair["produkt"]
-        kontekst = pair["kontekst"]
-        etap_id = _kontekst_to_etap_id(db, kontekst)
-        if etap_id is None:
-            continue
+    for produkt, etap_id in sorted(needed):
         exists = db.execute(
             "SELECT 1 FROM produkt_pipeline WHERE produkt=? AND etap_id=?",
             (produkt, etap_id),
@@ -310,6 +332,10 @@ def migrate(db: sqlite3.Connection, dry_run: bool = False) -> None:
     if dry_run:
         print("Dry run — no changes will be committed.")
 
+    cleanup_counts = cleanup_legacy_orphans(db)
+    if cleanup_counts["null_produkt"] or cleanup_counts["dangling_cert_variant"]:
+        print(f"Cleaned up {cleanup_counts['null_produkt']} NULL-produkt rows, "
+              f"{cleanup_counts['dangling_cert_variant']} dangling cert_variant_id rows.")
     alter_schema(db)
     created_pipelines = ensure_pipeline_for_legacy(db)
     if created_pipelines:

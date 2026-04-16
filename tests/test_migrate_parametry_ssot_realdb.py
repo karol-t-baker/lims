@@ -55,25 +55,6 @@ def _post_migration_snapshot(db):
 def test_chelamid_dk_shape_unchanged_after_migration(real_db_copy):
     from scripts.migrate_parametry_ssot import migrate
 
-    # Clean up legacy NULL-produkt rows (shared parameters from old system)
-    # These are not product-specific and should be resolved before migration.
-    real_db_copy.execute("DELETE FROM parametry_etapy WHERE produkt IS NULL")
-
-    # Clean up rows referencing non-existent cert_variants (data integrity)
-    real_db_copy.execute(
-        "DELETE FROM parametry_etapy WHERE cert_variant_id NOT IN "
-        "(SELECT id FROM cert_variants) AND cert_variant_id IS NOT NULL"
-    )
-
-    # Clean up orphan produkt_etap_limity rows that have no matching produkt_pipeline
-    # (These are bindings for etap_ids that shouldn't exist for that product)
-    real_db_copy.execute(
-        "DELETE FROM produkt_etap_limity WHERE "
-        "(produkt, etap_id) NOT IN (SELECT produkt, etap_id FROM produkt_pipeline)"
-    )
-
-    real_db_copy.commit()
-
     before = [dict(r) for r in _pre_migration_snapshot(real_db_copy)]
     migrate(real_db_copy)
     after = [dict(r) for r in _post_migration_snapshot(real_db_copy)]
