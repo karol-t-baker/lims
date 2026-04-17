@@ -66,13 +66,14 @@ def test_calc_methods(db):
 
 
 def test_etapy_config_k7(db):
+    """After MVP cleanup K7 has 3 etapy: sulfonowanie, utlenienie, standaryzacja.
+    Pre-MVP also included amidowanie/namca/czwartorzedowanie."""
     cfg = get_etapy_config(db, "Chegina_K7")
-    assert "amidowanie" in cfg
     assert "sulfonowanie" in cfg
     assert "utlenienie" in cfg
+    assert "standaryzacja" in cfg
+    assert "amidowanie" not in cfg
     assert "rozjasnianie" not in cfg
-    assert cfg["amidowanie"]["korekty"] == ["DMAPA", "Wydłużenie czasu"]
-    assert len(cfg["amidowanie"]["parametry"]) == 5
 
 
 def test_etapy_config_glol(db):

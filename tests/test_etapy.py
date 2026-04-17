@@ -170,10 +170,11 @@ def test_get_korekty_empty_for_no_matches(db):
 # get_process_stages
 # ---------------------------------------------------------------------------
 
-def test_get_process_stages_k7_returns_5(db):
+def test_get_process_stages_k7_returns_3(db):
+    """After MVP cleanup 2026-04-16 K7 has 3 process stages (sulfonowanie,
+    utlenienie, standaryzacja). Pre-MVP was 5 stages (PROCESS_STAGES_K7)."""
     stages = get_process_stages("Chegina_K7")
-    assert len(stages) == 5
-    assert stages == list(PROCESS_STAGES_K7)
+    assert stages == ["sulfonowanie", "utlenienie", "standaryzacja"]
 
 
 def test_get_process_stages_glol_returns_6(db):
@@ -249,12 +250,13 @@ def test_init_etapy_status_parallel_stages_start_as_in_progress(db):
 
 
 def test_init_etapy_status_non_parallel_stages_start_as_pending(db):
+    """After MVP cleanup K7 has 3 process stages: sulfonowanie, utlenienie, standaryzacja.
+    First stage (sulfonowanie) is in_progress, others are pending."""
     init_etapy_status(db, ebr_id=12, produkt="Chegina_K7")
 
     statuses = {s["etap"]: s for s in get_etapy_status(db, ebr_id=12)}
-    assert statuses["czwartorzedowanie"]["status"] == "pending"
-    assert statuses["sulfonowanie"]["status"] == "pending"
     assert statuses["utlenienie"]["status"] == "pending"
+    assert statuses["standaryzacja"]["status"] == "pending"
 
 
 @pytest.mark.skip(reason=_K40GLO_PIPELINE_SKIP)
@@ -300,32 +302,35 @@ def test_zatwierdz_etap_approves_and_returns_next(db):
     assert statuses["czwartorzedowanie"]["status"] == "in_progress"
 
 
-def test_zatwierdz_etap_sequential_advances_to_sulfonowanie(db):
+def test_zatwierdz_etap_sequential_advances(db):
+    """After MVP cleanup K7 workflow is sulfonowanie → utlenienie → standaryzacja.
+    Closing sulfonowanie returns 'utlenienie'."""
     init_etapy_status(db, ebr_id=21, produkt="Chegina_K7")
-    zatwierdz_etap(db, ebr_id=21, etap="amidowanie", user="u", produkt="Chegina_K7")
-    zatwierdz_etap(db, ebr_id=21, etap="smca", user="u", produkt="Chegina_K7")
-    next_e = zatwierdz_etap(db, ebr_id=21, etap="czwartorzedowanie", user="u", produkt="Chegina_K7")
+    next_e = zatwierdz_etap(db, ebr_id=21, etap="sulfonowanie", user="u", produkt="Chegina_K7")
 
-    assert next_e == "sulfonowanie"
+    assert next_e == "utlenienie"
 
 
 def test_zatwierdz_etap_last_stage_returns_none(db):
+    """After MVP cleanup 2026-04-16 K7 workflow is {sulfonowanie, utlenienie,
+    standaryzacja}. Closing the last stage returns None."""
     init_etapy_status(db, ebr_id=22, produkt="Chegina_K7")
-    for etap in ("amidowanie", "smca", "czwartorzedowanie", "sulfonowanie"):
+    for etap in ("sulfonowanie", "utlenienie"):
         zatwierdz_etap(db, ebr_id=22, etap=etap, user="u", produkt="Chegina_K7")
 
-    result = zatwierdz_etap(db, ebr_id=22, etap="utlenienie", user="u", produkt="Chegina_K7")
+    result = zatwierdz_etap(db, ebr_id=22, etap="standaryzacja", user="u", produkt="Chegina_K7")
     assert result is None
 
 
 def test_zatwierdz_etap_marks_stage_as_done(db):
+    """After MVP cleanup K7 first stage is sulfonowanie (not amidowanie)."""
     init_etapy_status(db, ebr_id=23, produkt="Chegina_K7")
-    zatwierdz_etap(db, ebr_id=23, etap="amidowanie", user="operator", produkt="Chegina_K7")
+    zatwierdz_etap(db, ebr_id=23, etap="sulfonowanie", user="operator", produkt="Chegina_K7")
 
     statuses = {s["etap"]: s for s in get_etapy_status(db, ebr_id=23)}
-    assert statuses["amidowanie"]["status"] == "done"
-    assert statuses["amidowanie"]["zatwierdzil"] == "operator"
-    assert statuses["amidowanie"]["dt_end"] is not None
+    assert statuses["sulfonowanie"]["status"] == "done"
+    assert statuses["sulfonowanie"]["zatwierdzil"] == "operator"
+    assert statuses["sulfonowanie"]["dt_end"] is not None
 
 
 # ---------------------------------------------------------------------------
