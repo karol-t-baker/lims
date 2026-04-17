@@ -358,3 +358,85 @@ def test_dual_write_dodatki_returns_none(db):
     gate = pipeline_dual_write(db, ebr_id=1, sekcja="dodatki__1",
                                values={"korekta_woda": 50.0}, wpisal="lab1")
     assert gate is None
+
+
+# ---------------------------------------------------------------------------
+# PR 2 — typ-flag filter for build_pipeline_context
+# ---------------------------------------------------------------------------
+
+def _seed_produkt_with_flags(db, produkt="TEST_P", etap_id=6):
+    """Seed a product with pipeline + produkt_etap_limity rows of varying flags.
+
+    Returns (ph_id, dea_id, barwa_id) for test assertions.
+    - ph:    dla_szarzy=1, dla_zbiornika=1  (visible in both)
+    - dea:   dla_szarzy=0, dla_zbiornika=1  (zbiornik only)
+    - barwa: dla_szarzy=1, dla_zbiornika=0  (szarza only)
+    """
+    db.execute("DELETE FROM parametry_analityczne")
+    db.executemany(
+        "INSERT INTO parametry_analityczne (id, kod, label, typ, precision, aktywny) "
+        "VALUES (?, ?, ?, ?, ?, 1)",
+        [(1, "ph", "pH", "bezposredni", 2),
+         (2, "dea", "DEA", "bezposredni", 2),
+         (3, "barwa", "Barwa", "bezposredni", 0)],
+    )
+    db.execute(
+        "INSERT OR IGNORE INTO etapy_analityczne (id, kod, nazwa, typ_cyklu) "
+        "VALUES (?, ?, ?, ?)",
+        (etap_id, "analiza_koncowa", "Analiza końcowa", "jednorazowy"),
+    )
+    db.execute(
+        "INSERT INTO produkt_pipeline (produkt, etap_id, kolejnosc) VALUES (?, ?, 1)",
+        (produkt, etap_id),
+    )
+    db.execute(
+        "INSERT INTO produkt_etap_limity "
+        "(produkt, etap_id, parametr_id, dla_szarzy, dla_zbiornika, dla_platkowania, kolejnosc) "
+        "VALUES (?, ?, 1, 1, 1, 0, 1)",
+        (produkt, etap_id),
+    )
+    db.execute(
+        "INSERT INTO produkt_etap_limity "
+        "(produkt, etap_id, parametr_id, dla_szarzy, dla_zbiornika, dla_platkowania, kolejnosc) "
+        "VALUES (?, ?, 2, 0, 1, 0, 2)",
+        (produkt, etap_id),
+    )
+    db.execute(
+        "INSERT INTO produkt_etap_limity "
+        "(produkt, etap_id, parametr_id, dla_szarzy, dla_zbiornika, dla_platkowania, kolejnosc) "
+        "VALUES (?, ?, 3, 1, 0, 0, 3)",
+        (produkt, etap_id),
+    )
+    db.commit()
+
+
+def test_build_pipeline_context_filters_by_typ_szarza(db):
+    from mbr.pipeline.adapter import build_pipeline_context
+    _seed_produkt_with_flags(db, "TEST_P")
+    ctx = build_pipeline_context(db, "TEST_P", typ="szarza")
+    kods = [p["kod"] for p in ctx["parametry_lab"]["analiza_koncowa"]["pola"]]
+    assert kods == ["ph", "barwa"]  # dea has dla_szarzy=0
+
+
+def test_build_pipeline_context_filters_by_typ_zbiornik(db):
+    from mbr.pipeline.adapter import build_pipeline_context
+    _seed_produkt_with_flags(db, "TEST_P")
+    ctx = build_pipeline_context(db, "TEST_P", typ="zbiornik")
+    kods = [p["kod"] for p in ctx["parametry_lab"]["analiza_koncowa"]["pola"]]
+    assert kods == ["ph", "dea"]  # barwa has dla_zbiornika=0
+
+
+def test_build_pipeline_context_no_typ_returns_union(db):
+    from mbr.pipeline.adapter import build_pipeline_context
+    _seed_produkt_with_flags(db, "TEST_P")
+    ctx = build_pipeline_context(db, "TEST_P", typ=None)
+    kods = [p["kod"] for p in ctx["parametry_lab"]["analiza_koncowa"]["pola"]]
+    assert kods == ["ph", "dea", "barwa"]  # all three visible, ordered by kolejnosc
+
+
+def test_build_pipeline_context_platkowanie_respects_flag(db):
+    from mbr.pipeline.adapter import build_pipeline_context
+    _seed_produkt_with_flags(db, "TEST_P")
+    ctx = build_pipeline_context(db, "TEST_P", typ="platkowanie")
+    kods = [p["kod"] for p in ctx["parametry_lab"]["analiza_koncowa"]["pola"]]
+    assert kods == []  # no params have dla_platkowania=1
