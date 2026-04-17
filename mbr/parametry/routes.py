@@ -632,3 +632,55 @@ def api_bindings_list():
         ).fetchall()
 
     return jsonify([dict(r) for r in rows])
+
+
+_BINDING_FIELDS = {
+    "min_limit", "max_limit", "precision", "nawazka_g", "spec_value",
+    "kolejnosc", "grupa", "formula", "sa_bias", "krok", "wymagany",
+    "dla_szarzy", "dla_zbiornika", "dla_platkowania",
+}
+
+_BINDING_DEFAULTS = {
+    "kolejnosc": 0,
+    "grupa": "lab",
+    "wymagany": 0,
+    "dla_szarzy": 1,
+    "dla_zbiornika": 1,
+    "dla_platkowania": 0,
+}
+
+
+@parametry_bp.route("/api/bindings", methods=["POST"])
+@login_required
+def api_bindings_create():
+    """Create a new produkt_etap_limity binding."""
+    import sqlite3 as _sqlite3
+    data = request.get_json(silent=True) or {}
+    produkt = (data.get("produkt") or "").strip()
+    etap_id = data.get("etap_id")
+    parametr_id = data.get("parametr_id")
+    if not produkt or not etap_id or not parametr_id:
+        return jsonify({"error": "produkt, etap_id, parametr_id are required"}), 400
+
+    row_fields = {k: data[k] for k in _BINDING_FIELDS if k in data}
+    for k, v in _BINDING_DEFAULTS.items():
+        row_fields.setdefault(k, v)
+
+    cols = ["produkt", "etap_id", "parametr_id"] + list(row_fields.keys())
+    vals = [produkt, etap_id, parametr_id] + list(row_fields.values())
+    placeholders = ", ".join("?" * len(cols))
+    col_clause = ", ".join(cols)
+
+    with db_session() as db:
+        try:
+            cur = db.execute(
+                f"INSERT INTO produkt_etap_limity ({col_clause}) VALUES ({placeholders})",
+                vals,
+            )
+            db.commit()
+            return jsonify({"ok": True, "id": cur.lastrowid})
+        except _sqlite3.IntegrityError as e:
+            msg = str(e)
+            if "UNIQUE" in msg:
+                return jsonify({"error": "duplicate binding"}), 409
+            return jsonify({"error": msg}), 400
