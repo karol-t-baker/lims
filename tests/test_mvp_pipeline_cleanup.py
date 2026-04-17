@@ -415,3 +415,22 @@ def test_full_migrate_cleans_state_correctly(db):
     assert already_applied(db) is True
 
 
+def test_dry_run_rolls_back_data_changes(db):
+    from scripts.mvp_pipeline_cleanup import migrate, already_applied
+    _seed_full_pipeline_state(db)
+
+    migrate(db, dry_run=True)
+
+    # K40GL still has 5 pipeline rows, K7 still has dodatki
+    assert db.execute(
+        "SELECT COUNT(*) AS n FROM produkt_pipeline WHERE produkt='Chegina_K40GL'"
+    ).fetchone()["n"] == 5
+    assert db.execute(
+        "SELECT COUNT(*) AS n FROM produkt_pipeline pp "
+        "JOIN etapy_analityczne ea ON pp.etap_id=ea.id "
+        "WHERE pp.produkt='Chegina_K7' AND ea.kod='dodatki'"
+    ).fetchone()["n"] == 1
+    # Marker NOT set
+    assert already_applied(db) is False
+
+
