@@ -1063,6 +1063,7 @@ var userGrupa = "{{ session.get('user', {}).get('default_grupa', '') }}";
 var ebrNastaw = {{ ebr.wielkosc_szarzy_kg or ebr.nastaw or 0 }};
 var etapy = window.etapy = {{ (ebr.etapy_json if ebr.etapy_json is string else ebr.etapy_json | tojson) | safe }};
 var parametry = window.parametry = {{ (ebr.parametry_lab if ebr.parametry_lab is string else ebr.parametry_lab | tojson) | safe }};
+var parametryAll = window.parametryAll = {{ (parametry_lab_all | tojson) | safe }};
 var wyniki = window.wyniki = {{ wyniki | tojson | safe }};
 var roundState = window.roundState = {{ round_state | tojson | safe }};
 var pipelineSesjaMap = window.pipelineSesjaMap = {{ pipeline_sesja_map | default({}, true) | tojson }};
@@ -1076,16 +1077,17 @@ window._etapyStatus = _etapyStatus;
 
 var TITR_TAGS_LEGACY = ['procent_sa', 'procent_nacl', 'procent_aa', 'procent_so3', 'procent_h2o2', 'lk', 'le_liczba_kwasowa'];
 
-function getPola(sekcja, grupaFilter) {
-    // Strip round suffix to find base key in parametry
+function getPola(sekcja, grupaFilter, fromAll) {
+    var source = fromAll ? parametryAll : parametry;
+    // Strip round suffix to find base key in source dict
     var baseKey = sekcja.replace(/__\d+$/, '');
-    var s = parametry[baseKey];
+    var s = source[baseKey];
     if (!s) {
         // Fallback: analiza_koncowa → analiza (zbiornik uses analiza fields for koncowa)
-        if (baseKey === 'analiza_koncowa' && parametry['analiza']) {
-            s = parametry['analiza'];
+        if (baseKey === 'analiza_koncowa' && source['analiza']) {
+            s = source['analiza'];
         } else {
-            s = parametry[sekcja];
+            s = source[sekcja];
         }
     }
     if (!s) return [];
@@ -1653,8 +1655,8 @@ function renderCompletedView() {
     }
 
     var fallbackSekcja = hasSingleAnaliza ? 'analiza_koncowa' : 'analiza';
-    var pola = getPola(lastAnaliza || fallbackSekcja, null);
-    if (!pola.length && lastAnaliza) pola = getPola(fallbackSekcja, null);
+    var pola = getPola(lastAnaliza || fallbackSekcja, null, true);
+    if (!pola.length && lastAnaliza) pola = getPola(fallbackSekcja, null, true);
     var errCount = 0;
     var okCount = 0;
     Object.values(finalWyniki).forEach(function(r) {
