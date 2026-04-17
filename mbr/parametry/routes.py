@@ -184,59 +184,6 @@ def api_parametry_etapy_create():
     return jsonify({"ok": True, "id": new_id})
 
 
-@parametry_bp.route("/api/parametry/etapy/<int:binding_id>", methods=["PUT"])
-@login_required
-def api_parametry_etapy_update(binding_id):
-    """Update binding fields. Works for both parametry_etapy and produkt_etap_limity."""
-    data = request.get_json(silent=True) or {}
-
-    with db_session() as db:
-        # Check if this binding_id belongs to produkt_etap_limity (pipeline)
-        pel_row = db.execute(
-            "SELECT id FROM produkt_etap_limity WHERE id=?", (binding_id,)
-        ).fetchone()
-
-        if pel_row:
-            # Pipeline mode: update produkt_etap_limity
-            # Frontend sends "target" but column is now "spec_value"
-            if "target" in data and "spec_value" not in data:
-                data["spec_value"] = data.pop("target")
-            allowed = {"nawazka_g", "min_limit", "max_limit", "spec_value", "precision"}
-            updates = {k: v for k, v in data.items() if k in allowed}
-            if not updates:
-                return jsonify({"error": "No valid fields"}), 400
-            # For limit fields, store '' (empty string) instead of NULL
-            # to distinguish "explicitly no limit" from "no override".
-            for lf in ("min_limit", "max_limit"):
-                if lf in updates and updates[lf] is None:
-                    updates[lf] = ''
-            sets = ", ".join(f"{k}=?" for k in updates)
-            vals = list(updates.values()) + [binding_id]
-            db.execute(f"UPDATE produkt_etap_limity SET {sets} WHERE id=?", vals)
-            db.commit()
-            return jsonify({"ok": True})
-
-        # Legacy mode: update parametry_etapy
-        allowed = {"nawazka_g", "min_limit", "max_limit", "target", "kolejnosc", "formula", "sa_bias", "precision", "grupa"}
-        updates = {k: v for k, v in data.items() if k in allowed}
-        if not updates:
-            return jsonify({"error": "No valid fields"}), 400
-        sets = ", ".join(f"{k}=?" for k in updates)
-        vals = list(updates.values()) + [binding_id]
-        db.execute(f"UPDATE parametry_etapy SET {sets} WHERE id=?", vals)
-        row = db.execute(
-            "SELECT produkt FROM parametry_etapy WHERE id=?", (binding_id,)
-        ).fetchone()
-        if row and row["produkt"]:
-            plab = build_parametry_lab(db, row["produkt"])
-            db.execute(
-                "UPDATE mbr_templates SET parametry_lab=? WHERE produkt=? AND status='active'",
-                (_json.dumps(plab, ensure_ascii=False), row["produkt"]),
-            )
-        db.commit()
-    return jsonify({"ok": True})
-
-
 @parametry_bp.route("/api/parametry/sa-bias", methods=["PUT"])
 @login_required
 def api_parametry_sa_bias():
@@ -305,20 +252,6 @@ def api_parametry_sa_bias():
     return jsonify({"ok": True})
 
 
-@parametry_bp.route("/api/parametry/etapy/<int:binding_id>", methods=["DELETE"])
-@login_required
-def api_parametry_etapy_delete(binding_id):
-    """Delete a binding. Works for both parametry_etapy and produkt_etap_limity."""
-    with db_session() as db:
-        pel = db.execute("SELECT id FROM produkt_etap_limity WHERE id=?", (binding_id,)).fetchone()
-        if pel:
-            db.execute("DELETE FROM produkt_etap_limity WHERE id=?", (binding_id,))
-        else:
-            db.execute("DELETE FROM parametry_etapy WHERE id=?", (binding_id,))
-        db.commit()
-    return jsonify({"ok": True})
-
-
 @parametry_bp.route("/api/parametry/available")
 @login_required
 def api_parametry_available():
@@ -360,112 +293,6 @@ def api_parametry_available():
             "FROM parametry_analityczne WHERE aktywny=1 ORDER BY typ, kod"
         ).fetchall()
     return jsonify([dict(r) for r in rows])
-
-
-@parametry_bp.route("/api/parametry/etapy/<produkt>/<kontekst>")
-@login_required
-def api_parametry_etapy_list(produkt, kontekst):
-    """List raw etapy bindings for product+kontekst, with parameter info.
-
-    For pipeline products, reads from produkt_etap_limity + etap_parametry
-    instead of parametry_etapy, returning the same format.
-    """
-    with db_session() as db:
-        from mbr.pipeline.models import get_produkt_pipeline
-        pipeline = get_produkt_pipeline(db, produkt)
-        if pipeline:
-            return _list_pipeline_bindings(db, produkt, kontekst, pipeline)
-
-        rows = db.execute(
-            "SELECT pe.id, pe.parametr_id, pe.produkt, pe.kontekst, pe.min_limit, pe.max_limit, "
-            "pe.target, pe.nawazka_g, pe.kolejnosc, pe.formula, pe.sa_bias, pe.precision, pe.grupa, "
-            "pa.kod, pa.label, pa.skrot, pa.typ "
-            "FROM parametry_etapy pe "
-            "JOIN parametry_analityczne pa ON pa.id = pe.parametr_id "
-            "WHERE (pe.produkt = ? OR pe.produkt IS NULL) AND pe.kontekst = ? "
-            "ORDER BY pe.kolejnosc, pa.kod",
-            (produkt, kontekst),
-        ).fetchall()
-    return jsonify([dict(r) for r in rows])
-
-
-def _list_pipeline_bindings(db, produkt, kontekst, pipeline):
-    """Return pipeline bindings in the same format as parametry_etapy rows."""
-    from mbr.pipeline.models import resolve_limity
-
-    # Map kontekst to pipeline etap_id
-    # "analiza_koncowa" or "analiza" → find the matching stage
-    etap_id = None
-    cykliczne = [s for s in pipeline if s["typ_cyklu"] == "cykliczny"]
-    main_cykliczny_id = cykliczne[-1]["etap_id"] if cykliczne else None
-
-    for step in pipeline:
-        if step["typ_cyklu"] == "cykliczny" and step["etap_id"] == main_cykliczny_id:
-            if kontekst in ("analiza_koncowa", "analiza"):
-                etap_id = step["etap_id"]
-                break
-        elif step["kod"] == kontekst:
-            etap_id = step["etap_id"]
-            break
-
-    if etap_id is None:
-        return jsonify([])
-
-    resolved = resolve_limity(db, produkt, etap_id)
-    # Filter to product-specific params
-    product_param_ids = {r[0] for r in db.execute(
-        "SELECT parametr_id FROM produkt_etap_limity WHERE produkt = ? AND etap_id = ?",
-        (produkt, etap_id),
-    ).fetchall()}
-
-    result = []
-    for r in resolved:
-        if product_param_ids and r["parametr_id"] not in product_param_ids:
-            continue
-        # Use produkt_etap_limity.id as binding id (prefixed to avoid collision)
-        pel_row = db.execute(
-            "SELECT id FROM produkt_etap_limity WHERE produkt=? AND etap_id=? AND parametr_id=?",
-            (produkt, etap_id, r["parametr_id"]),
-        ).fetchone()
-        binding_id = pel_row["id"] if pel_row else r["ep_id"]
-
-        result.append({
-            "id": binding_id,
-            "parametr_id": r["parametr_id"],
-            "produkt": produkt,
-            "kontekst": kontekst,
-            "min_limit": r["min_limit"],
-            "max_limit": r["max_limit"],
-            "target": r.get("spec_value") or r.get("target"),
-            "nawazka_g": r["nawazka_g"],
-            "kolejnosc": r["kolejnosc"],
-            "formula": r["formula"],
-            "sa_bias": r["sa_bias"],
-            "precision": r["precision"],
-            "grupa": r["grupa"],
-            "kod": r["kod"],
-            "label": r["label"],
-            "skrot": r["skrot"],
-            "typ": r["typ"],
-            "_pipeline": True,
-            "_etap_id": etap_id,
-        })
-    return jsonify(result)
-
-
-@parametry_bp.route("/api/parametry/etapy/reorder", methods=["POST"])
-@login_required
-def api_parametry_etapy_reorder():
-    """Batch-update kolejnosc for multiple bindings. Body: {bindings: [{id, kolejnosc}, ...]}"""
-    data = request.get_json(silent=True) or {}
-    bindings = data.get("bindings", [])
-    if not bindings:
-        return jsonify({"error": "bindings required"}), 400
-    with db_session() as db:
-        for b in bindings:
-            db.execute("UPDATE parametry_etapy SET kolejnosc=? WHERE id=?", (b["kolejnosc"], b["id"]))
-        db.commit()
-    return jsonify({"ok": True})
 
 
 # ═══ PRODUKTY ═══
