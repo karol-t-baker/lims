@@ -80,28 +80,59 @@ def list_completed_registry(
 
 def get_registry_columns(db: sqlite3.Connection, produkt: str) -> list:
     """Get column definitions (parameter names + limits) for a product's registry table.
-    Uses skrot from parametry_analityczne as label where available."""
-    mbr = db.execute(
-        "SELECT parametry_lab FROM mbr_templates WHERE produkt = ? AND status = 'active'",
-        (produkt,)
-    ).fetchone()
-    if not mbr:
+
+    Reads directly from produkt_etap_limity (SSOT) via build_pipeline_context.
+    Rule matches the completed batch card: analiza_koncowa (jednorazowy) +
+    last cykliczny etap (for K7 that's standaryzacja).
+
+    Uses skrot from parametry_analityczne as label where available.
+    """
+    from mbr.pipeline.adapter import build_pipeline_context
+    ctx = build_pipeline_context(db, produkt, typ=None)
+    if ctx is None:
         return []
-    parametry = json.loads(mbr["parametry_lab"]) if isinstance(mbr["parametry_lab"], str) else mbr["parametry_lab"]
-    # New cyclic schema uses "analiza", legacy uses "analiza_koncowa"
-    sekcja = parametry.get("analiza") or parametry.get("analiza_koncowa", {})
-    pola = sekcja.get("pola", sekcja) if isinstance(sekcja, dict) else sekcja
-    if not isinstance(pola, list):
-        return []
+
+    pola: list = []
+    sekcje = ctx.get("parametry_lab", {})
+    etapy_json = ctx.get("etapy_json", [])
+
+    # 1. Jednorazowy etapy → include their sekcja's pola (typically analiza_koncowa)
+    # 2. Last cykliczny etap → include its sekcja_lab (e.g. "analiza" for K7 standaryzacja)
+    wanted_keys = []
+    for e in etapy_json:
+        if e.get("typ_cyklu") == "jednorazowy":
+            wanted_keys.append(e.get("sekcja_lab"))
+    cykliczne = [e for e in etapy_json if e.get("typ_cyklu") == "cykliczny"]
+    if cykliczne:
+        wanted_keys.append(cykliczne[-1].get("sekcja_lab"))
+
+    # Fallback for products with no pipeline at all (shouldn't happen post-MVP,
+    # but defensive): try plain "analiza_koncowa" if sekcje has it.
+    if not wanted_keys and "analiza_koncowa" in sekcje:
+        wanted_keys = ["analiza_koncowa"]
+
+    seen_kodу: set = set()
+    for key in wanted_keys:
+        if key is None or key not in sekcje:
+            continue
+        for pole in sekcje[key].get("pola", []):
+            kod = pole.get("kod")
+            if kod and kod not in seen_kodу:
+                pola.append(dict(pole))
+                seen_kodу.add(kod)
+
     # Replace labels with skroty
-    skroty = {}
+    skroty: dict = {}
     try:
-        rows = db.execute("SELECT kod, skrot FROM parametry_analityczne WHERE aktywny=1 AND skrot IS NOT NULL AND skrot != ''").fetchall()
+        rows = db.execute(
+            "SELECT kod, skrot FROM parametry_analityczne "
+            "WHERE aktywny=1 AND skrot IS NOT NULL AND skrot != ''"
+        ).fetchall()
         skroty = {r["kod"]: r["skrot"] for r in rows}
     except Exception:
         pass
     for pole in pola:
-        if isinstance(pole, dict) and pole.get("kod") in skroty:
+        if pole.get("kod") in skroty:
             pole["label"] = skroty[pole["kod"]]
     return pola
 

@@ -560,6 +560,44 @@ def api_bindings_delete(binding_id: int):
     return jsonify({"ok": True})
 
 
+@parametry_bp.route("/api/bindings/clear-stage", methods=["DELETE"])
+@login_required
+def api_bindings_clear_stage():
+    """Delete all produkt_etap_limity rows for a (produkt, etap).
+
+    Query: ?produkt=X&etap_id=Y OR ?produkt=X&etap_kod=Z
+    Returns: {ok: true, deleted: N}
+    """
+    produkt = (request.args.get("produkt") or "").strip()
+    if not produkt:
+        return jsonify({"error": "produkt is required"}), 400
+    etap_id_str = request.args.get("etap_id")
+    etap_kod = (request.args.get("etap_kod") or "").strip()
+
+    with db_session() as db:
+        if etap_id_str:
+            try:
+                etap_id = int(etap_id_str)
+            except ValueError:
+                return jsonify({"error": "etap_id must be integer"}), 400
+        elif etap_kod:
+            row = db.execute(
+                "SELECT id FROM etapy_analityczne WHERE kod=?", (etap_kod,)
+            ).fetchone()
+            if not row:
+                return jsonify({"error": f"unknown etap_kod: {etap_kod}"}), 404
+            etap_id = row["id"]
+        else:
+            return jsonify({"error": "etap_id or etap_kod is required"}), 400
+
+        cur = db.execute(
+            "DELETE FROM produkt_etap_limity WHERE produkt=? AND etap_id=?",
+            (produkt, etap_id),
+        )
+        db.commit()
+    return jsonify({"ok": True, "deleted": cur.rowcount})
+
+
 @parametry_bp.route("/api/bindings/catalog")
 @login_required
 def api_bindings_catalog():
