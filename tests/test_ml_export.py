@@ -102,16 +102,17 @@ def test_export_returns_all_columns(db):
     row = rows[0]
     assert row["ebr_id"] == 1
     assert row["batch_id"] == "Chegina_K7__1_2026"
+    assert row["status"] == "completed"
     assert row["masa_kg"] == 13300.0
     assert row["meff_kg"] == 12300.0
     assert row["sulf_na2so3_recept_kg"] == 15.0
     assert row["sulf_r1_ph"] == 11.89
     assert row["sulf_r1_so3"] == 0.12
-    # Sulfonowanie: 1 round → corrections without round suffix
-    assert row["sulf_na2so3_kg"] == 15.0
-    assert row["sulf_perhydrol_kg"] == 19.0
+    # Korekty always carry round suffix (pinned schema)
+    assert row["sulf_na2so3_r1_kg"] == 15.0
+    assert row["sulf_perhydrol_r1_kg"] == 19.0
     assert row["sulf_rundy"] == 1
-    # Utlenienie: 2 rounds → corrections with round suffix
+    # Utlenienie: 2 real rounds
     assert row["utl_r1_nadtlenki"] == 0.0
     assert row["utl_r2_nadtlenki"] == 0.003
     assert row["utl_perhydrol_r1_kg"] == 5.0
@@ -119,14 +120,14 @@ def test_export_returns_all_columns(db):
     assert row["utl_kwas_r2_kg"] == 100.0
     assert row["utl_kwas_r2_sugest_kg"] == 110.5
     assert row["utl_rundy"] == 2
-    # Standaryzacja: 1 round → corrections without round suffix
+    # Third-round cols exist but are None
+    assert "utl_r3_nadtlenki" in row and row["utl_r3_nadtlenki"] is None
+    # Standaryzacja
     assert row["stand_r1_ph"] == 6.25
     assert row["stand_r1_sm"] == 43.0
     assert row["stand_rundy"] == 1
-    # Targets
     assert row["target_ph"] == 6.25
     assert row["target_nd20"] == 1.3922
-    # Final
     assert row["final_ph"] == 6.25
     assert row["final_nd20"] == 1.3922
     assert row["final_all_ok"] == 1
@@ -154,3 +155,154 @@ def test_open_batch_excluded(db):
     rows = export_k7_batches(db)
     assert len(rows) == 1
     assert rows[0]["ebr_id"] == 1
+
+
+# ─── ML-1: sugest_kg for every formula-driven korekta ─────────────────────────
+
+def test_sugest_cols_extended_to_perhydrol_and_woda(db):
+    """ilosc_wyliczona must flow into *_sugest_kg for Perhydrol and Woda łącznie,
+    not just Kwas cytrynowy — operator deviation from formula is the signal."""
+    # Add Perhydrol suggestion at utl R1 and Woda łącznie suggestion at utl R2
+    db.execute("UPDATE ebr_korekta_v2 SET ilosc_wyliczona = 6.8 WHERE sesja_id=2 AND korekta_typ_id=3")
+    db.execute("UPDATE ebr_korekta_v2 SET ilosc_wyliczona = 1180.0 WHERE sesja_id=3 AND korekta_typ_id=4")
+    db.commit()
+
+    cols = get_csv_columns(db)
+    assert "utl_perhydrol_r1_sugest_kg" in cols
+    assert "utl_woda_r2_sugest_kg" in cols
+    assert "stand_woda_r1_sugest_kg" in cols  # even if no data yet, column exists
+
+    row = export_k7_batches(db)[0]
+    assert row["utl_perhydrol_r1_sugest_kg"] == 6.8
+    assert row["utl_woda_r2_sugest_kg"] == 1180.0
+
+
+# ─── ML-2: FIXED_MAX_ROUNDS doesn't grow with data ────────────────────────────
+
+def test_max_rounds_pinned_not_discovered(db):
+    """Even if a batch has fewer than cap rounds, column set covers up to cap.
+    And an actual batch with MORE than cap rounds would be truncated (tested
+    via the len(columns) assertion — column count doesn't change with data)."""
+    from mbr.ml_export.query import FIXED_MAX_ROUNDS
+    assert FIXED_MAX_ROUNDS["sulfonowanie"] == 3
+    assert FIXED_MAX_ROUNDS["utlenienie"] == 3
+    assert FIXED_MAX_ROUNDS["standaryzacja"] == 3
+
+    cols_before = get_csv_columns(db)
+    # Insert a 3rd-round sulfonowanie sesja (more than the 1 the fixture has).
+    # The column list should NOT grow — we already budgeted for 3 rounds.
+    db.execute("INSERT INTO ebr_etap_sesja (id, ebr_id, etap_id, runda, status, decyzja) VALUES (99,1,4,3,'zamkniety','przejscie')")
+    db.commit()
+    cols_after = get_csv_columns(db)
+    assert cols_before == cols_after, "column schema must be stable across data changes"
+
+
+# ─── ML-3: include failed/cancelled batches on demand ─────────────────────────
+
+def test_cancelled_batch_excluded_by_default(db):
+    db.execute("""INSERT INTO ebr_batches (ebr_id, mbr_id, batch_id, nr_partii, wielkosc_szarzy_kg, nastaw,
+                  dt_start, status, typ) VALUES (3,1,'C_K7__3','3/2026',13300,13300,'2026-04-18','cancelled','szarza')""")
+    db.commit()
+    rows = export_k7_batches(db)
+    ids = [r["ebr_id"] for r in rows]
+    assert 3 not in ids
+
+
+def test_cancelled_batch_included_when_requested(db):
+    db.execute("""INSERT INTO ebr_batches (ebr_id, mbr_id, batch_id, nr_partii, wielkosc_szarzy_kg, nastaw,
+                  dt_start, status, typ) VALUES (3,1,'C_K7__3','3/2026',13300,13300,'2026-04-18','cancelled','szarza')""")
+    db.commit()
+    rows = export_k7_batches(db, statuses=("completed", "cancelled"))
+    ids = [r["ebr_id"] for r in rows]
+    assert 3 in ids
+    cancelled = next(r for r in rows if r["ebr_id"] == 3)
+    assert cancelled["status"] == "cancelled"
+
+
+# ─── ML-4: per-round dt_start column ──────────────────────────────────────────
+
+def test_per_round_dt_start_column(db):
+    db.execute("UPDATE ebr_etap_sesja SET dt_start='2026-04-16T09:30:00' WHERE id=2")
+    db.execute("UPDATE ebr_etap_sesja SET dt_start='2026-04-16T11:15:00' WHERE id=3")
+    db.commit()
+    row = export_k7_batches(db)[0]
+    assert row["utl_r1_dt_start"] == "2026-04-16T09:30:00"
+    assert row["utl_r2_dt_start"] == "2026-04-16T11:15:00"
+    assert row["utl_r3_dt_start"] is None  # only 2 real rounds
+
+
+# ─── ML-5: korekta_cele snapshot preferred over live globals ──────────────────
+
+def test_targets_from_sesja_snapshot_when_present(db):
+    """If a sesja has cele_json, targets come from it — not from current globals."""
+    # Snapshot stored on stand R1 sesja (id=4) differs from the current global
+    # (target_ph=6.25, target_nd20=1.3922 per fixture)
+    db.execute(
+        "UPDATE ebr_etap_sesja SET cele_json=? WHERE id=4",
+        ('{"target_ph": 5.80, "target_nd20": 1.3899}',),
+    )
+    db.commit()
+    row = export_k7_batches(db)[0]
+    assert row["target_ph"] == 5.80
+    assert row["target_nd20"] == 1.3899
+
+
+def test_targets_fallback_to_globals_without_snapshot(db):
+    """No snapshot → fall back to current korekta_cele globals."""
+    row = export_k7_batches(db)[0]
+    assert row["target_ph"] == 6.25
+    assert row["target_nd20"] == 1.3922
+
+
+def test_create_sesja_snapshots_targets(db):
+    """create_sesja() writes a cele_json snapshot of current korekta_cele
+    (so later globals drift doesn't retrospectively reassign targets)."""
+    from mbr.pipeline.models import create_sesja
+    # Seed a fresh batch + sesja via the live API
+    db.execute("""INSERT INTO ebr_batches (ebr_id, mbr_id, batch_id, nr_partii, wielkosc_szarzy_kg, nastaw,
+                  dt_start, status, typ) VALUES (10,1,'C_K7__10','10/2026',13300,13300,'2026-04-19','open','szarza')""")
+    sid = create_sesja(db, ebr_id=10, etap_id=9, runda=1, laborant="JK")
+    row = db.execute("SELECT cele_json FROM ebr_etap_sesja WHERE id=?", (sid,)).fetchone()
+    assert row["cele_json"] is not None
+    import json as _json
+    data = _json.loads(row["cele_json"])
+    assert data["target_ph"] == 6.25
+    assert data["target_nd20"] == 1.3922
+
+
+# ─── ML-6: wpisal + zalecil attribution columns ──────────────────────────────
+
+def test_wpisal_and_zalecil_columns(db):
+    db.execute("UPDATE ebr_pomiar SET wpisal='JK' WHERE sesja_id=2")
+    db.execute("UPDATE ebr_korekta_v2 SET zalecil='MM' WHERE sesja_id=3 AND korekta_typ_id=5")
+    db.commit()
+    row = export_k7_batches(db)[0]
+    assert row["utl_r1_wpisal"] == "JK"
+    assert row["utl_kwas_r2_zalecil"] == "MM"
+
+
+# ─── ML-10: "Woda" and "Woda łącznie" both land in the same 'woda' column ──
+
+def test_mixed_woda_and_woda_lacznie_export_to_same_column(db):
+    """Legacy rows saved as substancja='Woda' and new rows as 'Woda łącznie'
+    must both export into the same *_woda_r{N}_kg column."""
+    # Rename one of the katalog entries so we have one 'Woda' and one 'Woda łącznie'
+    db.execute("UPDATE etap_korekty_katalog SET substancja='Woda łącznie' WHERE id=6")
+    # Add a second batch whose stand R1 korekta points at the renamed entry
+    db.execute("""INSERT INTO ebr_batches (ebr_id, mbr_id, batch_id, nr_partii, wielkosc_szarzy_kg, nastaw,
+                  dt_start, dt_end, status, typ)
+                  VALUES (2, 1, 'C_K7__2_2026','2/2026', 13300, 13300,
+                  '2026-04-17T09:00:00','2026-04-17T10:00:00','completed','szarza')""")
+    db.execute("INSERT INTO ebr_etap_sesja (id, ebr_id, etap_id, runda, status, decyzja) VALUES (20,2,9,1,'zamkniety','przejscie')")
+    db.execute("INSERT INTO ebr_korekta_v2 (sesja_id, korekta_typ_id, ilosc) VALUES (20,6,88.0)")  # 'Woda łącznie'
+    # Also add an old-style 'Woda' entry to the first batch's standaryzacja
+    db.execute("INSERT INTO etap_korekty_katalog (id, etap_id, substancja, jednostka) VALUES (99,9,'Woda','kg')")
+    db.execute("INSERT INTO ebr_korekta_v2 (sesja_id, korekta_typ_id, ilosc) VALUES (4,99,77.0)")
+    db.commit()
+
+    rows = export_k7_batches(db)
+    by_id = {r["ebr_id"]: r for r in rows}
+    # Batch 1 saved under legacy 'Woda' → lands in stand_woda_r1_kg
+    assert by_id[1]["stand_woda_r1_kg"] == 77.0
+    # Batch 2 saved under 'Woda łącznie' → same column
+    assert by_id[2]["stand_woda_r1_kg"] == 88.0

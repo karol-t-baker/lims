@@ -378,12 +378,42 @@ def create_sesja(
     runda: int = 1,
     laborant: str | None = None,
 ) -> int:
-    """Insert a new analysis session. Returns new id."""
+    """Insert a new analysis session. Returns new id.
+
+    Snapshots `korekta_cele` for this (produkt, etap) into `cele_json` so the
+    ML export can later reconstruct the targets the operator was aiming at —
+    globals may drift over time as formulas get retuned.
+    """
+    import json as _json
     now = datetime.now().isoformat(timespec="seconds")
+
+    cele_json = None
+    try:
+        produkt_row = db.execute(
+            """SELECT m.produkt FROM ebr_batches e
+               JOIN mbr_templates m ON m.mbr_id = e.mbr_id
+               WHERE e.ebr_id = ?""",
+            (ebr_id,),
+        ).fetchone()
+        if produkt_row:
+            produkt = produkt_row["produkt"]
+            cele_rows = db.execute(
+                "SELECT kod, wartosc FROM korekta_cele "
+                "WHERE produkt=? AND (etap_id=? OR etap_id IS NULL)",
+                (produkt, etap_id),
+            ).fetchall()
+            if cele_rows:
+                cele_json = _json.dumps(
+                    {r["kod"]: r["wartosc"] for r in cele_rows},
+                    ensure_ascii=False,
+                )
+    except Exception:
+        cele_json = None
+
     cur = db.execute(
-        """INSERT INTO ebr_etap_sesja (ebr_id, etap_id, runda, laborant, dt_start)
-           VALUES (?, ?, ?, ?, ?)""",
-        (ebr_id, etap_id, runda, laborant, now),
+        """INSERT INTO ebr_etap_sesja (ebr_id, etap_id, runda, laborant, dt_start, cele_json)
+           VALUES (?, ?, ?, ?, ?, ?)""",
+        (ebr_id, etap_id, runda, laborant, now, cele_json),
     )
     return cur.lastrowid
 
