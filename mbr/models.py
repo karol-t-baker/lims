@@ -407,6 +407,21 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     except Exception:
         pass  # tables may not exist yet on fresh DB; will be created below
 
+    # Migration: rename korekta substancja 'Woda' → 'Woda łącznie' for K7 stand
+    # panel etapy. The operator-facing label is "Woda łącznie" (woda + kwas total);
+    # DB now matches so dziennik zdarzeń shows the production term directly.
+    try:
+        db.execute(
+            "UPDATE etap_korekty_katalog "
+            "SET substancja = 'Woda łącznie' "
+            "WHERE substancja = 'Woda' "
+            "  AND etap_id IN ("
+            "    SELECT id FROM etapy_analityczne WHERE kod IN ('utlenienie', 'standaryzacja')"
+            "  )"
+        )
+    except Exception:
+        pass
+
     db.commit()
 
     db.execute("""

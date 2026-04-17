@@ -796,3 +796,108 @@ def test_pipeline_has_multi_stage_false_for_single_row(db):
 def test_pipeline_has_multi_stage_false_for_no_rows(db):
     from mbr.pipeline.models import pipeline_has_multi_stage
     assert pipeline_has_multi_stage(db, 'DOES_NOT_EXIST') is False
+
+
+# ---------------------------------------------------------------------------
+# upsert_ebr_korekta — auto-save persistent correction values
+# ---------------------------------------------------------------------------
+
+def _seed_korekta_fixture(db):
+    """Seed a minimal K7-like pipeline with one etap + one korekta_typ + one open sesja."""
+    db.execute(
+        "INSERT OR IGNORE INTO etapy_analityczne (id, kod, nazwa, typ_cyklu) "
+        "VALUES (904, 'sulfonowanie_t', 'Sulfonowanie (test)', 'cykliczny')"
+    )
+    db.execute(
+        "INSERT INTO etap_korekty_katalog "
+        "(id, etap_id, substancja, jednostka, wykonawca, kolejnosc) "
+        "VALUES (901, 904, 'Perhydrol 34%', 'kg', 'produkcja', 1)"
+    )
+    db.execute(
+        "INSERT INTO etap_korekty_katalog "
+        "(id, etap_id, substancja, jednostka, wykonawca, kolejnosc) "
+        "VALUES (902, 904, 'Woda', 'kg', 'produkcja', 2)"
+    )
+    # Need an ebr_batch for FK on ebr_etap_sesja. Use existing mbr_templates.
+    mbr_id = db.execute(
+        "INSERT INTO mbr_templates (produkt, wersja, status, dt_utworzenia) "
+        "VALUES ('TESTPROD', 1, 'active', datetime('now')) RETURNING mbr_id"
+    ).fetchone()["mbr_id"]
+    ebr_id = db.execute(
+        "INSERT INTO ebr_batches (mbr_id, batch_id, nr_partii, dt_start, typ) "
+        "VALUES (?, 'B-TEST-1', '1/TEST', datetime('now'), 'szarza') "
+        "RETURNING ebr_id",
+        (mbr_id,),
+    ).fetchone()["ebr_id"]
+    from mbr.pipeline.models import create_sesja
+    sesja_id = create_sesja(db, ebr_id, 904, runda=1, laborant="lab1")
+    db.commit()
+    return {"ebr_id": ebr_id, "etap_id": 904, "sesja_id": sesja_id,
+            "perhydrol_typ_id": 901, "woda_typ_id": 902}
+
+
+def test_upsert_korekta_inserts_when_missing(db):
+    from mbr.pipeline.models import upsert_ebr_korekta, list_ebr_korekty
+    s = _seed_korekta_fixture(db)
+    kid = upsert_ebr_korekta(
+        db, sesja_id=s["sesja_id"], korekta_typ_id=s["perhydrol_typ_id"],
+        ilosc=12.5, ilosc_wyliczona=11.8, zalecil="lab1",
+    )
+    assert isinstance(kid, int) and kid > 0
+    rows = list_ebr_korekty(db, s["sesja_id"])
+    perhydrol = [r for r in rows if r["korekta_typ_id"] == s["perhydrol_typ_id"]]
+    assert len(perhydrol) == 1
+    assert perhydrol[0]["ilosc"] == 12.5
+
+
+def test_upsert_korekta_updates_when_present(db):
+    """Calling twice for the same (sesja, korekta_typ) must not duplicate rows."""
+    from mbr.pipeline.models import upsert_ebr_korekta
+    s = _seed_korekta_fixture(db)
+    kid1 = upsert_ebr_korekta(db, s["sesja_id"], s["perhydrol_typ_id"], 10.0, 11.8, "lab1")
+    kid2 = upsert_ebr_korekta(db, s["sesja_id"], s["perhydrol_typ_id"], 15.5, 11.8, "lab1")
+    assert kid1 == kid2
+    n = db.execute(
+        "SELECT COUNT(*) AS n FROM ebr_korekta_v2 "
+        "WHERE sesja_id=? AND korekta_typ_id=?",
+        (s["sesja_id"], s["perhydrol_typ_id"]),
+    ).fetchone()["n"]
+    assert n == 1
+    row = db.execute(
+        "SELECT ilosc FROM ebr_korekta_v2 WHERE id=?", (kid1,)
+    ).fetchone()
+    assert row["ilosc"] == 15.5
+
+
+def test_upsert_korekta_ilosc_none_clears_manual(db):
+    """Passing ilosc=None after a value sets ilosc back to NULL (formula wins again)."""
+    from mbr.pipeline.models import upsert_ebr_korekta
+    s = _seed_korekta_fixture(db)
+    upsert_ebr_korekta(db, s["sesja_id"], s["perhydrol_typ_id"], 12.5, 11.8, "lab1")
+    upsert_ebr_korekta(db, s["sesja_id"], s["perhydrol_typ_id"], None, 11.8, "lab1")
+    row = db.execute(
+        "SELECT ilosc, ilosc_wyliczona FROM ebr_korekta_v2 "
+        "WHERE sesja_id=? AND korekta_typ_id=?",
+        (s["sesja_id"], s["perhydrol_typ_id"]),
+    ).fetchone()
+    assert row["ilosc"] is None
+    assert row["ilosc_wyliczona"] == 11.8
+
+
+def test_upsert_korekta_different_sesje_separate_rows(db):
+    """Two sesje for the same etap → two separate korekta rows (one per sesja)."""
+    from mbr.pipeline.models import upsert_ebr_korekta, create_sesja
+    s = _seed_korekta_fixture(db)
+    sesja2_id = create_sesja(db, s["ebr_id"], s["etap_id"], runda=2, laborant="lab1")
+    db.commit()
+    upsert_ebr_korekta(db, s["sesja_id"], s["perhydrol_typ_id"], 10.0, None, "lab1")
+    upsert_ebr_korekta(db, sesja2_id, s["perhydrol_typ_id"], 15.0, None, "lab1")
+    rows = db.execute(
+        "SELECT sesja_id, ilosc FROM ebr_korekta_v2 "
+        "WHERE korekta_typ_id=? ORDER BY sesja_id",
+        (s["perhydrol_typ_id"],),
+    ).fetchall()
+    assert len(rows) == 2
+    vals = {r["sesja_id"]: r["ilosc"] for r in rows}
+    assert vals[s["sesja_id"]] == 10.0
+    assert vals[sesja2_id] == 15.0

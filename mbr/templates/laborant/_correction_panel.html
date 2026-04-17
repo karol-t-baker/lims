@@ -89,7 +89,12 @@ async function _renderPerhydrolPanel(container, sekcja, ctx) {
                         '<span class="corr-field-label">Dawka perhydrolu [kg]</span>' +
                         '<input id="corr-manual-kg-' + sekcja + '" class="corr-field-input" type="text" inputmode="decimal"' +
                             ' placeholder="wpisz lub zostaw podpowied\u017A" style="font-weight:700;font-size:14px;"' +
-                            ' oninput="onManualPerhydrolInput(\'' + sekcja + '\')">' +
+                            ' data-ebr-id="' + ebrId + '"' +
+                            ' data-etap-id="' + etapId + '"' +
+                            ' data-substancja="Perhydrol 34%"' +
+                            ' data-suggested=""' +
+                            ' oninput="onManualPerhydrolInput(\'' + sekcja + '\')"' +
+                            ' onblur="saveKorektaField(this)">' +
                     '</div>' +
                 '</div>' +
             '</div>' +
@@ -97,6 +102,16 @@ async function _renderPerhydrolPanel(container, sekcja, ctx) {
         '</div>';
 
     recomputePerhydrol(sekcja);
+
+    // Restore saved manual perhydrol correction (persist across F5 / batch switch)
+    var sesjaId = (window._lastGate && window._lastGate.sesja_id) || null;
+    if (sesjaId) {
+        var saved = await _loadSavedKorekty(window.ebrId, etapId, sesjaId);
+        var manualEl = document.getElementById('corr-manual-kg-' + sekcja);
+        if (manualEl && saved['Perhydrol 34%'] != null) {
+            manualEl.value = String(saved['Perhydrol 34%']).replace('.', ',');
+        }
+    }
 }
 
 async function _renderStandaryzacjaV2Panel(container, sekcja, ctx) {
@@ -178,15 +193,32 @@ async function _renderStandaryzacjaV2Panel(container, sekcja, ctx) {
                     '</div>' +
                 '</div>' +
                 '<div class="corr-fields" style="margin-top:10px;grid-template-columns:1fr 1fr 1fr;">' +
-                    _corrField('Woda [kg]', 'corr-manual-woda-' + sekcja, '', false,
-                        'FD.set(this.id,this.value);FD.del(\"corr-total-woda-' + sekcja + '\");recomputeStandTotal(\"' + sekcja + '\")') +
-                    _corrField('Kwas cytrynowy [kg]', 'corr-manual-kwas-' + sekcja, '', false,
-                        'FD.set(this.id,this.value);FD.del(\"corr-total-woda-' + sekcja + '\");recomputeStandTotal(\"' + sekcja + '\")') +
+                    '<div>' +
+                        '<span class="corr-field-label">Woda [kg]</span>' +
+                        '<input id="corr-manual-woda-' + sekcja + '" class="corr-field-input" type="text" inputmode="decimal"' +
+                            ' oninput="recomputeStandTotal(\'' + sekcja + '\')"' +
+                            ' onblur="saveStandFields(\'' + sekcja + '\')">' +
+                    '</div>' +
+                    '<div>' +
+                        '<span class="corr-field-label">Kwas cytrynowy [kg]</span>' +
+                        '<input id="corr-manual-kwas-' + sekcja + '" class="corr-field-input" type="text" inputmode="decimal"' +
+                            ' data-ebr-id="' + ebrId + '"' +
+                            ' data-etap-id="' + etapId + '"' +
+                            ' data-substancja="Kwas cytrynowy"' +
+                            ' data-suggested=""' +
+                            ' oninput="recomputeStandTotal(\'' + sekcja + '\')"' +
+                            ' onblur="saveStandFields(\'' + sekcja + '\')">' +
+                    '</div>' +
                     '<div>' +
                         '<span class="corr-field-label">WODA \u0141\u0104CZNIE [KG]</span>' +
                         '<input id="corr-total-woda-' + sekcja + '" class="corr-field-input" type="text" inputmode="decimal"' +
                             ' style="font-weight:700;font-size:14px;border-color:var(--teal);background:var(--teal-bg);color:var(--teal);text-align:center;"' +
-                            ' oninput="FD.set(this.id,this.value);">' +
+                            ' title="Woda \u0142\u0105cznie (auto: Woda+Kwas, mo\u017Cesz nadpisa\u0107)"' +
+                            ' data-ebr-id="' + ebrId + '"' +
+                            ' data-etap-id="' + etapId + '"' +
+                            ' data-substancja="Woda \u0142\u0105cznie"' +
+                            ' data-suggested=""' +
+                            ' onblur="saveKorektaField(this)">' +
                     '</div>' +
                 '</div>' +
             '</div>' +
@@ -195,6 +227,30 @@ async function _renderStandaryzacjaV2Panel(container, sekcja, ctx) {
 
     recomputeStandV2(sekcja);
     recomputeStandTotal(sekcja);
+
+    // Restore saved corrections (persist across F5 / batch switch).
+    // Woda łącznie is authoritative (what production actually adds). Kwas is
+    // saved separately. Woda component is a helper derived as max(0, total - kwas).
+    var sesjaId = (window._lastGate && window._lastGate.sesja_id) || null;
+    if (sesjaId) {
+        var saved = await _loadSavedKorekty(window.ebrId, etapId, sesjaId);
+        var wodaManEl = document.getElementById('corr-manual-woda-' + sekcja);
+        var kwasManEl = document.getElementById('corr-manual-kwas-' + sekcja);
+        var totalEl = document.getElementById('corr-total-woda-' + sekcja);
+        var savedTotal = saved['Woda \u0142\u0105cznie'];
+        var savedKwas = saved['Kwas cytrynowy'];
+        if (kwasManEl && savedKwas != null) {
+            kwasManEl.value = String(savedKwas).replace('.', ',');
+        }
+        if (totalEl && savedTotal != null) {
+            totalEl.value = String(savedTotal).replace('.', ',');
+            if (wodaManEl) {
+                var wodaComp = Number(savedTotal) - (Number(savedKwas) || 0);
+                if (!isFinite(wodaComp) || wodaComp < 0) wodaComp = 0;
+                wodaManEl.value = wodaComp > 0 ? wodaComp.toFixed(1).replace('.', ',') : '';
+            }
+        }
+    }
 }
 
 // ═══ FD — Form Draft ═══
@@ -226,6 +282,102 @@ if (!window.FD) window.FD = {
     }
 };
 
+// ═══ Per-field auto-save for correction values ═══
+window._pendingKorektaSaves = window._pendingKorektaSaves || [];
+
+// Load saved korekta values for a sesja — returns { substancja: ilosc }
+async function _loadSavedKorekty(ebrIdArg, etapIdArg, sesjaId) {
+  if (!ebrIdArg || !etapIdArg || !sesjaId) return {};
+  try {
+    var resp = await fetch('/api/pipeline/lab/ebr/' + ebrIdArg + '/etap/' + etapIdArg);
+    if (!resp.ok) return {};
+    var data = await resp.json();
+    var list = (data.sesje_korekty && (data.sesje_korekty[String(sesjaId)] || data.sesje_korekty[sesjaId])) || [];
+    var map = {};
+    list.forEach(function(k) {
+      if (k && k.substancja != null && k.ilosc != null) {
+        map[k.substancja] = k.ilosc;
+      }
+    });
+    return map;
+  } catch (e) {
+    console.warn('[_loadSavedKorekty]', e);
+    return {};
+  }
+}
+
+// Standaryzacja V2: blur on Woda or Kwas input recomputes total and saves
+// BOTH Kwas cytrynowy (kwas value) and Woda łącznie (sum). If the operator
+// later edits the total input directly, its onblur (saveKorektaField) writes
+// the override — next Woda/Kwas blur would recompute and overwrite it again,
+// which is the documented trade-off for simplicity.
+async function saveStandFields(sekcja) {
+  var wodaEl = document.getElementById('corr-manual-woda-' + sekcja);
+  var kwasEl = document.getElementById('corr-manual-kwas-' + sekcja);
+  var totalEl = document.getElementById('corr-total-woda-' + sekcja);
+  if (!kwasEl || !totalEl) return;
+
+  var w = _parsePl(wodaEl ? wodaEl.value : ''); if (isNaN(w)) w = 0;
+  var k = _parsePl(kwasEl.value); if (isNaN(k)) k = 0;
+  var sum = w + k;
+  totalEl.value = sum > 0 ? sum.toFixed(1).replace('.', ',') : '';
+
+  var p1 = saveKorektaField(kwasEl);
+  var p2 = saveKorektaField(totalEl);
+  return Promise.all([p1, p2]);
+}
+
+function saveKorektaField(input) {
+  var ebrId = parseInt(input.dataset.ebrId, 10);
+  var etapId = parseInt(input.dataset.etapId, 10);
+  var substancja = input.dataset.substancja;
+  if (!ebrId || !etapId || !substancja) {
+    console.warn('saveKorektaField: missing data attrs on input', input);
+    return Promise.resolve();
+  }
+
+  var raw = (input.value || '').trim().replace(',', '.');
+  var ilosc = raw === '' ? null : parseFloat(raw);
+  if (ilosc !== null && isNaN(ilosc)) return Promise.resolve();
+  var suggested = parseFloat(input.dataset.suggested);
+  var ilosc_wyliczona = isFinite(suggested) ? suggested : null;
+
+  input.classList.remove('corr-error', 'corr-saved');
+  input.classList.add('corr-saving');
+
+  var promise = fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      etap_id: etapId,
+      substancja: substancja,
+      ilosc: ilosc,
+      ilosc_wyliczona: ilosc_wyliczona,
+    }),
+  }).then(function(r) {
+    input.classList.remove('corr-saving');
+    if (!r.ok) {
+      input.classList.add('corr-error');
+      throw new Error('save failed: ' + r.status);
+    }
+    input.classList.add('corr-saved');
+    setTimeout(function() { input.classList.remove('corr-saved'); }, 800);
+    return r.json();
+  }).catch(function(e) {
+    input.classList.remove('corr-saving');
+    input.classList.add('corr-error');
+    console.error('saveKorektaField error:', e);
+  });
+
+  window._pendingKorektaSaves.push(promise);
+  var cleanup = function() {
+    var idx = window._pendingKorektaSaves.indexOf(promise);
+    if (idx >= 0) window._pendingKorektaSaves.splice(idx, 1);
+  };
+  promise.then(cleanup, cleanup);
+  return promise;
+}
+
 function recomputeStandV2(sekcja) {
     var nd20 = _parsePl(document.getElementById('corr-nd20-wynik-' + sekcja)?.value);
     var ph = _parsePl(document.getElementById('corr-ph-wynik-' + sekcja)?.value);
@@ -242,7 +394,10 @@ function recomputeStandV2(sekcja) {
             if (!isFinite(woda) || woda < 0) woda = 0;
             var wFmt = woda.toFixed(1).replace('.', ',');
             wodaCalcEl.textContent = wFmt + ' kg';
-            if (wodaManEl) FD.fill(wodaManEl.id, wodaManEl, wFmt);
+            if (wodaManEl) {
+                wodaManEl.dataset.suggested = woda.toFixed(1);
+                if (!wodaManEl.value) wodaManEl.value = wFmt;
+            }
         } else {
             wodaCalcEl.textContent = '\u2014 kg';
         }
@@ -267,7 +422,10 @@ function recomputeStandV2(sekcja) {
             if (kwas !== null) {
                 var kFmt = kwas.toFixed(1).replace('.', ',');
                 kwasCalcEl.textContent = kFmt + ' kg';
-                if (kwasManEl) FD.fill(kwasManEl.id, kwasManEl, kFmt);
+                if (kwasManEl) {
+                    kwasManEl.dataset.suggested = kwas.toFixed(1);
+                    if (!kwasManEl.value) kwasManEl.value = kFmt;
+                }
             } else {
                 kwasCalcEl.textContent = '\u2014 kg';
             }
@@ -295,14 +453,14 @@ function recomputeStandTotal(sekcja) {
     var kwasEl = document.getElementById('corr-manual-kwas-' + sekcja);
     var totalEl = document.getElementById('corr-total-woda-' + sekcja);
     if (!totalEl) return;
-    // If total has a draft (operator edited it directly), don't overwrite
-    if (FD.get(totalEl.id) !== null) return;
-    var woda = wodaEl ? _parsePl(wodaEl.value) : NaN;
-    var kwas = kwasEl ? _parsePl(kwasEl.value) : NaN;
-    if (isNaN(woda)) woda = 0;
-    if (isNaN(kwas)) kwas = 0;
-    var total = woda + kwas;
-    totalEl.value = total > 0 ? total.toFixed(1).replace('.', ',') : '';
+    function parseNum(el) {
+        if (!el) return 0;
+        var raw = (el.value || '').trim().replace(',', '.');
+        var n = parseFloat(raw);
+        return isFinite(n) ? n : 0;
+    }
+    var total = parseNum(wodaEl) + parseNum(kwasEl);
+    totalEl.value = total > 0 ? total.toFixed(1).replace(',', '.').replace('.', ',') : '';
 }
 
 function saveStandV2Targets(sekcja, etapId, produkt) {
@@ -322,43 +480,11 @@ async function advanceStandNewRound(sekcja) {
     var gate = window._lastGate;
     if (!gate || !gate.etap_id || !gate.sesja_id) return;
 
-    // Save corrections — check responses
-    var corrErrors = [];
-    var totalWodaEl = document.getElementById('corr-total-woda-' + sekcja);
-    if (totalWodaEl && totalWodaEl.value) {
-        var wKg = parseFloat(totalWodaEl.value.replace(',', '.'));
-        if (!isNaN(wKg) && wKg > 0) {
-            var rw = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Woda', ilosc: wKg })
-            });
-            if (!rw.ok) corrErrors.push('Woda');
-        }
-    }
-    var kwasEl = document.getElementById('corr-manual-kwas-' + sekcja);
-    if (kwasEl && kwasEl.value) {
-        var kKg = parseFloat(kwasEl.value.replace(',', '.'));
-        if (!isNaN(kKg) && kKg > 0) {
-            var kwasCalcEl = document.getElementById('corr-kwas-calc-' + sekcja);
-            var kwasCalcTxt = kwasCalcEl ? kwasCalcEl.textContent.replace(',', '.').replace(/[^0-9.]/g, '') : '';
-            var kwasWyliczona = parseFloat(kwasCalcTxt);
-            var kwasBody = { sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Kwas cytrynowy', ilosc: kKg };
-            if (!isNaN(kwasWyliczona) && kwasWyliczona > 0) kwasBody.ilosc_wyliczona = kwasWyliczona;
-            var rk = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(kwasBody)
-            });
-            if (!rk.ok) corrErrors.push('Kwas cytrynowy');
-        }
-    }
-    if (corrErrors.length > 0) {
-        alert('B\u0142\u0105d zapisu korekt: ' + corrErrors.join(', ') + '. Spr\u00f3buj ponownie.');
-        return;
+    // Flush any in-flight per-field auto-saves before closing the session
+    if (window._pendingKorektaSaves && window._pendingKorektaSaves.length > 0) {
+        await Promise.allSettled(window._pendingKorektaSaves.slice());
     }
 
-    // Clear saved manual edits after successful correction save
     FD.clear();
 
     // Close session + start new round
@@ -380,40 +506,9 @@ async function approveStandWithUwagi(sekcja) {
     if (uwagi === null) return;
     if (!uwagi.trim()) { alert('Uwaga nie może być pusta.'); return; }
 
-    // Save corrections if any entered
-    var corrErrors = [];
-    var totalWodaEl = document.getElementById('corr-total-woda-' + sekcja);
-    if (totalWodaEl && totalWodaEl.value) {
-        var wKg = parseFloat(totalWodaEl.value.replace(',', '.'));
-        if (!isNaN(wKg) && wKg > 0) {
-            var rw = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Woda', ilosc: wKg })
-            });
-            if (!rw.ok) corrErrors.push('Woda');
-        }
-    }
-    var kwasEl = document.getElementById('corr-manual-kwas-' + sekcja);
-    if (kwasEl && kwasEl.value) {
-        var kKg = parseFloat(kwasEl.value.replace(',', '.'));
-        if (!isNaN(kKg) && kKg > 0) {
-            var kwasCalcEl = document.getElementById('corr-kwas-calc-' + sekcja);
-            var kwasCalcTxt = kwasCalcEl ? kwasCalcEl.textContent.replace(',', '.').replace(/[^0-9.]/g, '') : '';
-            var kwasWyliczona = parseFloat(kwasCalcTxt);
-            var kwasBody = { sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Kwas cytrynowy', ilosc: kKg };
-            if (!isNaN(kwasWyliczona) && kwasWyliczona > 0) kwasBody.ilosc_wyliczona = kwasWyliczona;
-            var rk = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(kwasBody)
-            });
-            if (!rk.ok) corrErrors.push('Kwas cytrynowy');
-        }
-    }
-    if (corrErrors.length > 0) {
-        alert('Błąd zapisu korekt: ' + corrErrors.join(', '));
-        return;
+    // Flush any in-flight per-field auto-saves before closing the session
+    if (window._pendingKorektaSaves && window._pendingKorektaSaves.length > 0) {
+        await Promise.allSettled(window._pendingKorektaSaves.slice());
     }
 
     FD.clear();
@@ -439,40 +534,9 @@ async function advanceWithStandV2(sekcja) {
     var gate = window._lastGate;
     if (!gate || !gate.etap_id) return;
 
-    // Save corrections — check responses
-    var corrErrors = [];
-    var totalWodaEl = document.getElementById('corr-total-woda-' + sekcja);
-    if (totalWodaEl && totalWodaEl.value) {
-        var wKg = parseFloat(totalWodaEl.value.replace(',', '.'));
-        if (!isNaN(wKg) && wKg > 0 && gate.sesja_id) {
-            var rw = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Woda', ilosc: wKg })
-            });
-            if (!rw.ok) corrErrors.push('Woda');
-        }
-    }
-    var kwasEl = document.getElementById('corr-manual-kwas-' + sekcja);
-    if (kwasEl && kwasEl.value) {
-        var kKg = parseFloat(kwasEl.value.replace(',', '.'));
-        if (!isNaN(kKg) && kKg > 0 && gate.sesja_id) {
-            var kwasCalcEl = document.getElementById('corr-kwas-calc-' + sekcja);
-            var kwasCalcTxt = kwasCalcEl ? kwasCalcEl.textContent.replace(',', '.').replace(/[^0-9.]/g, '') : '';
-            var kwasWyliczona = parseFloat(kwasCalcTxt);
-            var kwasBody = { sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Kwas cytrynowy', ilosc: kKg };
-            if (!isNaN(kwasWyliczona) && kwasWyliczona > 0) kwasBody.ilosc_wyliczona = kwasWyliczona;
-            var rk = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(kwasBody)
-            });
-            if (!rk.ok) corrErrors.push('Kwas cytrynowy');
-        }
-    }
-    if (corrErrors.length > 0) {
-        alert('B\u0142\u0105d zapisu korekt: ' + corrErrors.join(', ') + '. Spr\u00f3buj ponownie.');
-        return;
+    // Flush any in-flight per-field auto-saves before closing the session
+    if (window._pendingKorektaSaves && window._pendingKorektaSaves.length > 0) {
+        await Promise.allSettled(window._pendingKorektaSaves.slice());
     }
 
     FD.clear();
@@ -595,35 +659,23 @@ function recomputePerhydrol(sekcja) {
     var formatted = dawka.toFixed(1).replace('.', ',');
 
     if (calcEl) calcEl.textContent = formatted + ' kg';
-    // Fill: draft wins, otherwise use calculated value
-    if (manualEl) FD.fill(manualEl.id, manualEl, formatted);
+    if (manualEl) {
+        manualEl.dataset.suggested = dawka.toFixed(1);
+        if (!manualEl.value) manualEl.value = formatted;
+    }
 }
 
 function onManualPerhydrolInput(sekcja) {
-    var manualEl = document.getElementById('corr-manual-kg-' + sekcja);
-    if (manualEl) FD.set(manualEl.id, manualEl.value);
+    // oninput handler kept for recompute trigger; FD.set removed (auto-save on blur)
 }
 
 async function advanceWithPerhydrol(sekcja) {
     var gate = window._lastGate;
     if (!gate || !gate.etap_id) return;
 
-    // Save perhydrol correction amount
-    var manualEl = document.getElementById('corr-manual-kg-' + sekcja);
-    if (manualEl && manualEl.value) {
-        var kg = parseFloat(manualEl.value.replace(',', '.'));
-        if (!isNaN(kg) && kg > 0 && gate.sesja_id) {
-            await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    sesja_id: gate.sesja_id,
-                    etap_id: gate.etap_id,
-                    substancja: 'Perhydrol 34%',
-                    ilosc: kg
-                })
-            });
-        }
+    // Flush any in-flight per-field auto-saves before closing the session
+    if (window._pendingKorektaSaves && window._pendingKorektaSaves.length > 0) {
+        await Promise.allSettled(window._pendingKorektaSaves.slice());
     }
 
     FD.clear();
@@ -696,18 +748,23 @@ async function showPerhydrolWithStand(sekcja) {
         var gateBody = container.querySelector('.gate-body');
         if (!gateBody) return;
 
+        var utlEtapForStand = etapy.find(function(e) { return e.sekcja_lab === 'utlenienie'; });
+        var utlEtapIdForStand = utlEtapForStand ? utlEtapForStand.pipeline_etap_id : 0;
         var perhydrolHtml =
             '<div class="corr-fields" style="margin-top:10px;grid-template-columns:1fr;">' +
                 '<div>' +
                     '<span class="corr-field-label">PERHYDROL 34% [KG]</span>' +
                     '<input id="corr-perhydrol-stand-' + sekcja + '" class="corr-field-input" type="text" inputmode="decimal"' +
                         ' value="' + (perhydrolVal || '') + '" style="font-weight:700;border-color:var(--amber);"' +
-                        ' oninput="FD.set(this.id,this.value);recomputeStandTotal(\'' + sekcja + '\')">' +
+                        ' data-ebr-id="' + window.ebrId + '"' +
+                        ' data-etap-id="' + utlEtapIdForStand + '"' +
+                        ' data-substancja="Perhydrol 34%"' +
+                        ' data-suggested=""' +
+                        ' oninput="recomputeStandTotal(\'' + sekcja + '\')"' +
+                        ' onblur="saveKorektaField(this)">' +
                 '</div>' +
             '</div>';
         gateBody.insertAdjacentHTML('beforeend', perhydrolHtml);
-        var pStandEl = document.getElementById('corr-perhydrol-stand-' + sekcja);
-        if (pStandEl) FD.fill(pStandEl.id, pStandEl, perhydrolVal);
     }, 50);
 }
 
@@ -715,56 +772,9 @@ async function advancePerhydrolWithStand(sekcja) {
     var gate = window._lastGate;
     if (!gate || !gate.etap_id || !gate.sesja_id) return;
 
-    var corrErrors = [];
-
-    // Save perhydrol correction
-    var perhydrolEl = document.getElementById('corr-perhydrol-stand-' + sekcja);
-    if (perhydrolEl && perhydrolEl.value) {
-        var pKg = parseFloat(perhydrolEl.value.replace(',', '.'));
-        if (!isNaN(pKg) && pKg > 0) {
-            var rp = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Perhydrol 34%', ilosc: pKg })
-            });
-            if (!rp.ok) corrErrors.push('Perhydrol');
-        }
-    }
-    // Save woda correction (total = woda + kwas)
-    var totalWodaEl = document.getElementById('corr-total-woda-' + sekcja);
-    if (totalWodaEl && totalWodaEl.value) {
-        var wKg = parseFloat(totalWodaEl.value.replace(',', '.'));
-        if (!isNaN(wKg) && wKg > 0) {
-            var rw = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Woda', ilosc: wKg })
-            });
-            if (!rw.ok) corrErrors.push('Woda');
-        }
-    }
-    // Save kwas correction
-    var kwasEl = document.getElementById('corr-manual-kwas-' + sekcja);
-    if (kwasEl && kwasEl.value) {
-        var kKg = parseFloat(kwasEl.value.replace(',', '.'));
-        if (!isNaN(kKg) && kKg > 0) {
-            var kwasCalcEl = document.getElementById('corr-kwas-calc-' + sekcja);
-            var kwasCalcTxt = kwasCalcEl ? kwasCalcEl.textContent.replace(',', '.').replace(/[^0-9.]/g, '') : '';
-            var kwasWyliczona = parseFloat(kwasCalcTxt);
-            var kwasBody = { sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Kwas cytrynowy', ilosc: kKg };
-            if (!isNaN(kwasWyliczona) && kwasWyliczona > 0) kwasBody.ilosc_wyliczona = kwasWyliczona;
-            var rk = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(kwasBody)
-            });
-            if (!rk.ok) corrErrors.push('Kwas cytrynowy');
-        }
-    }
-
-    if (corrErrors.length > 0) {
-        alert('B\u0142\u0105d zapisu korekt: ' + corrErrors.join(', '));
-        return;
+    // Flush any in-flight per-field auto-saves before closing the session
+    if (window._pendingKorektaSaves && window._pendingKorektaSaves.length > 0) {
+        await Promise.allSettled(window._pendingKorektaSaves.slice());
     }
 
     // Close utlenienie session
@@ -958,10 +968,13 @@ function _updateCorrPanelMeasurements(sekcja) {
         if (phEl.value !== newPh) { phEl.value = newPh; updated = true; }
     }
     if (updated) {
-        // Measurement changed → old correction drafts are stale, clear them
-        FD.del('corr-manual-woda-' + sekcja);
-        FD.del('corr-manual-kwas-' + sekcja);
-        FD.del('corr-total-woda-' + sekcja);
+        // Measurement changed → clear manual inputs so recompute sets fresh suggestions
+        var wodaManEl = document.getElementById('corr-manual-woda-' + sekcja);
+        var kwasManEl = document.getElementById('corr-manual-kwas-' + sekcja);
+        var totalEl = document.getElementById('corr-total-woda-' + sekcja);
+        if (wodaManEl) wodaManEl.value = '';
+        if (kwasManEl) kwasManEl.value = '';
+        if (totalEl) totalEl.value = '';
         // Recalculate with fresh suggestions
         if (typeof recomputeStandV2 === 'function') recomputeStandV2(sekcja);
     }
@@ -973,8 +986,9 @@ function _updateCorrPanelMeasurements(sekcja) {
         var newSo3 = String(sek['so3'].wartosc).replace('.', ',');
         if (so3El.value !== newSo3) {
             so3El.value = newSo3;
-            // Measurement changed → old perhydrol draft is stale
-            FD.del('corr-manual-kg-' + sekcja);
+            // Measurement changed → clear manual input so recompute sets fresh suggestion
+            var perhydrolManEl = document.getElementById('corr-manual-kg-' + sekcja);
+            if (perhydrolManEl) perhydrolManEl.value = '';
             if (typeof recomputePerhydrol === 'function') recomputePerhydrol(sekcja);
         }
     }

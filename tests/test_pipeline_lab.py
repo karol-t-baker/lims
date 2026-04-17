@@ -404,3 +404,214 @@ def test_multi_round_flow(setup_pipeline, db):
     assert len(sesje) == 2
     assert sesje[0]["runda"] == 1
     assert sesje[1]["runda"] == 2
+
+
+# ---------------------------------------------------------------------------
+# Client fixture for HTTP testing
+# ---------------------------------------------------------------------------
+
+class _DBWrapper:
+    """Wraps sqlite3 Connection, making close() a no-op for testing."""
+    def __init__(self, db):
+        self._db = db
+
+    def __getattr__(self, name):
+        return getattr(self._db, name)
+
+    def close(self):
+        """No-op close to preserve connection across requests."""
+        pass
+
+
+def _make_client_for_pipeline(monkeypatch, db):
+    """Build a Flask test client with the in-memory db monkey-patched in."""
+    from contextlib import contextmanager
+    import mbr.db
+    import mbr.pipeline.lab_routes
+
+    # Wrap the db so close() is a no-op (preserve connection across requests)
+    wrapped_db = _DBWrapper(db)
+
+    # Monkeypatch get_db to return the in-memory db
+    def fake_get_db():
+        return wrapped_db
+
+    @contextmanager
+    def fake_db_session():
+        yield wrapped_db
+
+    monkeypatch.setattr(mbr.db, "get_db", fake_get_db)
+    monkeypatch.setattr(mbr.pipeline.lab_routes, "get_db", fake_get_db)
+    monkeypatch.setattr(mbr.db, "db_session", fake_db_session)
+
+    from mbr.app import create_app
+    app = create_app()
+    app.config["TESTING"] = True
+
+    client = app.test_client()
+    with client.session_transaction() as sess:
+        sess["user"] = {"login": "tester", "rola": "laborant", "worker_id": None}
+    return client
+
+
+@pytest.fixture
+def client(monkeypatch, db):
+    return _make_client_for_pipeline(monkeypatch, db)
+
+
+# ---------------------------------------------------------------------------
+# PUT /api/pipeline/lab/ebr/<ebr_id>/korekta — per-field auto-save
+# ---------------------------------------------------------------------------
+
+def _seed_pipeline_fixture_for_korekta(db):
+    """Seed etap + korekta catalog + mbr + ebr + open sesja.
+    Returns dict with ids used by the tests."""
+    db.execute(
+        "INSERT OR IGNORE INTO etapy_analityczne (id, kod, nazwa, typ_cyklu) "
+        "VALUES (910, 'sulfon_lab_t', 'Sulfonowanie (test)', 'cykliczny')"
+    )
+    db.execute(
+        "INSERT INTO etap_korekty_katalog "
+        "(id, etap_id, substancja, jednostka, wykonawca, kolejnosc) "
+        "VALUES (910, 910, 'Perhydrol 34%', 'kg', 'produkcja', 1)"
+    )
+    from datetime import datetime
+    mbr_id = db.execute(
+        "INSERT INTO mbr_templates (produkt, wersja, status, dt_utworzenia) "
+        "VALUES ('TESTPROD', 1, 'active', datetime('now')) RETURNING mbr_id"
+    ).fetchone()["mbr_id"]
+    ebr_id = db.execute(
+        "INSERT INTO ebr_batches (mbr_id, batch_id, nr_partii, dt_start, typ) "
+        "VALUES (?, 'B-KOR-1', '1/KOR', datetime('now'), 'szarza') "
+        "RETURNING ebr_id",
+        (mbr_id,),
+    ).fetchone()["ebr_id"]
+    from mbr.pipeline.models import create_sesja
+    sesja_id = create_sesja(db, ebr_id, 910, runda=1, laborant="lab1")
+    db.commit()
+    return {"ebr_id": ebr_id, "etap_id": 910, "sesja_id": sesja_id,
+            "perhydrol_typ_id": 910}
+
+
+def test_put_korekta_creates_new_row(client, db):
+    s = _seed_pipeline_fixture_for_korekta(db)
+    resp = client.put(
+        f"/api/pipeline/lab/ebr/{s['ebr_id']}/korekta",
+        json={"etap_id": s["etap_id"], "substancja": "Perhydrol 34%",
+              "ilosc": 12.5, "ilosc_wyliczona": 11.8},
+    )
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["ok"] is True
+    assert data["sesja_id"] == s["sesja_id"]
+    assert data["korekta_typ_id"] == s["perhydrol_typ_id"]
+    assert data["ilosc"] == 12.5
+    assert data["ilosc_wyliczona"] == 11.8
+
+
+def test_put_korekta_updates_existing(client, db):
+    s = _seed_pipeline_fixture_for_korekta(db)
+    url = f"/api/pipeline/lab/ebr/{s['ebr_id']}/korekta"
+    body = {"etap_id": s["etap_id"], "substancja": "Perhydrol 34%",
+            "ilosc_wyliczona": 11.8}
+    client.put(url, json={**body, "ilosc": 10.0})
+    client.put(url, json={**body, "ilosc": 15.5})
+    n = db.execute(
+        "SELECT COUNT(*) AS n FROM ebr_korekta_v2 "
+        "WHERE sesja_id=? AND korekta_typ_id=?",
+        (s["sesja_id"], s["perhydrol_typ_id"]),
+    ).fetchone()["n"]
+    assert n == 1
+
+
+def test_put_korekta_ilosc_null_clears_manual(client, db):
+    s = _seed_pipeline_fixture_for_korekta(db)
+    url = f"/api/pipeline/lab/ebr/{s['ebr_id']}/korekta"
+    body = {"etap_id": s["etap_id"], "substancja": "Perhydrol 34%",
+            "ilosc_wyliczona": 11.8}
+    client.put(url, json={**body, "ilosc": 12.5})
+    client.put(url, json={**body, "ilosc": None})
+    row = db.execute(
+        "SELECT ilosc FROM ebr_korekta_v2 "
+        "WHERE sesja_id=? AND korekta_typ_id=?",
+        (s["sesja_id"], s["perhydrol_typ_id"]),
+    ).fetchone()
+    assert row["ilosc"] is None
+
+
+def test_put_korekta_unknown_substancja_returns_404(client, db):
+    s = _seed_pipeline_fixture_for_korekta(db)
+    resp = client.put(
+        f"/api/pipeline/lab/ebr/{s['ebr_id']}/korekta",
+        json={"etap_id": s["etap_id"], "substancja": "NieMaTakiej",
+              "ilosc": 1.0},
+    )
+    assert resp.status_code == 404
+
+
+def test_put_korekta_missing_fields_returns_400(client, db):
+    s = _seed_pipeline_fixture_for_korekta(db)
+    resp = client.put(
+        f"/api/pipeline/lab/ebr/{s['ebr_id']}/korekta",
+        json={"etap_id": s["etap_id"]},  # substancja + ilosc missing
+    )
+    assert resp.status_code == 400
+
+
+def test_put_korekta_zalecil_uses_shift_worker_initials(client, db):
+    """zalecil on auto-save should be shift worker initials (like POST does),
+    not the Flask session login. Prevents the double-log bug where PUT saved
+    'lab' and POST saved worker initials as two separate rows."""
+    s = _seed_pipeline_fixture_for_korekta(db)
+    wid = db.execute(
+        "INSERT INTO workers (imie, nazwisko, inicjaly, nickname) "
+        "VALUES ('Jan', 'Kowalski', 'JK', 'Janek') RETURNING id"
+    ).fetchone()["id"]
+    db.commit()
+    with client.session_transaction() as sess:
+        sess["shift_workers"] = [wid]
+
+    resp = client.put(
+        f"/api/pipeline/lab/ebr/{s['ebr_id']}/korekta",
+        json={"etap_id": s["etap_id"], "substancja": "Perhydrol 34%",
+              "ilosc": 5.0},
+    )
+    assert resp.status_code == 200
+    row = db.execute(
+        "SELECT zalecil FROM ebr_korekta_v2 WHERE sesja_id=?", (s["sesja_id"],)
+    ).fetchone()
+    assert row["zalecil"] == "JK", \
+        f"expected 'JK' (initials from shift worker), got {row['zalecil']!r}"
+
+
+def test_put_korekta_attribution_per_batch(client, db):
+    """Two batches — save for batch 1, no row appears for batch 2."""
+    s1 = _seed_pipeline_fixture_for_korekta(db)
+    mbr2_id = db.execute(
+        "INSERT INTO mbr_templates (produkt, wersja, status, dt_utworzenia) "
+        "VALUES ('TESTPROD2', 1, 'active', datetime('now')) RETURNING mbr_id"
+    ).fetchone()["mbr_id"]
+    ebr2_id = db.execute(
+        "INSERT INTO ebr_batches (mbr_id, batch_id, nr_partii, dt_start, typ) "
+        "VALUES (?, 'B-KOR-2', '2/KOR', datetime('now'), 'szarza') "
+        "RETURNING ebr_id",
+        (mbr2_id,),
+    ).fetchone()["ebr_id"]
+    from mbr.pipeline.models import create_sesja
+    sesja2_id = create_sesja(db, ebr2_id, s1["etap_id"], runda=1, laborant="lab1")
+    db.commit()
+
+    client.put(
+        f"/api/pipeline/lab/ebr/{s1['ebr_id']}/korekta",
+        json={"etap_id": s1["etap_id"], "substancja": "Perhydrol 34%",
+              "ilosc": 42.0, "ilosc_wyliczona": 40.0},
+    )
+    b1 = db.execute(
+        "SELECT ilosc FROM ebr_korekta_v2 WHERE sesja_id=?", (s1["sesja_id"],)
+    ).fetchone()
+    b2 = db.execute(
+        "SELECT ilosc FROM ebr_korekta_v2 WHERE sesja_id=?", (sesja2_id,)
+    ).fetchone()
+    assert b1 is not None
+    assert b1["ilosc"] == 42.0
+    assert b2 is None

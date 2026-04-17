@@ -1039,6 +1039,12 @@
     background: #fffbeb !important;
 }
 
+/* Auto-save feedback for correction inputs */
+.corr-field-input.corr-saving { outline: 2px solid var(--orange, #f59e0b); }
+.corr-field-input.corr-saved { outline: 2px solid var(--green, #16a34a); transition: outline-color 0.4s ease-out; }
+.corr-field-input.corr-error { outline: 2px solid var(--red, #dc2626); }
+.corr-field-input.corr-total-derived { background: var(--surface-alt, #f7f7f7); color: var(--text-dim, #666); cursor: not-allowed; }
+
 </style>
 
 <div class="cv-popup-overlay" id="cv-popup-overlay">
@@ -5575,6 +5581,20 @@ window.saveReceptNa2so3 = async function() {
         })
     });
     if (resp.ok) {
+        // Mirror the save into in-memory wyniki so subsequent re-renders
+        // (e.g. after "Nowa runda" → renderSections) see the saved value
+        // and skip re-rendering this prompt. Without this, only a full
+        // loadBatch would refresh wyniki from the server.
+        var numVal = parseFloat(val);
+        if (!window.wyniki) window.wyniki = {};
+        if (!window.wyniki['sulfonowanie']) window.wyniki['sulfonowanie'] = {};
+        window.wyniki['sulfonowanie']['na2so3_recept_kg'] = {
+            wartosc: isFinite(numVal) ? numVal : val,
+            wartosc_text: '',
+            tag: 'na2so3',
+            w_limicie: null
+        };
+
         var card = input.closest('[style*="border-radius:8px"]') || input.closest('.ff');
         var wrap = card ? card.parentElement : null;
         var target = wrap && wrap.children.length === 1 ? wrap : card;
