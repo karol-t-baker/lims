@@ -820,8 +820,8 @@ def _seed_korekta_fixture(db):
     )
     # Need an ebr_batch for FK on ebr_etap_sesja. Use existing mbr_templates.
     mbr_id = db.execute(
-        "INSERT INTO mbr_templates (produkt, wersja, status) "
-        "VALUES ('TESTPROD', 1, 'active') RETURNING mbr_id"
+        "INSERT INTO mbr_templates (produkt, wersja, status, dt_utworzenia) "
+        "VALUES ('TESTPROD', 1, 'active', datetime('now')) RETURNING mbr_id"
     ).fetchone()["mbr_id"]
     ebr_id = db.execute(
         "INSERT INTO ebr_batches (mbr_id, batch_id, nr_partii, dt_start, typ) "

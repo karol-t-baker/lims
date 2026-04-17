@@ -683,6 +683,48 @@ def create_ebr_korekta(
     return cur.lastrowid
 
 
+def upsert_ebr_korekta(
+    db: sqlite3.Connection,
+    sesja_id: int,
+    korekta_typ_id: int,
+    ilosc: float | None,
+    ilosc_wyliczona: float | None,
+    zalecil: str | None,
+) -> int:
+    """Insert-or-update a correction value for (sesja_id, korekta_typ_id).
+
+    Used by the per-field auto-save flow: each blur-triggered save in the
+    correction panel calls this. Idempotent for the same pair — second call
+    updates the existing row rather than inserting a duplicate.
+
+    ilosc = None is an explicit "clear manual override" signal (formula
+    suggestion can show again in the UI). ilosc_wyliczona is always written
+    so we retain a record of what the formula suggested at each save.
+    """
+    now = datetime.now().isoformat(timespec="seconds")
+    existing = db.execute(
+        "SELECT id FROM ebr_korekta_v2 "
+        "WHERE sesja_id=? AND korekta_typ_id=? "
+        "ORDER BY id DESC LIMIT 1",
+        (sesja_id, korekta_typ_id),
+    ).fetchone()
+    if existing:
+        db.execute(
+            "UPDATE ebr_korekta_v2 "
+            "SET ilosc=?, ilosc_wyliczona=?, zalecil=?, dt_zalecenia=? "
+            "WHERE id=?",
+            (ilosc, ilosc_wyliczona, zalecil, now, existing["id"]),
+        )
+        return existing["id"]
+    cur = db.execute(
+        """INSERT INTO ebr_korekta_v2
+               (sesja_id, korekta_typ_id, ilosc, ilosc_wyliczona, zalecil, dt_zalecenia)
+           VALUES (?, ?, ?, ?, ?, ?)""",
+        (sesja_id, korekta_typ_id, ilosc, ilosc_wyliczona, zalecil, now),
+    )
+    return cur.lastrowid
+
+
 def list_ebr_korekty(db: sqlite3.Connection, sesja_id: int) -> list[dict]:
     """Return corrections for a session, JOINed with etap_korekty_katalog."""
     rows = db.execute(
