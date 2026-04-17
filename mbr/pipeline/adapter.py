@@ -171,22 +171,20 @@ def _build_pole(param: dict, db: sqlite3.Connection) -> dict:
 # ---------------------------------------------------------------------------
 
 def build_pipeline_context(
-    db: sqlite3.Connection, produkt: str
+    db: sqlite3.Connection, produkt: str, typ: str | None = None,
 ) -> dict | None:
     """
     Transform pipeline catalog data into the fast_entry template context.
 
-    Returns:
-        {
-            "etapy_json":    list[dict],
-            "parametry_lab": dict[str, dict],
-        }
-    or None if the product has no pipeline defined.
+    Args:
+        produkt: product kod (matches ebr_batches.produkt / mbr_templates.produkt)
+        typ: one of 'szarza' | 'zbiornik' | 'platkowanie' | None.
+             None means no filter — union of all typy. Used for the
+             completed-batch view which shows every measurement taken.
 
-    The returned structure is directly compatible with the existing
-    _fast_entry_content.html / JavaScript round-cycling logic:
-      - cykliczny stages use sekcja key "analiza" + companion "dodatki"
-      - jednorazowy stages use sekcja key = stage kod
+    Returns:
+        {"etapy_json": list[dict], "parametry_lab": dict[str, dict]} or None
+        if the product has no pipeline defined.
     """
     pipeline = get_produkt_pipeline(db, produkt)
     if not pipeline:
@@ -195,17 +193,14 @@ def build_pipeline_context(
     etapy_json: list[dict] = []
     parametry_lab: dict[str, dict] = {}
 
-    # Find which cykliczny stage is the "main" one (last in pipeline = standaryzacja)
-    # This one gets the "analiza"/"dodatki" sekcja keys for round cycling.
-    # Earlier cykliczny stages get their own unique sekcja keys.
     cykliczne = [s for s in pipeline if s["typ_cyklu"] == "cykliczny"]
     main_cykliczny_id = cykliczne[-1]["etap_id"] if cykliczne else None
 
     for step in pipeline:
-        etap_id  = step["etap_id"]
+        etap_id   = step["etap_id"]
         typ_cyklu = step["typ_cyklu"]
-        nazwa    = step["nazwa"]
-        nr       = step["kolejnosc"]
+        nazwa     = step["nazwa"]
+        nr        = step["kolejnosc"]
 
         etap = get_etap(db, etap_id)
         if etap is None:
@@ -213,15 +208,31 @@ def build_pipeline_context(
 
         params = resolve_limity(db, produkt, etap_id)
 
-        # Filter to params that have product-specific limits defined.
-        # Global etap_parametry was synthesized from union of all products,
-        # so without filtering every product would see all 46+ params.
-        product_param_ids = {r[0] for r in db.execute(
-            "SELECT parametr_id FROM produkt_etap_limity WHERE produkt = ? AND etap_id = ?",
-            (produkt, etap_id),
-        ).fetchall()}
-        if product_param_ids:
-            params = [p for p in params if p["parametr_id"] in product_param_ids]
+        # Product-specific filter — restrict to parametr_ids present in
+        # produkt_etap_limity for this (produkt, etap_id). When typ is set,
+        # additionally require the matching dla_<typ> flag.
+        if typ is None:
+            filter_sql = (
+                "SELECT parametr_id FROM produkt_etap_limity "
+                "WHERE produkt = ? AND etap_id = ?"
+            )
+        else:
+            flag_col = {
+                "szarza":      "dla_szarzy",
+                "zbiornik":    "dla_zbiornika",
+                "platkowanie": "dla_platkowania",
+            }.get(typ)
+            if flag_col is None:
+                raise ValueError(f"unknown typ: {typ!r}")
+            filter_sql = (
+                f"SELECT parametr_id FROM produkt_etap_limity "
+                f"WHERE produkt = ? AND etap_id = ? AND {flag_col} = 1"
+            )
+
+        product_param_ids = {
+            r[0] for r in db.execute(filter_sql, (produkt, etap_id)).fetchall()
+        }
+        params = [p for p in params if p["parametr_id"] in product_param_ids]
 
         if typ_cyklu == "cykliczny" and etap_id == main_cykliczny_id:
             sekcja_key = "analiza"
@@ -230,7 +241,6 @@ def build_pipeline_context(
         else:
             sekcja_key = step["kod"]
 
-        # --- primary etap entry ---
         etap_entry: dict = {
             "nr":               nr,
             "nazwa":            nazwa,
@@ -242,19 +252,12 @@ def build_pipeline_context(
         }
         etapy_json.append(etap_entry)
 
-        # --- parametry_lab section ---
         pola = [_build_pole(p, db) for p in params]
-
         if sekcja_key not in parametry_lab:
-            parametry_lab[sekcja_key] = {
-                "label": nazwa,
-                "pola":  pola,
-            }
+            parametry_lab[sekcja_key] = {"label": nazwa, "pola": pola}
         else:
             parametry_lab[sekcja_key]["pola"].extend(pola)
 
-    # Enrich each stage with decision options so frontend has them without
-    # an extra API call.
     for et in etapy_json:
         eid = et.get("pipeline_etap_id")
         if eid:
@@ -264,10 +267,7 @@ def build_pipeline_context(
             et["decyzje_pass"] = []
             et["decyzje_fail"] = []
 
-    return {
-        "etapy_json":    etapy_json,
-        "parametry_lab": parametry_lab,
-    }
+    return {"etapy_json": etapy_json, "parametry_lab": parametry_lab}
 
 
 def pipeline_dual_write(db, ebr_id, sekcja, values, wpisal, odziedziczony_map=None):
