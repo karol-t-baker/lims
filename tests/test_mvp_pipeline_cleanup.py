@@ -290,3 +290,32 @@ def test_fixup_k7_trims_process_etapy(db):
         "SELECT etap_kod FROM produkt_etapy WHERE produkt='Chegina_K7'"
     ).fetchall()}
     assert kody == {"sulfonowanie", "utlenienie", "standaryzacja"}
+
+
+def test_orphan_cleanup_removes_stranded_limity(db):
+    """After strip+fixup, K40GL has orphan produkt_etap_limity rows for etap_ids
+    no longer in its pipeline. Those must be deleted."""
+    from scripts.mvp_pipeline_cleanup import strip_non_k7_pipeline, fixup_chegina_k7, clean_orphan_limits
+    _seed_full_pipeline_state(db)
+    strip_non_k7_pipeline(db)
+    fixup_chegina_k7(db)
+    clean_orphan_limits(db)
+    rows = db.execute(
+        "SELECT DISTINCT etap_id FROM produkt_etap_limity WHERE produkt='Chegina_K40GL'"
+    ).fetchall()
+    etap_ids = sorted(r["etap_id"] for r in rows)
+    assert etap_ids == [6]
+
+
+def test_orphan_cleanup_preserves_k7_limity(db):
+    """K7 has pipeline for 4 etapy after fixup (dodatki dropped). Its limity
+    for those 4 etapy must survive orphan cleanup."""
+    from scripts.mvp_pipeline_cleanup import strip_non_k7_pipeline, fixup_chegina_k7, clean_orphan_limits
+    _seed_full_pipeline_state(db)
+    strip_non_k7_pipeline(db)
+    fixup_chegina_k7(db)
+    clean_orphan_limits(db)
+    etap_ids = {r["etap_id"] for r in db.execute(
+        "SELECT DISTINCT etap_id FROM produkt_etap_limity WHERE produkt='Chegina_K7'"
+    ).fetchall()}
+    assert etap_ids == {4, 5, 9, 6}

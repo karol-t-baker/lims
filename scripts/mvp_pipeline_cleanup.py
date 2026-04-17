@@ -166,6 +166,18 @@ def fixup_chegina_k7(db: sqlite3.Connection) -> dict:
     return counts
 
 
+def clean_orphan_limits(db: sqlite3.Connection) -> int:
+    """Delete produkt_etap_limity rows whose (produkt, etap_id) pair no longer
+    exists in produkt_pipeline."""
+    cur = db.execute("""
+        DELETE FROM produkt_etap_limity
+        WHERE (produkt, etap_id) NOT IN (
+            SELECT produkt, etap_id FROM produkt_pipeline
+        )
+    """)
+    return cur.rowcount
+
+
 def backup(db_path: str) -> str:
     src = Path(db_path)
     if not src.exists():
@@ -219,6 +231,10 @@ def migrate(db: sqlite3.Connection, dry_run: bool = False) -> None:
             f"deleted {counts2['process_etapy_deleted']} process etapy, "
             f"inserted {counts2['process_etapy_inserted']} standaryzacja."
         )
+
+    n_orphans = clean_orphan_limits(db)
+    if n_orphans:
+        print(f"Deleted {n_orphans} orphan produkt_etap_limity rows.")
 
     errors = postflight(db)
     if errors:
