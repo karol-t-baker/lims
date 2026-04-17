@@ -92,19 +92,21 @@ def test_migration_is_idempotent(db):
 # ---------------------------------------------------------------------------
 
 def _seed_etapy_with_cert(db):
-    """Seed DB with parametry_etapy rows that have cert data (post-migration state)."""
+    """Seed parametry_cert (new SSOT for cert metadata) for get_cert_params tests.
+
+    nacl is deliberately NOT inserted — get_cert_params must not return params
+    that have no parametry_cert row (equivalent to old on_cert=0).
+    """
     db.execute("INSERT INTO parametry_analityczne (id, kod, label, typ, name_en, method_code) VALUES (10, 'sm', 'Sucha masa', 'bezposredni', 'Dry matter [%]', 'L903')")
     db.execute("INSERT INTO parametry_analityczne (id, kod, label, typ, name_en, method_code) VALUES (20, 'nacl', 'Chlorek sodu', 'bezposredni', 'NaCl [%]', 'L941')")
     db.execute("INSERT INTO parametry_analityczne (id, kod, label, typ) VALUES (30, 'odour', 'Zapach', 'binarny')")
-    db.execute("""INSERT INTO parametry_etapy
-        (produkt, kontekst, parametr_id, kolejnosc, on_cert, cert_requirement, cert_format, cert_kolejnosc)
-        VALUES ('Prod', 'analiza_koncowa', 10, 0, 1, 'min 35,5', '1', 0)""")
-    db.execute("""INSERT INTO parametry_etapy
-        (produkt, kontekst, parametr_id, kolejnosc, on_cert, cert_requirement, cert_format, cert_kolejnosc)
-        VALUES ('Prod', 'analiza_koncowa', 20, 1, 0, NULL, NULL, NULL)""")
-    db.execute("""INSERT INTO parametry_etapy
-        (produkt, kontekst, parametr_id, kolejnosc, on_cert, cert_requirement, cert_format, cert_qualitative_result, cert_kolejnosc)
-        VALUES ('Prod', 'analiza_koncowa', 30, 2, 1, 'charakterystyczny', '1', 'zgodny/right', 1)""")
+    # Base cert rows (variant_id IS NULL)
+    db.execute("""INSERT INTO parametry_cert
+        (produkt, parametr_id, variant_id, requirement, format, kolejnosc)
+        VALUES ('Prod', 10, NULL, 'min 35,5', '1', 0)""")
+    db.execute("""INSERT INTO parametry_cert
+        (produkt, parametr_id, variant_id, requirement, format, qualitative_result, kolejnosc)
+        VALUES ('Prod', 30, NULL, 'charakterystyczny', '1', 'zgodny/right', 1)""")
     db.execute("INSERT INTO cert_variants (id, produkt, variant_id, label, flags, remove_params, kolejnosc) VALUES (1, 'Prod', 'loreal', 'Loreal', '[]', '[30]', 0)")
     db.commit()
 
