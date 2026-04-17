@@ -14,9 +14,6 @@ from mbr.etapy.models import (
     init_etapy_status,
     get_etapy_status,
     zatwierdz_etap,
-    FULL_PIPELINE_PRODUCTS,
-    PROCESS_STAGES_K7,
-    PROCESS_STAGES_GLOL,
 )
 
 
@@ -177,11 +174,11 @@ def test_get_process_stages_k7_returns_3(db):
     assert stages == ["sulfonowanie", "utlenienie", "standaryzacja"]
 
 
-def test_get_process_stages_glol_returns_6(db):
+def test_get_process_stages_glol_returns_empty_after_mvp(db):
+    """After MVP cleanup only K7 retains multi-stage workflow; GLOL products
+    have empty produkt_etapy → get_process_stages returns []."""
     stages = get_process_stages("Chegina_K40GLOL")
-    assert len(stages) == 6
-    assert stages == list(PROCESS_STAGES_GLOL)
-    assert "rozjasnianie" in stages
+    assert stages == []
 
 
 def test_get_process_stages_simple_product_returns_empty(db):
@@ -194,41 +191,17 @@ def test_get_process_stages_unknown_product_returns_empty(db):
     assert get_process_stages("UnknownProduct_XYZ") == []
 
 
-_K40GLO_PIPELINE_SKIP = "K40GLO pipeline returns 6 stages (adds 'namca'), test expects 5 — domain decision needed. See docs/superpowers/todo/2026-04-11-quarantined-tests.md"
-
-
-@pytest.mark.skip(reason=_K40GLO_PIPELINE_SKIP)
-def test_get_process_stages_k40glo_uses_k7_pipeline(db):
-    """K40GLO maps through FULL_PIPELINE_PRODUCTS but not GLOL_PRODUCTS → 5 stages."""
-    stages = get_process_stages("Chegina_K40GLO")
-    assert len(stages) == 5
-
-
-def test_get_process_stages_k40gl_uses_k7_pipeline(db):
+def test_get_process_stages_k40gl_empty_after_mvp(db):
+    """Post MVP K40GL has no produkt_etapy rows → empty workflow."""
     stages = get_process_stages("Chegina_K40GL")
-    assert len(stages) == 5
-
-
-# ---------------------------------------------------------------------------
-# FULL_PIPELINE_PRODUCTS membership
-# ---------------------------------------------------------------------------
-
-def test_full_pipeline_does_not_contain_k7b():
-    assert "Chegina_K7B" not in FULL_PIPELINE_PRODUCTS
-
-
-def test_full_pipeline_does_not_contain_k7glo():
-    assert "Chegina_K7GLO" not in FULL_PIPELINE_PRODUCTS
-
-
-def test_full_pipeline_contains_core_products():
-    for p in ("Chegina_K7", "Chegina_K40GL", "Chegina_K40GLO", "Chegina_K40GLOL"):
-        assert p in FULL_PIPELINE_PRODUCTS
+    assert stages == []
 
 
 # ---------------------------------------------------------------------------
 # init_etapy_status
 # ---------------------------------------------------------------------------
+_K40GLO_PIPELINE_SKIP = "Pre-MVP pipeline assumed — deprecated after MVP cleanup 2026-04-16."
+
 
 @pytest.mark.skip(reason=_K40GLO_PIPELINE_SKIP)
 def test_init_etapy_status_creates_records(db):
@@ -276,13 +249,12 @@ def test_init_etapy_status_noop_for_simple_product(db):
     assert statuses == []
 
 
-def test_init_etapy_status_glol_creates_6_stages(db):
+def test_init_etapy_status_glol_creates_no_stages_after_mvp(db):
+    """Post MVP cleanup GLOL products have no process workflow — only K7 does."""
     init_etapy_status(db, ebr_id=15, produkt="Chegina_K40GLOL")
 
     statuses = get_etapy_status(db, ebr_id=15)
-    assert len(statuses) == 6
-    etap_names = {s["etap"] for s in statuses}
-    assert "rozjasnianie" in etap_names
+    assert statuses == []
 
 
 # ---------------------------------------------------------------------------
