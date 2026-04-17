@@ -5246,7 +5246,9 @@ function renderParamEditor() {
     '<span class="ped-prec" style="border:none;background:none;text-align:center;">Prec.</span>' +
   '</div>';
 
-  // Render bound params first (checked), then unbound (unchecked)
+  // Render bound params first (checked), then unbound (unchecked).
+  // Reorder (drag) is admin-only — laborant sees layout admin set up.
+  var canReorder = userRola === 'admin';
   var allSorted = bound.concat(unbound);
   allSorted.forEach(function(p) {
     var b = _peBindingMap[p.id];
@@ -5258,8 +5260,8 @@ function renderParamEditor() {
     var precPlaceholder = p.precision != null ? p.precision : 2;
 
     html += '<div class="ped-row' + disabledCls + '"' +
-      (checked ? ' draggable="true" data-param-id="' + p.id + '"' : '') + '>' +
-      (checked ? '<span class="ped-grip" title="Przeciągnij aby zmienić kolejność">⠿</span>' : '<span style="width:20px;flex-shrink:0;"></span>') +
+      (checked && canReorder ? ' draggable="true" data-param-id="' + p.id + '"' : (checked ? ' data-param-id="' + p.id + '"' : '')) + '>' +
+      (checked && canReorder ? '<span class="ped-grip" title="Przeciągnij aby zmienić kolejność">⠿</span>' : '<span style="width:20px;flex-shrink:0;"></span>') +
       '<input type="checkbox" class="ped-check" ' + (checked ? 'checked' : '') +
         ' onchange="peToggle(' + p.id + ', this.checked)">' +
       '<span class="ped-kod">' + esc(p.kod) + '</span>' +
