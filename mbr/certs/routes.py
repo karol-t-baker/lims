@@ -277,12 +277,15 @@ def api_cert_config_product_get(key):
         ).fetchall()
 
         parameters = []
+        base_kods: set[str] = set()
         for bp in base_params:
             # name_en: use DB value if explicitly set (even empty string means "no EN name"),
             # fall back to parametry_analityczne only if parametry_cert.name_en is NULL
             name_en = bp["name_en"] if bp["name_en"] is not None else (bp["pa_name_en"] or "")
+            pid = bp["kod"] or f"param_{bp['parametr_id']}"
+            base_kods.add(pid)
             param = {
-                "id": bp["kod"] or f"param_{bp['parametr_id']}",
+                "id": pid,
                 "name_pl": bp["name_pl"] or bp["pa_label"] or "",
                 "name_en": name_en,
                 "requirement": bp["requirement"] or "",
@@ -322,9 +325,14 @@ def api_cert_config_product_get(key):
 
             remove_params_ids = _json.loads(vr["remove_params"] or "[]")
             if remove_params_ids:
-                overrides["remove_parameters"] = [
+                resolved = [
                     id_to_kod.get(pid) or f"param_{pid}" for pid in remove_params_ids
                 ]
+                # Hide stale refs (base param already gone) so the editor
+                # doesn't surface them as live variant overrides.
+                live = [k for k in resolved if k in base_kods]
+                if live:
+                    overrides["remove_parameters"] = live
 
             # Variant-specific add_parameters
             add_params_db = db.execute(

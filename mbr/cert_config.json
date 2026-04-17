@@ -119,21 +119,21 @@
           "id": "cert_qual_cert_qual_odour",
           "name_pl": "Zapach",
           "name_en": "Odour",
-          "requirement": "charakterystyczny/characteristic",
+          "requirement": "charakterystyczny\n/characteristic",
           "method": "organoleptycznie/organoleptic",
           "format": "1",
           "data_field": "cert_qual_cert_qual_odour",
-          "qualitative_result": "zgodny/right"
+          "qualitative_result": "zgodny\n/right"
         },
         {
           "id": "cert_qual_cert_qual_appearance",
           "name_pl": "Wygląd",
           "name_en": "Appearance",
-          "requirement": "substancja woskowa/waxy substance",
+          "requirement": "substancja woskowa\n/waxy substance",
           "method": "P801",
           "format": "1",
           "data_field": "cert_qual_cert_qual_appearance",
-          "qualitative_result": "zgodny/right"
+          "qualitative_result": "zgodny\n/right"
         },
         {
           "id": "lk",
@@ -380,6 +380,15 @@
           "method": "L928",
           "format": "1",
           "data_field": "barwa_I2"
+        },
+        {
+          "id": "sa",
+          "name_pl": "Substancja aktywna",
+          "name_en": "Active matter [%]",
+          "requirement": "30-32",
+          "method": "L932",
+          "format": "1",
+          "data_field": "sa"
         }
       ],
       "variants": [
@@ -1122,162 +1131,6 @@
       "opinion_en": "The product complies with P833",
       "parameters": [
         {
-          "id": "barwa_hz",
-          "name_pl": "Barwa w skali Hazena",
-          "name_en": "Colour (Hazen scale)",
-          "requirement": "max 150",
-          "method": "L928",
-          "format": "0",
-          "data_field": "barwa_hz"
-        },
-        {
-          "id": "cert_qual_cert_qual_odour",
-          "name_pl": "Zapach",
-          "name_en": "Odour",
-          "requirement": "słaby\n/faint",
-          "method": "organoleptycznie\n/organoleptic",
-          "format": "1",
-          "data_field": "cert_qual_cert_qual_odour",
-          "qualitative_result": "zgodny\n/right"
-        },
-        {
-          "id": "cert_qual_cert_qual_appearance",
-          "name_pl": "Wygląd",
-          "name_en": "Appearance",
-          "requirement": "klarowna ciecz\n/clear liquid",
-          "method": "organoleptycznie\n/organoleptic",
-          "format": "1",
-          "data_field": "cert_qual_cert_qual_appearance",
-          "qualitative_result": "zgodny\n/right"
-        },
-        {
-          "id": "sa",
-          "name_pl": "Substancja aktywna [%]",
-          "name_en": "Active matter [%]",
-          "requirement": "37,0-42,0",
-          "method": "L932",
-          "format": "1",
-          "data_field": "sa"
-        },
-        {
-          "id": "nacl",
-          "name_pl": "NaCl [%]",
-          "name_en": "NaCl [%]",
-          "requirement": "5,8–7,3",
-          "method": "L941",
-          "format": "1",
-          "data_field": "nacl"
-        },
-        {
-          "id": "sm",
-          "name_pl": "Sucha masa [%]",
-          "name_en": "Dry matter [%]",
-          "requirement": "min. 44,0",
-          "method": "L903",
-          "format": "1",
-          "data_field": "sm"
-        },
-        {
-          "id": "h2o",
-          "name_pl": "H2O [%]",
-          "name_en": "H2O [%]",
-          "requirement": "52,0 – 56,0",
-          "method": "L903",
-          "format": "1",
-          "data_field": "h2o"
-        },
-        {
-          "id": "wolna_amina",
-          "name_pl": "Wolna kokamidopropylodimetyloamina [%]",
-          "name_en": "Free cocamidopropyldimethylamine [%]",
-          "requirement": "max 0,30",
-          "method": "L904",
-          "format": "2",
-          "data_field": "wolna_amina"
-        },
-        {
-          "id": "barwa_opis",
-          "name_pl": "Barwa",
-          "name_en": "Colour",
-          "requirement": "jasnożółty /pale yellow",
-          "method": "organoleptycznie /organoleptic",
-          "format": "1",
-          "data_field": "barwa_opis",
-          "qualitative_result": "zgodny /right"
-        },
-        {
-          "id": "ph_10proc",
-          "name_pl": "pH (20°C)",
-          "name_en": "pH (20°C)",
-          "requirement": "4,50-5,50",
-          "method": "L905",
-          "format": "2",
-          "data_field": "ph_10proc"
-        },
-        {
-          "id": "aa",
-          "name_pl": "Amina aminowa",
-          "name_en": "",
-          "requirement": "<0,3",
-          "method": "",
-          "format": "1",
-          "data_field": "aa"
-        },
-        {
-          "id": "mca",
-          "name_pl": "MCA [ppm]",
-          "name_en": "MCA [ppm]",
-          "requirement": "<100 ppm",
-          "method": "metoda zew.\n/external method",
-          "format": "1",
-          "data_field": "mca"
-        },
-        {
-          "id": "dca",
-          "name_pl": "DCA [ppm]",
-          "name_en": "DCA [ppm]",
-          "requirement": "< 100 ppm",
-          "method": "metoda zew.\n/external method",
-          "format": "1",
-          "data_field": "dca"
-        },
-        {
-          "id": "dmapa",
-          "name_pl": "DMAPA [ppm]",
-          "name_en": "DMAPA [ppm]",
-          "requirement": "< 10 ppm",
-          "method": "metoda zew.\n/ external method",
-          "format": "1",
-          "data_field": "dmapa"
-        },
-        {
-          "id": "wkt",
-          "name_pl": "%WKT",
-          "name_en": "Free fatty acids \n(Coconut fatty acids, MW=220) [%]",
-          "requirement": "1,8-2,2",
-          "method": "L925",
-          "format": "1",
-          "data_field": "wkt"
-        },
-        {
-          "id": "nd20",
-          "name_pl": "Współczynnik załamania nD20",
-          "name_en": "Refraction (nD20)",
-          "requirement": "",
-          "method": "PN-EN ISO 6320:2017-04",
-          "format": "1",
-          "data_field": "nd20"
-        },
-        {
-          "id": "h2o2",
-          "name_pl": "Nadtlenek wodoru",
-          "name_en": "Peroxides as H2O2 [%]",
-          "requirement": "",
-          "method": "L901",
-          "format": "1",
-          "data_field": "h2o2"
-        },
-        {
           "id": "so3",
           "name_pl": "Siarczyny",
           "name_en": "",
@@ -1303,10 +1156,6 @@
             "spec_number": "P826",
             "opinion_pl": "Produkt odpowiada wymaganiom P826",
             "opinion_en": "The product complies with P826",
-            "remove_parameters": [
-              "sm",
-              "h2o"
-            ],
             "add_parameters": [
               {
                 "id": "kwas_hcl",
@@ -1331,11 +1180,7 @@
           "overrides": {
             "spec_number": "P826",
             "opinion_pl": "Produkt odpowiada wymaganiom P826",
-            "opinion_en": "The product complies with P826",
-            "remove_parameters": [
-              "sm",
-              "h2o"
-            ]
+            "opinion_en": "The product complies with P826"
           }
         },
         {
@@ -1349,11 +1194,7 @@
           "overrides": {
             "spec_number": "P826",
             "opinion_pl": "Produkt odpowiada wymaganiom P826",
-            "opinion_en": "The product complies with P826",
-            "remove_parameters": [
-              "sm",
-              "h2o"
-            ]
+            "opinion_en": "The product complies with P826"
           }
         },
         {
@@ -1367,11 +1208,7 @@
           "overrides": {
             "spec_number": "P826",
             "opinion_pl": "Produkt odpowiada wymaganiom P826",
-            "opinion_en": "The product complies with P826",
-            "remove_parameters": [
-              "sm",
-              "h2o"
-            ]
+            "opinion_en": "The product complies with P826"
           }
         }
       ]
@@ -1620,6 +1457,15 @@
           "data_field": "sm"
         },
         {
+          "id": "h2o2",
+          "name_pl": "Nadtlenek wodoru wodoru",
+          "name_en": "Peroxides as H2O2 [%]",
+          "requirement": "max 0,00",
+          "method": "L901",
+          "format": "2",
+          "data_field": "h2o2"
+        },
+        {
           "id": "nacl",
           "name_pl": "NaCl [%]",
           "name_en": "NaCl [%]",
@@ -1634,7 +1480,7 @@
           "name_en": "Refraction (n_{D}^{20})",
           "requirement": "1,3800-1,3950",
           "method": "PN-EN ISO 6320:2017-04",
-          "format": "4",
+          "format": "1",
           "data_field": "nd20"
         },
         {
@@ -1649,7 +1495,7 @@
         {
           "id": "ph_10proc",
           "name_pl": "pH (10%, aq)",
-          "name_en": "pH (5%, aq, 25°C)",
+          "name_en": "pH (10%, aq, 25°C)",
           "requirement": "4,50-7,50",
           "method": "L905",
           "format": "2",
@@ -2938,7 +2784,7 @@
         },
         {
           "id": "h2o2",
-          "name_pl": "Nadtlenek wodoru",
+          "name_pl": "Nadtlenek wodoru wodoru",
           "name_en": "Peroxides as H2O2 [%]",
           "requirement": "max 0,09",
           "method": "L901",
@@ -3021,7 +2867,7 @@
         },
         {
           "id": "h2o2",
-          "name_pl": "Nadtlenek wodoru",
+          "name_pl": "Nadtlenek wodoru wodoru",
           "name_en": "Peroxides as H2O2 [%]",
           "requirement": "max 0,15",
           "method": "L901",

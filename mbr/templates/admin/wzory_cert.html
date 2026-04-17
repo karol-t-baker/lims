@@ -598,8 +598,32 @@ function _paramRow(p, idx) {
     '<td><select data-field="data_field" onchange="onCodeSelect(this)">' + _codeOptions(p.data_field) + '</select></td>' +
     '<td><select data-field="format">' + _fmtOptions(p.format) + '</select></td>' +
     '<td><input data-field="qualitative_result" value="' + _esc(p.qualitative_result || '') + '" placeholder="—"></td>' +
-    '<td><button class="wc-del" onclick="this.closest(\'tr\').remove()" title="Usuń">&times;</button></td>' +
+    '<td><button class="wc-del" onclick="removeBaseParam(this)" title="Usuń">&times;</button></td>' +
   '</tr>';
+}
+
+// Remove a base parameter AND scrub every reference to it from all variants'
+// remove_parameters lists (we cache variant state in _variantsData).
+// add_parameters are independent additions so they're left alone.
+function removeBaseParam(btn) {
+  var row = btn.closest('tr');
+  var idInput = row.querySelector('[data-field="id"]');
+  var pid = idInput ? (idInput.value || '').trim() : '';
+  row.remove();
+  if (!pid) return;
+  saveCurrentVariantToData();
+  if (!Array.isArray(_variantsData)) return;
+  _variantsData.forEach(function(v) {
+    var ov = v.overrides = v.overrides || {};
+    if (Array.isArray(ov.remove_parameters) && ov.remove_parameters.indexOf(pid) !== -1) {
+      ov.remove_parameters = ov.remove_parameters.filter(function(x) { return x !== pid; });
+    }
+  });
+  // Re-render the currently displayed variant so its remove_parameters
+  // checkboxes / chips match the cleaned state.
+  if (typeof _currentVarIdx === 'number' && _variantsData[_currentVarIdx]) {
+    showVariant(_currentVarIdx);
+  }
 }
 
 function addParameter() {
