@@ -5197,6 +5197,13 @@ function openParamEditor(kontekst) {
 
 function closeParamEditor() {
   document.getElementById('pe-modal-overlay').classList.remove('show');
+  // If toggles / drag-drop modified bindings while the modal was open, refresh
+  // the batch card now. Doing this INSIDE peToggle swapped out the panel-detail
+  // innerHTML and tore down the modal mid-click.
+  if (window._peDirty && typeof loadBatch === 'function') {
+    window._peDirty = false;
+    loadBatch(ebrId);
+  }
 }
 
 function renderParamEditor() {
@@ -5331,7 +5338,8 @@ function _peSetupDragDrop() {
         }));
       });
       Promise.all(promises).then(function() {
-        if (typeof loadBatch === 'function') loadBatch(ebrId);
+        window._peDirty = true;
+        // Batch refresh deferred to closeParamEditor (see peToggle for context).
       });
 
       _peDragParamId = null;
@@ -5406,9 +5414,11 @@ function peToggle(paramId, checked) {
   }
 
   promise.then(function() {
+    window._peDirty = true;
     renderParamEditor();
-    // Refresh the batch card so the change is visible immediately
-    if (typeof loadBatch === 'function') loadBatch(ebrId);
+    // Batch refresh deferred to closeParamEditor — calling loadBatch here
+    // destroys the modal DOM mid-click, so checkbox clicks appeared to close
+    // the modal instead of just toggling the binding.
   });
 }
 
