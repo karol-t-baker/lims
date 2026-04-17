@@ -1,0 +1,139 @@
+"""Tests for scripts/mvp_pipeline_cleanup.py — MVP narrowing of multi-stage
+pipeline to Chegina_K7 only, plus K7 typ-flag fixup."""
+
+import sqlite3
+import pytest
+
+from mbr.models import init_mbr_tables
+
+
+@pytest.fixture
+def db():
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys=ON")
+    init_mbr_tables(conn)
+    yield conn
+    conn.close()
+
+
+def _seed_full_pipeline_state(db):
+    """Seed DB state as it looks AFTER PR 1-6 of parametry SSOT refactor:
+    Chegina_K7 has 5 analytical etapy + 5 process etapy, Chegina_K40GL has
+    5 analytical + 5 process, Chelamid_DK has 1 analytical + 0 process.
+    All typ flags default 1/1/0."""
+    db.execute("DELETE FROM parametry_analityczne")
+    db.execute("DELETE FROM produkt_etapy")
+    db.execute("DELETE FROM produkt_pipeline")
+    db.executemany(
+        "INSERT INTO parametry_analityczne (id, kod, label, typ, precision, aktywny) "
+        "VALUES (?, ?, ?, ?, ?, 1)",
+        [
+            (1, "ph_10proc", "pH 10%", "bezposredni", 2),
+            (2, "nd20", "nD20", "bezposredni", 4),
+            (3, "sm", "Sucha masa", "bezposredni", 2),
+            (4, "sa", "SA", "titracja", 2),
+            (5, "so3", "SO3", "titracja", 2),
+            (6, "nacl", "NaCl", "titracja", 2),
+            (7, "barwa_I2", "Barwa I2", "bezposredni", 0),
+            (8, "kwas_ca", "Kwas cytrynowy [kg]", "bezposredni", 1),
+        ],
+    )
+    db.executemany(
+        "INSERT OR IGNORE INTO etapy_analityczne (id, kod, nazwa, typ_cyklu) VALUES (?, ?, ?, ?)",
+        [
+            (1, "amidowanie", "Amidowanie", "cykliczny"),
+            (3, "namca", "NAMCA", "cykliczny"),
+            (2, "czwartorzedowanie", "Czwartorzedowanie", "cykliczny"),
+            (4, "sulfonowanie", "Sulfonowanie", "cykliczny"),
+            (5, "utlenienie", "Utlenienie", "cykliczny"),
+            (6, "analiza_koncowa", "Analiza koncowa", "jednorazowy"),
+            (7, "dodatki", "Dodatki standaryzacyjne", "cykliczny"),
+            (9, "standaryzacja", "Standaryzacja", "cykliczny"),
+        ],
+    )
+    db.execute(
+        "INSERT OR IGNORE INTO etapy_procesowe (kod, label, aktywny) VALUES (?, ?, 1)",
+        ("amidowanie", "Amidowanie"),
+    )
+    for kod in ("namca", "czwartorzedowanie", "sulfonowanie", "utlenienie", "standaryzacja"):
+        db.execute(
+            "INSERT OR IGNORE INTO etapy_procesowe (kod, label, aktywny) VALUES (?, ?, 1)",
+            (kod, kod.capitalize()),
+        )
+
+    # ---- Chegina_K7: 5 analytical etapy + 5 process etapy ----
+    k7_pipeline = [
+        (4, 1),   # sulfonowanie, kolejnosc 1
+        (5, 2),   # utlenienie
+        (9, 3),   # standaryzacja
+        (6, 4),   # analiza_koncowa
+        (7, 5),   # dodatki
+    ]
+    for etap_id, kol in k7_pipeline:
+        db.execute(
+            "INSERT INTO produkt_pipeline (produkt, etap_id, kolejnosc) VALUES ('Chegina_K7', ?, ?)",
+            (etap_id, kol),
+        )
+    k7_process = ["amidowanie", "namca", "czwartorzedowanie", "sulfonowanie", "utlenienie"]
+    for i, kod in enumerate(k7_process, 1):
+        db.execute(
+            "INSERT INTO produkt_etapy (produkt, etap_kod, kolejnosc) VALUES ('Chegina_K7', ?, ?)",
+            (kod, i),
+        )
+    k7_params = [
+        (4, 5),  # sulfonowanie, so3
+        (4, 1),  # sulfonowanie, ph_10proc
+        (5, 5),  # utlenienie, so3
+        (5, 6),  # utlenienie, nacl
+        (9, 2),  # standaryzacja, nd20
+        (9, 6),  # standaryzacja, nacl
+        (6, 1),  # analiza_koncowa, ph_10proc
+        (6, 3),  # analiza_koncowa, sm
+        (6, 7),  # analiza_koncowa, barwa_I2
+        (7, 8),  # dodatki, kwas_ca
+    ]
+    for etap_id, parametr_id in k7_params:
+        db.execute(
+            "INSERT INTO produkt_etap_limity (produkt, etap_id, parametr_id, "
+            "dla_szarzy, dla_zbiornika, dla_platkowania) VALUES ('Chegina_K7', ?, ?, 1, 1, 0)",
+            (etap_id, parametr_id),
+        )
+
+    # ---- Chegina_K40GL: 5 analytical + 5 process ----
+    k40gl_pipeline = [(4, 1), (5, 2), (9, 3), (6, 4), (7, 5)]
+    for etap_id, kol in k40gl_pipeline:
+        db.execute(
+            "INSERT INTO produkt_pipeline (produkt, etap_id, kolejnosc) VALUES ('Chegina_K40GL', ?, ?)",
+            (etap_id, kol),
+        )
+    for i, kod in enumerate(k7_process, 1):
+        db.execute(
+            "INSERT INTO produkt_etapy (produkt, etap_kod, kolejnosc) VALUES ('Chegina_K40GL', ?, ?)",
+            (kod, i),
+        )
+    for etap_id, parametr_id in k7_params:
+        db.execute(
+            "INSERT INTO produkt_etap_limity (produkt, etap_id, parametr_id, "
+            "dla_szarzy, dla_zbiornika, dla_platkowania) VALUES ('Chegina_K40GL', ?, ?, 1, 1, 0)",
+            (etap_id, parametr_id),
+        )
+
+    # ---- Chelamid_DK: 1 analytical (analiza_koncowa) ----
+    db.execute(
+        "INSERT INTO produkt_pipeline (produkt, etap_id, kolejnosc) VALUES ('Chelamid_DK', 6, 1)"
+    )
+    db.execute(
+        "INSERT INTO produkt_etap_limity (produkt, etap_id, parametr_id, "
+        "dla_szarzy, dla_zbiornika, dla_platkowania) VALUES ('Chelamid_DK', 6, 1, 1, 1, 0)"
+    )
+
+    # Active MBR templates for postflight
+    for produkt in ("Chegina_K7", "Chegina_K40GL", "Chelamid_DK"):
+        db.execute(
+            "INSERT INTO mbr_templates (produkt, status, dt_utworzenia) "
+            "VALUES (?, 'active', datetime('now'))",
+            (produkt,),
+        )
+
+    db.commit()
