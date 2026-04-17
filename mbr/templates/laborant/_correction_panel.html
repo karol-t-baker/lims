@@ -193,13 +193,32 @@ async function _renderStandaryzacjaV2Panel(container, sekcja, ctx) {
                     '</div>' +
                 '</div>' +
                 '<div class="corr-fields" style="margin-top:10px;grid-template-columns:1fr 1fr 1fr;">' +
-                    _corrFieldKorekta('Woda [kg]', 'corr-manual-woda-' + sekcja, '', ebrId, etapId, 'Woda łącznie', sekcja) +
-                    _corrFieldKorekta('Kwas cytrynowy [kg]', 'corr-manual-kwas-' + sekcja, '', ebrId, etapId, 'Kwas cytrynowy', sekcja) +
+                    '<div>' +
+                        '<span class="corr-field-label">Woda [kg]</span>' +
+                        '<input id="corr-manual-woda-' + sekcja + '" class="corr-field-input" type="text" inputmode="decimal"' +
+                            ' oninput="recomputeStandTotal(\'' + sekcja + '\')"' +
+                            ' onblur="saveStandFields(\'' + sekcja + '\')">' +
+                    '</div>' +
+                    '<div>' +
+                        '<span class="corr-field-label">Kwas cytrynowy [kg]</span>' +
+                        '<input id="corr-manual-kwas-' + sekcja + '" class="corr-field-input" type="text" inputmode="decimal"' +
+                            ' data-ebr-id="' + ebrId + '"' +
+                            ' data-etap-id="' + etapId + '"' +
+                            ' data-substancja="Kwas cytrynowy"' +
+                            ' data-suggested=""' +
+                            ' oninput="recomputeStandTotal(\'' + sekcja + '\')"' +
+                            ' onblur="saveStandFields(\'' + sekcja + '\')">' +
+                    '</div>' +
                     '<div>' +
                         '<span class="corr-field-label">WODA \u0141\u0104CZNIE [KG]</span>' +
-                        '<input id="corr-total-woda-' + sekcja + '" class="corr-field-input corr-total-derived" type="text" readonly tabindex="-1"' +
+                        '<input id="corr-total-woda-' + sekcja + '" class="corr-field-input" type="text" inputmode="decimal"' +
                             ' style="font-weight:700;font-size:14px;border-color:var(--teal);background:var(--teal-bg);color:var(--teal);text-align:center;"' +
-                            ' title="Suma Woda + Kwas cytrynowy (tylko odczyt)">' +
+                            ' title="Woda \u0142\u0105cznie (auto: Woda+Kwas, mo\u017Cesz nadpisa\u0107)"' +
+                            ' data-ebr-id="' + ebrId + '"' +
+                            ' data-etap-id="' + etapId + '"' +
+                            ' data-substancja="Woda \u0142\u0105cznie"' +
+                            ' data-suggested=""' +
+                            ' onblur="saveKorektaField(this)">' +
                     '</div>' +
                 '</div>' +
             '</div>' +
@@ -209,19 +228,28 @@ async function _renderStandaryzacjaV2Panel(container, sekcja, ctx) {
     recomputeStandV2(sekcja);
     recomputeStandTotal(sekcja);
 
-    // Restore saved manual corrections (persist across F5 / batch switch)
+    // Restore saved corrections (persist across F5 / batch switch).
+    // Woda łącznie is authoritative (what production actually adds). Kwas is
+    // saved separately. Woda component is a helper derived as max(0, total - kwas).
     var sesjaId = (window._lastGate && window._lastGate.sesja_id) || null;
     if (sesjaId) {
         var saved = await _loadSavedKorekty(window.ebrId, etapId, sesjaId);
         var wodaManEl = document.getElementById('corr-manual-woda-' + sekcja);
         var kwasManEl = document.getElementById('corr-manual-kwas-' + sekcja);
-        if (wodaManEl && saved['Woda łącznie'] != null) {
-            wodaManEl.value = String(saved['Woda łącznie']).replace('.', ',');
+        var totalEl = document.getElementById('corr-total-woda-' + sekcja);
+        var savedTotal = saved['Woda \u0142\u0105cznie'];
+        var savedKwas = saved['Kwas cytrynowy'];
+        if (kwasManEl && savedKwas != null) {
+            kwasManEl.value = String(savedKwas).replace('.', ',');
         }
-        if (kwasManEl && saved['Kwas cytrynowy'] != null) {
-            kwasManEl.value = String(saved['Kwas cytrynowy']).replace('.', ',');
+        if (totalEl && savedTotal != null) {
+            totalEl.value = String(savedTotal).replace('.', ',');
+            if (wodaManEl) {
+                var wodaComp = Number(savedTotal) - (Number(savedKwas) || 0);
+                if (!isFinite(wodaComp) || wodaComp < 0) wodaComp = 0;
+                wodaManEl.value = wodaComp > 0 ? wodaComp.toFixed(1).replace('.', ',') : '';
+            }
         }
-        recomputeStandTotal(sekcja);
     }
 }
 
@@ -276,6 +304,27 @@ async function _loadSavedKorekty(ebrIdArg, etapIdArg, sesjaId) {
     console.warn('[_loadSavedKorekty]', e);
     return {};
   }
+}
+
+// Standaryzacja V2: blur on Woda or Kwas input recomputes total and saves
+// BOTH Kwas cytrynowy (kwas value) and Woda łącznie (sum). If the operator
+// later edits the total input directly, its onblur (saveKorektaField) writes
+// the override — next Woda/Kwas blur would recompute and overwrite it again,
+// which is the documented trade-off for simplicity.
+async function saveStandFields(sekcja) {
+  var wodaEl = document.getElementById('corr-manual-woda-' + sekcja);
+  var kwasEl = document.getElementById('corr-manual-kwas-' + sekcja);
+  var totalEl = document.getElementById('corr-total-woda-' + sekcja);
+  if (!kwasEl || !totalEl) return;
+
+  var w = _parsePl(wodaEl ? wodaEl.value : ''); if (isNaN(w)) w = 0;
+  var k = _parsePl(kwasEl.value); if (isNaN(k)) k = 0;
+  var sum = w + k;
+  totalEl.value = sum > 0 ? sum.toFixed(1).replace('.', ',') : '';
+
+  var p1 = saveKorektaField(kwasEl);
+  var p2 = saveKorektaField(totalEl);
+  return Promise.all([p1, p2]);
 }
 
 function saveKorektaField(input) {
@@ -573,20 +622,6 @@ function _corrField(label, id, value, readonly, oninputFn, extra) {
             (readonly ? ' readonly' : '') +
             ' oninput="' + oninputFn + '">' +
         (extra || '') +
-    '</div>';
-}
-
-// Renders a corr-manual-* input wired for auto-save on blur (PUT /korekta)
-function _corrFieldKorekta(label, id, value, ebrId, etapId, substancja, sekcja) {
-    return '<div>' +
-        '<span class="corr-field-label">' + label + '</span>' +
-        '<input id="' + id + '" class="corr-field-input" type="text" inputmode="decimal" value="' + (value || '') + '"' +
-            ' data-ebr-id="' + ebrId + '"' +
-            ' data-etap-id="' + etapId + '"' +
-            ' data-substancja="' + substancja + '"' +
-            ' data-suggested=""' +
-            ' oninput="recomputeStandTotal(\'' + sekcja + '\')"' +
-            ' onblur="saveKorektaField(this)">' +
     '</div>';
 }
 
