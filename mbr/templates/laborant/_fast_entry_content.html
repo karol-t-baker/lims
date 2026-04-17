@@ -5346,22 +5346,18 @@ function _peSetupDragDrop() {
       boundIds.splice(fromIdx, 1);
       boundIds.splice(toIdx, 0, _peDragParamId);
 
-      // Update kolejnosc in map and save
+      // Update kolejnosc in map and persist via PUT /api/bindings/<id>
       var promises = [];
       boundIds.forEach(function(pid, i) {
         _peBindingMap[pid].kolejnosc = i + 1;
-        promises.push(fetch('/api/parametry/etapy/' + _peBindingMap[pid].id, {
+        promises.push(fetch('/api/bindings/' + _peBindingMap[pid].id, {
           method: 'PUT',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({kolejnosc: i + 1})
         }));
       });
       Promise.all(promises).then(function() {
-        fetch('/api/parametry/rebuild-mbr', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({produkt: window._batchProdukt})
-        });
+        if (typeof loadBatch === 'function') loadBatch(ebrId);
       });
 
       _peDragParamId = null;
@@ -5474,7 +5470,7 @@ function peSaveLimits() {
   });
 
   var promises = Object.keys(updates).map(function(bindingId) {
-    return fetch('/api/parametry/etapy/' + bindingId, {
+    return fetch('/api/bindings/' + bindingId, {
       method: 'PUT',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify(updates[bindingId])
@@ -5482,16 +5478,8 @@ function peSaveLimits() {
   });
 
   Promise.all(promises).then(function() {
-    return fetch('/api/parametry/rebuild-mbr', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({produkt: window._batchProdukt})
-    });
-  }).then(function(r){return r.json();}).then(function(d) {
-    if (d.ok) {
-      closeParamEditor();
-      if (typeof loadBatch === 'function') loadBatch(ebrId);
-    }
+    closeParamEditor();
+    if (typeof loadBatch === 'function') loadBatch(ebrId);
   });
 }
 
