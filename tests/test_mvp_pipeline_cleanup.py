@@ -319,3 +319,38 @@ def test_orphan_cleanup_preserves_k7_limity(db):
         "SELECT DISTINCT etap_id FROM produkt_etap_limity WHERE produkt='Chegina_K7'"
     ).fetchall()}
     assert etap_ids == {4, 5, 9, 6}
+
+
+def test_postflight_passes_after_full_cleanup(db):
+    from scripts.mvp_pipeline_cleanup import migrate, postflight
+    _seed_full_pipeline_state(db)
+    migrate(db)
+    assert postflight(db) == []
+
+
+def test_postflight_detects_active_product_without_pipeline(db):
+    """If an active MBR product has 0 produkt_pipeline rows, postflight fails."""
+    from scripts.mvp_pipeline_cleanup import postflight
+    _seed_full_pipeline_state(db)
+    db.execute("DELETE FROM produkt_pipeline WHERE produkt='Chelamid_DK'")
+    db.commit()
+    errors = postflight(db)
+    assert any("Chelamid_DK" in e and "no pipeline" in e.lower() for e in errors)
+
+
+def test_postflight_detects_non_k7_with_multi_stage_leftover(db):
+    """If any non-K7 product still has multi-stage pipeline, postflight fails."""
+    from scripts.mvp_pipeline_cleanup import postflight
+    _seed_full_pipeline_state(db)
+    errors = postflight(db)
+    # Pre-cleanup state — K40GL still has 5 pipeline rows
+    assert any("Chegina_K40GL" in e and "multi-stage" in e.lower() for e in errors)
+
+
+def test_postflight_detects_k7_with_dodatki(db):
+    """K7 pipeline must not contain dodatki etap."""
+    from scripts.mvp_pipeline_cleanup import strip_non_k7_pipeline, postflight
+    _seed_full_pipeline_state(db)
+    strip_non_k7_pipeline(db)  # dodatki still present for K7
+    errors = postflight(db)
+    assert any("Chegina_K7" in e and "dodatki" in e.lower() for e in errors)

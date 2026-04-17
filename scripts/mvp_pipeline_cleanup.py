@@ -254,7 +254,48 @@ def migrate(db: sqlite3.Connection, dry_run: bool = False) -> None:
 
 def postflight(db: sqlite3.Connection) -> list[str]:
     """Return list of post-migration validation errors. Empty list = OK."""
-    return []  # filled in later tasks
+    errors: list[str] = []
+    ak_id = _analiza_koncowa_etap_id(db)
+
+    # 1. Every active MBR product has at least one produkt_pipeline row
+    rows = db.execute("""
+        SELECT mt.produkt
+        FROM mbr_templates mt
+        WHERE mt.status = 'active'
+          AND NOT EXISTS (
+            SELECT 1 FROM produkt_pipeline pp WHERE pp.produkt = mt.produkt
+          )
+    """).fetchall()
+    for r in rows:
+        errors.append(f"Active product '{r['produkt']}' has no pipeline entries.")
+
+    # 2. No non-K7 product has multi-stage pipeline
+    rows = db.execute("""
+        SELECT produkt, COUNT(*) AS n
+        FROM produkt_pipeline
+        GROUP BY produkt
+        HAVING n > 1
+    """).fetchall()
+    for r in rows:
+        if r["produkt"] not in MVP_MULTI_STAGE:
+            errors.append(
+                f"Product '{r['produkt']}' still has multi-stage pipeline ({r['n']} rows); "
+                "expected 1 (analiza_koncowa) after cleanup."
+            )
+
+    # 3. K7 pipeline must not contain dodatki
+    dodatki_row = db.execute(
+        "SELECT id FROM etapy_analityczne WHERE kod='dodatki'"
+    ).fetchone()
+    if dodatki_row:
+        row = db.execute(
+            "SELECT 1 FROM produkt_pipeline WHERE produkt='Chegina_K7' AND etap_id=?",
+            (dodatki_row["id"],),
+        ).fetchone()
+        if row:
+            errors.append("Chegina_K7 pipeline still contains 'dodatki' etap.")
+
+    return errors
 
 
 def main() -> None:
