@@ -345,6 +345,79 @@ def lab_create_korekta(ebr_id):
 
 
 # ---------------------------------------------------------------------------
+# PUT /api/pipeline/lab/ebr/<ebr_id>/korekta — Per-field auto-save
+# Upsert correction value (ilosc, ilosc_wyliczona) without explicit IDs.
+# ---------------------------------------------------------------------------
+
+@pipeline_bp.route("/api/pipeline/lab/ebr/<int:ebr_id>/korekta", methods=["PUT"])
+@login_required
+def lab_upsert_ebr_korekta(ebr_id):
+    """Per-field auto-save for correction values.
+
+    Body: {etap_id, substancja, ilosc, ilosc_wyliczona?}.
+    Resolves the active sesja and the korekta_typ_id, then calls
+    pm.upsert_ebr_korekta.
+    """
+    data = request.get_json(silent=True) or {}
+    etap_id = data.get("etap_id")
+    substancja = (data.get("substancja") or "").strip()
+    if not etap_id or not substancja or "ilosc" not in data:
+        return jsonify({"error": "etap_id, substancja, ilosc are required"}), 400
+
+    ilosc = data.get("ilosc")
+    ilosc_wyliczona = data.get("ilosc_wyliczona")
+    zalecil = session.get("user", {}).get("login")
+
+    db = get_db()
+    try:
+        sesja_row = db.execute(
+            "SELECT id FROM ebr_etap_sesja "
+            "WHERE ebr_id=? AND etap_id=? "
+            "  AND status IN ('nierozpoczety', 'w_trakcie') "
+            "ORDER BY runda DESC, id DESC LIMIT 1",
+            (ebr_id, etap_id),
+        ).fetchone()
+        if not sesja_row:
+            return jsonify({"error": "no active session for this etap"}), 400
+
+        katalog_row = db.execute(
+            "SELECT id FROM etap_korekty_katalog "
+            "WHERE etap_id=? AND substancja=?",
+            (etap_id, substancja),
+        ).fetchone()
+        if not katalog_row:
+            return jsonify({
+                "error": f"substancja '{substancja}' not in korekty catalog for etap {etap_id}"
+            }), 404
+
+        kid = pm.upsert_ebr_korekta(
+            db,
+            sesja_id=sesja_row["id"],
+            korekta_typ_id=katalog_row["id"],
+            ilosc=ilosc,
+            ilosc_wyliczona=ilosc_wyliczona,
+            zalecil=zalecil,
+        )
+        db.commit()
+
+        row = db.execute(
+            "SELECT id, sesja_id, korekta_typ_id, ilosc, ilosc_wyliczona "
+            "FROM ebr_korekta_v2 WHERE id=?",
+            (kid,),
+        ).fetchone()
+        return jsonify({
+            "ok": True,
+            "id": row["id"],
+            "sesja_id": row["sesja_id"],
+            "korekta_typ_id": row["korekta_typ_id"],
+            "ilosc": row["ilosc"],
+            "ilosc_wyliczona": row["ilosc_wyliczona"],
+        })
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
 # PUT /api/pipeline/lab/ebr/<ebr_id>/korekta/<korekta_id>/status
 # Update correction status.
 # ---------------------------------------------------------------------------

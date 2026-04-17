@@ -410,16 +410,38 @@ def test_multi_round_flow(setup_pipeline, db):
 # Client fixture for HTTP testing
 # ---------------------------------------------------------------------------
 
-@pytest.fixture
-def client(monkeypatch, db):
+class _DBWrapper:
+    """Wraps sqlite3 Connection, making close() a no-op for testing."""
+    def __init__(self, db):
+        self._db = db
+
+    def __getattr__(self, name):
+        return getattr(self._db, name)
+
+    def close(self):
+        """No-op close to preserve connection across requests."""
+        pass
+
+
+def _make_client_for_pipeline(monkeypatch, db):
     """Build a Flask test client with the in-memory db monkey-patched in."""
     from contextlib import contextmanager
     import mbr.db
+    import mbr.pipeline.lab_routes
+
+    # Wrap the db so close() is a no-op (preserve connection across requests)
+    wrapped_db = _DBWrapper(db)
+
+    # Monkeypatch get_db to return the in-memory db
+    def fake_get_db():
+        return wrapped_db
 
     @contextmanager
     def fake_db_session():
-        yield db
+        yield wrapped_db
 
+    monkeypatch.setattr(mbr.db, "get_db", fake_get_db)
+    monkeypatch.setattr(mbr.pipeline.lab_routes, "get_db", fake_get_db)
     monkeypatch.setattr(mbr.db, "db_session", fake_db_session)
 
     from mbr.app import create_app
@@ -430,6 +452,11 @@ def client(monkeypatch, db):
     with client.session_transaction() as sess:
         sess["user"] = {"login": "tester", "rola": "laborant", "worker_id": None}
     return client
+
+
+@pytest.fixture
+def client(monkeypatch, db):
+    return _make_client_for_pipeline(monkeypatch, db)
 
 
 # ---------------------------------------------------------------------------
