@@ -200,21 +200,25 @@ def fast_entry_partial(ebr_id):
         if ebr is None:
             return "Nie znaleziono", 404
 
-        # Pipeline adapter: if product has pipeline, override etapy_json + parametry_lab
-        # Zbiorniki use only analiza_koncowa — skip full pipeline
+        # Pipeline adapter — two contexts:
+        #  ctx_typ  — filtered by this batch's typ, used for the edit card
+        #  ctx_all  — no filter (union), used for the "completed" view which
+        #             must show every parameter measured regardless of typ
         from mbr.pipeline.adapter import build_pipeline_context
         import json as _json
-        pipeline_ctx = None
-        if ebr.get("typ") != "zbiornik":
-            pipeline_ctx = build_pipeline_context(db, ebr["produkt"])
+        batch_typ = ebr.get("typ") or "szarza"
+        pipeline_ctx_typ = build_pipeline_context(db, ebr["produkt"], typ=batch_typ)
+        pipeline_ctx_all = build_pipeline_context(db, ebr["produkt"], typ=None)
         pipeline_sesja_map = {}
-        if pipeline_ctx:
+        if pipeline_ctx_typ:
             ebr = dict(ebr)  # make mutable copy (sqlite3.Row is read-only)
-            ebr["etapy_json"] = _json.dumps(pipeline_ctx["etapy_json"])
-            ebr["parametry_lab"] = _json.dumps(pipeline_ctx["parametry_lab"])
+            ebr["etapy_json"] = _json.dumps(pipeline_ctx_typ["etapy_json"])
+            ebr["parametry_lab"] = _json.dumps(pipeline_ctx_typ["parametry_lab"])
             from mbr.pipeline.models import list_sesje
             for s in list_sesje(db, ebr_id):
-                pipeline_sesja_map[s["etap_id"]] = {"status": s["status"], "runda": s["runda"], "sesja_id": s["id"]}
+                pipeline_sesja_map[s["etap_id"]] = {
+                    "status": s["status"], "runda": s["runda"], "sesja_id": s["id"],
+                }
 
         wyniki = get_ebr_wyniki(db, ebr_id)
         round_state = get_round_state(wyniki)
@@ -243,7 +247,8 @@ def fast_entry_partial(ebr_id):
                            etapy_config=etapy_config,
                            zatwierdzil_short=zatwierdzil_short,
                            zatwierdzil_full=zatwierdzil_full,
-                           pipeline_sesja_map=pipeline_sesja_map)
+                           pipeline_sesja_map=pipeline_sesja_map,
+                           parametry_lab_all=(pipeline_ctx_all["parametry_lab"] if pipeline_ctx_all else {}))
 
 
 @laborant_bp.route("/laborant/ebr/<int:ebr_id>/save", methods=["POST"])
