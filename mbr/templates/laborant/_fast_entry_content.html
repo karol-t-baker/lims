@@ -1039,6 +1039,11 @@
     background: #fffbeb !important;
 }
 
+/* Auto-save feedback for correction inputs */
+.corr-field-input.corr-saving { outline: 2px solid var(--orange, #f59e0b); }
+.corr-field-input.corr-saved { outline: 2px solid var(--green, #16a34a); transition: outline-color 0.4s ease-out; }
+.corr-field-input.corr-error { outline: 2px solid var(--red, #dc2626); }
+
 </style>
 
 <div class="cv-popup-overlay" id="cv-popup-overlay">

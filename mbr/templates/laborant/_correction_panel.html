@@ -89,7 +89,12 @@ async function _renderPerhydrolPanel(container, sekcja, ctx) {
                         '<span class="corr-field-label">Dawka perhydrolu [kg]</span>' +
                         '<input id="corr-manual-kg-' + sekcja + '" class="corr-field-input" type="text" inputmode="decimal"' +
                             ' placeholder="wpisz lub zostaw podpowied\u017A" style="font-weight:700;font-size:14px;"' +
-                            ' oninput="onManualPerhydrolInput(\'' + sekcja + '\')">' +
+                            ' data-ebr-id="' + ebrId + '"' +
+                            ' data-etap-id="' + etapId + '"' +
+                            ' data-substancja="Perhydrol 34%"' +
+                            ' data-suggested=""' +
+                            ' oninput="onManualPerhydrolInput(\'' + sekcja + '\')"' +
+                            ' onblur="saveKorektaField(this)">' +
                     '</div>' +
                 '</div>' +
             '</div>' +
@@ -178,10 +183,8 @@ async function _renderStandaryzacjaV2Panel(container, sekcja, ctx) {
                     '</div>' +
                 '</div>' +
                 '<div class="corr-fields" style="margin-top:10px;grid-template-columns:1fr 1fr 1fr;">' +
-                    _corrField('Woda [kg]', 'corr-manual-woda-' + sekcja, '', false,
-                        'FD.set(this.id,this.value);FD.del(\"corr-total-woda-' + sekcja + '\");recomputeStandTotal(\"' + sekcja + '\")') +
-                    _corrField('Kwas cytrynowy [kg]', 'corr-manual-kwas-' + sekcja, '', false,
-                        'FD.set(this.id,this.value);FD.del(\"corr-total-woda-' + sekcja + '\");recomputeStandTotal(\"' + sekcja + '\")') +
+                    _corrFieldKorekta('Woda [kg]', 'corr-manual-woda-' + sekcja, '', ebrId, etapId, 'Woda', sekcja) +
+                    _corrFieldKorekta('Kwas cytrynowy [kg]', 'corr-manual-kwas-' + sekcja, '', ebrId, etapId, 'Kwas cytrynowy', sekcja) +
                     '<div>' +
                         '<span class="corr-field-label">WODA \u0141\u0104CZNIE [KG]</span>' +
                         '<input id="corr-total-woda-' + sekcja + '" class="corr-field-input" type="text" inputmode="decimal"' +
@@ -226,6 +229,60 @@ if (!window.FD) window.FD = {
     }
 };
 
+// ═══ Per-field auto-save for correction values ═══
+window._pendingKorektaSaves = window._pendingKorektaSaves || [];
+
+function saveKorektaField(input) {
+  var ebrId = parseInt(input.dataset.ebrId, 10);
+  var etapId = parseInt(input.dataset.etapId, 10);
+  var substancja = input.dataset.substancja;
+  if (!ebrId || !etapId || !substancja) {
+    console.warn('saveKorektaField: missing data attrs on input', input);
+    return Promise.resolve();
+  }
+
+  var raw = (input.value || '').trim().replace(',', '.');
+  var ilosc = raw === '' ? null : parseFloat(raw);
+  if (ilosc !== null && isNaN(ilosc)) return Promise.resolve();
+  var suggested = parseFloat(input.dataset.suggested);
+  var ilosc_wyliczona = isFinite(suggested) ? suggested : null;
+
+  input.classList.remove('corr-error', 'corr-saved');
+  input.classList.add('corr-saving');
+
+  var promise = fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      etap_id: etapId,
+      substancja: substancja,
+      ilosc: ilosc,
+      ilosc_wyliczona: ilosc_wyliczona,
+    }),
+  }).then(function(r) {
+    input.classList.remove('corr-saving');
+    if (!r.ok) {
+      input.classList.add('corr-error');
+      throw new Error('save failed: ' + r.status);
+    }
+    input.classList.add('corr-saved');
+    setTimeout(function() { input.classList.remove('corr-saved'); }, 800);
+    return r.json();
+  }).catch(function(e) {
+    input.classList.remove('corr-saving');
+    input.classList.add('corr-error');
+    console.error('saveKorektaField error:', e);
+  });
+
+  window._pendingKorektaSaves.push(promise);
+  var cleanup = function() {
+    var idx = window._pendingKorektaSaves.indexOf(promise);
+    if (idx >= 0) window._pendingKorektaSaves.splice(idx, 1);
+  };
+  promise.then(cleanup, cleanup);
+  return promise;
+}
+
 function recomputeStandV2(sekcja) {
     var nd20 = _parsePl(document.getElementById('corr-nd20-wynik-' + sekcja)?.value);
     var ph = _parsePl(document.getElementById('corr-ph-wynik-' + sekcja)?.value);
@@ -242,7 +299,10 @@ function recomputeStandV2(sekcja) {
             if (!isFinite(woda) || woda < 0) woda = 0;
             var wFmt = woda.toFixed(1).replace('.', ',');
             wodaCalcEl.textContent = wFmt + ' kg';
-            if (wodaManEl) FD.fill(wodaManEl.id, wodaManEl, wFmt);
+            if (wodaManEl) {
+                wodaManEl.dataset.suggested = woda.toFixed(1);
+                if (!wodaManEl.value) wodaManEl.value = wFmt;
+            }
         } else {
             wodaCalcEl.textContent = '\u2014 kg';
         }
@@ -267,7 +327,10 @@ function recomputeStandV2(sekcja) {
             if (kwas !== null) {
                 var kFmt = kwas.toFixed(1).replace('.', ',');
                 kwasCalcEl.textContent = kFmt + ' kg';
-                if (kwasManEl) FD.fill(kwasManEl.id, kwasManEl, kFmt);
+                if (kwasManEl) {
+                    kwasManEl.dataset.suggested = kwas.toFixed(1);
+                    if (!kwasManEl.value) kwasManEl.value = kFmt;
+                }
             } else {
                 kwasCalcEl.textContent = '\u2014 kg';
             }
@@ -561,6 +624,20 @@ function _corrField(label, id, value, readonly, oninputFn, extra) {
     '</div>';
 }
 
+// Renders a corr-manual-* input wired for auto-save on blur (PUT /korekta)
+function _corrFieldKorekta(label, id, value, ebrId, etapId, substancja, sekcja) {
+    return '<div>' +
+        '<span class="corr-field-label">' + label + '</span>' +
+        '<input id="' + id + '" class="corr-field-input" type="text" inputmode="decimal" value="' + (value || '') + '"' +
+            ' data-ebr-id="' + ebrId + '"' +
+            ' data-etap-id="' + etapId + '"' +
+            ' data-substancja="' + substancja + '"' +
+            ' data-suggested=""' +
+            ' oninput="recomputeStandTotal(\\"' + sekcja + '\\")"' +
+            ' onblur="saveKorektaField(this)">' +
+    '</div>';
+}
+
 function _parsePl(val) {
     if (val == null || val === '') return NaN;
     return parseFloat(String(val).replace(',', '.'));
@@ -595,13 +672,14 @@ function recomputePerhydrol(sekcja) {
     var formatted = dawka.toFixed(1).replace('.', ',');
 
     if (calcEl) calcEl.textContent = formatted + ' kg';
-    // Fill: draft wins, otherwise use calculated value
-    if (manualEl) FD.fill(manualEl.id, manualEl, formatted);
+    if (manualEl) {
+        manualEl.dataset.suggested = dawka.toFixed(1);
+        if (!manualEl.value) manualEl.value = formatted;
+    }
 }
 
 function onManualPerhydrolInput(sekcja) {
-    var manualEl = document.getElementById('corr-manual-kg-' + sekcja);
-    if (manualEl) FD.set(manualEl.id, manualEl.value);
+    // oninput handler kept for recompute trigger; FD.set removed (auto-save on blur)
 }
 
 async function advanceWithPerhydrol(sekcja) {
@@ -696,18 +774,23 @@ async function showPerhydrolWithStand(sekcja) {
         var gateBody = container.querySelector('.gate-body');
         if (!gateBody) return;
 
+        var utlEtapForStand = etapy.find(function(e) { return e.sekcja_lab === 'utlenienie'; });
+        var utlEtapIdForStand = utlEtapForStand ? utlEtapForStand.pipeline_etap_id : 0;
         var perhydrolHtml =
             '<div class="corr-fields" style="margin-top:10px;grid-template-columns:1fr;">' +
                 '<div>' +
                     '<span class="corr-field-label">PERHYDROL 34% [KG]</span>' +
                     '<input id="corr-perhydrol-stand-' + sekcja + '" class="corr-field-input" type="text" inputmode="decimal"' +
                         ' value="' + (perhydrolVal || '') + '" style="font-weight:700;border-color:var(--amber);"' +
-                        ' oninput="FD.set(this.id,this.value);recomputeStandTotal(\'' + sekcja + '\')">' +
+                        ' data-ebr-id="' + window.ebrId + '"' +
+                        ' data-etap-id="' + utlEtapIdForStand + '"' +
+                        ' data-substancja="Perhydrol 34%"' +
+                        ' data-suggested=""' +
+                        ' oninput="recomputeStandTotal(\'' + sekcja + '\')"' +
+                        ' onblur="saveKorektaField(this)">' +
                 '</div>' +
             '</div>';
         gateBody.insertAdjacentHTML('beforeend', perhydrolHtml);
-        var pStandEl = document.getElementById('corr-perhydrol-stand-' + sekcja);
-        if (pStandEl) FD.fill(pStandEl.id, pStandEl, perhydrolVal);
     }, 50);
 }
 
@@ -958,10 +1041,13 @@ function _updateCorrPanelMeasurements(sekcja) {
         if (phEl.value !== newPh) { phEl.value = newPh; updated = true; }
     }
     if (updated) {
-        // Measurement changed → old correction drafts are stale, clear them
-        FD.del('corr-manual-woda-' + sekcja);
-        FD.del('corr-manual-kwas-' + sekcja);
-        FD.del('corr-total-woda-' + sekcja);
+        // Measurement changed → clear manual inputs so recompute sets fresh suggestions
+        var wodaManEl = document.getElementById('corr-manual-woda-' + sekcja);
+        var kwasManEl = document.getElementById('corr-manual-kwas-' + sekcja);
+        var totalEl = document.getElementById('corr-total-woda-' + sekcja);
+        if (wodaManEl) wodaManEl.value = '';
+        if (kwasManEl) kwasManEl.value = '';
+        if (totalEl) totalEl.value = '';
         // Recalculate with fresh suggestions
         if (typeof recomputeStandV2 === 'function') recomputeStandV2(sekcja);
     }
@@ -973,8 +1059,9 @@ function _updateCorrPanelMeasurements(sekcja) {
         var newSo3 = String(sek['so3'].wartosc).replace('.', ',');
         if (so3El.value !== newSo3) {
             so3El.value = newSo3;
-            // Measurement changed → old perhydrol draft is stale
-            FD.del('corr-manual-kg-' + sekcja);
+            // Measurement changed → clear manual input so recompute sets fresh suggestion
+            var perhydrolManEl = document.getElementById('corr-manual-kg-' + sekcja);
+            if (perhydrolManEl) perhydrolManEl.value = '';
             if (typeof recomputePerhydrol === 'function') recomputePerhydrol(sekcja);
         }
     }
