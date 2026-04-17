@@ -70,6 +70,9 @@
   color: var(--text); background: var(--surface-alt);
   padding: 2px 6px; border-radius: 4px; display: inline-block;
 }
+.etap-arrow { width: 20px; height: 13px; padding: 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-sec); font-size: 7px; line-height: 11px; cursor: pointer; border-radius: 2px; }
+.etap-arrow:hover:not(:disabled) { border-color: var(--teal); color: var(--teal); background: var(--teal-bg); }
+.etap-arrow:disabled { opacity: 0.3; cursor: default; }
 .pa-input {
   padding: 4px 8px; border: 1.5px solid transparent;
   border-radius: 5px; font-size: 11px; font-family: var(--mono);
@@ -332,13 +335,18 @@ function loadEtapBindings() {
 
 function renderEtapTable(data) {
   var html = '';
+  var lastIdx = data.length - 1;
   data.forEach(function(b, idx) {
     var prodLabel = b.produkt
       ? '<span style="font-size:9px;color:var(--text-dim);margin-left:4px;">(' + b.produkt.replace(/_/g,' ') + ')</span>'
       : '<span style="font-size:9px;color:var(--text-dim);margin-left:4px;">(domyślny)</span>';
-    html += '<tr draggable="true" data-id="' + b.id + '" data-idx="' + idx + '" ' +
-      'ondragstart="etapDragStart(event)" ondragover="etapDragOver(event)" ondrop="etapDrop(event)">' +
-      '<td style="cursor:grab;color:var(--text-dim);text-align:center;">⠿</td>' +
+    var upDisabled = idx === 0 ? ' disabled' : '';
+    var dnDisabled = idx === lastIdx ? ' disabled' : '';
+    html += '<tr data-id="' + b.id + '" data-idx="' + idx + '">' +
+      '<td style="text-align:center;padding:0;"><div style="display:inline-flex;flex-direction:column;gap:1px;">' +
+        '<button class="etap-arrow" title="W górę" onclick="etapMove(' + idx + ', -1)"' + upDisabled + '>\u25B2</button>' +
+        '<button class="etap-arrow" title="W dół" onclick="etapMove(' + idx + ', 1)"' + dnDisabled + '>\u25BC</button>' +
+      '</div></td>' +
       '<td><span class="pa-kod">' + esc(b.kod || '') + '</span>' + prodLabel + '</td>' +
       '<td style="font-weight:600;font-size:12px;">' + esc(b.skrot || b.kod) + '</td>' +
       '<td><input class="pa-input" type="text" inputmode="decimal" value="' + (b.nawazka_g != null ? String(b.nawazka_g).replace('.',',') : '') + '" onblur="saveEtapField(' + b.id + ',\'nawazka_g\',this)" style="width:70px;text-align:center;"></td>' +
@@ -440,27 +448,24 @@ function clearEtapBindings() {
     });
 }
 
-var _etapDragIdx = null;
-function etapDragStart(e) {
-  _etapDragIdx = parseInt(e.currentTarget.dataset.idx);
-  e.dataTransfer.effectAllowed = 'move';
-}
-function etapDragOver(e) { e.preventDefault(); }
-function etapDrop(e) {
-  e.preventDefault();
-  var targetIdx = parseInt(e.currentTarget.dataset.idx);
-  if (_etapDragIdx === null || _etapDragIdx === targetIdx) return;
-  var item = _etapBindings.splice(_etapDragIdx, 1)[0];
-  _etapBindings.splice(targetIdx, 0, item);
-  // Persist new order via PUT /api/bindings/<id> with kolejnosc
-  _etapBindings.forEach(function(b, i) { b.kolejnosc = i; });
-  var promises = _etapBindings.map(function(b) {
-    return fetch('/api/bindings/' + b.id, {
+// Reorder via ↑/↓ arrows. Swap idx with neighbor, persist both, re-render.
+// Uses same /api/bindings PUT as laborant modal — single source of truth.
+function etapMove(idx, direction) {
+  var target = idx + direction;
+  if (target < 0 || target >= _etapBindings.length) return;
+  var a = _etapBindings[idx];
+  var b = _etapBindings[target];
+  // Swap in array order
+  _etapBindings[idx] = b;
+  _etapBindings[target] = a;
+  // Rewrite kolejnosc linearly so every row has the value we see
+  _etapBindings.forEach(function(row, i) { row.kolejnosc = i; });
+  Promise.all(_etapBindings.map(function(row) {
+    return fetch('/api/bindings/' + row.id, {
       method: 'PUT', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({kolejnosc: b.kolejnosc})
+      body: JSON.stringify({kolejnosc: row.kolejnosc}),
     });
-  });
-  Promise.all(promises).then(function() { /* silent */ });
+  }));
   renderEtapTable(_etapBindings);
 }
 
