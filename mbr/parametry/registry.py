@@ -10,7 +10,7 @@ import sqlite3
 from typing import Optional
 
 from mbr.etapy.config import ETAPY_ANALIZY, PRODUCT_ETAPY_MAP
-from mbr.etapy.models import get_process_stages, FULL_PIPELINE_PRODUCTS
+from mbr.etapy.models import get_process_stages
 
 
 # ---------------------------------------------------------------------------
@@ -208,66 +208,20 @@ def get_calc_methods(db: sqlite3.Connection) -> dict:
 def build_parametry_lab(db: sqlite3.Connection, produkt: str) -> dict:
     """Build parametry_lab JSON-compatible snapshot for a batch.
 
-    Backward-compatible with the format used by seed_mbr.py.
+    Thin wrapper over build_pipeline_context(typ=None) — returns the union
+    of all typy's parameters, keyed by sekcja_key (e.g. "analiza_koncowa"
+    for simple products; "sulfonowanie"/"utlenienie"/"analiza" for K7).
 
-    Full-pipeline products → {"analiza": ..., "dodatki": ...}
-    Simple products        → {"analiza_koncowa": ...}
+    Post MVP 2026-04-16: this function's "analiza"+"dodatki" two-section
+    format for FULL_PIPELINE_PRODUCTS is gone — shape now mirrors what the
+    render path actually uses. Called from parametry/routes.py to refresh
+    mbr_templates.parametry_lab snapshot after param/binding edits.
     """
-    def _build_pole(p: dict) -> dict:
-        pole = {
-            "kod": p["kod"],
-            "label": p["label"],
-            "skrot": p.get("skrot"),
-            "tag": p["kod"],
-            "typ": "float",
-            "min": p["min"],
-            "max": p["max"],
-            "precision": p["precision"],
-            "measurement_type": p["typ"],
-        }
-        if p.get("metoda_id"):
-            pole["metoda_id"] = p["metoda_id"]
-        if p["typ"] == "titracja" and p["metoda"] is not None:
-            m = p["metoda"]
-            pole["calc_method"] = {
-                "name": m["nazwa"],
-                "formula": m["formula"],
-                "factor": m["factor"],
-                "suggested_mass": p["nawazka_g"],
-            }
-        if p["typ"] == "obliczeniowy" and p["formula"]:
-            pole["formula"] = p["formula"]
-        if p.get("target") is not None:
-            pole["target"] = p["target"]
-        if p.get("jednostka"):
-            pole["jednostka"] = p["jednostka"]
-        pole["grupa"] = p.get("grupa", "lab")
-        return pole
-
-    if produkt in FULL_PIPELINE_PRODUCTS:
-        analiza_params = get_parametry_for_kontekst(db, produkt, "analiza_koncowa")
-        dodatki_params = get_parametry_for_kontekst(db, produkt, "dodatki")
-
-        return {
-            "analiza": {
-                "label": "Analiza",
-                "pola": [_build_pole(p) for p in analiza_params],
-            },
-            "dodatki": {
-                "label": "Dodatki standaryzacyjne",
-                "pola": [_build_pole(p) for p in dodatki_params],
-            },
-        }
-    else:
-        # Simple products use analiza_koncowa section directly
-        # Try product-specific bindings first, fall back to generic query
-        params = get_parametry_for_kontekst(db, produkt, "analiza_koncowa")
-        return {
-            "analiza_koncowa": {
-                "label": "Analiza końcowa",
-                "pola": [_build_pole(p) for p in params],
-            },
-        }
+    from mbr.pipeline.adapter import build_pipeline_context
+    ctx = build_pipeline_context(db, produkt, typ=None)
+    if ctx is None:
+        return {}
+    return ctx["parametry_lab"]
 
 
 # ---------------------------------------------------------------------------

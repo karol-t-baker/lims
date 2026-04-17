@@ -121,22 +121,14 @@ def get_korekty(db: sqlite3.Connection, ebr_id: int, etap: str = None) -> list[d
 # Stage status tracking
 # ---------------------------------------------------------------------------
 
-# Process stages that get tracked (before standaryzacja)
-PROCESS_STAGES_K7 = ["amidowanie", "namca", "czwartorzedowanie", "sulfonowanie", "utlenienie"]
-PROCESS_STAGES_GLOL = ["amidowanie", "namca", "czwartorzedowanie", "sulfonowanie", "utlenienie", "rozjasnianie"]
-
-ROZJASNIANIE_PRODUCTS = {"Chegina_K40GLOL", "Chegina_K40GLOS", "Chegina_K40GLOL_HQ", "Chegina_K40GLN", "Chegina_GLOL40", "Chegina_K40GLO"}
-
-# Products that have full process pipeline (ETAPY_FULL or ETAPY_FULL_GLOL)
-FULL_PIPELINE_PRODUCTS = {
-    "Chegina_K7", "Chegina_K40GL", "Chegina_K40GLO",
-    "Chegina_K40GLOL", "Chegina_K40GLOS", "Chegina_K40GLOL_HQ", "Chegina_K40GLN", "Chegina_GLOL40",
-}
-
-
 def get_process_stages(produkt: str) -> list[str]:
     """Return ordered list of process stage codes for a product.
-    Reads from produkt_etapy table, falls back to hardcoded lists."""
+
+    Reads from produkt_etapy (SSOT). Empty list for products without
+    multi-stage workflow. Post MVP 2026-04-16 cleanup the hardcoded
+    fallback (FULL_PIPELINE_PRODUCTS / PROCESS_STAGES_K7 / PROCESS_STAGES_GLOL)
+    is gone — DB is the single source of truth.
+    """
     from mbr.db import get_db
     try:
         db = get_db()
@@ -148,16 +140,9 @@ def get_process_stages(produkt: str) -> list[str]:
             (produkt,),
         ).fetchall()
         db.close()
-        if rows:
-            return [r["etap_kod"] for r in rows]
+        return [r["etap_kod"] for r in rows]
     except Exception:
-        pass
-    # Fallback to hardcoded
-    if produkt not in FULL_PIPELINE_PRODUCTS:
         return []
-    if produkt in ROZJASNIANIE_PRODUCTS:
-        return list(PROCESS_STAGES_GLOL)
-    return list(PROCESS_STAGES_K7)
 
 
 PARALLEL_STAGES = {"amidowanie", "smca", "namca"}
