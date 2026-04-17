@@ -134,9 +134,10 @@
   transition: all 0.15s;
 }
 .ped-del:hover { background: var(--red-bg, #fef2f2); color: var(--red); }
-.ped-arrows { display: inline-flex; flex-direction: column; gap: 1px; width: 20px; flex-shrink: 0; align-items: center; }
-.ped-arrow { width: 18px; height: 12px; padding: 0; margin: 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-sec); font-size: 7px; line-height: 10px; cursor: pointer; border-radius: 2px; }
+.ped-arrows { display: inline-flex; flex-direction: column; gap: 2px; width: 24px; flex-shrink: 0; align-items: center; }
+.ped-arrow { width: 22px; height: 16px; padding: 0; margin: 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-sec); font-size: 9px; line-height: 14px; cursor: pointer; border-radius: 3px; }
 .ped-arrow:hover:not(:disabled) { border-color: var(--teal); color: var(--teal); background: var(--teal-bg); }
+.ped-arrow:active:not(:disabled) { background: var(--teal); color: #fff; }
 .ped-arrow:disabled { opacity: 0.3; cursor: default; }
 .ped-grip {
   cursor: grab; color: var(--text-dim); font-size: 14px; user-select: none;
@@ -5268,10 +5269,10 @@ function renderParamEditor() {
     var isLast = visualIdx === boundCount - 1;
     var arrowsHtml = checked
       ? '<span class="ped-arrows">' +
-          '<button class="ped-arrow" title="W górę" onclick="peMoveUp(' + p.id + ')"' + (isFirst ? ' disabled' : '') + '>\u25B2</button>' +
-          '<button class="ped-arrow" title="W dół" onclick="peMoveDown(' + p.id + ')"' + (isLast ? ' disabled' : '') + '>\u25BC</button>' +
+          '<button type="button" class="ped-arrow" title="W g\u00f3r\u0119" onclick="event.stopPropagation();peMoveUp(' + p.id + ');return false;"' + (isFirst ? ' disabled' : '') + '>\u25B2</button>' +
+          '<button type="button" class="ped-arrow" title="W d\u00f3\u0142" onclick="event.stopPropagation();peMoveDown(' + p.id + ');return false;"' + (isLast ? ' disabled' : '') + '>\u25BC</button>' +
         '</span>'
-      : '<span class="ped-arrows" style="visibility:hidden;"><button class="ped-arrow">\u25B2</button><button class="ped-arrow">\u25BC</button></span>';
+      : '<span class="ped-arrows" style="visibility:hidden;"><button type="button" class="ped-arrow">\u25B2</button><button type="button" class="ped-arrow">\u25BC</button></span>';
 
     html += '<div class="ped-row' + disabledCls + '"' +
       (checked ? ' data-param-id="' + p.id + '"' : '') + '>' +

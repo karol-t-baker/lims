@@ -70,8 +70,9 @@
   color: var(--text); background: var(--surface-alt);
   padding: 2px 6px; border-radius: 4px; display: inline-block;
 }
-.etap-arrow { width: 20px; height: 13px; padding: 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-sec); font-size: 7px; line-height: 11px; cursor: pointer; border-radius: 2px; }
+.etap-arrow { width: 24px; height: 16px; padding: 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-sec); font-size: 9px; line-height: 14px; cursor: pointer; border-radius: 3px; }
 .etap-arrow:hover:not(:disabled) { border-color: var(--teal); color: var(--teal); background: var(--teal-bg); }
+.etap-arrow:active:not(:disabled) { background: var(--teal); color: #fff; }
 .etap-arrow:disabled { opacity: 0.3; cursor: default; }
 .pa-input {
   padding: 4px 8px; border: 1.5px solid transparent;
@@ -344,8 +345,8 @@ function renderEtapTable(data) {
     var dnDisabled = idx === lastIdx ? ' disabled' : '';
     html += '<tr data-id="' + b.id + '" data-idx="' + idx + '">' +
       '<td style="text-align:center;padding:0;"><div style="display:inline-flex;flex-direction:column;gap:1px;">' +
-        '<button class="etap-arrow" title="W górę" onclick="etapMove(' + idx + ', -1)"' + upDisabled + '>\u25B2</button>' +
-        '<button class="etap-arrow" title="W dół" onclick="etapMove(' + idx + ', 1)"' + dnDisabled + '>\u25BC</button>' +
+        '<button type="button" class="etap-arrow" title="W g\u00f3r\u0119" onclick="event.stopPropagation();etapMove(' + idx + ', -1);return false;"' + upDisabled + '>\u25B2</button>' +
+        '<button type="button" class="etap-arrow" title="W d\u00f3\u0142" onclick="event.stopPropagation();etapMove(' + idx + ', 1);return false;"' + dnDisabled + '>\u25BC</button>' +
       '</div></td>' +
       '<td><span class="pa-kod">' + esc(b.kod || '') + '</span>' + prodLabel + '</td>' +
       '<td style="font-weight:600;font-size:12px;">' + esc(b.skrot || b.kod) + '</td>' +
