@@ -105,6 +105,7 @@ def api_cert_generate():
         save_certificate_data(ebr["produkt"], variant_label, ebr["nr_partii"], generation_data)
 
         cert_id = create_swiadectwo(db, ebr_id, variant_label, ebr["nr_partii"], "regenerate", wystawil, data_json=_json.dumps(generation_data, ensure_ascii=False))
+        db.commit()
 
     # Return PDF as download
     nr_only = ebr['nr_partii'].split('/')[0].strip()
@@ -255,6 +256,13 @@ def api_cert_config_product_get(key):
             "opinion_en": prod_row["opinion_en"] or "",
         }
 
+        # Bulk id → kod lookup avoids the per-removed-param N+1 query below.
+        id_to_kod = {
+            r["id"]: r["kod"] for r in db.execute(
+                "SELECT id, kod FROM parametry_analityczne"
+            ).fetchall()
+        }
+
         # Base parameters (variant_id IS NULL)
         base_params = db.execute(
             "SELECT pc.parametr_id, pc.kolejnosc, pc.requirement, pc.format, "
@@ -314,11 +322,9 @@ def api_cert_config_product_get(key):
 
             remove_params_ids = _json.loads(vr["remove_params"] or "[]")
             if remove_params_ids:
-                remove_kods = []
-                for pid in remove_params_ids:
-                    r = db.execute("SELECT kod FROM parametry_analityczne WHERE id=?", (pid,)).fetchone()
-                    remove_kods.append(r["kod"] if r and r["kod"] else f"param_{pid}")
-                overrides["remove_parameters"] = remove_kods
+                overrides["remove_parameters"] = [
+                    id_to_kod.get(pid) or f"param_{pid}" for pid in remove_params_ids
+                ]
 
             # Variant-specific add_parameters
             add_params_db = db.execute(
@@ -371,7 +377,13 @@ def api_cert_config_product_get(key):
 @certs_bp.route("/api/cert/config/product/<key>", methods=["PUT"])
 @role_required("admin", "kj")
 def api_cert_config_product_put(key):
-    """Save product parameters + variants to DB, regenerate JSON export."""
+    """Save product parameters + variants to DB, regenerate JSON export.
+
+    Validate everything first, then mutate atomically. The old version
+    deleted all parametry_cert rows BEFORE resolving every add_parameters
+    mapping — a bad mapping raised NameError mid-write, leaving the product
+    with an empty cert config.
+    """
     from mbr.certs.generator import save_cert_config_export
 
     data = request.get_json(silent=True) or {}
@@ -379,7 +391,6 @@ def api_cert_config_product_put(key):
     variants = data.get("variants")
 
     with db_session() as db:
-        # Check product exists and has cert config
         prod_row = db.execute("SELECT id FROM produkty WHERE nazwa = ?", (key,)).fetchone()
         if not prod_row:
             return jsonify({"error": "Product not found"}), 404
@@ -387,13 +398,14 @@ def api_cert_config_product_put(key):
         if not has_variants:
             return jsonify({"error": "Product not found"}), 404
 
-        # Build kod_to_id lookup from parametry_analityczne
+        # Single scan over parametry_analityczne — kod_to_id for validation/writes,
+        # id_to_kod for the round-trip in the GET endpoint (no more N+1 lookups).
         pa_rows = db.execute("SELECT id, kod FROM parametry_analityczne").fetchall()
         kod_to_id = {r["kod"]: r["id"] for r in pa_rows if r["kod"]}
 
-        # Whitelist: only kody present in the active MBR's analiza_koncowa may be
-        # used on the certificate. If there's no active MBR, reject any attempt
-        # to add parameters to the cert (user must create/activate the MBR first).
+        # Whitelist: only kody present in the active MBR's analiza_koncowa may
+        # appear on the certificate. Empty analiza_kody (no active MBR) means
+        # warnings are suppressed — but mapping errors still block the save.
         from mbr.technolog.models import get_active_mbr
         mbr = get_active_mbr(db, key)
         analiza_kody = set()
@@ -410,7 +422,7 @@ def api_cert_config_product_put(key):
 
         warnings = []
 
-        # Validate parameters
+        # ── PHASE 1: validate EVERYTHING before we touch any row ────────────
         if parameters is not None:
             param_ids = set()
             for p in parameters:
@@ -421,21 +433,18 @@ def api_cert_config_product_put(key):
                     return jsonify({"error": f"Duplicate parameter id: {pid}"}), 400
                 param_ids.add(pid)
                 if not p.get("name_pl"):
-                    # Legacy data can have NULL name_pl; saving should NOT block
-                    # because the admin cannot fix that row without also saving
-                    # unrelated edits. Surface as a warning instead.
+                    # Legacy NULL name_pl is allowed (warning only).
                     warnings.append(f"Parametr '{pid}' nie ma nazwy PL — uzupełnij w edytorze")
-                df = (p.get("data_field") or "").strip()
-                if df and df not in kod_to_id:
-                    return jsonify({"error": f"Parameter '{pid}': powiazanie '{df}' nie istnieje w rejestrze parametrow"}), 400
-                if df and analiza_kody and df not in analiza_kody:
+                df = (p.get("data_field") or p.get("id", "")).strip()
+                if not df or df not in kod_to_id:
+                    return jsonify({"error": f"Parametr '{pid}': powiązanie '{df}' nie istnieje w rejestrze parametrów"}), 400
+                if analiza_kody and df not in analiza_kody:
                     warnings.append(f"Parametr '{pid}': '{df}' nie jest w MBR")
 
-        # Validate variants
         if variants is not None:
-            base_param_ids = {p.get("id", "").strip() for p in (parameters or [])} if parameters is not None else set()
-            if not base_param_ids and parameters is None:
-                # Load existing base param ids from DB
+            if parameters is not None:
+                base_param_ids = {p.get("id", "").strip() for p in parameters}
+            else:
                 existing_base = db.execute(
                     "SELECT pa.kod FROM parametry_cert pc JOIN parametry_analityczne pa ON pa.id=pc.parametr_id "
                     "WHERE pc.produkt=? AND pc.variant_id IS NULL", (key,)
@@ -459,84 +468,92 @@ def api_cert_config_product_put(key):
                         return jsonify({"error": f"Variant '{vid}' remove_parameters references unknown param: {rp}"}), 400
                 for ap in overrides.get("add_parameters", []) or []:
                     ap_df = (ap.get("data_field") or ap.get("id") or "").strip()
-                    if ap_df and analiza_kody and ap_df not in analiza_kody:
+                    # Resolve mapping during VALIDATION so we never fail
+                    # halfway through the destructive write below.
+                    if not ap_df or ap_df not in kod_to_id:
+                        return jsonify({"error": f"Wariant '{vid}': parametr '{ap_df}' nie istnieje w rejestrze"}), 400
+                    if analiza_kody and ap_df not in analiza_kody:
                         warnings.append(f"Wariant '{vid}': '{ap_df}' nie jest w MBR")
 
-        # Update produkty metadata
-        for field in ("display_name", "spec_number", "cas_number", "expiry_months", "opinion_pl", "opinion_en"):
-            if field in data:
-                db.execute(f"UPDATE produkty SET {field} = ? WHERE nazwa = ?", (data[field], key))
+        # ── PHASE 2: atomic write ───────────────────────────────────────────
+        # sqlite3 Connection context auto-rolls back on any exception,
+        # commits on clean exit — no half-written state after a mid-flow fail.
+        try:
+            with db:
+                for field in ("display_name", "spec_number", "cas_number",
+                              "expiry_months", "opinion_pl", "opinion_en"):
+                    if field in data:
+                        db.execute(
+                            f"UPDATE produkty SET {field} = ? WHERE nazwa = ?",
+                            (data[field], key),
+                        )
 
-        # Replace base parameters (variant_id IS NULL)
-        if parameters is not None:
-            db.execute("DELETE FROM parametry_cert WHERE produkt = ? AND variant_id IS NULL", (key,))
-            for idx, p in enumerate(parameters):
-                df = (p.get("data_field") or p.get("id", "")).strip()
-                parametr_id = kod_to_id.get(df)
-                if not parametr_id:
-                    return jsonify({"error": f"Parametr '{p.get('id','')}': powiązanie '{df}' nie istnieje w rejestrze parametrów"}), 400
-                db.execute(
-                    "INSERT INTO parametry_cert (produkt, parametr_id, kolejnosc, requirement, format, qualitative_result, name_pl, name_en, method, variant_id) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)",
-                    (key, parametr_id, idx, p.get("requirement", ""), p.get("format", "1"),
-                     p.get("qualitative_result") or None,
-                     p.get("name_pl") or None, p.get("name_en", None), p.get("method") or None),
+                if parameters is not None:
+                    db.execute("DELETE FROM parametry_cert WHERE produkt = ? AND variant_id IS NULL", (key,))
+                    for idx, p in enumerate(parameters):
+                        df = (p.get("data_field") or p.get("id", "")).strip()
+                        parametr_id = kod_to_id[df]  # validated above
+                        db.execute(
+                            "INSERT INTO parametry_cert (produkt, parametr_id, kolejnosc, requirement, format, qualitative_result, name_pl, name_en, method, variant_id) "
+                            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)",
+                            (key, parametr_id, idx, p.get("requirement", ""), p.get("format", "1"),
+                             p.get("qualitative_result") or None,
+                             p.get("name_pl") or None, p.get("name_en", None), p.get("method") or None),
+                        )
+
+                if variants is not None:
+                    old_variant_rows = db.execute(
+                        "SELECT id FROM cert_variants WHERE produkt=?", (key,),
+                    ).fetchall()
+                    for ovr in old_variant_rows:
+                        db.execute("DELETE FROM parametry_cert WHERE variant_id = ?", (ovr["id"],))
+                    db.execute("DELETE FROM cert_variants WHERE produkt = ?", (key,))
+
+                    for idx, v in enumerate(variants):
+                        overrides = v.get("overrides") or {}
+                        remove_kods = overrides.get("remove_parameters", [])
+                        remove_ids = [kod_to_id[k] for k in remove_kods if k in kod_to_id]
+
+                        cur = db.execute(
+                            "INSERT INTO cert_variants (produkt, variant_id, label, flags, spec_number, opinion_pl, opinion_en, avon_code, avon_name, remove_params, kolejnosc) "
+                            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            (key, v.get("id", ""), v.get("label", ""),
+                             _json.dumps(v.get("flags", []), ensure_ascii=False),
+                             overrides.get("spec_number") or None,
+                             overrides.get("opinion_pl") or None,
+                             overrides.get("opinion_en") or None,
+                             overrides.get("avon_code") or None,
+                             overrides.get("avon_name") or None,
+                             _json.dumps(remove_ids), idx),
+                        )
+                        new_cv_id = cur.lastrowid
+
+                        for ap_idx, ap in enumerate(overrides.get("add_parameters", []) or []):
+                            ap_df = (ap.get("data_field") or ap.get("id", "")).strip()
+                            ap_parametr_id = kod_to_id[ap_df]  # validated above
+                            db.execute(
+                                "INSERT INTO parametry_cert (produkt, parametr_id, kolejnosc, requirement, format, qualitative_result, name_pl, name_en, method, variant_id) "
+                                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                                (key, ap_parametr_id, ap_idx, ap.get("requirement", ""), ap.get("format", "1"),
+                                 ap.get("qualitative_result") or None,
+                                 ap.get("name_pl") or None, ap.get("name_en", None), ap.get("method") or None,
+                                 new_cv_id),
+                            )
+
+                from mbr.shared import audit
+                audit.log_event(
+                    audit.EVENT_CERT_CONFIG_UPDATED,
+                    entity_type="cert",
+                    entity_label=key,
+                    payload={"params_count": len(parameters or []), "variants_count": len(variants or [])},
+                    db=db,
                 )
+        except Exception as e:
+            return jsonify({"error": f"zapis nie powiódł się: {e}"}), 500
 
-        # Replace variants
-        if variants is not None:
-            # Delete old variant add_params first (foreign key)
-            old_variant_rows = db.execute("SELECT id FROM cert_variants WHERE produkt=?", (key,)).fetchall()
-            for ovr in old_variant_rows:
-                db.execute("DELETE FROM parametry_cert WHERE variant_id = ?", (ovr["id"],))
-            db.execute("DELETE FROM cert_variants WHERE produkt = ?", (key,))
-
-            for idx, v in enumerate(variants):
-                overrides = v.get("overrides") or {}
-                # Convert remove_parameters (string kod array) to integer parametr_id array
-                remove_kods = overrides.get("remove_parameters", [])
-                remove_ids = [kod_to_id[k] for k in remove_kods if k in kod_to_id]
-
-                cur = db.execute(
-                    "INSERT INTO cert_variants (produkt, variant_id, label, flags, spec_number, opinion_pl, opinion_en, avon_code, avon_name, remove_params, kolejnosc) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    (key, v.get("id", ""), v.get("label", ""),
-                     _json.dumps(v.get("flags", []), ensure_ascii=False),
-                     overrides.get("spec_number") or None,
-                     overrides.get("opinion_pl") or None,
-                     overrides.get("opinion_en") or None,
-                     overrides.get("avon_code") or None,
-                     overrides.get("avon_name") or None,
-                     _json.dumps(remove_ids), idx),
-                )
-                new_cv_id = cur.lastrowid
-
-                # Insert variant add_parameters
-                add_params = overrides.get("add_parameters", [])
-                for ap_idx, ap in enumerate(add_params):
-                    ap_df = (ap.get("data_field") or ap.get("id", "")).strip()
-                    ap_parametr_id = kod_to_id.get(ap_df)
-                    if not ap_parametr_id:
-                        return jsonify({"error": f"Wariant '{vid}': parametr '{ap_df}' nie istnieje w rejestrze"}), 400
-                    db.execute(
-                        "INSERT INTO parametry_cert (produkt, parametr_id, kolejnosc, requirement, format, qualitative_result, name_pl, name_en, method, variant_id) "
-                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                        (key, ap_parametr_id, ap_idx, ap.get("requirement", ""), ap.get("format", "1"),
-                         ap.get("qualitative_result") or None,
-                         ap.get("name_pl") or None, ap.get("name_en", None), ap.get("method") or None,
-                         new_cv_id),
-                    )
-
-        from mbr.shared import audit
-        audit.log_event(
-            audit.EVENT_CERT_CONFIG_UPDATED,
-            entity_type="cert",
-            entity_label=key,
-            payload={"params_count": len(parameters or []), "variants_count": len(variants or [])},
-            db=db,
-        )
-        db.commit()
-        save_cert_config_export(db)
+    # Export runs against its own fresh connection — outside the session
+    # to keep the write fully committed before the JSON snapshot is built.
+    save_cert_config_export()
 
     result = {"ok": True}
     if warnings:
@@ -584,9 +601,29 @@ def api_cert_config_product_create():
         )
 
         db.commit()
-        save_cert_config_export(db)
 
+    save_cert_config_export()
     return jsonify({"ok": True, "key": key})
+
+
+@certs_bp.route("/api/cert/config/product/<key>/issued-count", methods=["GET"])
+@role_required("admin", "kj")
+def api_cert_config_product_issued_count(key):
+    """Return how many świadectwa have been issued for this product's templates.
+
+    Used by the editor to surface the count in the delete-confirm dialog
+    BEFORE the delete — previously the count was only revealed after.
+    """
+    with db_session() as db:
+        prod_row = db.execute("SELECT display_name FROM produkty WHERE nazwa = ?", (key,)).fetchone()
+        if not prod_row:
+            return jsonify({"count": 0})
+        display_name = prod_row["display_name"] or key
+        row = db.execute(
+            "SELECT COUNT(*) AS cnt FROM swiadectwa WHERE template_name LIKE ?",
+            (f"{display_name}%",),
+        ).fetchone()
+    return jsonify({"count": row["cnt"] if row else 0})
 
 
 @certs_bp.route("/api/cert/config/product/<key>", methods=["DELETE"])
@@ -619,8 +656,8 @@ def api_cert_config_product_delete(key):
         db.execute("DELETE FROM parametry_cert WHERE produkt = ? AND variant_id IS NULL", (key,))
 
         db.commit()
-        save_cert_config_export(db)
 
+    save_cert_config_export()
     result = {"ok": True}
     if warning:
         result["warning"] = warning
@@ -638,6 +675,46 @@ def api_cert_config_export():
     return jsonify(cfg)
 
 
+# Size caps for the preview payload so a pathological JSON can't DoS
+# Gotenberg or hand an unbounded string to docxtpl/Jinja2 evaluation.
+_PREVIEW_MAX_PARAMETERS = 200
+_PREVIEW_MAX_VARIANTS = 50
+_PREVIEW_MAX_STR = 2000
+
+
+def _preview_payload_ok(product: dict) -> str | None:
+    """Return an error message if the editor payload is out of bounds, else None."""
+    if not isinstance(product, dict):
+        return "product must be an object"
+    params = product.get("parameters") or []
+    if not isinstance(params, list):
+        return "parameters must be a list"
+    if len(params) > _PREVIEW_MAX_PARAMETERS:
+        return f"za dużo parametrów (max {_PREVIEW_MAX_PARAMETERS})"
+    variants = product.get("variants") or []
+    if len(variants) > _PREVIEW_MAX_VARIANTS:
+        return f"za dużo wariantów (max {_PREVIEW_MAX_VARIANTS})"
+    # Cheap string-length check — docxtpl uses Jinja2 internally, and a user
+    # with access could otherwise stuff a multi-MB template expression into
+    # any string field and have it evaluated in the render context.
+    def _scan(obj):
+        if isinstance(obj, str):
+            if len(obj) > _PREVIEW_MAX_STR:
+                return f"pole tekstowe przekracza {_PREVIEW_MAX_STR} znaków"
+        elif isinstance(obj, dict):
+            for v in obj.values():
+                err = _scan(v)
+                if err:
+                    return err
+        elif isinstance(obj, list):
+            for v in obj:
+                err = _scan(v)
+                if err:
+                    return err
+        return None
+    return _scan(product)
+
+
 @certs_bp.route("/api/cert/config/preview", methods=["POST"])
 @role_required("admin", "kj")
 def api_cert_config_preview():
@@ -648,6 +725,10 @@ def api_cert_config_preview():
 
     if not product:
         return jsonify({"error": "Missing 'product' in request body"}), 400
+
+    err = _preview_payload_ok(product)
+    if err:
+        return jsonify({"error": err}), 400
 
     try:
         ctx = build_preview_context(product, variant_id)

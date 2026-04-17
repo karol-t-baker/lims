@@ -343,6 +343,7 @@ def save_entry(ebr_id):
         if values_changed:
             from mbr.certs.models import mark_swiadectwa_outdated
             mark_swiadectwa_outdated(db, ebr_id)
+            db.commit()
 
     resp = {"ok": True}
     if gate_result is not None:
