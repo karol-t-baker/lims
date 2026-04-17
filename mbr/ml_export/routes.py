@@ -17,9 +17,11 @@ PER_PAGE = 25
 @role_required("admin")
 def export_k7_csv():
     after_id = request.args.get("after_id", 0, type=int)
+    include_failed = request.args.get("include_failed", "0") in ("1", "true", "yes")
+    statuses = ("completed", "cancelled") if include_failed else ("completed",)
     db = get_db()
     try:
-        rows = export_k7_batches(db, after_id=after_id)
+        rows = export_k7_batches(db, after_id=after_id, statuses=statuses)
         columns = get_csv_columns(db)
     finally:
         db.close()
@@ -43,9 +45,11 @@ def ml_export_page():
     page = request.args.get("page", 1, type=int)
     if page < 1:
         page = 1
+    include_failed = request.args.get("include_failed", "0") in ("1", "true", "yes")
+    statuses = ("completed", "cancelled") if include_failed else ("completed",)
     db = get_db()
     try:
-        all_rows = export_k7_batches(db)
+        all_rows = export_k7_batches(db, statuses=statuses)
         columns = get_csv_columns(db)
     finally:
         db.close()

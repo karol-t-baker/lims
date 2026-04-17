@@ -641,9 +641,20 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             decyzja         TEXT CHECK(decyzja IN ('zamknij_etap','reopen_etap','przejscie','new_round','release_comment','close_note','skip_to_next')),
             komentarz       TEXT,
             komentarz_decyzji TEXT,
+            cele_json       TEXT,
             UNIQUE(ebr_id, etap_id, runda)
         )
     """)
+    # Idempotent: backfill cele_json column for DBs created before ML export
+    # snapshotting landed. Target values used by a szarża drift over time as
+    # formulas get retuned, so without a per-sesja snapshot an export taken a
+    # year later would misreport what the operator was actually aiming at.
+    try:
+        cols = [r[1] for r in db.execute("PRAGMA table_info(ebr_etap_sesja)").fetchall()]
+        if "cele_json" not in cols:
+            db.execute("ALTER TABLE ebr_etap_sesja ADD COLUMN cele_json TEXT")
+    except Exception:
+        pass
     db.execute("""
         CREATE TABLE IF NOT EXISTS ebr_pomiar (
             id              INTEGER PRIMARY KEY AUTOINCREMENT,
