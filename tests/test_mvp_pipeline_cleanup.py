@@ -137,3 +137,13 @@ def _seed_full_pipeline_state(db):
         )
 
     db.commit()
+
+
+def test_script_importable():
+    from scripts import mvp_pipeline_cleanup as mod
+    assert callable(mod.migrate)
+    assert callable(mod.main)
+    assert callable(mod.backup)
+    assert callable(mod.already_applied)
+    assert mod.MIGRATION_NAME == "mvp_pipeline_cleanup_v1"
+    assert mod.MVP_MULTI_STAGE == {"Chegina_K7"}
