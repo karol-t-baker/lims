@@ -184,6 +184,7 @@
         <option value="rnd">rnd</option>
       </select>
       <button onclick="addEtapBinding()">+ Dodaj</button>
+      <button id="etap-clear-btn" onclick="clearEtapBindings()" style="background:var(--red,#dc2626);margin-left:auto;">Usuń wszystkie</button>
     </div>
   </div>
 
@@ -416,6 +417,22 @@ function addEtapBinding() {
 function deleteEtapBinding(id) {
   if (!confirm('Usunąć przypisanie?')) return;
   fetch('/api/bindings/' + id, {method: 'DELETE'})
+    .then(function(r){return r.json();})
+    .then(function(d) {
+      if (d.ok) loadEtapBindings();
+      else alert(d.error || 'Błąd');
+    });
+}
+
+function clearEtapBindings() {
+  var produkt = document.getElementById('etap-produkt').value;
+  var kontekst = document.getElementById('etap-kontekst').value;
+  if (!produkt || !kontekst) return;
+  var n = (_etapBindings || []).length;
+  if (n === 0) { alert('Brak parametrów do usunięcia'); return; }
+  if (!confirm('Usunąć wszystkie ' + n + ' parametrów dla ' + produkt.replace(/_/g,' ') + ' / ' + kontekst + '?')) return;
+  fetch('/api/bindings/clear-stage?produkt=' + encodeURIComponent(produkt) + '&etap_kod=' + encodeURIComponent(kontekst),
+        {method: 'DELETE'})
     .then(function(r){return r.json();})
     .then(function(d) {
       if (d.ok) loadEtapBindings();

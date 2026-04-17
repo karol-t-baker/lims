@@ -268,3 +268,43 @@ def test_post_bindings_unknown_etap_kod_returns_404(client):
         json={"produkt": "TEST_P", "etap_kod": "nieistnieje", "parametr_id": 2}
     )
     assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# DELETE /api/bindings/clear-stage
+# ---------------------------------------------------------------------------
+
+def test_clear_stage_removes_all_bindings_for_produkt_etap(client):
+    # Seed DB has 1 binding for (TEST_P, etap 6, ph). Add one more.
+    client.post("/api/bindings", json={"produkt": "TEST_P", "etap_id": 6, "parametr_id": 2})
+    listing = client.get("/api/bindings?produkt=TEST_P&etap_id=6").get_json()
+    assert len(listing) == 2
+
+    resp = client.delete("/api/bindings/clear-stage?produkt=TEST_P&etap_id=6")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["ok"] is True
+    assert data["deleted"] == 2
+
+    after = client.get("/api/bindings?produkt=TEST_P&etap_id=6").get_json()
+    assert after == []
+
+
+def test_clear_stage_accepts_etap_kod(client):
+    resp = client.delete("/api/bindings/clear-stage?produkt=TEST_P&etap_kod=analiza_koncowa")
+    assert resp.status_code == 200
+    assert resp.get_json()["ok"] is True
+
+
+def test_clear_stage_returns_400_without_required_args(client):
+    resp = client.delete("/api/bindings/clear-stage")
+    assert resp.status_code == 400
+
+    resp = client.delete("/api/bindings/clear-stage?produkt=TEST_P")
+    assert resp.status_code == 400
+
+
+def test_clear_stage_empty_stage_returns_zero_deleted(client):
+    resp = client.delete("/api/bindings/clear-stage?produkt=NO_SUCH&etap_id=6")
+    assert resp.status_code == 200
+    assert resp.get_json()["deleted"] == 0
