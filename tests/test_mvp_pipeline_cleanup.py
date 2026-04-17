@@ -147,3 +147,19 @@ def test_script_importable():
     assert callable(mod.already_applied)
     assert mod.MIGRATION_NAME == "mvp_pipeline_cleanup_v1"
     assert mod.MVP_MULTI_STAGE == {"Chegina_K7"}
+
+
+def test_migrate_marks_as_applied(db):
+    from scripts.mvp_pipeline_cleanup import migrate, already_applied
+    _seed_full_pipeline_state(db)
+    migrate(db)
+    assert already_applied(db) is True
+
+
+def test_migrate_skips_when_already_applied(db, capsys):
+    from scripts.mvp_pipeline_cleanup import migrate, already_applied
+    _seed_full_pipeline_state(db)
+    migrate(db)
+    migrate(db)
+    captured = capsys.readouterr()
+    assert "already applied — skipping" in captured.out
