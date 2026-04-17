@@ -468,25 +468,6 @@ def api_parametry_etapy_reorder():
     return jsonify({"ok": True})
 
 
-@parametry_bp.route("/api/parametry/rebuild-mbr", methods=["POST"])
-@login_required
-def api_rebuild_mbr():
-    """Rebuild parametry_lab JSON in active MBR for a product from parametry_etapy."""
-    data = request.get_json(silent=True) or {}
-    produkt = data.get("produkt", "")
-    if not produkt:
-        return jsonify({"ok": False, "error": "produkt required"}), 400
-    with db_session() as db:
-        plab = build_parametry_lab(db, produkt)
-        plab_json = _json.dumps(plab, ensure_ascii=False)
-        db.execute(
-            "UPDATE mbr_templates SET parametry_lab=? WHERE produkt=? AND status='active'",
-            (plab_json, produkt),
-        )
-        db.commit()
-    return jsonify({"ok": True})
-
-
 # ═══ PRODUKTY ═══
 
 @parametry_bp.route("/api/produkty")
