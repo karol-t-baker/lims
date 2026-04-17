@@ -238,3 +238,33 @@ def test_get_bindings_catalog_returns_active_params(client):
     assert "dea" in kods
     for p in data:
         assert "id" in p and "kod" in p and "label" in p and "typ" in p
+
+
+# ---------------------------------------------------------------------------
+# POST /api/bindings with etap_kod (bypasses /api/pipeline/etapy admin lookup)
+# ---------------------------------------------------------------------------
+
+def test_post_bindings_accepts_etap_kod(client):
+    """POST should accept etap_kod and resolve it to etap_id server-side.
+    Used by the laborant modal which can't reach admin-only /api/pipeline/etapy."""
+    resp = client.post(
+        "/api/bindings",
+        json={"produkt": "TEST_P", "etap_kod": "analiza_koncowa", "parametr_id": 2,
+              "min_limit": 0, "max_limit": 5}
+    )
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["ok"] is True
+
+    listing = client.get("/api/bindings?produkt=TEST_P&etap_id=6").get_json()
+    dea = next(b for b in listing if b["parametr_id"] == 2)
+    assert dea["min_limit"] == 0
+    assert dea["max_limit"] == 5
+
+
+def test_post_bindings_unknown_etap_kod_returns_404(client):
+    resp = client.post(
+        "/api/bindings",
+        json={"produkt": "TEST_P", "etap_kod": "nieistnieje", "parametr_id": 2}
+    )
+    assert resp.status_code == 404

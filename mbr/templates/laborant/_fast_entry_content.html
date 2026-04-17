@@ -5387,29 +5387,23 @@ function peToggle(paramId, checked) {
         return b;
       });
     } else {
-      // No binding — resolve etap_id from kontekst, then POST with MY typ flag only.
+      // No binding — POST with etap_kod so backend resolves etap_id itself.
+      // Avoids /api/pipeline/etapy which requires admin role.
       var nextOrder = Object.keys(_peBindingMap).length + 1;
       var body = {
         produkt: window._batchProdukt,
+        etap_kod: window._peEditKontekst || 'analiza_koncowa',
         parametr_id: paramId,
         kolejnosc: nextOrder,
         dla_szarzy: 0, dla_zbiornika: 0, dla_platkowania: 0
       };
       body[flagKey] = 1;
-      promise = fetch('/api/pipeline/etapy')
-        .then(function(r){return r.json();})
-        .then(function(etapy) {
-          var etap = etapy.find(function(e) { return e.kod === (window._peEditKontekst || 'analiza_koncowa'); });
-          if (!etap) { alert('Nie znaleziono etapu'); return null; }
-          body.etap_id = etap.id;
-          return fetch('/api/bindings', {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(body)
-          });
-        })
-        .then(function(r){ return r ? r.json() : null; })
+      promise = fetch('/api/bindings', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+      }).then(function(r){ return r.json(); })
         .then(function(d) {
-          if (!d || !d.ok) { alert('Błąd dodawania parametru'); return null; }
+          if (!d || !d.ok) { alert('Błąd dodawania parametru: ' + (d && d.error || 'nieznany')); return null; }
           _peBindingMap[paramId] = {
             id: d.id, min: null, max: null, precision: null,
             kolejnosc: nextOrder, nawazka_g: null,
