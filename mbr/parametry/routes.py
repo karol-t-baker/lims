@@ -574,3 +574,61 @@ def parametry_editor():
         products=products, konteksty=konteksty,
         is_admin=(rola == "admin"),
     )
+
+
+# ============================================================================
+# /api/bindings/* — new SSOT endpoints for produkt_etap_limity CRUD
+# ============================================================================
+
+@parametry_bp.route("/api/bindings")
+@login_required
+def api_bindings_list():
+    """List bindings for a given (produkt, etap).
+
+    Query args:
+      produkt   — product kod (required)
+      etap_id   — int, matches etapy_analityczne.id (either this OR etap_kod)
+      etap_kod  — str, matches etapy_analityczne.kod
+
+    Returns: JSON array of dicts with binding fields + joined parameter info.
+    """
+    produkt = request.args.get("produkt", "").strip()
+    if not produkt:
+        return jsonify({"error": "produkt is required"}), 400
+
+    etap_id_str = request.args.get("etap_id")
+    etap_kod = request.args.get("etap_kod", "").strip()
+
+    with db_session() as db:
+        if etap_id_str:
+            try:
+                etap_id = int(etap_id_str)
+            except ValueError:
+                return jsonify({"error": "etap_id must be integer"}), 400
+        elif etap_kod:
+            row = db.execute(
+                "SELECT id FROM etapy_analityczne WHERE kod=?", (etap_kod,)
+            ).fetchone()
+            if not row:
+                return jsonify({"error": f"unknown etap_kod: {etap_kod}"}), 404
+            etap_id = row["id"]
+        else:
+            return jsonify({"error": "etap_id or etap_kod is required"}), 400
+
+        rows = db.execute(
+            """
+            SELECT pel.id, pel.produkt, pel.etap_id, pel.parametr_id,
+                   pel.min_limit, pel.max_limit, pel.precision, pel.nawazka_g,
+                   pel.spec_value, pel.kolejnosc, pel.grupa, pel.formula,
+                   pel.sa_bias, pel.krok, pel.wymagany,
+                   pel.dla_szarzy, pel.dla_zbiornika, pel.dla_platkowania,
+                   pa.kod, pa.label, pa.skrot, pa.typ, pa.jednostka
+            FROM produkt_etap_limity pel
+            JOIN parametry_analityczne pa ON pa.id = pel.parametr_id
+            WHERE pel.produkt = ? AND pel.etap_id = ?
+            ORDER BY pel.kolejnosc, pa.kod
+            """,
+            (produkt, etap_id),
+        ).fetchall()
+
+    return jsonify([dict(r) for r in rows])
