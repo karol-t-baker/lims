@@ -500,12 +500,27 @@ function createProduct() {
 }
 
 function deleteProduct(key, name) {
-  if (!confirm('Usunąć produkt "' + name + '"? Tej operacji nie można cofnąć.')) return;
-  fetch('/api/cert/config/product/' + encodeURIComponent(key), { method: 'DELETE' })
+  // Preflight: surface the issued-cert count in the confirm dialog so the
+  // admin knows what they're about to orphan. PDFs on disk stay intact,
+  // swiadectwa rows are preserved — but the template goes away.
+  fetch('/api/cert/config/product/' + encodeURIComponent(key) + '/issued-count')
     .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (data.ok) { flash(data.warning ? 'Usunięto. ' + data.warning : 'Produkt usunięty.', true); loadProducts(); }
-      else { flash(data.error || 'Błąd usuwania', false); }
+    .then(function(d) {
+      var cnt = (d && d.count) || 0;
+      var msg = 'Usunąć produkt "' + name + '"?\n';
+      if (cnt > 0) {
+        msg += '\n⚠ Istnieje ' + cnt + ' wydanych świadectw dla tego produktu. ' +
+               'Pliki PDF i archiwum zostaną nienaruszone, ale szablon zniknie — ' +
+               'nowe świadectwa będą wymagały ponownego utworzenia produktu.\n';
+      }
+      msg += '\nTej operacji nie można cofnąć.';
+      if (!confirm(msg)) return;
+      fetch('/api/cert/config/product/' + encodeURIComponent(key), { method: 'DELETE' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          if (data.ok) { flash('Produkt usunięty.', true); loadProducts(); }
+          else { flash(data.error || 'Błąd usuwania', false); }
+        });
     });
 }
 
@@ -568,10 +583,15 @@ function renderParamsTable(params) {
 }
 
 function _paramRow(p, idx) {
+  // Lock the hidden id against auto-regeneration when an id is already
+  // present (loaded from DB). Without this flag autoId() would silently
+  // rewrite a hand-crafted id the first time the operator retypes a name,
+  // breaking the data_field linkage.
+  var manualFlag = (p.id || '').trim() ? ' data-manual="1"' : '';
   return '<tr draggable="true" data-idx="' + idx + '">' +
     '<td><span class="wc-drag">&#10303;</span></td>' +
     '<td><div class="rt-w"><input data-field="name_pl" value="' + _esc(p.name_pl || '') + '" oninput="autoId(this);updateRtPreview(this)"><div class="rt-prev">' + _rtHtml(p.name_pl || '') + '</div></div>' +
-      '<input data-field="id" type="hidden" value="' + _esc(p.id || '') + '"></td>' +
+      '<input data-field="id" type="hidden" value="' + _esc(p.id || '') + '"' + manualFlag + '></td>' +
     '<td><div class="rt-w"><input data-field="name_en" value="' + _esc(p.name_en || '') + '" oninput="autoId(this);updateRtPreview(this)"><div class="rt-prev">' + _rtHtml(p.name_en || '') + '</div></div></td>' +
     '<td><input data-field="requirement" value="' + _esc(p.requirement || '') + '"></td>' +
     '<td><input data-field="method" value="' + _esc(p.method || '') + '"></td>' +

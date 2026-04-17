@@ -507,6 +507,13 @@ def export_cert_config(db) -> dict:
         "ORDER BY p.nazwa"
     ).fetchall()
 
+    # One-shot id → kod map — avoids the per-removed-param SELECT below.
+    _id_to_kod = {
+        r["id"]: r["kod"] for r in db.execute(
+            "SELECT id, kod FROM parametry_analityczne"
+        ).fetchall()
+    }
+
     for prod in produkty:
         key = prod["nazwa"]
 
@@ -576,14 +583,9 @@ def export_cert_config(db) -> dict:
 
             remove_params = json.loads(vr["remove_params"] or "[]")
             if remove_params:
-                # Convert parametr_id ints to parameter string IDs
-                remove_ids = []
-                for pid in remove_params:
-                    r = db.execute(
-                        "SELECT kod FROM parametry_analityczne WHERE id=?", (pid,)
-                    ).fetchone()
-                    remove_ids.append(r["kod"] if r and r["kod"] else f"param_{pid}")
-                overrides["remove_parameters"] = remove_ids
+                overrides["remove_parameters"] = [
+                    _id_to_kod.get(pid) or f"param_{pid}" for pid in remove_params
+                ]
 
             # Variant-specific add_parameters
             add_params_db = db.execute(
@@ -623,13 +625,20 @@ def export_cert_config(db) -> dict:
     return result
 
 
-def save_cert_config_export(db) -> None:
+def save_cert_config_export(db=None) -> None:
     """Export cert config from DB and write atomically to cert_config.json.
 
     Args:
-        db: Active database connection (sqlite3.Connection with row_factory).
+        db: Optional active connection. If omitted, opens a fresh one so the
+            caller can safely run this AFTER committing/closing their own
+            transaction — avoids reading uncommitted / stale snapshots.
     """
-    data = export_cert_config(db)
+    if db is None:
+        from mbr.db import db_session as _db_session
+        with _db_session() as _db:
+            data = export_cert_config(_db)
+    else:
+        data = export_cert_config(db)
     tmp_path = _CONFIG_PATH.with_suffix(".json.tmp")
     tmp_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     tmp_path.replace(_CONFIG_PATH)

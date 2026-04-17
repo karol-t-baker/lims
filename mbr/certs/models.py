@@ -1,4 +1,9 @@
-"""Certificate (Świadectwa) database helpers."""
+"""Certificate (Świadectwa) database helpers.
+
+Neither helper commits — callers own the transaction. Internal commit here
+used to split the caller's transaction mid-flow, so a subsequent failure
+couldn't roll back the cert row.
+"""
 
 from datetime import datetime
 
@@ -10,7 +15,6 @@ def create_swiadectwo(db, ebr_id, template_name, nr_partii, pdf_path, wystawil, 
         "VALUES (?, ?, ?, ?, ?, ?, ?)",
         (ebr_id, template_name, nr_partii, pdf_path, now, wystawil, data_json),
     )
-    db.commit()
     return cur.lastrowid
 
 
@@ -20,7 +24,6 @@ def mark_swiadectwa_outdated(db, ebr_id):
         "UPDATE swiadectwa SET nieaktualne = 1 WHERE ebr_id = ? AND (nieaktualne IS NULL OR nieaktualne = 0)",
         (ebr_id,),
     )
-    db.commit()
 
 
 def list_swiadectwa(db, ebr_id):
