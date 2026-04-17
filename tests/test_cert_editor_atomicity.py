@@ -162,6 +162,56 @@ def test_preview_rejects_oversized_string(monkeypatch, db):
     assert resp.status_code == 400
 
 
+def test_put_drops_stale_remove_parameters_refs(monkeypatch, db):
+    """If a base param is removed in the same save, any variant still
+    referencing it in remove_parameters must NOT block — drop + warn.
+
+    Reproduces the user-reported 'nie mogę zapisać po usunięciu sucha masa'
+    where K40GLOL variants had remove_parameters=['sm'] and removing sm
+    from base rejected the save.
+    """
+    _seed(db)
+    # Add a 2nd base param (sm) so we can remove it
+    db.execute("INSERT INTO parametry_analityczne (id, kod, label, typ) VALUES (3, 'sm_test', 'SM', 'bezposredni')")
+    db.execute(
+        "INSERT INTO parametry_cert (produkt, parametr_id, kolejnosc, name_pl, variant_id) "
+        "VALUES ('TEST', 3, 2, 'SM', NULL)"
+    )
+    # Add a variant that has 'sm_test' in its remove_parameters
+    db.execute(
+        "INSERT INTO cert_variants (produkt, variant_id, label, flags, remove_params, kolejnosc) "
+        "VALUES ('TEST', 'partner', 'Partner', '[]', ?, 1)",
+        (_json.dumps([3]),),
+    )
+    db.commit()
+    client = _admin_client(monkeypatch, db)
+
+    # User removes 'sm_test' from the base set
+    resp = client.put(
+        "/api/cert/config/product/TEST",
+        json={
+            "parameters": [
+                {"id": "ph_test", "name_pl": "pH", "data_field": "ph_test"},
+                {"id": "nd20_test", "name_pl": "nD20", "data_field": "nd20_test"},
+            ],
+            "variants": [
+                {"id": "base", "label": "Base", "flags": [], "overrides": {}},
+                {
+                    "id": "partner", "label": "Partner", "flags": [],
+                    "overrides": {"remove_parameters": ["sm_test"]},
+                },
+            ],
+        },
+    )
+    assert resp.status_code == 200, resp.get_json()
+    body = resp.get_json()
+    assert body["ok"] is True
+    assert any("pominięto" in w.lower() or "sm_test" in w for w in body.get("warnings", []))
+    # Variant row now has empty remove_params (stale ref dropped on write)
+    row = db.execute("SELECT remove_params FROM cert_variants WHERE produkt='TEST' AND variant_id='partner'").fetchone()
+    assert _json.loads(row["remove_params"] or "[]") == []
+
+
 def test_delete_product_issued_count_preflight(monkeypatch, db):
     _seed(db)
     db.execute("INSERT INTO mbr_templates (mbr_id, produkt, wersja, dt_utworzenia) VALUES (1, 'TEST', 1, '2026-01-01')")

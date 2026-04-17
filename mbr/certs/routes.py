@@ -462,10 +462,17 @@ def api_cert_config_product_put(key):
                 if not v.get("label"):
                     return jsonify({"error": f"Variant '{vid}' missing label"}), 400
                 overrides = v.get("overrides") or {}
-                remove_params = overrides.get("remove_parameters", [])
+                # Stale refs in remove_parameters (base param removed in the
+                # same save) are NOT an error — just drop them and warn. The
+                # variant still means "don't show X"; X already isn't there.
+                remove_params = overrides.get("remove_parameters", []) or []
+                cleaned_remove = []
                 for rp in remove_params:
-                    if rp not in base_param_ids:
-                        return jsonify({"error": f"Variant '{vid}' remove_parameters references unknown param: {rp}"}), 400
+                    if rp in base_param_ids:
+                        cleaned_remove.append(rp)
+                    else:
+                        warnings.append(f"Wariant '{vid}': pominięto 'remove {rp}' — brak w parametrach bazowych")
+                overrides["remove_parameters"] = cleaned_remove
                 for ap in overrides.get("add_parameters", []) or []:
                     ap_df = (ap.get("data_field") or ap.get("id") or "").strip()
                     # Resolve mapping during VALIDATION so we never fail
