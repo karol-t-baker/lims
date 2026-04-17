@@ -127,6 +127,33 @@ def test_next_nr_partii_increments_from_existing(db):
     assert nr == f"6/{year}"
 
 
+def test_next_nr_partii_does_not_leak_across_sibling_products(db):
+    """Chegina_K40GL must not pull numbers from Chegina_K40GLOL — the old LIKE
+    on batch_id prefix matched every product whose name started with the query
+    (K40GL, K40GLO, K40GLOL, K40GLN, K40GLOL_HQ…)."""
+    year = datetime.now().year
+    now = datetime.now().isoformat(timespec="seconds")
+
+    db.execute("INSERT INTO mbr_templates (produkt, wersja, status, etapy_json, parametry_lab, utworzony_przez, dt_utworzenia) VALUES ('Chegina_K40GL', 1, 'active', '[]', '{}', 't', ?)", (now,))
+    db.execute("INSERT INTO mbr_templates (produkt, wersja, status, etapy_json, parametry_lab, utworzony_przez, dt_utworzenia) VALUES ('Chegina_K40GLOL', 1, 'active', '[]', '{}', 't', ?)", (now,))
+    db.commit()
+    mid_gl = db.execute("SELECT mbr_id FROM mbr_templates WHERE produkt='Chegina_K40GL'").fetchone()["mbr_id"]
+    mid_gl_ol = db.execute("SELECT mbr_id FROM mbr_templates WHERE produkt='Chegina_K40GLOL'").fetchone()["mbr_id"]
+    db.execute(
+        "INSERT INTO ebr_batches (mbr_id, batch_id, nr_partii, dt_start, status, typ) "
+        "VALUES (?, ?, ?, ?, 'open', 'szarza')",
+        (mid_gl, f"Chegina_K40GL__12_{year}", f"12/{year}", now),
+    )
+    db.execute(
+        "INSERT INTO ebr_batches (mbr_id, batch_id, nr_partii, dt_start, status, typ) "
+        "VALUES (?, ?, ?, ?, 'open', 'szarza')",
+        (mid_gl_ol, f"Chegina_K40GLOL__120_{year}", f"120/{year}", now),
+    )
+    db.commit()
+    assert next_nr_partii(db, "Chegina_K40GL") == f"13/{year}"
+    assert next_nr_partii(db, "Chegina_K40GLOL") == f"121/{year}"
+
+
 # ---------------------------------------------------------------------------
 # create_ebr
 # ---------------------------------------------------------------------------

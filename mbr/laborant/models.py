@@ -38,23 +38,29 @@ PRODUCTS = [
 def next_nr_partii(db: sqlite3.Connection, produkt: str) -> str:
     """Get next available nr_partii for a product in current year.
     Checks both ebr_batches AND v4 batch table for highest number.
-    Returns e.g. '57/2026'."""
+    Returns e.g. '57/2026'.
+
+    Scoped by exact produkt via mbr_templates — the previous
+    ``batch_id LIKE '<produkt>%'`` form leaked numbers between siblings
+    (querying K40GL caught every K40GLOL / K40GLN / K40GLOL_HQ row).
+    """
     year = datetime.now().year
     suffix = f"/{year}"
 
-    # Check ebr_batches (primary) + v4 batch table if it exists
     rows = db.execute(
-        "SELECT nr_partii FROM ebr_batches WHERE batch_id LIKE ? AND nr_partii LIKE ?",
-        (f"{produkt}%", f"%{suffix}"),
+        "SELECT eb.nr_partii FROM ebr_batches eb "
+        "JOIN mbr_templates m ON m.mbr_id = eb.mbr_id "
+        "WHERE m.produkt = ? AND eb.nr_partii LIKE ?",
+        (produkt, f"%{suffix}"),
     ).fetchall()
-    # Try v4 legacy table (may not exist)
+    # v4 legacy table (may not exist)
     try:
         rows += db.execute(
             "SELECT nr_partii FROM batch WHERE (produkt = ? OR produkt = ?) AND nr_partii LIKE ?",
             (produkt, produkt.replace('_', ' '), f"%{suffix}"),
         ).fetchall()
     except Exception:
-        pass  # v4 table doesn't exist
+        pass
 
     max_num = 0
     for r in rows:
