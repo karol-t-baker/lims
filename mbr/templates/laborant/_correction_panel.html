@@ -102,6 +102,16 @@ async function _renderPerhydrolPanel(container, sekcja, ctx) {
         '</div>';
 
     recomputePerhydrol(sekcja);
+
+    // Restore saved manual perhydrol correction (persist across F5 / batch switch)
+    var sesjaId = (window._lastGate && window._lastGate.sesja_id) || null;
+    if (sesjaId) {
+        var saved = await _loadSavedKorekty(window.ebrId, etapId, sesjaId);
+        var manualEl = document.getElementById('corr-manual-kg-' + sekcja);
+        if (manualEl && saved['Perhydrol 34%'] != null) {
+            manualEl.value = String(saved['Perhydrol 34%']).replace('.', ',');
+        }
+    }
 }
 
 async function _renderStandaryzacjaV2Panel(container, sekcja, ctx) {
@@ -198,6 +208,21 @@ async function _renderStandaryzacjaV2Panel(container, sekcja, ctx) {
 
     recomputeStandV2(sekcja);
     recomputeStandTotal(sekcja);
+
+    // Restore saved manual corrections (persist across F5 / batch switch)
+    var sesjaId = (window._lastGate && window._lastGate.sesja_id) || null;
+    if (sesjaId) {
+        var saved = await _loadSavedKorekty(window.ebrId, etapId, sesjaId);
+        var wodaManEl = document.getElementById('corr-manual-woda-' + sekcja);
+        var kwasManEl = document.getElementById('corr-manual-kwas-' + sekcja);
+        if (wodaManEl && saved['Woda'] != null) {
+            wodaManEl.value = String(saved['Woda']).replace('.', ',');
+        }
+        if (kwasManEl && saved['Kwas cytrynowy'] != null) {
+            kwasManEl.value = String(saved['Kwas cytrynowy']).replace('.', ',');
+        }
+        recomputeStandTotal(sekcja);
+    }
 }
 
 // ═══ FD — Form Draft ═══
@@ -231,6 +256,27 @@ if (!window.FD) window.FD = {
 
 // ═══ Per-field auto-save for correction values ═══
 window._pendingKorektaSaves = window._pendingKorektaSaves || [];
+
+// Load saved korekta values for a sesja — returns { substancja: ilosc }
+async function _loadSavedKorekty(ebrIdArg, etapIdArg, sesjaId) {
+  if (!ebrIdArg || !etapIdArg || !sesjaId) return {};
+  try {
+    var resp = await fetch('/api/pipeline/lab/ebr/' + ebrIdArg + '/etap/' + etapIdArg);
+    if (!resp.ok) return {};
+    var data = await resp.json();
+    var list = (data.sesje_korekty && (data.sesje_korekty[String(sesjaId)] || data.sesje_korekty[sesjaId])) || [];
+    var map = {};
+    list.forEach(function(k) {
+      if (k && k.substancja != null && k.ilosc != null) {
+        map[k.substancja] = k.ilosc;
+      }
+    });
+    return map;
+  } catch (e) {
+    console.warn('[_loadSavedKorekty]', e);
+    return {};
+  }
+}
 
 function saveKorektaField(input) {
   var ebrId = parseInt(input.dataset.ebrId, 10);
@@ -633,7 +679,7 @@ function _corrFieldKorekta(label, id, value, ebrId, etapId, substancja, sekcja) 
             ' data-etap-id="' + etapId + '"' +
             ' data-substancja="' + substancja + '"' +
             ' data-suggested=""' +
-            ' oninput="recomputeStandTotal(\\"' + sekcja + '\\")"' +
+            ' oninput="recomputeStandTotal(\'' + sekcja + '\')"' +
             ' onblur="saveKorektaField(this)">' +
     '</div>';
 }
