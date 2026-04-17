@@ -242,6 +242,75 @@ def api_admin_patch_batch_meta(ebr_id):
     return jsonify({"ok": True, "changed": True, "diff": diff})
 
 
+@admin_bp.route("/api/admin/ebr/<int:ebr_id>", methods=["DELETE"])
+@role_required("admin")
+def api_admin_delete_batch(ebr_id):
+    """Hard-delete a szarża + cascade across child tables in one transaction.
+
+    Only open/cancelled batches. Completed batches must be cancelled first —
+    keeps the rail from wiping a finished szarża (certificates, sign-offs)
+    by a misclick. The cert PDF files on disk are left alone; only the
+    `swiadectwa` row goes.
+
+    Audit emits EVENT_EBR_BATCH_DELETED with the freed nr_partii so the
+    deletion is traceable even though the row is gone.
+    """
+    from mbr.shared import audit
+
+    with db_session() as db:
+        row = db.execute(
+            "SELECT ebr_id, nr_partii, status, typ FROM ebr_batches WHERE ebr_id=?",
+            (ebr_id,),
+        ).fetchone()
+        if row is None:
+            return jsonify({"ok": False, "error": "batch not found"}), 404
+        if row["status"] == "completed":
+            return jsonify({
+                "ok": False,
+                "error": "nie można usunąć ukończonej szarży — anuluj ją najpierw",
+            }), 400
+
+        nr_partii = row["nr_partii"]
+        status = row["status"]
+
+        # Child wipe-out order: deepest refs first.
+        db.execute(
+            "DELETE FROM ebr_korekta_v2 WHERE sesja_id IN "
+            "(SELECT id FROM ebr_etap_sesja WHERE ebr_id=?)",
+            (ebr_id,),
+        )
+        db.execute(
+            "DELETE FROM ebr_pomiar WHERE sesja_id IN "
+            "(SELECT id FROM ebr_etap_sesja WHERE ebr_id=?)",
+            (ebr_id,),
+        )
+        db.execute("DELETE FROM ebr_etap_sesja WHERE ebr_id=?", (ebr_id,))
+        db.execute("DELETE FROM ebr_wyniki WHERE ebr_id=?", (ebr_id,))
+        db.execute("DELETE FROM ebr_uwagi_history WHERE ebr_id=?", (ebr_id,))
+        try:
+            db.execute("DELETE FROM platkowanie_substraty WHERE ebr_id=?", (ebr_id,))
+        except Exception:
+            pass  # table may not exist on minimal test DBs
+        try:
+            db.execute("DELETE FROM swiadectwa WHERE ebr_id=?", (ebr_id,))
+        except Exception:
+            pass
+
+        audit.log_event(
+            audit.EVENT_EBR_BATCH_DELETED,
+            entity_type="ebr",
+            entity_id=ebr_id,
+            entity_label=f"Szarża {nr_partii}" if nr_partii else f"EBR #{ebr_id}",
+            payload={"nr_partii": nr_partii, "status": status, "typ": row["typ"]},
+            db=db,
+        )
+
+        db.execute("DELETE FROM ebr_batches WHERE ebr_id=?", (ebr_id,))
+        db.commit()
+
+    return jsonify({"ok": True, "nr_partii": nr_partii})
+
+
 @admin_bp.route("/api/admin/feedback/<int:fb_id>/priorytet", methods=["PUT"])
 @role_required("admin")
 def api_feedback_priorytet(fb_id):
