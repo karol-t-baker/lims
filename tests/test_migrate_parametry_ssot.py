@@ -564,3 +564,29 @@ def test_ensure_pipeline_covers_orphan_produkt_etap_limity(db):
         "SELECT etap_id FROM produkt_pipeline WHERE produkt='Chegina_K40GL'"
     ).fetchone()
     assert row["etap_id"] == 6
+
+
+def test_dry_run_rolls_back_data_changes(db):
+    """dry_run=True rolls back data INSERTs/UPDATEs (ALTER TABLE is DDL and may persist in SQLite).
+    Concrete checks: no produkt_pipeline or produkt_etap_limity rows for the seeded product,
+    no _migrations marker."""
+    from scripts.migrate_parametry_ssot import migrate, already_applied
+    _seed_minimal_catalog(db)
+    db.execute("INSERT INTO mbr_templates (mbr_id, produkt, status, dt_utworzenia) VALUES (1, 'Chelamid_DK', 'active', '2026-04-16T00:00:00')")
+    db.execute(
+        "INSERT INTO parametry_etapy (parametr_id, kontekst, produkt, min_limit, max_limit) "
+        "VALUES (1, 'analiza_koncowa', 'Chelamid_DK', 0, 11)"
+    )
+    db.commit()
+
+    migrate(db, dry_run=True)
+
+    # Data INSERTs rolled back:
+    assert db.execute(
+        "SELECT COUNT(*) AS n FROM produkt_pipeline WHERE produkt='Chelamid_DK'"
+    ).fetchone()["n"] == 0
+    assert db.execute(
+        "SELECT COUNT(*) AS n FROM produkt_etap_limity WHERE produkt='Chelamid_DK'"
+    ).fetchone()["n"] == 0
+    # Marker not set
+    assert already_applied(db) is False
