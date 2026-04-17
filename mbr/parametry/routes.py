@@ -653,25 +653,41 @@ _BINDING_DEFAULTS = {
 @parametry_bp.route("/api/bindings", methods=["POST"])
 @login_required
 def api_bindings_create():
-    """Create a new produkt_etap_limity binding."""
+    """Create a new produkt_etap_limity binding.
+
+    Accepts either `etap_id` (int) or `etap_kod` (str) — if `etap_kod` is given,
+    resolve to `etap_id` via etapy_analityczne. The kod path lets callers without
+    admin access (e.g. the laborant modal) avoid `/api/pipeline/etapy`.
+    """
     import sqlite3 as _sqlite3
     data = request.get_json(silent=True) or {}
     produkt = (data.get("produkt") or "").strip()
     etap_id = data.get("etap_id")
+    etap_kod = (data.get("etap_kod") or "").strip()
     parametr_id = data.get("parametr_id")
-    if not produkt or not etap_id or not parametr_id:
-        return jsonify({"error": "produkt, etap_id, parametr_id are required"}), 400
+    if not produkt or not parametr_id:
+        return jsonify({"error": "produkt and parametr_id are required"}), 400
+    if not etap_id and not etap_kod:
+        return jsonify({"error": "etap_id or etap_kod is required"}), 400
 
     row_fields = {k: data[k] for k in _BINDING_FIELDS if k in data}
     for k, v in _BINDING_DEFAULTS.items():
         row_fields.setdefault(k, v)
 
-    cols = ["produkt", "etap_id", "parametr_id"] + list(row_fields.keys())
-    vals = [produkt, etap_id, parametr_id] + list(row_fields.values())
-    placeholders = ", ".join("?" * len(cols))
-    col_clause = ", ".join(cols)
-
     with db_session() as db:
+        if not etap_id:
+            row = db.execute(
+                "SELECT id FROM etapy_analityczne WHERE kod=?", (etap_kod,)
+            ).fetchone()
+            if not row:
+                return jsonify({"error": f"unknown etap_kod: {etap_kod}"}), 404
+            etap_id = row["id"]
+
+        cols = ["produkt", "etap_id", "parametr_id"] + list(row_fields.keys())
+        vals = [produkt, etap_id, parametr_id] + list(row_fields.values())
+        placeholders = ", ".join("?" * len(cols))
+        col_clause = ", ".join(cols)
+
         try:
             cur = db.execute(
                 f"INSERT INTO produkt_etap_limity ({col_clause}) VALUES ({placeholders})",
