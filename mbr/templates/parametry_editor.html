@@ -159,9 +159,12 @@
           <th>Skrót</th>
           <th style="width:80px;">Naważka [g]</th>
           <th style="width:80px;">Min</th>
-          <th style="width:80px;">Target</th>
+          <th style="width:80px;">Spec</th>
           <th style="width:80px;">Max</th>
           <th style="width:70px;">Grupa</th>
+          <th style="width:30px;" title="szarża">Sz</th>
+          <th style="width:30px;" title="zbiornik">Zb</th>
+          <th style="width:30px;" title="płatkowanie">Pl</th>
           <th style="width:40px;"></th>
         </tr>
       </thead>
@@ -315,7 +318,7 @@ function loadEtapBindings() {
     document.getElementById('etap-add').style.display = 'none';
     return;
   }
-  fetch('/api/parametry/etapy/' + encodeURIComponent(produkt) + '/' + encodeURIComponent(kontekst))
+  fetch('/api/bindings?produkt=' + encodeURIComponent(produkt) + '&etap_kod=' + encodeURIComponent(kontekst))
     .then(function(r){return r.json();})
     .then(function(data) {
       _etapBindings = data;
@@ -339,27 +342,41 @@ function renderEtapTable(data) {
       '<td style="font-weight:600;font-size:12px;">' + esc(b.skrot || b.kod) + '</td>' +
       '<td><input class="pa-input" type="text" inputmode="decimal" value="' + (b.nawazka_g != null ? String(b.nawazka_g).replace('.',',') : '') + '" onblur="saveEtapField(' + b.id + ',\'nawazka_g\',this)" style="width:70px;text-align:center;"></td>' +
       '<td><input class="pa-input" type="text" inputmode="decimal" value="' + (b.min_limit != null ? String(b.min_limit).replace('.',',') : '') + '" onblur="saveEtapField(' + b.id + ',\'min_limit\',this)" style="width:70px;text-align:center;"></td>' +
-      '<td><input class="pa-input" type="text" inputmode="decimal" value="' + (b.target != null ? String(b.target).replace('.',',') : '') + '" onblur="saveEtapField(' + b.id + ',\'target\',this)" style="width:70px;text-align:center;"></td>' +
+      '<td><input class="pa-input" type="text" inputmode="decimal" value="' + (b.spec_value != null ? String(b.spec_value).replace('.',',') : '') + '" onblur="saveEtapField(' + b.id + ',\'spec_value\',this)" style="width:70px;text-align:center;"></td>' +
       '<td><input class="pa-input" type="text" inputmode="decimal" value="' + (b.max_limit != null ? String(b.max_limit).replace('.',',') : '') + '" onblur="saveEtapField(' + b.id + ',\'max_limit\',this)" style="width:70px;text-align:center;"></td>' +
       '<td><select class="pa-input" onchange="saveEtapField(' + b.id + ',\'grupa\',this)" style="width:66px;font-size:10px;padding:3px 4px;">' +
         '<option value="lab"' + ((b.grupa||'lab')==='lab'?' selected':'') + '>lab</option>' +
         '<option value="kj"' + (b.grupa==='kj'?' selected':'') + '>kj</option>' +
         '<option value="rnd"' + (b.grupa==='rnd'?' selected':'') + '>rnd</option>' +
       '</select></td>' +
+      '<td style="text-align:center;"><input type="checkbox"' + (b.dla_szarzy ? ' checked' : '') + ' onchange="saveFlagField(' + b.id + ',\'dla_szarzy\',this)"></td>' +
+      '<td style="text-align:center;"><input type="checkbox"' + (b.dla_zbiornika ? ' checked' : '') + ' onchange="saveFlagField(' + b.id + ',\'dla_zbiornika\',this)"></td>' +
+      '<td style="text-align:center;"><input type="checkbox"' + (b.dla_platkowania ? ' checked' : '') + ' onchange="saveFlagField(' + b.id + ',\'dla_platkowania\',this)"></td>' +
       '<td><button class="pe-bind-del" onclick="deleteEtapBinding(' + b.id + ')">&times;</button></td>' +
     '</tr>';
   });
   document.getElementById('etap-body').innerHTML = html ||
-    '<tr><td colspan="9" style="text-align:center;color:var(--text-dim);padding:20px;">Brak przypisań dla tego etapu</td></tr>';
+    '<tr><td colspan="12" style="text-align:center;color:var(--text-dim);padding:20px;">Brak przypisań dla tego etapu</td></tr>';
 }
 
 function saveEtapField(id, field, input) {
   var val = field === 'grupa' ? input.value : parseNum(input.value);
   var body = {}; body[field] = val;
-  fetch('/api/parametry/etapy/' + id, {
+  fetch('/api/bindings/' + id, {
     method: 'PUT', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(body)
   }).then(function(r) { flashField(input, r.ok); });
+}
+
+function saveFlagField(id, field, checkbox) {
+  var body = {}; body[field] = checkbox.checked ? 1 : 0;
+  fetch('/api/bindings/' + id, {
+    method: 'PUT', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  }).then(function(r){ return r.json(); }).then(function(data) {
+    flashField(checkbox, data.ok);
+    if (data.auto_deleted) loadEtapBindings();
+  });
 }
 
 function addEtapBinding() {
@@ -367,32 +384,43 @@ function addEtapBinding() {
   var kontekst = document.getElementById('etap-kontekst').value;
   var paramId = document.getElementById('etap-add-param').value;
   if (!produkt || !kontekst || !paramId) return;
-  fetch('/api/parametry/etapy', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({
-      parametr_id: parseInt(paramId),
-      kontekst: kontekst,
-      produkt: produkt,
-      nawazka_g: parseNum(document.getElementById('etap-add-naw').value),
-      min_limit: parseNum(document.getElementById('etap-add-min').value),
-      max_limit: parseNum(document.getElementById('etap-add-max').value),
-      grupa: document.getElementById('etap-add-grupa').value,
+  fetch('/api/pipeline/etapy')
+    .then(function(r){return r.json();})
+    .then(function(etapy) {
+      var etap = etapy.find(function(e) { return e.kod === kontekst; });
+      if (!etap) { alert('Nie znaleziono etapu: ' + kontekst); return; }
+      return fetch('/api/bindings', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          produkt: produkt,
+          etap_id: etap.id,
+          parametr_id: parseInt(paramId),
+          nawazka_g: parseNum(document.getElementById('etap-add-naw').value),
+          min_limit: parseNum(document.getElementById('etap-add-min').value),
+          max_limit: parseNum(document.getElementById('etap-add-max').value),
+          grupa: document.getElementById('etap-add-grupa').value,
+        })
+      });
     })
-  }).then(function(r){return r.json();}).then(function(d) {
-    if (d.ok) {
-      document.getElementById('etap-add-naw').value = '';
-      document.getElementById('etap-add-min').value = '';
-      document.getElementById('etap-add-max').value = '';
-      loadEtapBindings();
-    } else { alert(d.error || 'Błąd'); }
-  });
+    .then(function(r){return r ? r.json() : null;})
+    .then(function(d) {
+      if (d && d.ok) {
+        document.getElementById('etap-add-naw').value = '';
+        document.getElementById('etap-add-min').value = '';
+        document.getElementById('etap-add-max').value = '';
+        loadEtapBindings();
+      } else if (d) { alert(d.error || 'Błąd'); }
+    });
 }
 
 function deleteEtapBinding(id) {
   if (!confirm('Usunąć przypisanie?')) return;
-  fetch('/api/parametry/etapy/' + id, {method: 'DELETE'})
+  fetch('/api/bindings/' + id, {method: 'DELETE'})
     .then(function(r){return r.json();})
-    .then(function(d) { if (d.ok) loadEtapBindings(); });
+    .then(function(d) {
+      if (d.ok) loadEtapBindings();
+      else alert(d.error || 'Błąd');
+    });
 }
 
 var _etapDragIdx = null;
