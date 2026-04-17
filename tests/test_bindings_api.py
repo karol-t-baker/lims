@@ -101,3 +101,57 @@ def test_get_bindings_empty_for_unknown_produkt(client):
     resp = client.get("/api/bindings?produkt=NO_SUCH&etap_id=6")
     assert resp.status_code == 200
     assert resp.get_json() == []
+
+
+# ---------------------------------------------------------------------------
+# POST /api/bindings
+# ---------------------------------------------------------------------------
+
+def test_post_bindings_creates_row_with_defaults(client):
+    resp = client.post(
+        "/api/bindings",
+        json={"produkt": "TEST_P", "etap_id": 6, "parametr_id": 2,
+              "min_limit": 0, "max_limit": 3}
+    )
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["ok"] is True
+    assert "id" in data
+
+    listing = client.get("/api/bindings?produkt=TEST_P&etap_id=6").get_json()
+    dea = next((b for b in listing if b["parametr_id"] == 2), None)
+    assert dea is not None
+    assert dea["min_limit"] == 0
+    assert dea["max_limit"] == 3
+    assert dea["dla_szarzy"] == 1
+    assert dea["dla_zbiornika"] == 1
+    assert dea["dla_platkowania"] == 0
+    assert dea["grupa"] == "lab"
+
+
+def test_post_bindings_respects_custom_flags(client):
+    resp = client.post(
+        "/api/bindings",
+        json={"produkt": "TEST_P", "etap_id": 6, "parametr_id": 2,
+              "dla_szarzy": 0, "dla_zbiornika": 1, "dla_platkowania": 1}
+    )
+    assert resp.status_code == 200
+    listing = client.get("/api/bindings?produkt=TEST_P&etap_id=6").get_json()
+    dea = next(b for b in listing if b["parametr_id"] == 2)
+    assert dea["dla_szarzy"] == 0
+    assert dea["dla_zbiornika"] == 1
+    assert dea["dla_platkowania"] == 1
+
+
+def test_post_bindings_duplicate_returns_409(client):
+    # ph binding for (TEST_P, 6, 1) already exists from fixture
+    resp = client.post(
+        "/api/bindings",
+        json={"produkt": "TEST_P", "etap_id": 6, "parametr_id": 1}
+    )
+    assert resp.status_code == 409
+
+
+def test_post_bindings_missing_fields_returns_400(client):
+    resp = client.post("/api/bindings", json={"produkt": "TEST_P"})
+    assert resp.status_code == 400
