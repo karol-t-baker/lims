@@ -265,12 +265,13 @@ def save_entry(ebr_id):
     with db_session() as db:
         ebr = get_ebr(db, ebr_id)
 
-        # Pipeline adapter: override parametry_lab so save_wyniki finds pipeline params
-        # Zbiorniki use only analiza_koncowa — skip full pipeline
-        if ebr and ebr.get("typ") != "zbiornik":
-            from mbr.pipeline.adapter import build_pipeline_context
-            import json as _json
-            pipeline_ctx = build_pipeline_context(db, ebr["produkt"])
+        # Pipeline adapter — use the typ-filtered context so save_wyniki sees
+        # only the parameters relevant for this batch typ.
+        from mbr.pipeline.adapter import build_pipeline_context
+        import json as _json
+        if ebr:
+            batch_typ = ebr.get("typ") or "szarza"
+            pipeline_ctx = build_pipeline_context(db, ebr["produkt"], typ=batch_typ)
             if pipeline_ctx:
                 ebr = dict(ebr)
                 ebr["parametry_lab"] = _json.dumps(pipeline_ctx["parametry_lab"])
