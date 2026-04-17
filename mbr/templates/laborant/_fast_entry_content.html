@@ -28,6 +28,12 @@
       <span class="en-badge b-ok">zakończona</span>
       {% if zatwierdzil_short %}<span style="font-size:11px;color:var(--text-sec);margin-left:8px;" title="{{ zatwierdzil_full }}">Zatwierdził: {{ zatwierdzil_short }}</span>{% endif %}
     {% endif %}
+    {% if session.get('user', {}).get('rola') == 'admin' %}
+      <button type="button" class="tp-admin-edit" title="Edytuj metadane szarży (admin)"
+              onclick="openAdminBatchMeta()" style="margin-left:8px;padding:3px 10px;font-size:11px;border:1px solid var(--border);border-radius:5px;background:var(--surface);cursor:pointer;color:var(--text-sec);">
+        ✎ Edytuj
+      </button>
+    {% endif %}
   </span>
 </div>
 
@@ -5632,6 +5638,105 @@ window.showPipelineStage = function(sekcjaLab, readonly) {
     if (typeof renderSidebarEtapy === 'function') renderSidebarEtapy();
 };
 </script>
+
+{% if session.get('user', {}).get('rola') == 'admin' %}
+{# ═══ ADMIN BATCH META EDITOR MODAL ═══ #}
+<div class="pe-modal-overlay" id="abm-modal-overlay" onclick="if(event.target===this)closeAdminBatchMeta()">
+  <div class="pe-modal" style="max-width:480px;">
+    <div class="pe-modal-head">
+      <div class="pe-modal-title">Edycja metadanych szarży (admin)</div>
+      <button class="pe-modal-close" onclick="closeAdminBatchMeta()">&times;</button>
+    </div>
+    <div class="pe-modal-body" style="padding:16px 18px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <label style="font-size:11px;color:var(--text-sec);">
+          Nastaw [kg]
+          <input id="abm-nastaw" type="number" min="1" step="1" style="width:100%;margin-top:4px;padding:6px 8px;border:1px solid var(--border);border-radius:5px;font-size:13px;font-family:var(--mono);">
+        </label>
+        <label style="font-size:11px;color:var(--text-sec);">
+          Typ karty
+          <select id="abm-typ" style="width:100%;margin-top:4px;padding:6px 8px;border:1px solid var(--border);border-radius:5px;font-size:13px;">
+            <option value="szarza">szarża</option>
+            <option value="zbiornik">zbiornik</option>
+            <option value="platkowanie">płatkowanie</option>
+          </select>
+        </label>
+        <label style="font-size:11px;color:var(--text-sec);">
+          Nr amidatora
+          <input id="abm-nr-amid" type="text" style="width:100%;margin-top:4px;padding:6px 8px;border:1px solid var(--border);border-radius:5px;font-size:13px;font-family:var(--mono);">
+        </label>
+        <label style="font-size:11px;color:var(--text-sec);">
+          Nr mieszalnika
+          <input id="abm-nr-miesz" type="text" style="width:100%;margin-top:4px;padding:6px 8px;border:1px solid var(--border);border-radius:5px;font-size:13px;font-family:var(--mono);">
+        </label>
+      </div>
+      <div id="abm-warning" style="margin-top:12px;padding:8px 10px;background:var(--amber-bg);color:var(--amber);border-radius:5px;font-size:11px;display:none;">
+        ⚠ Zmiana <b>typu</b> przestawia pipeline i zestaw parametrów — stare pomiary mogą stać się niewidoczne w UI (zostają w DB, audytowalne).
+      </div>
+    </div>
+    <div class="pe-modal-footer">
+      <button class="btn btn-o" onclick="closeAdminBatchMeta()">Anuluj</button>
+      <button class="btn btn-p" onclick="saveAdminBatchMeta()">Zapisz</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  var currentTyp = {{ ebr.typ|default('szarza')|tojson }};
+  var currentNastaw = {{ (ebr.nastaw or ebr.wielkosc_szarzy_kg or '')|tojson }};
+  var currentAmid = {{ (ebr.nr_amidatora or '')|tojson }};
+  var currentMiesz = {{ (ebr.nr_mieszalnika or '')|tojson }};
+
+  window.openAdminBatchMeta = function() {
+    document.getElementById('abm-nastaw').value = currentNastaw || '';
+    document.getElementById('abm-typ').value = currentTyp;
+    document.getElementById('abm-nr-amid').value = currentAmid || '';
+    document.getElementById('abm-nr-miesz').value = currentMiesz || '';
+    document.getElementById('abm-warning').style.display = 'none';
+    document.getElementById('abm-modal-overlay').classList.add('show');
+    document.getElementById('abm-typ').onchange = function() {
+      document.getElementById('abm-warning').style.display =
+        this.value !== currentTyp ? 'block' : 'none';
+    };
+  };
+
+  window.closeAdminBatchMeta = function() {
+    document.getElementById('abm-modal-overlay').classList.remove('show');
+  };
+
+  window.saveAdminBatchMeta = async function() {
+    var nastawRaw = document.getElementById('abm-nastaw').value.trim();
+    var body = {
+      typ: document.getElementById('abm-typ').value,
+      nr_amidatora: document.getElementById('abm-nr-amid').value.trim(),
+      nr_mieszalnika: document.getElementById('abm-nr-miesz').value.trim(),
+    };
+    if (nastawRaw !== '') {
+      var n = parseInt(nastawRaw, 10);
+      if (!isFinite(n) || n <= 0) { alert('Nastaw musi być dodatni.'); return; }
+      body.nastaw = n;
+    }
+    if (body.typ !== currentTyp) {
+      if (!confirm('Zmiana typu szarży jest nieodwracalna dla widoków. Kontynuować?')) return;
+    }
+    var resp = await fetch('/api/admin/ebr/' + ebrId + '/meta', {
+      method: 'PATCH',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(body),
+    });
+    if (!resp.ok) {
+      var err = {};
+      try { err = await resp.json(); } catch(e) {}
+      alert('Błąd zapisu: ' + (err.error || resp.status));
+      return;
+    }
+    closeAdminBatchMeta();
+    if (typeof loadBatch === 'function') loadBatch(ebrId);
+  };
+})();
+</script>
+{% endif %}
 
 {# ═══ PARAM EDITOR MODAL ═══ #}
 <div class="pe-modal-overlay" id="pe-modal-overlay" onclick="if(event.target===this)closeParamEditor()">

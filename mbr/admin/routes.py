@@ -174,6 +174,74 @@ def api_delete_backup(name):
 # Feedback
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Admin batch metadata editor — fix a mis-created szarża (wrong nastaw, typ,
+# amidator, mieszalnik). Downstream effects of changing `typ` are handled by
+# build_pipeline_context reading the live value on the next render.
+# ---------------------------------------------------------------------------
+
+_BATCH_META_FIELDS = ("nastaw", "typ", "nr_amidatora", "nr_mieszalnika")
+_VALID_TYPY = ("szarza", "zbiornik", "platkowanie")
+
+
+@admin_bp.route("/api/admin/ebr/<int:ebr_id>/meta", methods=["PATCH"])
+@role_required("admin")
+def api_admin_patch_batch_meta(ebr_id):
+    from mbr.shared import audit
+
+    data = request.get_json(silent=True) or {}
+    patch = {k: data[k] for k in _BATCH_META_FIELDS if k in data}
+    if not patch:
+        return jsonify({"ok": False, "error": "no fields provided"}), 400
+
+    if "typ" in patch and patch["typ"] not in _VALID_TYPY:
+        return jsonify({"ok": False, "error": f"invalid typ (must be one of {_VALID_TYPY})"}), 400
+    if "nastaw" in patch:
+        try:
+            nv = int(patch["nastaw"]) if patch["nastaw"] is not None else None
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "error": "nastaw must be an integer"}), 400
+        if nv is not None and nv <= 0:
+            return jsonify({"ok": False, "error": "nastaw must be positive"}), 400
+        patch["nastaw"] = nv
+
+    with db_session() as db:
+        current_cols = ", ".join(_BATCH_META_FIELDS)
+        current = db.execute(
+            f"SELECT {current_cols} FROM ebr_batches WHERE ebr_id=?",
+            (ebr_id,),
+        ).fetchone()
+        if current is None:
+            return jsonify({"ok": False, "error": "batch not found"}), 404
+
+        old = {k: current[k] for k in _BATCH_META_FIELDS}
+        new = {**old, **patch}
+        diff = audit.diff_fields(old, new, list(patch.keys()))
+        if not diff:
+            return jsonify({"ok": True, "changed": False})
+
+        set_sql = ", ".join(f"{k}=?" for k in patch.keys())
+        db.execute(
+            f"UPDATE ebr_batches SET {set_sql} WHERE ebr_id=?",
+            (*patch.values(), ebr_id),
+        )
+
+        label_row = db.execute(
+            "SELECT nr_partii FROM ebr_batches WHERE ebr_id=?", (ebr_id,),
+        ).fetchone()
+        audit.log_event(
+            audit.EVENT_EBR_BATCH_UPDATED,
+            entity_type="ebr",
+            entity_id=ebr_id,
+            entity_label=f"Szarża {label_row['nr_partii']}" if label_row else None,
+            diff=diff,
+            db=db,
+        )
+        db.commit()
+
+    return jsonify({"ok": True, "changed": True, "diff": diff})
+
+
 @admin_bp.route("/api/admin/feedback/<int:fb_id>/priorytet", methods=["PUT"])
 @role_required("admin")
 def api_feedback_priorytet(fb_id):
