@@ -19,6 +19,64 @@ MIGRATION_NAME = "mvp_pipeline_cleanup_v1"
 MVP_MULTI_STAGE = {"Chegina_K7"}
 
 
+def _analiza_koncowa_etap_id(db: sqlite3.Connection) -> int:
+    row = db.execute(
+        "SELECT id FROM etapy_analityczne WHERE kod='analiza_koncowa'"
+    ).fetchone()
+    if not row:
+        raise RuntimeError("etapy_analityczne has no 'analiza_koncowa' row")
+    return row["id"]
+
+
+def strip_non_k7_pipeline(db: sqlite3.Connection) -> dict:
+    """For every product not in MVP_MULTI_STAGE: remove all produkt_pipeline
+    entries except analiza_koncowa; remove all produkt_etapy entries.
+
+    Returns counts: {'pipeline_deleted': N, 'pipeline_inserted': N, 'etapy_deleted': N}.
+    """
+    ak_id = _analiza_koncowa_etap_id(db)
+    counts = {"pipeline_deleted": 0, "pipeline_inserted": 0, "etapy_deleted": 0}
+
+    # All products with pipeline entries, outside the whitelist.
+    produkty = db.execute(
+        "SELECT DISTINCT produkt FROM produkt_pipeline"
+    ).fetchall()
+    for row in produkty:
+        produkt = row["produkt"]
+        if produkt in MVP_MULTI_STAGE:
+            continue
+        # Delete non-analiza_koncowa pipeline rows
+        cur = db.execute(
+            "DELETE FROM produkt_pipeline WHERE produkt=? AND etap_id != ?",
+            (produkt, ak_id),
+        )
+        counts["pipeline_deleted"] += cur.rowcount
+        # Ensure analiza_koncowa row exists
+        exists = db.execute(
+            "SELECT 1 FROM produkt_pipeline WHERE produkt=? AND etap_id=?",
+            (produkt, ak_id),
+        ).fetchone()
+        if not exists:
+            db.execute(
+                "INSERT INTO produkt_pipeline (produkt, etap_id, kolejnosc) VALUES (?, ?, 1)",
+                (produkt, ak_id),
+            )
+            counts["pipeline_inserted"] += 1
+
+    # Delete ALL produkt_etapy for non-K7 products (process workflow)
+    produkty = db.execute(
+        "SELECT DISTINCT produkt FROM produkt_etapy"
+    ).fetchall()
+    for row in produkty:
+        produkt = row["produkt"]
+        if produkt in MVP_MULTI_STAGE:
+            continue
+        cur = db.execute("DELETE FROM produkt_etapy WHERE produkt=?", (produkt,))
+        counts["etapy_deleted"] += cur.rowcount
+
+    return counts
+
+
 def backup(db_path: str) -> str:
     src = Path(db_path)
     if not src.exists():
@@ -54,7 +112,13 @@ def migrate(db: sqlite3.Connection, dry_run: bool = False) -> None:
     if dry_run:
         print("Dry run — no changes will be committed.")
 
-    # Migration steps filled in by later tasks.
+    counts1 = strip_non_k7_pipeline(db)
+    if any(counts1.values()):
+        print(
+            f"Stripped non-K7 pipeline: deleted {counts1['pipeline_deleted']} pipeline rows, "
+            f"inserted {counts1['pipeline_inserted']} analiza_koncowa rows, "
+            f"deleted {counts1['etapy_deleted']} produkt_etapy rows."
+        )
 
     errors = postflight(db)
     if errors:

@@ -163,3 +163,65 @@ def test_migrate_skips_when_already_applied(db, capsys):
     migrate(db)
     captured = capsys.readouterr()
     assert "already applied — skipping" in captured.out
+
+
+def test_strip_removes_k40gl_multi_stage(db):
+    from scripts.mvp_pipeline_cleanup import strip_non_k7_pipeline
+    _seed_full_pipeline_state(db)
+    strip_non_k7_pipeline(db)
+    rows = db.execute(
+        "SELECT etap_id FROM produkt_pipeline WHERE produkt='Chegina_K40GL' ORDER BY kolejnosc"
+    ).fetchall()
+    assert len(rows) == 1
+    assert rows[0]["etap_id"] == 6  # only analiza_koncowa
+
+
+def test_strip_removes_k40gl_process_stages(db):
+    from scripts.mvp_pipeline_cleanup import strip_non_k7_pipeline
+    _seed_full_pipeline_state(db)
+    strip_non_k7_pipeline(db)
+    n = db.execute(
+        "SELECT COUNT(*) AS n FROM produkt_etapy WHERE produkt='Chegina_K40GL'"
+    ).fetchone()["n"]
+    assert n == 0
+
+
+def test_strip_preserves_chegina_k7(db):
+    from scripts.mvp_pipeline_cleanup import strip_non_k7_pipeline
+    _seed_full_pipeline_state(db)
+    strip_non_k7_pipeline(db)
+    n_pipeline = db.execute(
+        "SELECT COUNT(*) AS n FROM produkt_pipeline WHERE produkt='Chegina_K7'"
+    ).fetchone()["n"]
+    n_process = db.execute(
+        "SELECT COUNT(*) AS n FROM produkt_etapy WHERE produkt='Chegina_K7'"
+    ).fetchone()["n"]
+    assert n_pipeline == 5
+    assert n_process == 5
+
+
+def test_strip_preserves_already_simple_products(db):
+    from scripts.mvp_pipeline_cleanup import strip_non_k7_pipeline
+    _seed_full_pipeline_state(db)
+    strip_non_k7_pipeline(db)
+    rows = db.execute(
+        "SELECT etap_id FROM produkt_pipeline WHERE produkt='Chelamid_DK'"
+    ).fetchall()
+    assert len(rows) == 1
+    assert rows[0]["etap_id"] == 6
+
+
+def test_strip_inserts_analiza_koncowa_if_missing(db):
+    """Edge case: a product with multi-stage pipeline but no analiza_koncowa row
+    should have analiza_koncowa inserted when its multi-stage entries are stripped."""
+    from scripts.mvp_pipeline_cleanup import strip_non_k7_pipeline
+    _seed_full_pipeline_state(db)
+    # Remove K40GL's analiza_koncowa specifically
+    db.execute("DELETE FROM produkt_pipeline WHERE produkt='Chegina_K40GL' AND etap_id=6")
+    db.commit()
+    strip_non_k7_pipeline(db)
+    rows = db.execute(
+        "SELECT etap_id FROM produkt_pipeline WHERE produkt='Chegina_K40GL'"
+    ).fetchall()
+    assert len(rows) == 1
+    assert rows[0]["etap_id"] == 6
