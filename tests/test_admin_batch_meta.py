@@ -158,3 +158,102 @@ def test_admin_patch_meta_noop_when_nothing_changes(admin_client, db):
     assert resp.status_code == 200
     after = db.execute("SELECT COUNT(*) AS n FROM audit_log").fetchone()["n"]
     assert after == before, "no audit row when nothing actually changed"
+
+
+# ─── DELETE endpoint ──────────────────────────────────────────────────────────
+
+def _seed_batch_with_children(db, ebr_id=2, status="open"):
+    """Seed a batch plus a sesja + pomiar + korekta + wynik + uwagi row so we
+    can assert the cascade wipes everything."""
+    db.execute(
+        "INSERT INTO etapy_analityczne (id, kod, nazwa, typ_cyklu) VALUES (777, 'e_test', 'Test', 'jednorazowy')"
+    )
+    db.execute(
+        "INSERT INTO parametry_analityczne (id, kod, label, typ) VALUES (777, 'p_test', 'p', 'bezposredni')"
+    )
+    db.execute(
+        "INSERT INTO etap_korekty_katalog (id, etap_id, substancja, jednostka) VALUES (777, 777, 'X', 'kg')"
+    )
+    db.execute(
+        "INSERT INTO ebr_batches (ebr_id, mbr_id, batch_id, nr_partii, nr_amidatora, nr_mieszalnika, "
+        "nastaw, wielkosc_szarzy_kg, dt_start, status, typ) "
+        "VALUES (?, 1, 'B-2', '272/2026', 'A-2', 'M-2', 6500, 6500, '2026-04-17', ?, 'szarza')",
+        (ebr_id, status),
+    )
+    db.execute(
+        "INSERT INTO ebr_etap_sesja (id, ebr_id, etap_id, runda, status) VALUES (777, ?, 777, 1, 'zamkniety')",
+        (ebr_id,),
+    )
+    db.execute(
+        "INSERT INTO ebr_pomiar (sesja_id, parametr_id, wartosc, dt_wpisu, wpisal) "
+        "VALUES (777, 777, 1.0, '2026-04-17', 'JK')"
+    )
+    db.execute(
+        "INSERT INTO ebr_korekta_v2 (sesja_id, korekta_typ_id, ilosc) VALUES (777, 777, 5.0)"
+    )
+    db.execute(
+        "INSERT INTO ebr_wyniki (ebr_id, sekcja, kod_parametru, tag, wartosc, dt_wpisu, wpisal) "
+        "VALUES (?, 'analiza_koncowa', 'p_test', 'p', 1.0, '2026-04-17', 'JK')",
+        (ebr_id,),
+    )
+    db.execute(
+        "INSERT INTO ebr_uwagi_history (ebr_id, dt, autor, tekst, action) "
+        "VALUES (?, '2026-04-17', 'JK', 'test', 'create')",
+        (ebr_id,),
+    )
+    db.commit()
+
+
+def test_admin_delete_batch_cascades_and_frees_nr_partii(admin_client, db):
+    _seed_batch_with_children(db, ebr_id=2, status="open")
+    resp = admin_client.delete("/api/admin/ebr/2")
+    assert resp.status_code == 200
+    assert db.execute("SELECT 1 FROM ebr_batches WHERE ebr_id=2").fetchone() is None
+    assert db.execute("SELECT 1 FROM ebr_etap_sesja WHERE ebr_id=2").fetchone() is None
+    assert db.execute("SELECT 1 FROM ebr_pomiar WHERE sesja_id=777").fetchone() is None
+    assert db.execute("SELECT 1 FROM ebr_korekta_v2 WHERE sesja_id=777").fetchone() is None
+    assert db.execute("SELECT 1 FROM ebr_wyniki WHERE ebr_id=2").fetchone() is None
+    assert db.execute("SELECT 1 FROM ebr_uwagi_history WHERE ebr_id=2").fetchone() is None
+    # nr_partii is free for a new batch with the same number
+    db.execute(
+        "INSERT INTO ebr_batches (mbr_id, batch_id, nr_partii, dt_start, status, typ) "
+        "VALUES (1, 'B-2-NEW', '272/2026', '2026-04-18', 'open', 'szarza')"
+    )
+    db.commit()  # no IntegrityError raised = nr_partii reusable
+
+
+def test_admin_delete_batch_rejects_completed(admin_client, db):
+    _seed_batch_with_children(db, ebr_id=3, status="completed")
+    resp = admin_client.delete("/api/admin/ebr/3")
+    assert resp.status_code == 400
+    # Still there — completed batches require cancel first
+    assert db.execute("SELECT 1 FROM ebr_batches WHERE ebr_id=3").fetchone() is not None
+
+
+def test_admin_delete_batch_404_missing(admin_client, db):
+    resp = admin_client.delete("/api/admin/ebr/9999")
+    assert resp.status_code == 404
+
+
+def test_admin_delete_batch_forbidden_for_lab(lab_client, db):
+    _seed_batch_with_children(db, ebr_id=4, status="open")
+    resp = lab_client.delete("/api/admin/ebr/4")
+    assert resp.status_code == 403
+    assert db.execute("SELECT 1 FROM ebr_batches WHERE ebr_id=4").fetchone() is not None
+
+
+def test_admin_delete_batch_writes_audit(admin_client, db):
+    _seed_batch_with_children(db, ebr_id=5, status="open")
+    admin_client.delete("/api/admin/ebr/5")
+    row = db.execute(
+        "SELECT event_type, entity_type, entity_id, entity_label, payload_json "
+        "FROM audit_log WHERE event_type='ebr.batch.deleted' ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    assert row is not None
+    assert row["entity_type"] == "ebr"
+    assert row["entity_id"] == 5
+    assert row["entity_label"] == "Szarża 272/2026"
+    import json
+    payload = json.loads(row["payload_json"])
+    assert payload["nr_partii"] == "272/2026"
+    assert payload["status"] == "open"

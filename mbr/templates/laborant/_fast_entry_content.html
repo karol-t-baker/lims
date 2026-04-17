@@ -5676,9 +5676,12 @@ window.showPipelineStage = function(sekcjaLab, readonly) {
         ⚠ Zmiana <b>typu</b> przestawia pipeline i zestaw parametrów — stare pomiary mogą stać się niewidoczne w UI (zostają w DB, audytowalne).
       </div>
     </div>
-    <div class="pe-modal-footer">
-      <button class="btn btn-o" onclick="closeAdminBatchMeta()">Anuluj</button>
-      <button class="btn btn-p" onclick="saveAdminBatchMeta()">Zapisz</button>
+    <div class="pe-modal-footer" style="justify-content:space-between;">
+      <button class="btn" onclick="deleteBatchFromAdminModal()" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red);">🗑 Usuń szarżę</button>
+      <div>
+        <button class="btn btn-o" onclick="closeAdminBatchMeta()">Anuluj</button>
+        <button class="btn btn-p" onclick="saveAdminBatchMeta()">Zapisz</button>
+      </div>
     </div>
   </div>
 </div>
@@ -5689,6 +5692,8 @@ window.showPipelineStage = function(sekcjaLab, readonly) {
   var currentNastaw = {{ (ebr.nastaw or ebr.wielkosc_szarzy_kg or '')|tojson }};
   var currentAmid = {{ (ebr.nr_amidatora or '')|tojson }};
   var currentMiesz = {{ (ebr.nr_mieszalnika or '')|tojson }};
+  var currentNrPartii = {{ (ebr.nr_partii or '')|tojson }};
+  var currentStatus = {{ (ebr.status or '')|tojson }};
 
   window.openAdminBatchMeta = function() {
     document.getElementById('abm-nastaw').value = currentNastaw || '';
@@ -5705,6 +5710,34 @@ window.showPipelineStage = function(sekcjaLab, readonly) {
 
   window.closeAdminBatchMeta = function() {
     document.getElementById('abm-modal-overlay').classList.remove('show');
+  };
+
+  window.deleteBatchFromAdminModal = async function() {
+    if (currentStatus === 'completed') {
+      alert('Nie można usunąć ukończonej szarży — anuluj ją najpierw.');
+      return;
+    }
+    var confirm1 = prompt(
+      'Usunąć szarżę ' + currentNrPartii + '?\n' +
+      'Operacja nieodwracalna — pomiary, sesje, korekty i świadectwa tej szarży znikną. ' +
+      'Numer ' + currentNrPartii + ' będzie wolny dla nowej szarży.\n\n' +
+      'Wpisz numer partii, aby potwierdzić:'
+    );
+    if (confirm1 === null) return;
+    if (confirm1.trim() !== currentNrPartii) {
+      alert('Numer partii nie zgadza się — przerwane.');
+      return;
+    }
+    var resp = await fetch('/api/admin/ebr/' + ebrId, {method: 'DELETE'});
+    if (!resp.ok) {
+      var err = {};
+      try { err = await resp.json(); } catch(e) {}
+      alert('Błąd usuwania: ' + (err.error || resp.status));
+      return;
+    }
+    closeAdminBatchMeta();
+    // Batch is gone — back to the list, loadBatch would 404
+    window.location.href = '/laborant/szarze';
   };
 
   window.saveAdminBatchMeta = async function() {
