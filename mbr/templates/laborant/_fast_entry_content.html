@@ -5175,31 +5175,44 @@ function psSkipStage(etap) {
 
 // ═══ PARAM EDITOR MODAL ═══
 
-var _peBindingMap = {};  // parametr_id → {id, min, max, precision, kolejnosc, nawazka_g}
+var _peBindingMap = {};  // parametr_id → {id, min, max, precision, kolejnosc, nawazka_g, dla_szarzy, dla_zbiornika, dla_platkowania}
 var _peAllParams = [];   // [{id, kod, label, skrot, typ, precision, jednostka}]
+
+// Resolve current batch typ to the matching flag column name.
+function _peFlagKey() {
+  var m = {szarza: 'dla_szarzy', zbiornik: 'dla_zbiornika', platkowanie: 'dla_platkowania'};
+  return m[ebrTyp] || 'dla_szarzy';
+}
 
 function openParamEditor(kontekst) {
   kontekst = kontekst || 'analiza_koncowa';
   window._peEditKontekst = kontekst;
-  // Fetch current bindings + all available params in parallel
+  // Fetch bindings for (produkt, etap) + catalog of active parameters.
   Promise.all([
-    fetch('/api/parametry/etapy/' + encodeURIComponent(window._batchProdukt) + '/' + encodeURIComponent(kontekst)).then(function(r){return r.json();}),
-    fetch('/api/parametry/available').then(function(r){return r.json();})
+    fetch('/api/bindings?produkt=' + encodeURIComponent(window._batchProdukt) +
+          '&etap_kod=' + encodeURIComponent(kontekst)).then(function(r){return r.json();}),
+    fetch('/api/bindings/catalog').then(function(r){return r.json();})
   ]).then(function(results) {
-    var bindings = results[0];  // current bindings for this product
-    var available = results[1];  // all global params
+    var bindings = results[0];
+    var available = results[1];
 
-    // Build binding map: parametr_id → binding info
+    // Build binding map keyed by parametr_id. Carry flag values so
+    // renderParamEditor can decide checked state per typ.
     _peBindingMap = {};
     bindings.forEach(function(b) {
       _peBindingMap[b.parametr_id] = {
-        id: b.id, min: b.min_limit, max: b.max_limit,
-        precision: b.precision, kolejnosc: b.kolejnosc,
-        nawazka_g: b.nawazka_g
+        id: b.id,
+        min: b.min_limit,
+        max: b.max_limit,
+        precision: b.precision,
+        kolejnosc: b.kolejnosc,
+        nawazka_g: b.nawazka_g,
+        dla_szarzy: b.dla_szarzy,
+        dla_zbiornika: b.dla_zbiornika,
+        dla_platkowania: b.dla_platkowania,
       };
     });
 
-    // Store all params for rendering
     _peAllParams = available;
 
     document.getElementById('pe-filter').value = '';
@@ -5216,18 +5229,19 @@ function renderParamEditor() {
   var filter = (document.getElementById('pe-filter').value || '').toLowerCase();
   var html = '';
 
-  // Split into bound (checked) and unbound, sort bound by kolejnosc
+  var flagKey = _peFlagKey();
+  // Split: "visible in my typ" (checked) vs "not visible" (unchecked).
+  // An existing binding whose flag for my typ is 0 falls into unchecked.
   var bound = [];
   var unbound = [];
   _peAllParams.forEach(function(p) {
     var label = (p.label || '').toLowerCase();
     var kod = (p.kod || '').toLowerCase();
     if (filter && label.indexOf(filter) === -1 && kod.indexOf(filter) === -1) return;
-    if (_peBindingMap[p.id]) {
-      bound.push(p);
-    } else {
-      unbound.push(p);
-    }
+    var b = _peBindingMap[p.id];
+    var visible = b && b[flagKey] === 1;
+    if (visible) bound.push(p);
+    else unbound.push(p);
   });
   bound.sort(function(a, b) {
     return (_peBindingMap[a.id].kolejnosc || 0) - (_peBindingMap[b.id].kolejnosc || 0);
@@ -5249,7 +5263,7 @@ function renderParamEditor() {
   var allSorted = bound.concat(unbound);
   allSorted.forEach(function(p) {
     var b = _peBindingMap[p.id];
-    var checked = !!b;
+    var checked = !!(b && b[flagKey] === 1);
     var typCls = p.typ === 'titracja' ? 'ped-typ-t' : p.typ === 'obliczeniowy' ? 'ped-typ-o' : 'ped-typ-b';
     var typLabel = p.typ === 'titracja' ? 'miarecz.' : p.typ === 'obliczeniowy' ? 'oblicz.' : 'bezpośr.';
     var disabledCls = checked ? '' : ' ped-row-disabled';
