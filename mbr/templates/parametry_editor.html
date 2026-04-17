@@ -435,11 +435,15 @@ function etapDrop(e) {
   if (_etapDragIdx === null || _etapDragIdx === targetIdx) return;
   var item = _etapBindings.splice(_etapDragIdx, 1)[0];
   _etapBindings.splice(targetIdx, 0, item);
-  var reorderData = _etapBindings.map(function(b, i) { return {id: b.id, kolejnosc: i}; });
-  fetch('/api/parametry/etapy/reorder', {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({bindings: reorderData})
+  // Persist new order via PUT /api/bindings/<id> with kolejnosc
+  _etapBindings.forEach(function(b, i) { b.kolejnosc = i; });
+  var promises = _etapBindings.map(function(b) {
+    return fetch('/api/bindings/' + b.id, {
+      method: 'PUT', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({kolejnosc: b.kolejnosc})
+    });
   });
+  Promise.all(promises).then(function() { /* silent */ });
   renderEtapTable(_etapBindings);
 }
 
