@@ -451,8 +451,38 @@ def test_build_pipeline_context_no_typ_returns_union(db):
 
 
 def test_build_pipeline_context_platkowanie_respects_flag(db):
+    """typ='platkowanie' with no params having dla_platkowania=1 → empty context.
+    After MVP cleanup PR 2 the etap is skipped entirely (not returned empty)."""
     from mbr.pipeline.adapter import build_pipeline_context
     _seed_produkt_with_flags(db, "TEST_P")
     ctx = build_pipeline_context(db, "TEST_P", typ="platkowanie")
-    kods = [p["kod"] for p in ctx["parametry_lab"]["analiza_koncowa"]["pola"]]
-    assert kods == []  # no params have dla_platkowania=1
+    assert ctx["etapy_json"] == []
+    assert ctx["parametry_lab"] == {}
+
+
+# ---------------------------------------------------------------------------
+# PR 2 (MVP cleanup) — build_pipeline_context skips empty etap when typ is set
+# ---------------------------------------------------------------------------
+
+def test_build_pipeline_context_skips_etap_with_no_visible_params(db):
+    """If an etap has params but NONE match the requested typ flag, the etap
+    must be excluded from etapy_json + parametry_lab entirely — not shown empty."""
+    from mbr.pipeline.adapter import build_pipeline_context
+    _seed_produkt_with_flags(db, "TEST_P")
+    # After _seed: analiza_koncowa (etap 6) has 3 params (ph szarza+zbiornik,
+    # dea zbiornik-only, barwa szarza-only). For typ='platkowanie' NO params
+    # match, so analiza_koncowa must not appear in the context at all.
+    ctx = build_pipeline_context(db, "TEST_P", typ="platkowanie")
+    assert ctx is not None
+    # No etapy expected — product has only analiza_koncowa, no platkowanie-flagged params
+    assert ctx["etapy_json"] == []
+    assert ctx["parametry_lab"] == {}
+
+
+def test_build_pipeline_context_typ_none_keeps_empty_etap(db):
+    """typ=None (completed-batch view) must NOT skip etapy regardless of flags."""
+    from mbr.pipeline.adapter import build_pipeline_context
+    _seed_produkt_with_flags(db, "TEST_P")
+    ctx = build_pipeline_context(db, "TEST_P", typ=None)
+    assert len(ctx["etapy_json"]) == 1  # analiza_koncowa
+    assert "analiza_koncowa" in ctx["parametry_lab"]

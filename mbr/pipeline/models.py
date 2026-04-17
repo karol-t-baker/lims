@@ -265,6 +265,19 @@ def get_produkt_pipeline(db: sqlite3.Connection, produkt: str) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def pipeline_has_multi_stage(db: sqlite3.Connection, produkt: str) -> bool:
+    """True iff produkt_pipeline has >1 row for this product.
+
+    Single source of truth for "does this product use the extended batch card?"
+    Replaces the legacy FULL_PIPELINE_PRODUCTS hardcoded set.
+    """
+    row = db.execute(
+        "SELECT COUNT(*) AS n FROM produkt_pipeline WHERE produkt = ?",
+        (produkt,),
+    ).fetchone()
+    return row["n"] > 1
+
+
 def remove_pipeline_etap(db: sqlite3.Connection, produkt: str, etap_id: int) -> None:
     db.execute(
         "DELETE FROM produkt_pipeline WHERE produkt = ? AND etap_id = ?",
