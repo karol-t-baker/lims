@@ -1677,11 +1677,15 @@ function renderCompletedView() {
         s.pola = getPola(s.sekcja_key, null, true);
     });
 
-    // Aggregate hero counts across all sekcje
+    // Aggregate hero counts — iterate pola (admin-panel bindings), lookup in wyniki.
+    // This ensures status reflects ONLY currently-configured params, not stale
+    // measurements from old bindings that admin has since removed.
     var errCount = 0;
     var okCount = 0;
     displaySekcje.forEach(function(s) {
-        Object.values(s.wyniki).forEach(function(r) {
+        s.pola.forEach(function(pole) {
+            var r = s.wyniki[pole.kod];
+            if (!r) return;
             if (r.w_limicie === 0) errCount++;
             else if (r.w_limicie === 1) okCount++;
         });
@@ -1772,76 +1776,9 @@ function renderCompletedView() {
         html += _renderUwagiBlock(canEditUwagi);
     }
 
-    if (!isZbiornik) {
-        // Stage selector for szarża
-        var stages = [];
-        var sortedKeys = Object.keys(wyniki).sort(function(a, b) {
-            var na = a.match(/__(\d+)$/); var nb = b.match(/__(\d+)$/);
-            var an = na ? parseInt(na[1]) : 999; var bn = nb ? parseInt(nb[1]) : 999;
-            if (an !== bn) return an - bn;
-            return a < b ? -1 : 1;
-        });
-        sortedKeys.forEach(function(key) {
-            stages.push(key);
-        });
-
-        if (stages.length > 1) {
-            html += '<div class="cv-stages">';
-            stages.forEach(function(key, idx) {
-                var base = key.replace(/__\d+$/, '');
-                var n = parseInt((key.match(/__(\d+)$/) || [0, 0])[1]);
-                var label = typeof getCyclicSectionTitle === 'function' && n > 0
-                    ? getCyclicSectionTitle(base, n)
-                    : key;
-                html += '<button class="cv-stage-btn' + (idx === stages.length - 1 ? ' active' : '') + '" onclick="showCompletedStage(this,\'' + key + '\')">' + label + '</button>';
-            });
-            html += '</div>';
-
-            // Stage content containers
-            stages.forEach(function(key, idx) {
-                var stagePola = getPola(key);
-                var stageW = wyniki[key] || {};
-                var visible = idx === stages.length - 1;
-                var base = key.replace(/__\d+$/, '');
-                var n = parseInt((key.match(/__(\d+)$/) || [0, 0])[1]);
-                var stageLabel = typeof getCyclicSectionTitle === 'function' && n > 0
-                    ? getCyclicSectionTitle(base, n) : key;
-
-                // Count ok/err for this stage
-                var stageErr = 0;
-                Object.values(stageW).forEach(function(r) { if (r.w_limicie === 0) stageErr++; });
-
-                html += '<div class="cv-stage-body' + (visible ? ' active' : '') + '" data-stage="' + key + '">';
-                html += '<div class="cv-params"><div class="cv-params-head">' + esc(stageLabel);
-                if (base === 'dodatki') {
-                    // no status badge for additives
-                } else if (stageErr > 0) {
-                    html += ' <span class="cv-head-badge cv-hb-err">' + stageErr + ' poza</span>';
-                } else if (Object.keys(stageW).length > 0) {
-                    html += ' <span class="cv-head-badge cv-hb-ok">OK</span>';
-                }
-                html += '</div>';
-                stagePola.forEach(function(pole) {
-                    var r = stageW[pole.kod];
-                    if (!r || r.wartosc == null) return;
-                    var ok = r.w_limicie === 1;
-                    var normText = '';
-                    if (pole.min != null && pole.max != null) normText = fmtDec(pole.min) + ' – ' + fmtDec(pole.max);
-                    else if (pole.min != null) normText = '> ' + fmtDec(pole.min);
-                    else if (pole.max != null) normText = '< ' + fmtDec(pole.max);
-                    html += '<div class="cv-param ' + (ok ? 'cv-row-ok' : 'cv-row-err') + '">' +
-                        '<div class="cv-p-dot ' + (ok ? 'cv-dot-ok' : 'cv-dot-err') + '"></div>' +
-                        '<span class="cv-p-label">' + esc(pole.skrot || pole.label) + '</span>' +
-                        '<span class="cv-p-val ' + (ok ? '' : 'cv-val-err') + '">' + String(r.wartosc).replace('.', ',') + '</span>' +
-                        '<span class="cv-p-norm">' + normText + '</span>' +
-                    '</div>';
-                });
-                html += '</div></div>';
-            });
-        }
-
-        // Przepompowanie — legacy cv-pump removed, zbiorniki section below handles this
-    }
+    // Legacy "per-stage history" section removed. Completed view now shows
+    // ONLY admin-panel bindings for analiza_koncowa (+ standaryzacja for K7),
+    // with last-round values. No stage selectors below.
 
     // Cert section — only for zbiornik, hidden from lab role
     if (isZbiornik && userRola !== 'lab') {
