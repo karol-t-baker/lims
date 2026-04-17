@@ -222,3 +222,19 @@ def test_delete_bindings_removes_row(client):
 def test_delete_bindings_not_found_returns_404(client):
     resp = client.delete("/api/bindings/99999")
     assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# /api/bindings/catalog
+# ---------------------------------------------------------------------------
+
+def test_get_bindings_catalog_returns_active_params(client):
+    resp = client.get("/api/bindings/catalog")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert isinstance(data, list)
+    kods = {p["kod"] for p in data}
+    assert "ph" in kods
+    assert "dea" in kods
+    for p in data:
+        assert "id" in p and "kod" in p and "label" in p and "typ" in p

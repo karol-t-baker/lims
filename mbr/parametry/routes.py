@@ -734,3 +734,16 @@ def api_bindings_delete(binding_id: int):
         db.execute("DELETE FROM produkt_etap_limity WHERE id=?", (binding_id,))
         db.commit()
     return jsonify({"ok": True})
+
+
+@parametry_bp.route("/api/bindings/catalog")
+@login_required
+def api_bindings_catalog():
+    """Active parametry_analityczne rows for picker UI."""
+    with db_session() as db:
+        rows = db.execute(
+            "SELECT id, kod, label, skrot, typ, jednostka, precision, aktywny "
+            "FROM parametry_analityczne "
+            "WHERE aktywny=1 ORDER BY kod"
+        ).fetchall()
+    return jsonify([dict(r) for r in rows])
