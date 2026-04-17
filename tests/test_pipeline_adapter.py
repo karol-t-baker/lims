@@ -385,6 +385,22 @@ def _seed_produkt_with_flags(db, produkt="TEST_P", etap_id=6):
         "VALUES (?, ?, ?, ?)",
         (etap_id, "analiza_koncowa", "Analiza końcowa", "jednorazowy"),
     )
+    # Seed etap_parametry (catalog) for these three parameters
+    db.execute(
+        "INSERT INTO etap_parametry (etap_id, parametr_id, kolejnosc, "
+        "min_limit, max_limit, precision) VALUES (?, 1, 1, 6.0, 8.0, 1)",
+        (etap_id,),
+    )
+    db.execute(
+        "INSERT INTO etap_parametry (etap_id, parametr_id, kolejnosc, "
+        "min_limit, max_limit, precision) VALUES (?, 2, 2, 0.0, 100.0, 2)",
+        (etap_id,),
+    )
+    db.execute(
+        "INSERT INTO etap_parametry (etap_id, parametr_id, kolejnosc, "
+        "min_limit, max_limit, precision) VALUES (?, 3, 3, 0.0, 100.0, 0)",
+        (etap_id,),
+    )
     db.execute(
         "INSERT INTO produkt_pipeline (produkt, etap_id, kolejnosc) VALUES (?, ?, 1)",
         (produkt, etap_id),
