@@ -768,3 +768,31 @@ def test_resolve_formula_zmienne_previous_stage_pomiar(db, setup_pipeline):
     # 14.2 * 3 = 42.6
     assert result["wynik"] is not None
     assert abs(result["wynik"] - 42.6) < 0.01
+
+
+# ---------------------------------------------------------------------------
+# pipeline_has_multi_stage — SSOT for "extended card?" decision
+# ---------------------------------------------------------------------------
+
+def test_pipeline_has_multi_stage_true_for_multiple_rows(db):
+    from mbr.pipeline.models import pipeline_has_multi_stage
+    # Create etapy + pipeline rows for 'TEST_MULTI' product
+    db.execute("INSERT OR IGNORE INTO etapy_analityczne (id, kod, nazwa, typ_cyklu) VALUES (901, 'st1', 'S1', 'cykliczny')")
+    db.execute("INSERT OR IGNORE INTO etapy_analityczne (id, kod, nazwa, typ_cyklu) VALUES (902, 'st2', 'S2', 'jednorazowy')")
+    db.execute("INSERT INTO produkt_pipeline (produkt, etap_id, kolejnosc) VALUES ('TEST_MULTI', 901, 1)")
+    db.execute("INSERT INTO produkt_pipeline (produkt, etap_id, kolejnosc) VALUES ('TEST_MULTI', 902, 2)")
+    db.commit()
+    assert pipeline_has_multi_stage(db, 'TEST_MULTI') is True
+
+
+def test_pipeline_has_multi_stage_false_for_single_row(db):
+    from mbr.pipeline.models import pipeline_has_multi_stage
+    db.execute("INSERT OR IGNORE INTO etapy_analityczne (id, kod, nazwa, typ_cyklu) VALUES (903, 'st3', 'S3', 'jednorazowy')")
+    db.execute("INSERT INTO produkt_pipeline (produkt, etap_id, kolejnosc) VALUES ('TEST_SINGLE', 903, 1)")
+    db.commit()
+    assert pipeline_has_multi_stage(db, 'TEST_SINGLE') is False
+
+
+def test_pipeline_has_multi_stage_false_for_no_rows(db):
+    from mbr.pipeline.models import pipeline_has_multi_stage
+    assert pipeline_has_multi_stage(db, 'DOES_NOT_EXIST') is False

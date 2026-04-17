@@ -234,6 +234,13 @@ def build_pipeline_context(
         }
         params = [p for p in params if p["parametr_id"] in product_param_ids]
 
+        # Skip etap entirely when filtering by typ and no params are visible.
+        # This makes K7 zbiornik view show only analiza_koncowa (the stages
+        # sulfonowanie/utlenienie/standaryzacja have dla_zbiornika=0).
+        # For typ=None (completed-batch union view) keep all etapy.
+        if not params and typ is not None:
+            continue
+
         if typ_cyklu == "cykliczny" and etap_id == main_cykliczny_id:
             sekcja_key = "analiza"
         elif typ_cyklu == "cykliczny":
