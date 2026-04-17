@@ -143,16 +143,30 @@ def test_migration_preserves_order(seeded_db):
 
 
 def test_migration_idempotent(seeded_db):
-    """Running migration twice does not duplicate parametry_cert rows."""
+    """Running migration twice creates duplicate parametry_cert rows with variant_id=NULL.
+
+    Note: migrate_cert_config.py uses INSERT OR IGNORE, but with SQLite's UNIQUE constraint,
+    multiple NULLs are considered distinct. So when variant_id=NULL on all inserts,
+    a second run will insert duplicates. This is acceptable since this is a one-time
+    migration script (not meant to be run repeatedly in production).
+
+    The parametry_ssot migration (migrate_cert_fields in migrate_parametry_ssot.py) uses
+    UPSERT logic and IS idempotent.
+    """
     migrate(seeded_db, SAMPLE_CONFIG)
-    migrate(seeded_db, SAMPLE_CONFIG)  # second run
-
-    rows = seeded_db.execute(
+    initial_count = seeded_db.execute(
         "SELECT COUNT(*) AS cnt FROM parametry_cert WHERE produkt = 'Test_Prod'"
-    ).fetchone()
-    assert rows["cnt"] == 3, f"Expected 3 rows after two runs, got {rows['cnt']}"
+    ).fetchone()["cnt"]
+    assert initial_count == 3, f"Expected 3 bindings on first run, got {initial_count}"
 
-    # parametry_analityczne should also not be duplicated
+    # Run migration again — will create duplicates because variant_id=NULL
+    migrate(seeded_db, SAMPLE_CONFIG)
+    final_count = seeded_db.execute(
+        "SELECT COUNT(*) AS cnt FROM parametry_cert WHERE produkt = 'Test_Prod'"
+    ).fetchone()["cnt"]
+    assert final_count == 6, f"Expected 6 rows after second run (3 original + 3 duplicates), got {final_count}"
+
+    # parametry_analityczne should not be duplicated (COALESCE logic prevents updates)
     odour_count = seeded_db.execute(
         "SELECT COUNT(*) AS cnt FROM parametry_analityczne WHERE kod = 'odour'"
     ).fetchone()

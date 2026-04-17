@@ -60,7 +60,12 @@ def test_parametry_cert_table_exists(db):
 
 
 def test_parametry_cert_unique_constraint(db):
-    """Verify UNIQUE(produkt, parametr_id) constraint."""
+    """Verify UNIQUE(produkt, parametr_id, variant_id) constraint.
+
+    With 3-column UNIQUE including variant_id:
+    - (K40GLO, param_id, NULL) can coexist with (K40GLO, param_id, variant_id=10)
+    - But (K40GLO, param_id, 10) cannot coexist with (K40GLO, param_id, 10)
+    """
     db.execute(
         "INSERT INTO parametry_analityczne (kod, label, typ) VALUES ('ph', 'pH', 'bezposredni')"
     )
@@ -69,15 +74,24 @@ def test_parametry_cert_unique_constraint(db):
         "SELECT id FROM parametry_analityczne WHERE kod = 'ph'"
     ).fetchone()["id"]
 
+    # Insert base cert (variant_id=NULL)
     db.execute(
-        "INSERT INTO parametry_cert (produkt, parametr_id) VALUES ('K40GLO', ?)",
+        "INSERT INTO parametry_cert (produkt, parametr_id, variant_id) VALUES ('K40GLO', ?, NULL)",
         (param_id,),
     )
     db.commit()
 
+    # Insert variant cert (variant_id=10) — should succeed (different variant_id)
+    db.execute(
+        "INSERT INTO parametry_cert (produkt, parametr_id, variant_id) VALUES ('K40GLO', ?, 10)",
+        (param_id,),
+    )
+    db.commit()
+
+    # Try to insert duplicate (produkt, parametr_id, variant_id=10) — should fail
     with pytest.raises(sqlite3.IntegrityError):
         db.execute(
-            "INSERT INTO parametry_cert (produkt, parametr_id) VALUES ('K40GLO', ?)",
+            "INSERT INTO parametry_cert (produkt, parametr_id, variant_id) VALUES ('K40GLO', ?, 10)",
             (param_id,),
         )
         db.commit()
