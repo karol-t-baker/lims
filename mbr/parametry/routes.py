@@ -574,3 +574,176 @@ def parametry_editor():
         products=products, konteksty=konteksty,
         is_admin=(rola == "admin"),
     )
+
+
+# ============================================================================
+# /api/bindings/* — new SSOT endpoints for produkt_etap_limity CRUD
+# ============================================================================
+
+@parametry_bp.route("/api/bindings")
+@login_required
+def api_bindings_list():
+    """List bindings for a given (produkt, etap).
+
+    Query args:
+      produkt   — product kod (required)
+      etap_id   — int, matches etapy_analityczne.id (either this OR etap_kod)
+      etap_kod  — str, matches etapy_analityczne.kod
+
+    Returns: JSON array of dicts with binding fields + joined parameter info.
+    """
+    produkt = request.args.get("produkt", "").strip()
+    if not produkt:
+        return jsonify({"error": "produkt is required"}), 400
+
+    etap_id_str = request.args.get("etap_id")
+    etap_kod = request.args.get("etap_kod", "").strip()
+
+    with db_session() as db:
+        if etap_id_str:
+            try:
+                etap_id = int(etap_id_str)
+            except ValueError:
+                return jsonify({"error": "etap_id must be integer"}), 400
+        elif etap_kod:
+            row = db.execute(
+                "SELECT id FROM etapy_analityczne WHERE kod=?", (etap_kod,)
+            ).fetchone()
+            if not row:
+                return jsonify({"error": f"unknown etap_kod: {etap_kod}"}), 404
+            etap_id = row["id"]
+        else:
+            return jsonify({"error": "etap_id or etap_kod is required"}), 400
+
+        rows = db.execute(
+            """
+            SELECT pel.id, pel.produkt, pel.etap_id, pel.parametr_id,
+                   pel.min_limit, pel.max_limit, pel.precision, pel.nawazka_g,
+                   pel.spec_value, pel.kolejnosc, pel.grupa, pel.formula,
+                   pel.sa_bias, pel.krok, pel.wymagany,
+                   pel.dla_szarzy, pel.dla_zbiornika, pel.dla_platkowania,
+                   pa.kod, pa.label, pa.skrot, pa.typ, pa.jednostka
+            FROM produkt_etap_limity pel
+            JOIN parametry_analityczne pa ON pa.id = pel.parametr_id
+            WHERE pel.produkt = ? AND pel.etap_id = ?
+            ORDER BY pel.kolejnosc, pa.kod
+            """,
+            (produkt, etap_id),
+        ).fetchall()
+
+    return jsonify([dict(r) for r in rows])
+
+
+_BINDING_FIELDS = {
+    "min_limit", "max_limit", "precision", "nawazka_g", "spec_value",
+    "kolejnosc", "grupa", "formula", "sa_bias", "krok", "wymagany",
+    "dla_szarzy", "dla_zbiornika", "dla_platkowania",
+}
+
+_BINDING_DEFAULTS = {
+    "kolejnosc": 0,
+    "grupa": "lab",
+    "wymagany": 0,
+    "dla_szarzy": 1,
+    "dla_zbiornika": 1,
+    "dla_platkowania": 0,
+}
+
+
+@parametry_bp.route("/api/bindings", methods=["POST"])
+@login_required
+def api_bindings_create():
+    """Create a new produkt_etap_limity binding."""
+    import sqlite3 as _sqlite3
+    data = request.get_json(silent=True) or {}
+    produkt = (data.get("produkt") or "").strip()
+    etap_id = data.get("etap_id")
+    parametr_id = data.get("parametr_id")
+    if not produkt or not etap_id or not parametr_id:
+        return jsonify({"error": "produkt, etap_id, parametr_id are required"}), 400
+
+    row_fields = {k: data[k] for k in _BINDING_FIELDS if k in data}
+    for k, v in _BINDING_DEFAULTS.items():
+        row_fields.setdefault(k, v)
+
+    cols = ["produkt", "etap_id", "parametr_id"] + list(row_fields.keys())
+    vals = [produkt, etap_id, parametr_id] + list(row_fields.values())
+    placeholders = ", ".join("?" * len(cols))
+    col_clause = ", ".join(cols)
+
+    with db_session() as db:
+        try:
+            cur = db.execute(
+                f"INSERT INTO produkt_etap_limity ({col_clause}) VALUES ({placeholders})",
+                vals,
+            )
+            db.commit()
+            return jsonify({"ok": True, "id": cur.lastrowid})
+        except _sqlite3.IntegrityError as e:
+            msg = str(e)
+            if "UNIQUE" in msg:
+                return jsonify({"error": "duplicate binding"}), 409
+            return jsonify({"error": msg}), 400
+
+
+@parametry_bp.route("/api/bindings/<int:binding_id>", methods=["PUT"])
+@login_required
+def api_bindings_update(binding_id: int):
+    """Update a binding. If all three typ flags end up 0, auto-DELETE the row."""
+    data = request.get_json(silent=True) or {}
+    updates = {k: v for k, v in data.items() if k in _BINDING_FIELDS}
+    if not updates:
+        return jsonify({"error": "no valid fields to update"}), 400
+
+    with db_session() as db:
+        row = db.execute(
+            "SELECT id FROM produkt_etap_limity WHERE id=?", (binding_id,)
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "binding not found"}), 404
+
+        sets = ", ".join(f"{c}=?" for c in updates)
+        vals = list(updates.values()) + [binding_id]
+        db.execute(f"UPDATE produkt_etap_limity SET {sets} WHERE id=?", vals)
+
+        post = db.execute(
+            "SELECT dla_szarzy, dla_zbiornika, dla_platkowania "
+            "FROM produkt_etap_limity WHERE id=?", (binding_id,)
+        ).fetchone()
+        auto_deleted = False
+        if (post["dla_szarzy"] == 0 and post["dla_zbiornika"] == 0
+                and post["dla_platkowania"] == 0):
+            db.execute("DELETE FROM produkt_etap_limity WHERE id=?", (binding_id,))
+            auto_deleted = True
+
+        db.commit()
+
+    return jsonify({"ok": True, "auto_deleted": auto_deleted})
+
+
+@parametry_bp.route("/api/bindings/<int:binding_id>", methods=["DELETE"])
+@login_required
+def api_bindings_delete(binding_id: int):
+    """Delete a binding."""
+    with db_session() as db:
+        row = db.execute(
+            "SELECT id FROM produkt_etap_limity WHERE id=?", (binding_id,)
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "binding not found"}), 404
+        db.execute("DELETE FROM produkt_etap_limity WHERE id=?", (binding_id,))
+        db.commit()
+    return jsonify({"ok": True})
+
+
+@parametry_bp.route("/api/bindings/catalog")
+@login_required
+def api_bindings_catalog():
+    """Active parametry_analityczne rows for picker UI."""
+    with db_session() as db:
+        rows = db.execute(
+            "SELECT id, kod, label, skrot, typ, jednostka, precision, aktywny "
+            "FROM parametry_analityczne "
+            "WHERE aktywny=1 ORDER BY kod"
+        ).fetchall()
+    return jsonify([dict(r) for r in rows])
