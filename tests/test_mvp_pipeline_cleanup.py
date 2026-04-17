@@ -354,3 +354,64 @@ def test_postflight_detects_k7_with_dodatki(db):
     strip_non_k7_pipeline(db)  # dodatki still present for K7
     errors = postflight(db)
     assert any("Chegina_K7" in e and "dodatki" in e.lower() for e in errors)
+
+
+def test_full_migrate_cleans_state_correctly(db):
+    """One-shot migrate() call moves seeded state to target MVP shape."""
+    from scripts.mvp_pipeline_cleanup import migrate, already_applied
+
+    _seed_full_pipeline_state(db)
+
+    # Pre-migration sanity
+    assert db.execute(
+        "SELECT COUNT(*) AS n FROM produkt_pipeline WHERE produkt='Chegina_K40GL'"
+    ).fetchone()["n"] == 5
+
+    migrate(db)
+
+    # K7: 4 pipeline rows (sulfon, utlen, standard, analiza_koncowa), no dodatki
+    k7_kody = [r["kod"] for r in db.execute(
+        "SELECT ea.kod FROM produkt_pipeline pp JOIN etapy_analityczne ea ON pp.etap_id=ea.id "
+        "WHERE pp.produkt='Chegina_K7' ORDER BY pp.kolejnosc"
+    ).fetchall()]
+    assert k7_kody == ["sulfonowanie", "utlenienie", "standaryzacja", "analiza_koncowa"]
+
+    # K7 process workflow: 3 stages
+    k7_proc = {r["etap_kod"] for r in db.execute(
+        "SELECT etap_kod FROM produkt_etapy WHERE produkt='Chegina_K7'"
+    ).fetchall()}
+    assert k7_proc == {"sulfonowanie", "utlenienie", "standaryzacja"}
+
+    # K40GL: 1 pipeline row (analiza_koncowa), no process etapy
+    k40gl = db.execute(
+        "SELECT etap_id FROM produkt_pipeline WHERE produkt='Chegina_K40GL'"
+    ).fetchall()
+    assert len(k40gl) == 1
+    assert k40gl[0]["etap_id"] == 6
+    assert db.execute(
+        "SELECT COUNT(*) AS n FROM produkt_etapy WHERE produkt='Chegina_K40GL'"
+    ).fetchone()["n"] == 0
+
+    # K7 typ flags: szarza stages vs analiza_koncowa
+    szarza_rows = db.execute(
+        "SELECT dla_szarzy, dla_zbiornika FROM produkt_etap_limity "
+        "WHERE produkt='Chegina_K7' AND etap_id IN (4, 5, 9)"
+    ).fetchall()
+    assert all(r["dla_szarzy"] == 1 and r["dla_zbiornika"] == 0 for r in szarza_rows)
+    zbiornik_rows = db.execute(
+        "SELECT dla_szarzy, dla_zbiornika FROM produkt_etap_limity "
+        "WHERE produkt='Chegina_K7' AND etap_id=6"
+    ).fetchall()
+    assert all(r["dla_szarzy"] == 0 and r["dla_zbiornika"] == 1 for r in zbiornik_rows)
+
+    # No orphan limits
+    orphans = db.execute("""
+        SELECT COUNT(*) AS n FROM produkt_etap_limity pel
+        WHERE (pel.produkt, pel.etap_id) NOT IN (SELECT produkt, etap_id FROM produkt_pipeline)
+    """).fetchone()["n"]
+    assert orphans == 0
+
+    # Marker set
+    assert already_applied(db) is True
+
+
