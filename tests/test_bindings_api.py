@@ -202,3 +202,23 @@ def test_put_bindings_rejects_unknown_fields(client):
     ph_id = listing[0]["id"]
     resp = client.put(f"/api/bindings/{ph_id}", json={"evil_field": 42})
     assert resp.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# DELETE /api/bindings/<id>
+# ---------------------------------------------------------------------------
+
+def test_delete_bindings_removes_row(client):
+    listing = client.get("/api/bindings?produkt=TEST_P&etap_id=6").get_json()
+    ph_id = listing[0]["id"]
+    resp = client.delete(f"/api/bindings/{ph_id}")
+    assert resp.status_code == 200
+    assert resp.get_json()["ok"] is True
+
+    listing_after = client.get("/api/bindings?produkt=TEST_P&etap_id=6").get_json()
+    assert all(b["id"] != ph_id for b in listing_after)
+
+
+def test_delete_bindings_not_found_returns_404(client):
+    resp = client.delete("/api/bindings/99999")
+    assert resp.status_code == 404

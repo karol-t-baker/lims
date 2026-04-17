@@ -719,3 +719,18 @@ def api_bindings_update(binding_id: int):
         db.commit()
 
     return jsonify({"ok": True, "auto_deleted": auto_deleted})
+
+
+@parametry_bp.route("/api/bindings/<int:binding_id>", methods=["DELETE"])
+@login_required
+def api_bindings_delete(binding_id: int):
+    """Delete a binding."""
+    with db_session() as db:
+        row = db.execute(
+            "SELECT id FROM produkt_etap_limity WHERE id=?", (binding_id,)
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "binding not found"}), 404
+        db.execute("DELETE FROM produkt_etap_limity WHERE id=?", (binding_id,))
+        db.commit()
+    return jsonify({"ok": True})
