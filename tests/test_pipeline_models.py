@@ -393,6 +393,45 @@ def test_resolve_limity_partial_override(db):
     assert rows[0]["max_limit"] == 8.0   # falls back to catalog
 
 
+def test_resolve_limity_sa_bias_per_product_override(db):
+    """SA bias stored on produkt_etap_limity MUST win over the catalog value —
+    otherwise editing one product's bias would leak to every product (reported
+    as 'zmiana powoduje zmianę dla wszystkich produktów')."""
+    from mbr.pipeline.models import create_etap, add_etap_parametr, resolve_limity
+    eid = create_etap(db, kod="ak", nazwa="Analiza")
+    _seed_param(db, pid=9001, kod="sa", label="SA")
+    add_etap_parametr(db, eid, 9001, min_limit=None, max_limit=None)
+    # Global catalog bias (etap_parametry.sa_bias)
+    db.execute("UPDATE etap_parametry SET sa_bias=0.25 WHERE etap_id=? AND parametr_id=?", (eid, 9001))
+    # Product A: per-product override
+    db.execute(
+        "INSERT INTO produkt_etap_limity (produkt, etap_id, parametr_id, sa_bias) VALUES (?,?,?,?)",
+        ("A", eid, 9001, 0.75),
+    )
+    rows_a = resolve_limity(db, "A", eid)
+    rows_b = resolve_limity(db, "B", eid)  # no override → catalog
+    assert rows_a[0]["sa_bias"] == 0.75, "override must win for A"
+    assert rows_b[0]["sa_bias"] == 0.25, "B keeps catalog bias (no leak)"
+
+
+def test_resolve_limity_formula_per_product_override(db):
+    """Per-product formula override flows the same way as sa_bias."""
+    from mbr.pipeline.models import create_etap, add_etap_parametr, resolve_limity
+    eid = create_etap(db, kod="ak", nazwa="Analiza")
+    _seed_param(db, pid=9001, kod="sa", label="SA")
+    add_etap_parametr(db, eid, 9001, min_limit=None, max_limit=None)
+    db.execute("UPDATE etap_parametry SET formula='sm - nacl - sa_bias' WHERE etap_id=? AND parametr_id=?",
+               (eid, 9001))
+    db.execute(
+        "INSERT INTO produkt_etap_limity (produkt, etap_id, parametr_id, formula) VALUES (?,?,?,?)",
+        ("A", eid, 9001, "sm - nacl - 1.5"),
+    )
+    rows_a = resolve_limity(db, "A", eid)
+    rows_b = resolve_limity(db, "B", eid)
+    assert rows_a[0]["formula"] == "sm - nacl - 1.5"
+    assert rows_b[0]["formula"] == "sm - nacl - sa_bias"
+
+
 # ---------------------------------------------------------------------------
 # Task 5: Migration Script — parametry_etapy -> pipeline tables
 # ---------------------------------------------------------------------------

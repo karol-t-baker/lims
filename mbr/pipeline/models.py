@@ -907,11 +907,16 @@ def resolve_limity(db: sqlite3.Connection, produkt: str, etap_id: int) -> list[d
             ep.min_limit  AS cat_min, ep.max_limit  AS cat_max,
             ep.nawazka_g  AS cat_nawazka, ep.precision AS cat_precision,
             ep.spec_value AS cat_spec_value,
-            ep.wymagany, ep.grupa, ep.formula, ep.sa_bias, ep.krok,
+            ep.wymagany, ep.grupa,
+            ep.formula  AS cat_formula,
+            ep.sa_bias  AS cat_sa_bias,
+            ep.krok,
             pa.kod, pa.label, pa.typ, pa.skrot, pa.jednostka,
             pel.min_limit  AS ovr_min, pel.max_limit  AS ovr_max,
             pel.nawazka_g  AS ovr_nawazka, pel.precision AS ovr_precision,
-            pel.spec_value AS ovr_spec_value
+            pel.spec_value AS ovr_spec_value,
+            pel.formula    AS ovr_formula,
+            pel.sa_bias    AS ovr_sa_bias
         FROM etap_parametry ep
         JOIN parametry_analityczne pa ON pa.id = ep.parametr_id
         LEFT JOIN produkt_etap_limity pel
@@ -943,8 +948,9 @@ def resolve_limity(db: sqlite3.Connection, produkt: str, etap_id: int) -> list[d
             "spec_value": r["ovr_spec_value"] if r["ovr_spec_value"] is not None else r["cat_spec_value"],
             "wymagany": r["wymagany"],
             "grupa": r["grupa"],
-            "formula": r["formula"],
-            "sa_bias": r["sa_bias"],
+            # Per-produkt formula/sa_bias override wins; catalog value is fallback
+            "formula": r["ovr_formula"] if r["ovr_formula"] is not None else r["cat_formula"],
+            "sa_bias": r["ovr_sa_bias"] if r["ovr_sa_bias"] is not None else r["cat_sa_bias"],
             "krok": r["krok"],
         })
     return result

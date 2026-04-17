@@ -232,15 +232,40 @@ def api_parametry_sa_bias():
                 "UPDATE parametry_etapy SET sa_bias=?, formula=? WHERE id=?",
                 (sa_bias, new_formula, row["id"]),
             )
-        # Mirror sa_bias to etap_parametry (pipeline reads from this table)
+        # Mirror sa_bias to produkt_etap_limity for the SSOT pipeline read path.
+        # Previously this wrote to etap_parametry.sa_bias (GLOBAL) which leaked
+        # the value to every produkt. The per-produkt table (produkt_etap_limity)
+        # is scoped by (produkt, etap_id, parametr_id) so nothing propagates.
         pa_row = db.execute(
             "SELECT id FROM parametry_analityczne WHERE kod = ?", (kod,)
         ).fetchone()
         if pa_row:
-            db.execute(
-                "UPDATE etap_parametry SET sa_bias = ? WHERE parametr_id = ?",
-                (sa_bias, pa_row["id"]),
-            )
+            parametr_id = pa_row["id"]
+            # Locate the analiza_koncowa etap for this product's pipeline
+            ak_etap = db.execute(
+                "SELECT pp.etap_id FROM produkt_pipeline pp "
+                "JOIN etapy_analityczne ea ON ea.id = pp.etap_id "
+                "WHERE pp.produkt=? AND ea.kod='analiza_koncowa' LIMIT 1",
+                (produkt,),
+            ).fetchone()
+            if ak_etap:
+                etap_id_ak = ak_etap["etap_id"]
+                exists = db.execute(
+                    "SELECT id FROM produkt_etap_limity "
+                    "WHERE produkt=? AND etap_id=? AND parametr_id=?",
+                    (produkt, etap_id_ak, parametr_id),
+                ).fetchone()
+                if exists:
+                    db.execute(
+                        "UPDATE produkt_etap_limity SET sa_bias=? WHERE id=?",
+                        (sa_bias, exists["id"]),
+                    )
+                else:
+                    db.execute(
+                        "INSERT INTO produkt_etap_limity (produkt, etap_id, parametr_id, sa_bias) "
+                        "VALUES (?, ?, ?, ?)",
+                        (produkt, etap_id_ak, parametr_id, sa_bias),
+                    )
 
         # Rebuild parametry_lab snapshot so future form loads see the updated formula
         plab = build_parametry_lab(db, produkt)
