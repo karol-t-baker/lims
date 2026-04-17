@@ -684,3 +684,38 @@ def api_bindings_create():
             if "UNIQUE" in msg:
                 return jsonify({"error": "duplicate binding"}), 409
             return jsonify({"error": msg}), 400
+
+
+@parametry_bp.route("/api/bindings/<int:binding_id>", methods=["PUT"])
+@login_required
+def api_bindings_update(binding_id: int):
+    """Update a binding. If all three typ flags end up 0, auto-DELETE the row."""
+    data = request.get_json(silent=True) or {}
+    updates = {k: v for k, v in data.items() if k in _BINDING_FIELDS}
+    if not updates:
+        return jsonify({"error": "no valid fields to update"}), 400
+
+    with db_session() as db:
+        row = db.execute(
+            "SELECT id FROM produkt_etap_limity WHERE id=?", (binding_id,)
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "binding not found"}), 404
+
+        sets = ", ".join(f"{c}=?" for c in updates)
+        vals = list(updates.values()) + [binding_id]
+        db.execute(f"UPDATE produkt_etap_limity SET {sets} WHERE id=?", vals)
+
+        post = db.execute(
+            "SELECT dla_szarzy, dla_zbiornika, dla_platkowania "
+            "FROM produkt_etap_limity WHERE id=?", (binding_id,)
+        ).fetchone()
+        auto_deleted = False
+        if (post["dla_szarzy"] == 0 and post["dla_zbiornika"] == 0
+                and post["dla_platkowania"] == 0):
+            db.execute("DELETE FROM produkt_etap_limity WHERE id=?", (binding_id,))
+            auto_deleted = True
+
+        db.commit()
+
+    return jsonify({"ok": True, "auto_deleted": auto_deleted})
