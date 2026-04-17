@@ -187,9 +187,9 @@ async function _renderStandaryzacjaV2Panel(container, sekcja, ctx) {
                     _corrFieldKorekta('Kwas cytrynowy [kg]', 'corr-manual-kwas-' + sekcja, '', ebrId, etapId, 'Kwas cytrynowy', sekcja) +
                     '<div>' +
                         '<span class="corr-field-label">WODA \u0141\u0104CZNIE [KG]</span>' +
-                        '<input id="corr-total-woda-' + sekcja + '" class="corr-field-input" type="text" inputmode="decimal"' +
+                        '<input id="corr-total-woda-' + sekcja + '" class="corr-field-input corr-total-derived" type="text" readonly tabindex="-1"' +
                             ' style="font-weight:700;font-size:14px;border-color:var(--teal);background:var(--teal-bg);color:var(--teal);text-align:center;"' +
-                            ' oninput="FD.set(this.id,this.value);">' +
+                            ' title="Suma Woda + Kwas cytrynowy (tylko odczyt)">' +
                     '</div>' +
                 '</div>' +
             '</div>' +
@@ -358,14 +358,14 @@ function recomputeStandTotal(sekcja) {
     var kwasEl = document.getElementById('corr-manual-kwas-' + sekcja);
     var totalEl = document.getElementById('corr-total-woda-' + sekcja);
     if (!totalEl) return;
-    // If total has a draft (operator edited it directly), don't overwrite
-    if (FD.get(totalEl.id) !== null) return;
-    var woda = wodaEl ? _parsePl(wodaEl.value) : NaN;
-    var kwas = kwasEl ? _parsePl(kwasEl.value) : NaN;
-    if (isNaN(woda)) woda = 0;
-    if (isNaN(kwas)) kwas = 0;
-    var total = woda + kwas;
-    totalEl.value = total > 0 ? total.toFixed(1).replace('.', ',') : '';
+    function parseNum(el) {
+        if (!el) return 0;
+        var raw = (el.value || '').trim().replace(',', '.');
+        var n = parseFloat(raw);
+        return isFinite(n) ? n : 0;
+    }
+    var total = parseNum(wodaEl) + parseNum(kwasEl);
+    totalEl.value = total > 0 ? total.toFixed(1).replace(',', '.').replace('.', ',') : '';
 }
 
 function saveStandV2Targets(sekcja, etapId, produkt) {
