@@ -558,6 +558,32 @@ def test_put_korekta_missing_fields_returns_400(client, db):
     assert resp.status_code == 400
 
 
+def test_put_korekta_zalecil_uses_shift_worker_initials(client, db):
+    """zalecil on auto-save should be shift worker initials (like POST does),
+    not the Flask session login. Prevents the double-log bug where PUT saved
+    'lab' and POST saved worker initials as two separate rows."""
+    s = _seed_pipeline_fixture_for_korekta(db)
+    wid = db.execute(
+        "INSERT INTO workers (imie, nazwisko, inicjaly, nickname) "
+        "VALUES ('Jan', 'Kowalski', 'JK', 'Janek') RETURNING id"
+    ).fetchone()["id"]
+    db.commit()
+    with client.session_transaction() as sess:
+        sess["shift_workers"] = [wid]
+
+    resp = client.put(
+        f"/api/pipeline/lab/ebr/{s['ebr_id']}/korekta",
+        json={"etap_id": s["etap_id"], "substancja": "Perhydrol 34%",
+              "ilosc": 5.0},
+    )
+    assert resp.status_code == 200
+    row = db.execute(
+        "SELECT zalecil FROM ebr_korekta_v2 WHERE sesja_id=?", (s["sesja_id"],)
+    ).fetchone()
+    assert row["zalecil"] == "JK", \
+        f"expected 'JK' (initials from shift worker), got {row['zalecil']!r}"
+
+
 def test_put_korekta_attribution_per_batch(client, db):
     """Two batches — save for batch 1, no row appears for batch 2."""
     s1 = _seed_pipeline_fixture_for_korekta(db)

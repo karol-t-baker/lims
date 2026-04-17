@@ -29,10 +29,13 @@ _PARAM_SHORT = {
     "barwa_gardner": "barwa_g",
 }
 
-# Short names for correction substances
+# Short names for correction substances. Both "Woda" and "Woda łącznie" map
+# to the same "woda" export key so historical data (pre-rename) continues to
+# flow through unchanged.
 _KOREKTA_SHORT = {
     "Siarczyn sodu": "na2so3", "Na2SO3": "na2so3",
-    "Perhydrol 34%": "perhydrol", "Woda": "woda",
+    "Perhydrol 34%": "perhydrol",
+    "Woda": "woda", "Woda łącznie": "woda",
     "Kwas cytrynowy": "kwas", "NaCl": "nacl",
     "NaOH": "naoh", "MCA": "mca", "HCl": "hcl",
     "DMAPA": "dmapa",

@@ -366,9 +366,14 @@ def lab_upsert_ebr_korekta(ebr_id):
 
     ilosc = data.get("ilosc")
     ilosc_wyliczona = data.get("ilosc_wyliczona")
-    zalecil = session.get("user", {}).get("login")
 
     db = get_db()
+    # Resolve actor — same semantics as POST korekta so PUT & POST agree
+    from mbr.laborant.routes import _resolve_actor_label
+    try:
+        zalecil = _resolve_actor_label(db)
+    except Exception:
+        zalecil = session.get("user", {}).get("login")
     try:
         sesja_row = db.execute(
             "SELECT id FROM ebr_etap_sesja "

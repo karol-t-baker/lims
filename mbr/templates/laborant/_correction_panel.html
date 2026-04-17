@@ -193,7 +193,7 @@ async function _renderStandaryzacjaV2Panel(container, sekcja, ctx) {
                     '</div>' +
                 '</div>' +
                 '<div class="corr-fields" style="margin-top:10px;grid-template-columns:1fr 1fr 1fr;">' +
-                    _corrFieldKorekta('Woda [kg]', 'corr-manual-woda-' + sekcja, '', ebrId, etapId, 'Woda', sekcja) +
+                    _corrFieldKorekta('Woda [kg]', 'corr-manual-woda-' + sekcja, '', ebrId, etapId, 'Woda łącznie', sekcja) +
                     _corrFieldKorekta('Kwas cytrynowy [kg]', 'corr-manual-kwas-' + sekcja, '', ebrId, etapId, 'Kwas cytrynowy', sekcja) +
                     '<div>' +
                         '<span class="corr-field-label">WODA \u0141\u0104CZNIE [KG]</span>' +
@@ -215,8 +215,8 @@ async function _renderStandaryzacjaV2Panel(container, sekcja, ctx) {
         var saved = await _loadSavedKorekty(window.ebrId, etapId, sesjaId);
         var wodaManEl = document.getElementById('corr-manual-woda-' + sekcja);
         var kwasManEl = document.getElementById('corr-manual-kwas-' + sekcja);
-        if (wodaManEl && saved['Woda'] != null) {
-            wodaManEl.value = String(saved['Woda']).replace('.', ',');
+        if (wodaManEl && saved['Woda łącznie'] != null) {
+            wodaManEl.value = String(saved['Woda łącznie']).replace('.', ',');
         }
         if (kwasManEl && saved['Kwas cytrynowy'] != null) {
             kwasManEl.value = String(saved['Kwas cytrynowy']).replace('.', ',');
@@ -431,43 +431,11 @@ async function advanceStandNewRound(sekcja) {
     var gate = window._lastGate;
     if (!gate || !gate.etap_id || !gate.sesja_id) return;
 
-    // Save corrections — check responses
-    var corrErrors = [];
-    var totalWodaEl = document.getElementById('corr-total-woda-' + sekcja);
-    if (totalWodaEl && totalWodaEl.value) {
-        var wKg = parseFloat(totalWodaEl.value.replace(',', '.'));
-        if (!isNaN(wKg) && wKg > 0) {
-            var rw = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Woda', ilosc: wKg })
-            });
-            if (!rw.ok) corrErrors.push('Woda');
-        }
-    }
-    var kwasEl = document.getElementById('corr-manual-kwas-' + sekcja);
-    if (kwasEl && kwasEl.value) {
-        var kKg = parseFloat(kwasEl.value.replace(',', '.'));
-        if (!isNaN(kKg) && kKg > 0) {
-            var kwasCalcEl = document.getElementById('corr-kwas-calc-' + sekcja);
-            var kwasCalcTxt = kwasCalcEl ? kwasCalcEl.textContent.replace(',', '.').replace(/[^0-9.]/g, '') : '';
-            var kwasWyliczona = parseFloat(kwasCalcTxt);
-            var kwasBody = { sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Kwas cytrynowy', ilosc: kKg };
-            if (!isNaN(kwasWyliczona) && kwasWyliczona > 0) kwasBody.ilosc_wyliczona = kwasWyliczona;
-            var rk = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(kwasBody)
-            });
-            if (!rk.ok) corrErrors.push('Kwas cytrynowy');
-        }
-    }
-    if (corrErrors.length > 0) {
-        alert('B\u0142\u0105d zapisu korekt: ' + corrErrors.join(', ') + '. Spr\u00f3buj ponownie.');
-        return;
+    // Flush any in-flight per-field auto-saves before closing the session
+    if (window._pendingKorektaSaves && window._pendingKorektaSaves.length > 0) {
+        await Promise.allSettled(window._pendingKorektaSaves.slice());
     }
 
-    // Clear saved manual edits after successful correction save
     FD.clear();
 
     // Close session + start new round
@@ -489,40 +457,9 @@ async function approveStandWithUwagi(sekcja) {
     if (uwagi === null) return;
     if (!uwagi.trim()) { alert('Uwaga nie może być pusta.'); return; }
 
-    // Save corrections if any entered
-    var corrErrors = [];
-    var totalWodaEl = document.getElementById('corr-total-woda-' + sekcja);
-    if (totalWodaEl && totalWodaEl.value) {
-        var wKg = parseFloat(totalWodaEl.value.replace(',', '.'));
-        if (!isNaN(wKg) && wKg > 0) {
-            var rw = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Woda', ilosc: wKg })
-            });
-            if (!rw.ok) corrErrors.push('Woda');
-        }
-    }
-    var kwasEl = document.getElementById('corr-manual-kwas-' + sekcja);
-    if (kwasEl && kwasEl.value) {
-        var kKg = parseFloat(kwasEl.value.replace(',', '.'));
-        if (!isNaN(kKg) && kKg > 0) {
-            var kwasCalcEl = document.getElementById('corr-kwas-calc-' + sekcja);
-            var kwasCalcTxt = kwasCalcEl ? kwasCalcEl.textContent.replace(',', '.').replace(/[^0-9.]/g, '') : '';
-            var kwasWyliczona = parseFloat(kwasCalcTxt);
-            var kwasBody = { sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Kwas cytrynowy', ilosc: kKg };
-            if (!isNaN(kwasWyliczona) && kwasWyliczona > 0) kwasBody.ilosc_wyliczona = kwasWyliczona;
-            var rk = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(kwasBody)
-            });
-            if (!rk.ok) corrErrors.push('Kwas cytrynowy');
-        }
-    }
-    if (corrErrors.length > 0) {
-        alert('Błąd zapisu korekt: ' + corrErrors.join(', '));
-        return;
+    // Flush any in-flight per-field auto-saves before closing the session
+    if (window._pendingKorektaSaves && window._pendingKorektaSaves.length > 0) {
+        await Promise.allSettled(window._pendingKorektaSaves.slice());
     }
 
     FD.clear();
@@ -548,40 +485,9 @@ async function advanceWithStandV2(sekcja) {
     var gate = window._lastGate;
     if (!gate || !gate.etap_id) return;
 
-    // Save corrections — check responses
-    var corrErrors = [];
-    var totalWodaEl = document.getElementById('corr-total-woda-' + sekcja);
-    if (totalWodaEl && totalWodaEl.value) {
-        var wKg = parseFloat(totalWodaEl.value.replace(',', '.'));
-        if (!isNaN(wKg) && wKg > 0 && gate.sesja_id) {
-            var rw = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Woda', ilosc: wKg })
-            });
-            if (!rw.ok) corrErrors.push('Woda');
-        }
-    }
-    var kwasEl = document.getElementById('corr-manual-kwas-' + sekcja);
-    if (kwasEl && kwasEl.value) {
-        var kKg = parseFloat(kwasEl.value.replace(',', '.'));
-        if (!isNaN(kKg) && kKg > 0 && gate.sesja_id) {
-            var kwasCalcEl = document.getElementById('corr-kwas-calc-' + sekcja);
-            var kwasCalcTxt = kwasCalcEl ? kwasCalcEl.textContent.replace(',', '.').replace(/[^0-9.]/g, '') : '';
-            var kwasWyliczona = parseFloat(kwasCalcTxt);
-            var kwasBody = { sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Kwas cytrynowy', ilosc: kKg };
-            if (!isNaN(kwasWyliczona) && kwasWyliczona > 0) kwasBody.ilosc_wyliczona = kwasWyliczona;
-            var rk = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(kwasBody)
-            });
-            if (!rk.ok) corrErrors.push('Kwas cytrynowy');
-        }
-    }
-    if (corrErrors.length > 0) {
-        alert('B\u0142\u0105d zapisu korekt: ' + corrErrors.join(', ') + '. Spr\u00f3buj ponownie.');
-        return;
+    // Flush any in-flight per-field auto-saves before closing the session
+    if (window._pendingKorektaSaves && window._pendingKorektaSaves.length > 0) {
+        await Promise.allSettled(window._pendingKorektaSaves.slice());
     }
 
     FD.clear();
@@ -732,22 +638,9 @@ async function advanceWithPerhydrol(sekcja) {
     var gate = window._lastGate;
     if (!gate || !gate.etap_id) return;
 
-    // Save perhydrol correction amount
-    var manualEl = document.getElementById('corr-manual-kg-' + sekcja);
-    if (manualEl && manualEl.value) {
-        var kg = parseFloat(manualEl.value.replace(',', '.'));
-        if (!isNaN(kg) && kg > 0 && gate.sesja_id) {
-            await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    sesja_id: gate.sesja_id,
-                    etap_id: gate.etap_id,
-                    substancja: 'Perhydrol 34%',
-                    ilosc: kg
-                })
-            });
-        }
+    // Flush any in-flight per-field auto-saves before closing the session
+    if (window._pendingKorektaSaves && window._pendingKorektaSaves.length > 0) {
+        await Promise.allSettled(window._pendingKorektaSaves.slice());
     }
 
     FD.clear();
@@ -844,56 +737,9 @@ async function advancePerhydrolWithStand(sekcja) {
     var gate = window._lastGate;
     if (!gate || !gate.etap_id || !gate.sesja_id) return;
 
-    var corrErrors = [];
-
-    // Save perhydrol correction
-    var perhydrolEl = document.getElementById('corr-perhydrol-stand-' + sekcja);
-    if (perhydrolEl && perhydrolEl.value) {
-        var pKg = parseFloat(perhydrolEl.value.replace(',', '.'));
-        if (!isNaN(pKg) && pKg > 0) {
-            var rp = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Perhydrol 34%', ilosc: pKg })
-            });
-            if (!rp.ok) corrErrors.push('Perhydrol');
-        }
-    }
-    // Save woda correction (total = woda + kwas)
-    var totalWodaEl = document.getElementById('corr-total-woda-' + sekcja);
-    if (totalWodaEl && totalWodaEl.value) {
-        var wKg = parseFloat(totalWodaEl.value.replace(',', '.'));
-        if (!isNaN(wKg) && wKg > 0) {
-            var rw = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Woda', ilosc: wKg })
-            });
-            if (!rw.ok) corrErrors.push('Woda');
-        }
-    }
-    // Save kwas correction
-    var kwasEl = document.getElementById('corr-manual-kwas-' + sekcja);
-    if (kwasEl && kwasEl.value) {
-        var kKg = parseFloat(kwasEl.value.replace(',', '.'));
-        if (!isNaN(kKg) && kKg > 0) {
-            var kwasCalcEl = document.getElementById('corr-kwas-calc-' + sekcja);
-            var kwasCalcTxt = kwasCalcEl ? kwasCalcEl.textContent.replace(',', '.').replace(/[^0-9.]/g, '') : '';
-            var kwasWyliczona = parseFloat(kwasCalcTxt);
-            var kwasBody = { sesja_id: gate.sesja_id, etap_id: gate.etap_id, substancja: 'Kwas cytrynowy', ilosc: kKg };
-            if (!isNaN(kwasWyliczona) && kwasWyliczona > 0) kwasBody.ilosc_wyliczona = kwasWyliczona;
-            var rk = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/korekta', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(kwasBody)
-            });
-            if (!rk.ok) corrErrors.push('Kwas cytrynowy');
-        }
-    }
-
-    if (corrErrors.length > 0) {
-        alert('B\u0142\u0105d zapisu korekt: ' + corrErrors.join(', '));
-        return;
+    // Flush any in-flight per-field auto-saves before closing the session
+    if (window._pendingKorektaSaves && window._pendingKorektaSaves.length > 0) {
+        await Promise.allSettled(window._pendingKorektaSaves.slice());
     }
 
     // Close utlenienie session
