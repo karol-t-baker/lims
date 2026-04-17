@@ -903,7 +903,8 @@ def resolve_limity(db: sqlite3.Connection, produkt: str, etap_id: int) -> list[d
     rows = db.execute(
         """
         SELECT
-            ep.id AS ep_id, ep.parametr_id, ep.kolejnosc,
+            ep.id AS ep_id, ep.parametr_id,
+            COALESCE(pel.kolejnosc, ep.kolejnosc) AS kolejnosc,
             ep.min_limit  AS cat_min, ep.max_limit  AS cat_max,
             ep.nawazka_g  AS cat_nawazka, ep.precision AS cat_precision,
             ep.spec_value AS cat_spec_value,
@@ -924,7 +925,7 @@ def resolve_limity(db: sqlite3.Connection, produkt: str, etap_id: int) -> list[d
               AND pel.etap_id = ep.etap_id
               AND pel.parametr_id = ep.parametr_id
         WHERE ep.etap_id = ?
-        ORDER BY ep.kolejnosc
+        ORDER BY COALESCE(pel.kolejnosc, ep.kolejnosc), pa.kod
         """,
         (produkt, etap_id),
     ).fetchall()

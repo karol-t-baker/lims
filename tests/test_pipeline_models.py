@@ -414,6 +414,31 @@ def test_resolve_limity_sa_bias_per_product_override(db):
     assert rows_b[0]["sa_bias"] == 0.25, "B keeps catalog bias (no leak)"
 
 
+def test_resolve_limity_orders_by_per_product_kolejnosc(db):
+    """resolve_limity must ORDER BY pel.kolejnosc (same as /api/bindings GET),
+    not the global ep.kolejnosc — otherwise the laborant's reorder edits don't
+    show up in the rendered form even after loadBatch rebuilds parametry_lab."""
+    from mbr.pipeline.models import create_etap, add_etap_parametr, resolve_limity
+    eid = create_etap(db, kod="ak", nazwa="Analiza")
+    _seed_param(db, pid=9001, kod="ph", label="pH")
+    _seed_param(db, pid=9002, kod="sm", label="SM")
+    _seed_param(db, pid=9003, kod="sa", label="SA")
+    # Catalog order: ph, sm, sa
+    add_etap_parametr(db, eid, 9001, kolejnosc=1)
+    add_etap_parametr(db, eid, 9002, kolejnosc=2)
+    add_etap_parametr(db, eid, 9003, kolejnosc=3)
+    # Per-produkt override: sa first, ph second, sm third
+    db.execute("INSERT INTO produkt_etap_limity (produkt, etap_id, parametr_id, kolejnosc) VALUES (?,?,?,?)", ("A", eid, 9003, 0))
+    db.execute("INSERT INTO produkt_etap_limity (produkt, etap_id, parametr_id, kolejnosc) VALUES (?,?,?,?)", ("A", eid, 9001, 1))
+    db.execute("INSERT INTO produkt_etap_limity (produkt, etap_id, parametr_id, kolejnosc) VALUES (?,?,?,?)", ("A", eid, 9002, 2))
+
+    kods = [r["kod"] for r in resolve_limity(db, "A", eid)]
+    assert kods == ["sa", "ph", "sm"], "per-product kolejnosc must win over catalog"
+
+    kods_b = [r["kod"] for r in resolve_limity(db, "B", eid)]
+    assert kods_b == ["ph", "sm", "sa"], "B has no override → catalog order kept"
+
+
 def test_resolve_limity_formula_per_product_override(db):
     """Per-product formula override flows the same way as sa_bias."""
     from mbr.pipeline.models import create_etap, add_etap_parametr, resolve_limity
