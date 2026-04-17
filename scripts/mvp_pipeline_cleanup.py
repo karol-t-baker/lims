@@ -77,6 +77,95 @@ def strip_non_k7_pipeline(db: sqlite3.Connection) -> dict:
     return counts
 
 
+_K7_SZARZA_STAGES = ("sulfonowanie", "utlenienie", "standaryzacja")
+_K7_DROP_PROCESS_KODY = ("amidowanie", "namca", "czwartorzedowanie")
+
+
+def _etap_ids_by_kod(db: sqlite3.Connection, kody) -> dict:
+    rows = db.execute(
+        f"SELECT id, kod FROM etapy_analityczne WHERE kod IN ({','.join('?' * len(kody))})",
+        tuple(kody),
+    ).fetchall()
+    return {r["kod"]: r["id"] for r in rows}
+
+
+def fixup_chegina_k7(db: sqlite3.Connection) -> dict:
+    """Apply K7-specific normalisation:
+      - drop dodatki stage (from produkt_pipeline + produkt_etap_limity)
+      - set dla_szarzy=1 dla_zbiornika=0 on sulfonowanie/utlenienie/standaryzacja params
+      - set dla_szarzy=0 dla_zbiornika=1 on analiza_koncowa params
+      - trim produkt_etapy to {sulfonowanie, utlenienie, standaryzacja}
+    """
+    counts = {
+        "pipeline_dodatki_dropped": 0,
+        "limity_dodatki_dropped": 0,
+        "szarza_params_set": 0,
+        "zbiornik_params_set": 0,
+        "process_etapy_deleted": 0,
+        "process_etapy_inserted": 0,
+    }
+    etap_ids = _etap_ids_by_kod(db, ["dodatki", "analiza_koncowa",
+                                     "sulfonowanie", "utlenienie", "standaryzacja"])
+    dodatki_id = etap_ids.get("dodatki")
+    ak_id = etap_ids["analiza_koncowa"]
+    szarza_ids = [etap_ids["sulfonowanie"], etap_ids["utlenienie"], etap_ids["standaryzacja"]]
+
+    # 1. Drop dodatki from produkt_pipeline for K7
+    if dodatki_id is not None:
+        cur = db.execute(
+            "DELETE FROM produkt_pipeline WHERE produkt='Chegina_K7' AND etap_id=?",
+            (dodatki_id,),
+        )
+        counts["pipeline_dodatki_dropped"] = cur.rowcount
+        cur = db.execute(
+            "DELETE FROM produkt_etap_limity WHERE produkt='Chegina_K7' AND etap_id=?",
+            (dodatki_id,),
+        )
+        counts["limity_dodatki_dropped"] = cur.rowcount
+
+    # 2. Set szarza flags on process-stage params
+    placeholders = ",".join("?" * len(szarza_ids))
+    cur = db.execute(
+        f"UPDATE produkt_etap_limity SET dla_szarzy=1, dla_zbiornika=0 "
+        f"WHERE produkt='Chegina_K7' AND etap_id IN ({placeholders})",
+        szarza_ids,
+    )
+    counts["szarza_params_set"] = cur.rowcount
+
+    # 3. Set zbiornik flags on analiza_koncowa params
+    cur = db.execute(
+        "UPDATE produkt_etap_limity SET dla_szarzy=0, dla_zbiornika=1 "
+        "WHERE produkt='Chegina_K7' AND etap_id=?",
+        (ak_id,),
+    )
+    counts["zbiornik_params_set"] = cur.rowcount
+
+    # 4. Trim produkt_etapy
+    if _K7_DROP_PROCESS_KODY:
+        placeholders = ",".join("?" * len(_K7_DROP_PROCESS_KODY))
+        cur = db.execute(
+            f"DELETE FROM produkt_etapy WHERE produkt='Chegina_K7' "
+            f"AND etap_kod IN ({placeholders})",
+            _K7_DROP_PROCESS_KODY,
+        )
+        counts["process_etapy_deleted"] = cur.rowcount
+    exists = db.execute(
+        "SELECT 1 FROM produkt_etapy WHERE produkt='Chegina_K7' AND etap_kod='standaryzacja'"
+    ).fetchone()
+    if not exists:
+        max_kol = db.execute(
+            "SELECT COALESCE(MAX(kolejnosc), 0) AS k FROM produkt_etapy WHERE produkt='Chegina_K7'"
+        ).fetchone()["k"]
+        db.execute(
+            "INSERT INTO produkt_etapy (produkt, etap_kod, kolejnosc) "
+            "VALUES ('Chegina_K7', 'standaryzacja', ?)",
+            (max_kol + 1,),
+        )
+        counts["process_etapy_inserted"] = 1
+
+    return counts
+
+
 def backup(db_path: str) -> str:
     src = Path(db_path)
     if not src.exists():
@@ -118,6 +207,17 @@ def migrate(db: sqlite3.Connection, dry_run: bool = False) -> None:
             f"Stripped non-K7 pipeline: deleted {counts1['pipeline_deleted']} pipeline rows, "
             f"inserted {counts1['pipeline_inserted']} analiza_koncowa rows, "
             f"deleted {counts1['etapy_deleted']} produkt_etapy rows."
+        )
+
+    counts2 = fixup_chegina_k7(db)
+    if any(counts2.values()):
+        print(
+            f"K7 fixup: dropped dodatki stage ({counts2['pipeline_dodatki_dropped']} pipeline, "
+            f"{counts2['limity_dodatki_dropped']} limity), "
+            f"set szarza flags on {counts2['szarza_params_set']} params, "
+            f"zbiornik flags on {counts2['zbiornik_params_set']} params, "
+            f"deleted {counts2['process_etapy_deleted']} process etapy, "
+            f"inserted {counts2['process_etapy_inserted']} standaryzacja."
         )
 
     errors = postflight(db)

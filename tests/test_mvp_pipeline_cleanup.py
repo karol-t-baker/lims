@@ -225,3 +225,68 @@ def test_strip_inserts_analiza_koncowa_if_missing(db):
     ).fetchall()
     assert len(rows) == 1
     assert rows[0]["etap_id"] == 6
+
+
+def test_fixup_k7_removes_dodatki_stage(db):
+    from scripts.mvp_pipeline_cleanup import fixup_chegina_k7
+    _seed_full_pipeline_state(db)
+    fixup_chegina_k7(db)
+    kody = [r["kod"] for r in db.execute(
+        "SELECT ea.kod FROM produkt_pipeline pp "
+        "JOIN etapy_analityczne ea ON pp.etap_id=ea.id "
+        "WHERE pp.produkt='Chegina_K7' ORDER BY pp.kolejnosc"
+    ).fetchall()]
+    assert "dodatki" not in kody
+    assert kody == ["sulfonowanie", "utlenienie", "standaryzacja", "analiza_koncowa"]
+
+
+def test_fixup_k7_removes_dodatki_params(db):
+    from scripts.mvp_pipeline_cleanup import fixup_chegina_k7
+    _seed_full_pipeline_state(db)
+    fixup_chegina_k7(db)
+    n = db.execute(
+        "SELECT COUNT(*) AS n FROM produkt_etap_limity WHERE produkt='Chegina_K7' AND etap_id=7"
+    ).fetchone()["n"]
+    assert n == 0
+
+
+def test_fixup_k7_sets_szarza_flags_on_process_stages(db):
+    """sulfonowanie/utlenienie/standaryzacja params → dla_szarzy=1, dla_zbiornika=0."""
+    from scripts.mvp_pipeline_cleanup import fixup_chegina_k7
+    _seed_full_pipeline_state(db)
+    fixup_chegina_k7(db)
+    rows = db.execute(
+        "SELECT pel.dla_szarzy, pel.dla_zbiornika FROM produkt_etap_limity pel "
+        "WHERE pel.produkt='Chegina_K7' AND pel.etap_id IN (4, 5, 9)"
+    ).fetchall()
+    assert len(rows) > 0
+    for r in rows:
+        assert r["dla_szarzy"] == 1
+        assert r["dla_zbiornika"] == 0
+
+
+def test_fixup_k7_sets_zbiornik_flags_on_analiza_koncowa(db):
+    """analiza_koncowa params → dla_szarzy=0, dla_zbiornika=1."""
+    from scripts.mvp_pipeline_cleanup import fixup_chegina_k7
+    _seed_full_pipeline_state(db)
+    fixup_chegina_k7(db)
+    rows = db.execute(
+        "SELECT dla_szarzy, dla_zbiornika FROM produkt_etap_limity "
+        "WHERE produkt='Chegina_K7' AND etap_id=6"
+    ).fetchall()
+    assert len(rows) > 0
+    for r in rows:
+        assert r["dla_szarzy"] == 0
+        assert r["dla_zbiornika"] == 1
+
+
+def test_fixup_k7_trims_process_etapy(db):
+    """produkt_etapy for K7: keep sulfonowanie, utlenienie, add standaryzacja;
+    drop amidowanie, namca, czwartorzedowanie."""
+    from scripts.mvp_pipeline_cleanup import fixup_chegina_k7
+    _seed_full_pipeline_state(db)
+    fixup_chegina_k7(db)
+    kody = {r["etap_kod"] for r in db.execute(
+        "SELECT etap_kod FROM produkt_etapy WHERE produkt='Chegina_K7'"
+    ).fetchall()}
+    assert kody == {"sulfonowanie", "utlenienie", "standaryzacja"}
