@@ -421,7 +421,10 @@ def api_cert_config_product_put(key):
                     return jsonify({"error": f"Duplicate parameter id: {pid}"}), 400
                 param_ids.add(pid)
                 if not p.get("name_pl"):
-                    return jsonify({"error": f"Parameter '{pid}' missing name_pl"}), 400
+                    # Legacy data can have NULL name_pl; saving should NOT block
+                    # because the admin cannot fix that row without also saving
+                    # unrelated edits. Surface as a warning instead.
+                    warnings.append(f"Parametr '{pid}' nie ma nazwy PL — uzupełnij w edytorze")
                 df = (p.get("data_field") or "").strip()
                 if df and df not in kod_to_id:
                     return jsonify({"error": f"Parameter '{pid}': powiazanie '{df}' nie istnieje w rejestrze parametrow"}), 400
