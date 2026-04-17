@@ -155,3 +155,50 @@ def test_post_bindings_duplicate_returns_409(client):
 def test_post_bindings_missing_fields_returns_400(client):
     resp = client.post("/api/bindings", json={"produkt": "TEST_P"})
     assert resp.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# PUT /api/bindings/<id>
+# ---------------------------------------------------------------------------
+
+def test_put_bindings_updates_fields(client):
+    listing = client.get("/api/bindings?produkt=TEST_P&etap_id=6").get_json()
+    ph_id = next(b["id"] for b in listing if b["parametr_id"] == 1)
+
+    resp = client.put(f"/api/bindings/{ph_id}", json={"max_limit": 12, "precision": 1})
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["ok"] is True
+    assert data.get("auto_deleted") is False
+
+    ph = next(b for b in client.get("/api/bindings?produkt=TEST_P&etap_id=6").get_json()
+              if b["id"] == ph_id)
+    assert ph["max_limit"] == 12
+    assert ph["precision"] == 1
+
+
+def test_put_bindings_auto_deletes_when_all_flags_zero(client):
+    listing = client.get("/api/bindings?produkt=TEST_P&etap_id=6").get_json()
+    ph_id = next(b["id"] for b in listing if b["parametr_id"] == 1)
+
+    resp = client.put(
+        f"/api/bindings/{ph_id}",
+        json={"dla_szarzy": 0, "dla_zbiornika": 0, "dla_platkowania": 0},
+    )
+    assert resp.status_code == 200
+    assert resp.get_json()["auto_deleted"] is True
+
+    listing_after = client.get("/api/bindings?produkt=TEST_P&etap_id=6").get_json()
+    assert all(b["id"] != ph_id for b in listing_after)
+
+
+def test_put_bindings_not_found_returns_404(client):
+    resp = client.put("/api/bindings/99999", json={"max_limit": 1})
+    assert resp.status_code == 404
+
+
+def test_put_bindings_rejects_unknown_fields(client):
+    listing = client.get("/api/bindings?produkt=TEST_P&etap_id=6").get_json()
+    ph_id = listing[0]["id"]
+    resp = client.put(f"/api/bindings/{ph_id}", json={"evil_field": 42})
+    assert resp.status_code == 400
