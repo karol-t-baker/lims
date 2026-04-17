@@ -5300,11 +5300,13 @@ function renderParamEditor() {
 
 // ═══ PARAM REORDER (strzałki ↑/↓) ═══
 
-// Swap this row's kolejnosc with the neighbor above. Same for down. Both lab
-// and admin hit this — produkt_etap_limity.kolejnosc is the single source of
-// truth, so a reorder here propagates to every future batch of this product.
+// Move a row one position up/down. Works even when several rows share the
+// same kolejnosc (common for freshly seeded products, all zeros): we rebuild
+// a 0..N sequence from the new visual order and PUT every affected row.
+// Same produkt_etap_limity.kolejnosc as the admin panel writes — SSOT.
 function _peSwapKolejnosc(paramId, direction) {
-  // Build ordered list of bound param ids (what the user currently sees)
+  // Build ordered array of bound param ids in visual order. Stable sort keeps
+  // insertion order for ties, so this matches what the user sees.
   var ordered = [];
   _peAllParams.forEach(function(p) {
     if (_peBindingMap[p.id]) ordered.push(p.id);
@@ -5317,23 +5319,26 @@ function _peSwapKolejnosc(paramId, direction) {
   var targetIdx = idx + direction;
   if (targetIdx < 0 || targetIdx >= ordered.length) return;
 
-  var thisB = _peBindingMap[paramId];
-  var neighborB = _peBindingMap[ordered[targetIdx]];
-  // Swap in memory first so re-render reflects the change immediately
-  var tmp = thisB.kolejnosc; thisB.kolejnosc = neighborB.kolejnosc; neighborB.kolejnosc = tmp;
-  // Persist both
-  Promise.all([
-    fetch('/api/bindings/' + thisB.id, {
-      method: 'PUT', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({kolejnosc: thisB.kolejnosc}),
-    }),
-    fetch('/api/bindings/' + neighborB.id, {
-      method: 'PUT', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({kolejnosc: neighborB.kolejnosc}),
-    }),
-  ]).then(function() {
-    window._peDirty = true;  // closeParamEditor reloads the batch card
+  // Swap positions in the array (not kolejnosc values).
+  var tmp = ordered[idx]; ordered[idx] = ordered[targetIdx]; ordered[targetIdx] = tmp;
+
+  // Linearize: rewrite kolejnosc 0..N based on new array order and PUT every
+  // binding whose value actually changed. Guarantees uniqueness and movement
+  // even when starting from a pile of zero-kolejnosc rows.
+  var puts = [];
+  ordered.forEach(function(pid, i) {
+    var b = _peBindingMap[pid];
+    if (b.kolejnosc !== i) {
+      b.kolejnosc = i;
+      puts.push(fetch('/api/bindings/' + b.id, {
+        method: 'PUT', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({kolejnosc: i}),
+      }));
+    }
   });
+  if (puts.length) {
+    Promise.all(puts).then(function() { window._peDirty = true; });
+  }
   renderParamEditor();
 }
 
