@@ -497,6 +497,8 @@
 
 .cv-params { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
 .cv-params-head { padding: 9px 16px; background: var(--surface-alt); border-bottom: 1px solid var(--border); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-dim); }
+.cv-params-subhead { padding: 7px 16px 5px; font-size: 10px; font-weight: 700; color: var(--text); letter-spacing: 0.05em; background: #fafaf7; border-bottom: 1px dashed var(--border-subtle, var(--border)); }
+.cv-params-subhead:not(:first-of-type) { margin-top: 2px; border-top: 1px solid var(--border); }
 .cv-param { display: flex; align-items: center; padding: 8px 16px; border-bottom: 1px solid var(--border-subtle, #f0ece4); gap: 10px; }
 .cv-param:last-child { border-bottom: none; }
 .cv-param.cv-row-ok { background: var(--green-bg); }
@@ -1619,49 +1621,70 @@ function renderCompletedView() {
     container.innerHTML = '';
     var isZbiornik = ebrTyp === 'zbiornik';
     var isPlatkowanie = ebrTyp === 'platkowanie';
-    var hasSingleAnaliza = isZbiornik || isPlatkowanie;
 
-    // Find last analiza round's wyniki (final results)
-    // Pipeline products: show last standaryzacja round (main cykliczny = 'analiza')
-    var isPipeline = etapy.some(function(e) { return e.pipeline_etap_id; });
-    var lastAnaliza = null;
-    var lastN = 0;
-    var finalWyniki = {};
-
-    if (isPipeline) {
-        // Pipeline: standaryzacja stores under 'analiza' (main cykliczny)
-        // Check for analiza__N rounds (higher rounds = later corrections)
-        for (var key in wyniki) {
-            if (key === 'analiza' && lastN === 0) {
-                lastAnaliza = key;
-                lastN = 0.5;
-            } else if (key.startsWith('analiza__')) {
-                var n = parseInt(key.split('__')[1]);
-                if (n > lastN) { lastN = n; lastAnaliza = key; }
-            }
-        }
-        finalWyniki = wyniki[lastAnaliza] || {};
-    } else {
-        for (var key in wyniki) {
-            if (key.startsWith('analiza__')) {
-                var n = parseInt(key.split('__')[1]);
-                if (n > lastN) { lastN = n; lastAnaliza = key; }
-            } else if (key === 'analiza_koncowa') {
-                lastAnaliza = key;
-                lastN = 999;
-            }
-        }
-        finalWyniki = wyniki[lastAnaliza] || {};
+    // Build displaySekcje: which sekcje are shown in the completed view.
+    // Rule: all 'jednorazowy' etapy + last 'cykliczny' etap (main cykliczny
+    // which typically becomes the "analiza" sekcja in adapter output).
+    // For cyclical sekcje we take the last round (highest __N).
+    var displaySekcje = [];
+    var jednorazowe = etapy.filter(function(e) { return e.typ_cyklu === 'jednorazowy'; });
+    jednorazowe.forEach(function(e) {
+        displaySekcje.push({
+            sekcja_key: e.sekcja_lab,
+            nazwa: e.nazwa,
+            typ_cyklu: 'jednorazowy',
+        });
+    });
+    var cykliczne = etapy.filter(function(e) { return e.typ_cyklu === 'cykliczny'; });
+    if (cykliczne.length) {
+        var last = cykliczne[cykliczne.length - 1];
+        displaySekcje.push({
+            sekcja_key: last.sekcja_lab,  // "analiza" for main cykl (K7 standaryzacja)
+            nazwa: last.nazwa,
+            typ_cyklu: 'cykliczny',
+        });
+    }
+    // Fallback for legacy batches where etapy_json is empty or old-shaped.
+    if (displaySekcje.length === 0) {
+        displaySekcje.push({
+            sekcja_key: 'analiza_koncowa',
+            nazwa: 'Parametry końcowe',
+            typ_cyklu: 'jednorazowy',
+        });
     }
 
-    var fallbackSekcja = hasSingleAnaliza ? 'analiza_koncowa' : 'analiza';
-    var pola = getPola(lastAnaliza || fallbackSekcja, null, true);
-    if (!pola.length && lastAnaliza) pola = getPola(fallbackSekcja, null, true);
+    // Resolve last-round wyniki + pola for each sekcja
+    displaySekcje.forEach(function(s) {
+        var base = s.sekcja_key;
+        var lastKey = null;
+        var lastN = 0;
+        if (s.typ_cyklu === 'jednorazowy') {
+            // Jednorazowy: use sekcja_key directly (e.g. "analiza_koncowa")
+            if (wyniki[base]) lastKey = base;
+        } else {
+            // Cykliczny: find highest __N suffix for this base, or base itself
+            for (var key in wyniki) {
+                if (key === base) {
+                    if (lastN === 0) { lastKey = key; lastN = 0.5; }
+                } else if (key.indexOf(base + '__') === 0) {
+                    var n = parseInt(key.split('__')[1]);
+                    if (n > lastN) { lastN = n; lastKey = key; }
+                }
+            }
+        }
+        s.wyniki_key = lastKey;
+        s.wyniki = lastKey ? (wyniki[lastKey] || {}) : {};
+        s.pola = getPola(s.sekcja_key, null, true);
+    });
+
+    // Aggregate hero counts across all sekcje
     var errCount = 0;
     var okCount = 0;
-    Object.values(finalWyniki).forEach(function(r) {
-        if (r.w_limicie === 0) errCount++;
-        else if (r.w_limicie === 1) okCount++;
+    displaySekcje.forEach(function(s) {
+        Object.values(s.wyniki).forEach(function(r) {
+            if (r.w_limicie === 0) errCount++;
+            else if (r.w_limicie === 1) okCount++;
+        });
     });
 
     // Hero
@@ -1691,6 +1714,7 @@ function renderCompletedView() {
 
     // Params list — editable for completed batches (zbiornik + szarza, but not for COA)
     var canEdit = true;
+    var multiSekcja = displaySekcje.length > 1;
     var paramsHtml = '<div class="cv-params">' +
         '<div class="cv-params-head" style="display:flex;align-items:center;justify-content:space-between;">' +
             '<span>Parametry końcowe</span>' +
@@ -1701,35 +1725,42 @@ function renderCompletedView() {
             (canEdit ? '<span><button class="cv-edit-btn" onclick="startEditParams()" id="cv-edit-toggle">edytuj</button>' +
                    '<button class="cv-save-btn" onclick="finishEditParams()" id="cv-save-toggle" style="display:none;">✓ Zakończ edycję</button></span>' : '') +
         '</div>';
-    var lastSekcja = lastAnaliza || fallbackSekcja;
 
-    pola.forEach(function(pole) {
-        var r = finalWyniki[pole.kod];
-        var val = r ? r.wartosc : '';
-        var ok = r ? r.w_limicie === 1 : true;
-        var editSekcja = lastSekcja;
-        var normText = '';
-        if (pole.min != null && pole.max != null) normText = fmtDec(pole.min) + ' – ' + fmtDec(pole.max);
-        else if (pole.min != null) normText = '> ' + fmtDec(pole.min);
-        else if (pole.max != null) normText = '< ' + fmtDec(pole.max);
-
-        var rowCls = r ? (ok ? 'cv-row-ok' : 'cv-row-err') : '';
-        var dotHtml = r ? '<div class="cv-p-dot ' + (ok ? 'cv-dot-ok' : 'cv-dot-err') + '"></div>' : '<div class="cv-p-dot"></div>';
-        var grupaBadge = (pole.grupa && pole.grupa !== 'lab') ? '<span class="cv-p-grupa cv-p-grupa-' + esc(pole.grupa) + '">' + esc(pole.grupa.toUpperCase()) + '</span>' : '';
-        paramsHtml += '<div class="cv-param ' + rowCls + '">' +
-            dotHtml +
-            '<span class="cv-p-label">' + esc(pole.skrot || pole.label) + grupaBadge + '</span>';
-        if (canEdit) {
-            paramsHtml += '<input class="cv-p-input" type="text" inputmode="decimal" value="' + (val !== null && val !== '' ? String(val).replace('.', ',') : '') + '"' +
-                ' data-kod="' + esc(pole.kod) + '" data-sekcja="' + esc(editSekcja) + '"' +
-                ' data-grupa="' + esc(pole.grupa || 'lab') + '"' +
-                ' data-min="' + (pole.min != null ? pole.min : '') + '" data-max="' + (pole.max != null ? pole.max : '') + '"' +
-                ' readonly oninput="validateField(this); autoSaveField(this)" onblur="doSaveField(this, this.dataset.sekcja, this.dataset.kod, true)">';
-        } else {
-            paramsHtml += '<span class="cv-p-val ' + (ok ? '' : 'cv-val-err') + '">' + (val !== null && val !== '' ? String(val).replace('.', ',') : '—') + '</span>';
+    displaySekcje.forEach(function(s) {
+        if (multiSekcja) {
+            paramsHtml += '<div class="cv-params-subhead">' + esc(s.nazwa) + '</div>';
         }
-        paramsHtml += '<span class="cv-p-norm">' + normText + '</span>' +
-        '</div>';
+        // Edit sekcja target: use wyniki_key if present (includes __N for rounds),
+        // otherwise sekcja_key as-is (new edits create wyniki[sekcja_key]).
+        var editSekcja = s.wyniki_key || s.sekcja_key;
+
+        s.pola.forEach(function(pole) {
+            var r = s.wyniki[pole.kod];
+            var val = r ? r.wartosc : '';
+            var ok = r ? r.w_limicie === 1 : true;
+            var normText = '';
+            if (pole.min != null && pole.max != null) normText = fmtDec(pole.min) + ' – ' + fmtDec(pole.max);
+            else if (pole.min != null) normText = '> ' + fmtDec(pole.min);
+            else if (pole.max != null) normText = '< ' + fmtDec(pole.max);
+
+            var rowCls = r ? (ok ? 'cv-row-ok' : 'cv-row-err') : '';
+            var dotHtml = r ? '<div class="cv-p-dot ' + (ok ? 'cv-dot-ok' : 'cv-dot-err') + '"></div>' : '<div class="cv-p-dot"></div>';
+            var grupaBadge = (pole.grupa && pole.grupa !== 'lab') ? '<span class="cv-p-grupa cv-p-grupa-' + esc(pole.grupa) + '">' + esc(pole.grupa.toUpperCase()) + '</span>' : '';
+            paramsHtml += '<div class="cv-param ' + rowCls + '">' +
+                dotHtml +
+                '<span class="cv-p-label">' + esc(pole.skrot || pole.label) + grupaBadge + '</span>';
+            if (canEdit) {
+                paramsHtml += '<input class="cv-p-input" type="text" inputmode="decimal" value="' + (val !== null && val !== '' ? String(val).replace('.', ',') : '') + '"' +
+                    ' data-kod="' + esc(pole.kod) + '" data-sekcja="' + esc(editSekcja) + '"' +
+                    ' data-grupa="' + esc(pole.grupa || 'lab') + '"' +
+                    ' data-min="' + (pole.min != null ? pole.min : '') + '" data-max="' + (pole.max != null ? pole.max : '') + '"' +
+                    ' readonly oninput="validateField(this); autoSaveField(this)" onblur="doSaveField(this, this.dataset.sekcja, this.dataset.kod, true)">';
+            } else {
+                paramsHtml += '<span class="cv-p-val ' + (ok ? '' : 'cv-val-err') + '">' + (val !== null && val !== '' ? String(val).replace('.', ',') : '—') + '</span>';
+            }
+            paramsHtml += '<span class="cv-p-norm">' + normText + '</span>' +
+            '</div>';
+        });
     });
     paramsHtml += '</div>';
 
