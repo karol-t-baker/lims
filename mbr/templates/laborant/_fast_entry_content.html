@@ -134,6 +134,10 @@
   transition: all 0.15s;
 }
 .ped-del:hover { background: var(--red-bg, #fef2f2); color: var(--red); }
+.ped-arrows { display: inline-flex; flex-direction: column; gap: 1px; width: 20px; flex-shrink: 0; align-items: center; }
+.ped-arrow { width: 18px; height: 12px; padding: 0; margin: 0; border: 1px solid var(--border); background: var(--surface); color: var(--text-sec); font-size: 7px; line-height: 10px; cursor: pointer; border-radius: 2px; }
+.ped-arrow:hover:not(:disabled) { border-color: var(--teal); color: var(--teal); background: var(--teal-bg); }
+.ped-arrow:disabled { opacity: 0.3; cursor: default; }
 .ped-grip {
   cursor: grab; color: var(--text-dim); font-size: 14px; user-select: none;
   width: 20px; flex-shrink: 0; text-align: center; opacity: 0.4;
@@ -5247,10 +5251,10 @@ function renderParamEditor() {
   '</div>';
 
   // Render bound params first (checked), then unbound (unchecked).
-  // Reorder (drag) is admin-only — laborant sees layout admin set up.
-  var canReorder = userRola === 'admin';
+  // Kolejność: strzałki ↑/↓ dostępne dla wszystkich ról — jedno źródło
+  // prawdy w produkt_etap_limity.kolejnosc (lab i admin zmieniają to samo).
   var allSorted = bound.concat(unbound);
-  allSorted.forEach(function(p) {
+  allSorted.forEach(function(p, visualIdx) {
     var b = _peBindingMap[p.id];
     var checked = !!(b && b[flagKey] === 1);
     var typCls = p.typ === 'titracja' ? 'ped-typ-t' : p.typ === 'obliczeniowy' ? 'ped-typ-o' : 'ped-typ-b';
@@ -5258,10 +5262,20 @@ function renderParamEditor() {
     var disabledCls = checked ? '' : ' ped-row-disabled';
     var precVal = b && b.precision != null ? b.precision : '';
     var precPlaceholder = p.precision != null ? p.precision : 2;
+    // Arrows only for bound (checked) rows. Disable at edges.
+    var boundCount = bound.length;
+    var isFirst = visualIdx === 0;
+    var isLast = visualIdx === boundCount - 1;
+    var arrowsHtml = checked
+      ? '<span class="ped-arrows">' +
+          '<button class="ped-arrow" title="W górę" onclick="peMoveUp(' + p.id + ')"' + (isFirst ? ' disabled' : '') + '>\u25B2</button>' +
+          '<button class="ped-arrow" title="W dół" onclick="peMoveDown(' + p.id + ')"' + (isLast ? ' disabled' : '') + '>\u25BC</button>' +
+        '</span>'
+      : '<span class="ped-arrows" style="visibility:hidden;"><button class="ped-arrow">\u25B2</button><button class="ped-arrow">\u25BC</button></span>';
 
     html += '<div class="ped-row' + disabledCls + '"' +
-      (checked && canReorder ? ' draggable="true" data-param-id="' + p.id + '"' : (checked ? ' data-param-id="' + p.id + '"' : '')) + '>' +
-      (checked && canReorder ? '<span class="ped-grip" title="Przeciągnij aby zmienić kolejność">⠿</span>' : '<span style="width:20px;flex-shrink:0;"></span>') +
+      (checked ? ' data-param-id="' + p.id + '"' : '') + '>' +
+      arrowsHtml +
       '<input type="checkbox" class="ped-check" ' + (checked ? 'checked' : '') +
         ' onchange="peToggle(' + p.id + ', this.checked)">' +
       '<span class="ped-kod">' + esc(p.kod) + '</span>' +
@@ -5281,80 +5295,49 @@ function renderParamEditor() {
   });
 
   document.getElementById('pe-list').innerHTML = html || '<div style="color:var(--text-dim);font-size:11px;padding:8px;">Brak parametrów</div>';
-  _peSetupDragDrop();
 }
 
-// ═══ PARAM DRAG & DROP ═══
+// ═══ PARAM REORDER (strzałki ↑/↓) ═══
 
-var _peDragParamId = null;
-
-function _peSetupDragDrop() {
-  document.querySelectorAll('.ped-row[draggable]').forEach(function(row) {
-    row.addEventListener('dragstart', function(e) {
-      _peDragParamId = parseInt(row.dataset.paramId);
-      row.classList.add('dragging');
-      e.dataTransfer.effectAllowed = 'move';
-    });
-    row.addEventListener('dragend', function() {
-      row.classList.remove('dragging');
-      document.querySelectorAll('.ped-row').forEach(function(r) { r.classList.remove('drag-over'); });
-    });
-    row.addEventListener('dragover', function(e) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-    });
-    row.addEventListener('dragenter', function(e) {
-      e.preventDefault();
-      document.querySelectorAll('.ped-row').forEach(function(r) { r.classList.remove('drag-over'); });
-      if (row.dataset.paramId && parseInt(row.dataset.paramId) !== _peDragParamId) {
-        row.classList.add('drag-over');
-      }
-    });
-    row.addEventListener('dragleave', function() {
-      row.classList.remove('drag-over');
-    });
-    row.addEventListener('drop', function(e) {
-      e.preventDefault();
-      row.classList.remove('drag-over');
-      var dropParamId = parseInt(row.dataset.paramId);
-      if (!_peDragParamId || _peDragParamId === dropParamId) return;
-
-      // Get current bound order
-      var boundIds = [];
-      _peAllParams.forEach(function(p) {
-        if (_peBindingMap[p.id]) boundIds.push(p.id);
-      });
-      boundIds.sort(function(a, b) {
-        return (_peBindingMap[a].kolejnosc || 0) - (_peBindingMap[b].kolejnosc || 0);
-      });
-
-      // Move dragged item to drop position
-      var fromIdx = boundIds.indexOf(_peDragParamId);
-      var toIdx = boundIds.indexOf(dropParamId);
-      if (fromIdx === -1 || toIdx === -1) return;
-      boundIds.splice(fromIdx, 1);
-      boundIds.splice(toIdx, 0, _peDragParamId);
-
-      // Update kolejnosc in map and persist via PUT /api/bindings/<id>
-      var promises = [];
-      boundIds.forEach(function(pid, i) {
-        _peBindingMap[pid].kolejnosc = i + 1;
-        promises.push(fetch('/api/bindings/' + _peBindingMap[pid].id, {
-          method: 'PUT',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({kolejnosc: i + 1})
-        }));
-      });
-      Promise.all(promises).then(function() {
-        window._peDirty = true;
-        // Batch refresh deferred to closeParamEditor (see peToggle for context).
-      });
-
-      _peDragParamId = null;
-      renderParamEditor();
-    });
+// Swap this row's kolejnosc with the neighbor above. Same for down. Both lab
+// and admin hit this — produkt_etap_limity.kolejnosc is the single source of
+// truth, so a reorder here propagates to every future batch of this product.
+function _peSwapKolejnosc(paramId, direction) {
+  // Build ordered list of bound param ids (what the user currently sees)
+  var ordered = [];
+  _peAllParams.forEach(function(p) {
+    if (_peBindingMap[p.id]) ordered.push(p.id);
   });
+  ordered.sort(function(a, b) {
+    return (_peBindingMap[a].kolejnosc || 0) - (_peBindingMap[b].kolejnosc || 0);
+  });
+  var idx = ordered.indexOf(paramId);
+  if (idx === -1) return;
+  var targetIdx = idx + direction;
+  if (targetIdx < 0 || targetIdx >= ordered.length) return;
+
+  var thisB = _peBindingMap[paramId];
+  var neighborB = _peBindingMap[ordered[targetIdx]];
+  // Swap in memory first so re-render reflects the change immediately
+  var tmp = thisB.kolejnosc; thisB.kolejnosc = neighborB.kolejnosc; neighborB.kolejnosc = tmp;
+  // Persist both
+  Promise.all([
+    fetch('/api/bindings/' + thisB.id, {
+      method: 'PUT', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({kolejnosc: thisB.kolejnosc}),
+    }),
+    fetch('/api/bindings/' + neighborB.id, {
+      method: 'PUT', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({kolejnosc: neighborB.kolejnosc}),
+    }),
+  ]).then(function() {
+    window._peDirty = true;  // closeParamEditor reloads the batch card
+  });
+  renderParamEditor();
 }
+
+function peMoveUp(paramId)   { _peSwapKolejnosc(paramId, -1); }
+function peMoveDown(paramId) { _peSwapKolejnosc(paramId, +1); }
 
 function peToggle(paramId, checked) {
   var flagKey = _peFlagKey();
