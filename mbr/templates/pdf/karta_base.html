@@ -84,7 +84,7 @@ h2 { font-size: 11pt; margin: 10pt 0 4pt; text-transform: uppercase; }
   <tr><th>Parametr</th><th>Wynik</th><th>Norma</th></tr>
   {% for pole in sekcja_def.pola %}
   <tr>
-    <td>{{ pole.label }}</td>
+    <td>{{ pole.label | rt_html }}</td>
     <td class="val {% if wyniki.get(sekcja_key, {}).get(pole.kod) and not wyniki[sekcja_key][pole.kod].w_limicie %}out-of-limit{% endif %}">
       {% if wyniki.get(sekcja_key, {}).get(pole.kod) %}{{ wyniki[sekcja_key][pole.kod].wartosc|fmt_decimal }}{% else %}<span class="empty">&mdash;</span>{% endif %}
     </td>

@@ -1769,7 +1769,7 @@ function renderCompletedView() {
             var grupaBadge = (pole.grupa && pole.grupa !== 'lab') ? '<span class="cv-p-grupa cv-p-grupa-' + esc(pole.grupa) + '">' + esc(pole.grupa.toUpperCase()) + '</span>' : '';
             paramsHtml += '<div class="cv-param ' + rowCls + '">' +
                 dotHtml +
-                '<span class="cv-p-label">' + esc(pole.skrot || pole.label) + grupaBadge + '</span>';
+                '<span class="cv-p-label">' + rtHtml(pole.skrot || pole.label) + grupaBadge + '</span>';
             if (canEdit) {
                 paramsHtml += '<input class="cv-p-input" type="text" inputmode="decimal" value="' + (val !== null && val !== '' ? String(val).replace('.', ',') : '') + '"' +
                     ' data-kod="' + esc(pole.kod) + '" data-sekcja="' + esc(editSekcja) + '"' +
@@ -2233,7 +2233,7 @@ function _buildAkSummary(pola, sekWyniki) {
         var val = w.wartosc != null ? String(w.wartosc).replace('.', ',') : (w.wartosc_text || '\u2014');
         var cls = w.w_limicie === 1 ? 'val-ok' : w.w_limicie === 0 ? 'val-err' : '';
         html += '<span class="ak-sum-item ' + cls + '">' +
-            '<span class="ak-sum-label">' + (pole.skrot || pole.label) + '</span> ' +
+            '<span class="ak-sum-label">' + rtHtml(pole.skrot || pole.label) + '</span> ' +
             '<span class="ak-sum-val">' + val + '</span>' +
         '</span>';
     });
@@ -2548,7 +2548,7 @@ function renderOneSection(container, opts) {
             fieldsHtml +=
                 '<div class="ff binary' + highlightCls + '">' +
                     '<div class="status-dot"' + (hasBVal ? ' style="background:' + (isOk ? 'var(--green)' : 'var(--red)') + '"' : '') + '></div>' +
-                    '<label>' + esc(pole.skrot || pole.label) + '</label>' +
+                    '<label>' + rtHtml(pole.skrot || pole.label) + '</label>' +
                     '<div class="binary-pills">' +
                         '<button type="button" class="bp-pill' + (isOk ? ' bp-ok' : '') + '" onclick="setBinary(this,\'' + esc(sekcja) + '\',\'' + esc(pole.kod) + '\',\'OK\')">Zgodny</button>' +
                         '<button type="button" class="bp-pill' + (isErr ? ' bp-err' : '') + '" onclick="setBinary(this,\'' + esc(sekcja) + '\',\'' + esc(pole.kod) + '\',\'Nie OK\')">Niezgodny</button>' +
@@ -2559,7 +2559,7 @@ function renderOneSection(container, opts) {
             '<div class="ff' + (isTitr ? ' titr' : '') + (isObl ? ' computed' : '') + highlightCls + '" ' +
                 (isTitr && !isReadonly ? 'data-kod="' + esc(pole.kod) + '" data-tag="' + esc(pole.tag) + '" data-sekcja="' + esc(sekcja) + '"' : '') + ' ' + calcMethodAttr + '>' +
                 '<div class="status-dot"></div>' +
-                '<label>' + esc(pole.skrot || pole.label) + '</label>' +
+                '<label>' + rtHtml(pole.skrot || pole.label) + '</label>' +
                 '<input type="text" inputmode="decimal"' +
                     ' data-kod="' + esc(pole.kod) + '"' +
                     ' data-sekcja="' + esc(sekcja) + '"' +
@@ -4114,7 +4114,7 @@ function updateSpecPanel() {
         }
 
         html += '<tr style="border-bottom:1px solid var(--border-subtle);">' +
-            '<td style="padding:6px;font-weight:600;">' + (p.skrot || p.label || p.kod) + '</td>' +
+            '<td style="padding:6px;font-weight:600;">' + rtHtml(p.skrot || p.label || p.kod) + '</td>' +
             '<td style="padding:6px;text-align:center;">' + specInput('min_limit', p.min_limit, '') + '</td>' +
             '<td style="padding:6px;text-align:center;">' + specInput('max_limit', p.max_limit, '') + '</td>' +
             '<td style="padding:6px;text-align:center;">' + specInput('target', p.spec_value, 'font-weight:700;color:var(--teal);') + '</td>' +
@@ -4513,7 +4513,7 @@ window.showProcessStage = function(etapKey) {
 
             krokHtml += '<div class="ff' + (isTitr ? ' titr' : '') + wrapperExtra + '">' +
               '<div class="status-dot"></div>' +
-              '<label>' + (param.skrot || param.label) + '</label>' +
+              '<label>' + rtHtml(param.skrot || param.label) + '</label>' +
               '<input type="text" inputmode="decimal"' +
               ' data-etap="' + etapKey + '" data-runda="' + krn + '" data-kod="' + param.kod + '"' +
               ' data-min="' + (param.min != null ? param.min : '') + '" data-max="' + (param.max != null ? param.max : '') + '"' +
@@ -4648,7 +4648,7 @@ window.showProcessStage = function(etapKey) {
       if (param.kod === 'metnosc_fau' || param.kod === 'barwa_opis') {
         h += '<div class="ff' + wrapperExtra + '">' +
           '<div class="status-dot"></div>' +
-          '<label>' + (param.skrot || param.label) + '</label>' +
+          '<label>' + rtHtml(param.skrot || param.label) + '</label>' +
           '<input type="text" list="barwa-text-opts"' +
             ' data-etap="' + etapKey + '" data-runda="' + rundaNum + '" data-kod="' + param.kod + '"' +
             ' value="' + val + '"' +
@@ -4674,7 +4674,7 @@ window.showProcessStage = function(etapKey) {
 
       h += '<div class="ff' + (isTitr ? ' titr' : '') + (isObl ? ' computed' : '') + wrapperExtra + '">' +
         '<div class="status-dot"></div>' +
-        '<label>' + (param.skrot || param.label) + '</label>' +
+        '<label>' + rtHtml(param.skrot || param.label) + '</label>' +
         '<input type="text" inputmode="decimal"' +
           ' data-etap="' + etapKey + '" data-runda="' + rundaNum + '" data-kod="' + param.kod + '"' +
           ' data-min="' + (param.min != null ? param.min : '') + '"' +
@@ -4721,7 +4721,7 @@ window.showProcessStage = function(etapKey) {
         var outOfRange = false;
         if (p.min != null && numV < p.min) outOfRange = true;
         if (p.max != null && numV > p.max) outOfRange = true;
-        summaryParts.push(outOfRange ? '<span style="color:var(--red)">' + p.label + ' ' + v + '</span>' : p.label + ' ' + v);
+        summaryParts.push(outOfRange ? '<span style="color:var(--red)">' + rtHtml(p.label) + ' ' + v + '</span>' : rtHtml(p.label) + ' ' + v);
         // Track latest timestamp in runda
         if (rundaData[p.kod].dt_wpisu && rundaData[p.kod].dt_wpisu > rundaTs) {
           rundaTs = rundaData[p.kod].dt_wpisu;
@@ -5280,7 +5280,7 @@ function renderParamEditor() {
       '<input type="checkbox" class="ped-check" ' + (checked ? 'checked' : '') +
         ' onchange="peToggle(' + p.id + ', this.checked)">' +
       '<span class="ped-kod">' + esc(p.kod) + '</span>' +
-      '<span class="ped-label">' + esc(p.skrot || p.label) + '</span>' +
+      '<span class="ped-label">' + rtHtml(p.skrot || p.label) + '</span>' +
       '<span class="ped-typ ' + typCls + '">' + typLabel + '</span>' +
       '<input class="ped-lim" type="text" inputmode="decimal"' +
         ' value="' + (b && b.min != null ? String(b.min).replace('.',',') : '') + '"' +

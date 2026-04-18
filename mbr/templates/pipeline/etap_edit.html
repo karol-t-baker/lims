@@ -288,7 +288,7 @@ function renderParametry(data) {
   data.forEach(function(p, idx) {
     html += '<tr>' +
       '<td style="color:var(--text-dim);font-size:10px;text-align:center;">' + (idx + 1) + '</td>' +
-      '<td><span class="pa-kod">' + esc(p.kod) + '</span> <span style="font-size:11px;color:var(--text-sec);">' + esc(p.label || '') + '</span></td>' +
+      '<td><span class="pa-kod">' + esc(p.kod) + '</span> <span style="font-size:11px;color:var(--text-sec);">' + rtHtml(p.label || '') + '</span></td>' +
       '<td><input class="pa-input" type="text" inputmode="decimal" step="any" value="' + fmtNum(p.min_limit) + '" onblur="saveEP(' + p.id + ',\'min_limit\',this)" style="width:65px;text-align:center;"></td>' +
       '<td><input class="pa-input" type="text" inputmode="decimal" step="any" value="' + fmtNum(p.max_limit) + '" onblur="saveEP(' + p.id + ',\'max_limit\',this)" style="width:65px;text-align:center;"></td>' +
       '<td><input class="pa-input" type="text" inputmode="decimal" step="any" value="' + fmtNum(p.nawazka_g) + '" onblur="saveEP(' + p.id + ',\'nawazka_g\',this)" style="width:65px;text-align:center;"></td>' +

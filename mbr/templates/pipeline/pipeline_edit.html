@@ -323,7 +323,7 @@ function renderLimits(etapId, data) {
 
     data.forEach(function(r) {
       html += '<tr>' +
-        '<td><span class="pa-kod" style="font-size:10px;">' + esc(r.kod) + '</span> <span style="font-size:10px;">' + esc(r.skrot || r.label || '') + '</span></td>' +
+        '<td><span class="pa-kod" style="font-size:10px;">' + esc(r.kod) + '</span> <span style="font-size:10px;">' + rtHtml(r.skrot || r.label || '') + '</span></td>' +
         '<td><input class="pa-input" type="text" inputmode="decimal" data-pid="' + r.parametr_id + '" data-field="min_limit" value="' + fmtNum(r.min_limit) + '" style="width:60px;text-align:center;font-size:10px;"></td>' +
         '<td><input class="pa-input" type="text" inputmode="decimal" data-pid="' + r.parametr_id + '" data-field="max_limit" value="' + fmtNum(r.max_limit) + '" style="width:60px;text-align:center;font-size:10px;"></td>' +
         '<td><input class="pa-input" type="text" inputmode="decimal" data-pid="' + r.parametr_id + '" data-field="nawazka_g" value="' + fmtNum(r.nawazka_g) + '" style="width:55px;text-align:center;font-size:10px;"></td>' +

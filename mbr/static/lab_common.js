@@ -76,3 +76,25 @@ var API = {
     zatwierdz: function(id) { return '/api/ebr/' + id + '/etapy-status/zatwierdz'; },
     complete: function(id) { return '/laborant/ebr/' + id + '/complete'; },
 };
+
+
+// ═══ Rich-text markup for parameter labels ═══
+// Convert ^{sup} / _{sub} markup to HTML — mirrors _rtHtml in
+// admin/wzory_cert.html and _md_to_richtext in mbr/certs/generator.py.
+// Same markup syntax across editor, certificate, and laborant views.
+function rtHtml(text) {
+    if (!text) return '';
+    function esc(s) {
+        return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    var out = '', re = /(\^\{[^}]*\}|_\{[^}]*\})/g, last = 0, m;
+    while ((m = re.exec(text)) !== null) {
+        if (m.index > last) out += esc(text.slice(last, m.index));
+        var inner = m[0].slice(2, -1);
+        out += (m[0][0] === '^') ? '<sup>' + esc(inner) + '</sup>' : '<sub>' + esc(inner) + '</sub>';
+        last = re.lastIndex;
+    }
+    if (last < text.length) out += esc(text.slice(last));
+    return out;
+}

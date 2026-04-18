@@ -2,7 +2,38 @@
 filters.py — Jinja2 template filters for MBR/EBR webapp.
 """
 
+import re as _re
 from datetime import datetime
+
+from markupsafe import Markup, escape
+
+
+_RT_MARKUP_RE = _re.compile(r'(\^\{[^}]*\}|_\{[^}]*\})')
+
+
+def rt_html_filter(value):
+    """Render ^{sup}/_{sub} markup in parameter labels as HTML <sup>/<sub>.
+
+    Mirrors rtHtml() in static/lab_common.js and _md_to_richtext in
+    mbr/certs/generator.py — same markup across editor, laborant UI, PDF
+    cards, and certificates. All surrounding text is escaped; only the
+    marker pairs produce HTML tags.
+    """
+    if value is None or value == "":
+        return Markup("")
+    s = str(value)
+    out = []
+    last = 0
+    for m in _RT_MARKUP_RE.finditer(s):
+        if m.start() > last:
+            out.append(str(escape(s[last:m.start()])))
+        inner = m.group()[2:-1]
+        tag = "sup" if m.group()[0] == "^" else "sub"
+        out.append(f"<{tag}>{escape(inner)}</{tag}>")
+        last = m.end()
+    if last < len(s):
+        out.append(str(escape(s[last:])))
+    return Markup("".join(out))
 
 
 def parse_decimal(value, default=0.0):
@@ -104,3 +135,4 @@ def register_filters(app):
     app.add_template_filter(fmt_decimal_filter, 'fmt_decimal')
     app.add_template_filter(short_product_filter, 'short_product')
     app.add_template_filter(audit_actors_filter, 'audit_actors')
+    app.add_template_filter(rt_html_filter, 'rt_html')
