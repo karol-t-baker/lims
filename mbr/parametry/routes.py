@@ -280,44 +280,46 @@ def api_parametry_sa_bias():
 @parametry_bp.route("/api/parametry/available")
 @login_required
 def api_parametry_available():
-    """Active parameters for picker.
+    """Active parameters for picker — full registry with in_mbr flag.
 
-    If `?produkt=X` is given, restrict to parameters defined in the active MBR's
-    `analiza_koncowa` section for that product. This enforces that certificate
-    parameters can only be drawn from what the laborant actually measures.
+    Without `?produkt=X`: returns legacy plain list of all active params.
+    With `?produkt=X`: returns dict {no_mbr, produkt, params} where each
+    param has `in_mbr: bool` indicating whether it's in the active MBR's
+    analiza_koncowa for that product. The cert editor UI uses this to
+    visually separate in-MBR params (mierzone przez laborantów) from
+    outside-MBR (qualitative / external-lab) params.
     """
     produkt = (request.args.get("produkt") or "").strip()
     with db_session() as db:
-        if produkt:
-            from mbr.technolog.models import get_active_mbr
-            mbr = get_active_mbr(db, produkt)
-            if not mbr:
-                return jsonify({"no_mbr": True, "produkt": produkt, "params": []})
+        all_rows = db.execute(
+            "SELECT id, kod, label, skrot, typ, name_en, method_code, precision "
+            "FROM parametry_analityczne WHERE aktywny=1 ORDER BY typ, kod"
+        ).fetchall()
+        all_params = [dict(r) for r in all_rows]
+
+        if not produkt:
+            # Legacy shape for non-cert callers — plain list, no in_mbr flag.
+            return jsonify(all_params)
+
+        from mbr.technolog.models import get_active_mbr
+        mbr = get_active_mbr(db, produkt)
+        mbr_kody: set = set()
+        if mbr:
             try:
                 plab = _json.loads(mbr.get("parametry_lab") or "{}")
             except Exception:
                 plab = {}
-            allowed_kody = []
             for sekcja in plab.values():
                 for p in (sekcja.get("pola") or []):
                     kod = p.get("kod")
-                    if kod and kod not in allowed_kody:
-                        allowed_kody.append(kod)
-            if not allowed_kody:
-                return jsonify({"no_mbr": True, "produkt": produkt, "params": []})
-            placeholders = ",".join("?" * len(allowed_kody))
-            rows = db.execute(
-                f"SELECT id, kod, label, skrot, typ, name_en, method_code, precision "
-                f"FROM parametry_analityczne WHERE aktywny=1 AND kod IN ({placeholders}) "
-                f"ORDER BY typ, kod",
-                allowed_kody,
-            ).fetchall()
-            return jsonify({"no_mbr": False, "produkt": produkt, "params": [dict(r) for r in rows]})
-        rows = db.execute(
-            "SELECT id, kod, label, skrot, typ, name_en, method_code, precision "
-            "FROM parametry_analityczne WHERE aktywny=1 ORDER BY typ, kod"
-        ).fetchall()
-    return jsonify([dict(r) for r in rows])
+                    if kod:
+                        mbr_kody.add(kod)
+
+        no_mbr = not bool(mbr_kody)
+        for p in all_params:
+            p["in_mbr"] = bool(p.get("kod") and p["kod"] in mbr_kody)
+
+        return jsonify({"no_mbr": no_mbr, "produkt": produkt, "params": all_params})
 
 
 # ═══ PRODUKTY ═══
