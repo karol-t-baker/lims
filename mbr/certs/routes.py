@@ -719,6 +719,74 @@ def api_cert_config_product_copy(src_key):
     return jsonify({"ok": True, "key": new_key})
 
 
+@certs_bp.route("/api/cert/settings", methods=["GET"])
+@role_required("admin", "kj")
+def api_cert_settings_get():
+    """Return current cert_settings (typography globals)."""
+    with db_session() as db:
+        rows = db.execute("SELECT key, value FROM cert_settings").fetchall()
+    out = {"body_font_family": "TeX Gyre Bonum", "header_font_size_pt": 14}
+    for r in rows:
+        k = r["key"]
+        v = r["value"]
+        if k == "header_font_size_pt":
+            try:
+                out[k] = int(v)
+            except (ValueError, TypeError):
+                pass
+        else:
+            out[k] = v
+    return jsonify(out)
+
+
+@certs_bp.route("/api/cert/settings", methods=["PUT"])
+@role_required("admin", "kj")
+def api_cert_settings_put():
+    """Update cert_settings keys (font family, header font size)."""
+    data = request.get_json(silent=True) or {}
+    updated = {}
+
+    if "body_font_family" in data:
+        val = (data["body_font_family"] or "").strip()
+        if not val or len(val) > 120:
+            return jsonify({"error": "body_font_family: pusta lub za długa nazwa"}), 400
+        updated["body_font_family"] = val
+
+    if "header_font_size_pt" in data:
+        try:
+            n = int(data["header_font_size_pt"])
+        except (ValueError, TypeError):
+            return jsonify({"error": "header_font_size_pt: nieprawidłowa liczba"}), 400
+        if n < 2 or n > 50:
+            return jsonify({"error": "header_font_size_pt: zakres 2–50"}), 400
+        updated["header_font_size_pt"] = str(n)
+
+    if not updated:
+        return jsonify({"error": "brak pól do aktualizacji"}), 400
+
+    with db_session() as db:
+        try:
+            with db:
+                for k, v in updated.items():
+                    db.execute(
+                        "INSERT INTO cert_settings (key, value) VALUES (?, ?) "
+                        "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                        (k, v),
+                    )
+                from mbr.shared import audit
+                audit.log_event(
+                    audit.EVENT_CERT_SETTINGS_UPDATED,
+                    entity_type="cert",
+                    entity_label="_settings",
+                    payload={"updated": updated},
+                    db=db,
+                )
+        except Exception as e:
+            return jsonify({"error": f"zapis nie powiódł się: {e}"}), 500
+
+    return jsonify({"ok": True})
+
+
 @certs_bp.route("/api/cert/config/product/<key>/issued-count", methods=["GET"])
 @role_required("admin", "kj")
 def api_cert_config_product_issued_count(key):

@@ -171,6 +171,7 @@
         <svg class="wc-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
         <input class="wc-search" id="wc-search" type="text" placeholder="Szukaj..." oninput="filterProducts()">
       </div>
+      <button class="wc-btn wc-btn-o wc-btn-sm" onclick="openCertSettings()" style="margin-right:10px;">Ustawienia globalne</button>
       <button class="wc-btn wc-btn-p" onclick="showNewForm()">+ Nowy produkt</button>
     </div>
     <div class="wc-grid-cards" id="wc-cards"></div>
@@ -353,6 +354,32 @@
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
         <button class="wc-btn wc-btn-o" onclick="closeCopyModal()">Anuluj</button>
         <button class="wc-btn wc-btn-p" onclick="doCopyProduct()">Kopiuj</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Cert Settings Modal ═══ -->
+<div class="wc-modal" id="wc-settings-modal" onclick="if(event.target===this)closeCertSettings()">
+  <div class="wc-modal-box" style="max-width:460px;height:auto;">
+    <div class="wc-modal-head">
+      <span style="font-weight:700;">Ustawienia globalne świadectw</span>
+      <button class="wc-modal-close" onclick="closeCertSettings()">&times;</button>
+    </div>
+    <div style="padding:16px 20px;">
+      <div style="margin-bottom:12px;color:var(--text-sec);font-size:11px;">
+        Zmiany obowiązują od razu dla wszystkich generowanych świadectw. Już wydane dokumenty pozostają bez zmian.
+      </div>
+      <label class="wc-lbl">Font (rodzina)</label>
+      <input class="wc-inp" type="text" id="wc-s-font" placeholder="np. TeX Gyre Bonum, EB Garamond">
+      <div style="font-size:10px;color:var(--text-dim);margin-top:3px;">Nazwa z Google Fonts lub zainstalowanego fontu. Domyślnie: TeX Gyre Bonum.</div>
+
+      <label class="wc-lbl" style="margin-top:14px;">Rozmiar czcionki nagłówka (nazwa produktu, pt)</label>
+      <input class="wc-inp" type="number" id="wc-s-hdr" min="2" max="50" style="width:100px;">
+
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;">
+        <button class="wc-btn wc-btn-o" onclick="closeCertSettings()">Anuluj</button>
+        <button class="wc-btn wc-btn-p" onclick="saveCertSettings()">Zapisz</button>
       </div>
     </div>
   </div>
@@ -702,6 +729,37 @@ function doCopyProduct() {
         loadProducts();
       } else {
         flash('Błąd: ' + (res.data.error || 'kopia nie powiodła się'), false);
+      }
+    });
+}
+
+function openCertSettings() {
+  fetch('/api/cert/settings').then(function(r) { return r.json(); }).then(function(s) {
+    document.getElementById('wc-s-font').value = s.body_font_family || '';
+    document.getElementById('wc-s-hdr').value = s.header_font_size_pt || 14;
+    document.getElementById('wc-settings-modal').classList.add('show');
+  });
+}
+
+function closeCertSettings() {
+  document.getElementById('wc-settings-modal').classList.remove('show');
+}
+
+function saveCertSettings() {
+  var font = document.getElementById('wc-s-font').value.trim();
+  var hdr = parseInt(document.getElementById('wc-s-hdr').value);
+  if (!font) { flash('Nazwa fontu jest wymagana', false); return; }
+  if (!hdr || hdr < 2 || hdr > 50) { flash('Rozmiar nagłówka 2–50 pt', false); return; }
+  fetch('/api/cert/settings', {
+    method: 'PUT', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ body_font_family: font, header_font_size_pt: hdr }),
+  }).then(function(r) { return r.json().then(function(d) { return { status: r.status, data: d }; }); })
+    .then(function(res) {
+      if (res.data.ok) {
+        flash('Ustawienia zapisane', true);
+        closeCertSettings();
+      } else {
+        flash('Błąd: ' + (res.data.error || 'nie udało się zapisać'), false);
       }
     });
 }
