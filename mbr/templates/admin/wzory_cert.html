@@ -1012,9 +1012,93 @@ function collectEditorState() {
   return s;
 }
 
+/* ═══ Validate ═══ */
+function _validateBeforeSave(state) {
+  /**
+   * Return { ok: bool, errors: [ {msg} ] }.
+   * Collects all errors — doesn't stop at first — so the operator sees
+   * the full picture. UI marks offending rows red via background color.
+   */
+  var errors = [];
+
+  // Clear previous error marks
+  document.querySelectorAll('#wc-params-body tr, #wc-var-params tr').forEach(function(tr) {
+    tr.style.background = '';
+  });
+
+  function markRow(sel) {
+    var el = document.querySelector(sel);
+    if (el) el.style.background = '#fef2f2';
+  }
+
+  // 1. Duplicate parameter ids
+  var seenParamIds = {};
+  (state.parameters || []).forEach(function(p, idx) {
+    if (seenParamIds[p.id]) {
+      errors.push({ msg: 'Duplikat id parametru: ' + p.id });
+      markRow('#wc-params-body tr:nth-child(' + (idx + 1) + ')');
+    }
+    seenParamIds[p.id] = true;
+  });
+
+  // 2. Empty name_pl
+  (state.parameters || []).forEach(function(p, idx) {
+    if (!p.name_pl || !p.name_pl.trim()) {
+      errors.push({ msg: 'Parametr bez nazwy PL (' + (p.id || 'nowy') + ')' });
+      markRow('#wc-params-body tr:nth-child(' + (idx + 1) + ')');
+    }
+  });
+
+  // 3. Param must have either data_field or qualitative_result
+  (state.parameters || []).forEach(function(p, idx) {
+    var hasMeas = p.data_field && p.data_field.trim();
+    var hasQual = p.qualitative_result && p.qualitative_result.trim();
+    if (!hasMeas && !hasQual) {
+      errors.push({ msg: '"' + (p.id || 'nowy') + '" musi mieć pomiar lub stałą wartość' });
+      markRow('#wc-params-body tr:nth-child(' + (idx + 1) + ')');
+    }
+  });
+
+  // 4. Duplicate variant ids
+  var seenVariantIds = {};
+  (state.variants || []).forEach(function(v) {
+    if (seenVariantIds[v.id]) {
+      errors.push({ msg: 'Duplikat id wariantu: ' + v.id });
+    }
+    seenVariantIds[v.id] = true;
+  });
+
+  // 5. Variant missing label
+  (state.variants || []).forEach(function(v) {
+    if (!v.label || !v.label.trim()) {
+      errors.push({ msg: 'Wariant "' + v.id + '" bez nazwy' });
+    }
+  });
+
+  // 6. Duplicate ids inside variant add_parameters
+  (state.variants || []).forEach(function(v) {
+    var ap = (v.overrides || {}).add_parameters || [];
+    var apSeen = {};
+    ap.forEach(function(p) {
+      if (!p.id) return;
+      if (apSeen[p.id]) {
+        errors.push({ msg: 'Wariant "' + v.id + '": duplikat id "' + p.id + '"' });
+      }
+      apSeen[p.id] = true;
+    });
+  });
+
+  return { ok: errors.length === 0, errors: errors };
+}
+
 /* ═══ Save ═══ */
 function saveProduct() {
   var state = collectEditorState();
+  var preflight = _validateBeforeSave(state);
+  if (!preflight.ok) {
+    flash('Nie można zapisać: ' + preflight.errors.map(function(e) { return e.msg; }).join('; '), false);
+    return;
+  }
   var st = document.getElementById('wc-save-status');
   st.textContent = 'Zapisywanie...'; st.style.color = 'var(--text-dim)';
 
