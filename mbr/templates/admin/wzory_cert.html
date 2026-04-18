@@ -361,11 +361,25 @@ function updateRtPreview(input) {
 }
 
 function _codeOptions(current) {
+  var inMbr = _availableCodes.filter(function(c) { return c.in_mbr; });
+  var notInMbr = _availableCodes.filter(function(c) { return !c.in_mbr; });
   var html = '<option value="">— brak —</option>';
-  _availableCodes.forEach(function(c) {
-    var sel = (c.kod === current) ? ' selected' : '';
-    html += '<option value="' + _esc(c.kod) + '"' + sel + '>' + _esc(c.kod) + ' — ' + _esc(c.skrot || c.label) + '</option>';
-  });
+  if (inMbr.length) {
+    html += '<optgroup label="W MBR (mierzone przez laborantów)">';
+    inMbr.forEach(function(c) {
+      var sel = (c.kod === current) ? ' selected' : '';
+      html += '<option value="' + _esc(c.kod) + '"' + sel + '>● ' + _esc(c.kod) + ' — ' + _esc(c.skrot || c.label) + '</option>';
+    });
+    html += '</optgroup>';
+  }
+  if (notInMbr.length) {
+    html += '<optgroup label="Poza MBR (opisowe / external lab)">';
+    notInMbr.forEach(function(c) {
+      var sel = (c.kod === current) ? ' selected' : '';
+      html += '<option value="' + _esc(c.kod) + '"' + sel + '>○ ' + _esc(c.kod) + ' — ' + _esc(c.skrot || c.label) + '</option>';
+    });
+    html += '</optgroup>';
+  }
   return html;
 }
 
