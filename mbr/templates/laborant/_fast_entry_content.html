@@ -1056,6 +1056,34 @@
 .corr-field-input.corr-error { outline: 2px solid var(--red, #dc2626); }
 .corr-field-input.corr-total-derived { background: var(--surface-alt, #f7f7f7); color: var(--text-dim, #666); cursor: not-allowed; }
 
+/* FAU <1 (below LOD) quick-entry */
+.ff-lod-btn {
+    margin-left: 4px;
+    padding: 3px 8px;
+    border: 1px solid var(--border, #d4cbb9);
+    border-radius: 4px;
+    background: var(--surface, #fff);
+    color: var(--text-sec, #666);
+    font-size: 11px;
+    font-family: var(--mono, ui-monospace, monospace);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    flex-shrink: 0;
+}
+.ff-lod-btn:hover {
+    background: var(--surface-alt, #f5f1e8);
+    border-color: var(--text-sec, #999);
+}
+.ff-lod-btn.active {
+    background: var(--text-dim, #777);
+    color: #fff;
+    border-color: var(--text-dim, #777);
+}
+.ff.ff-qual input {
+    background: var(--surface-alt, #f5f1e8);
+    color: var(--text-sec, #666);
+}
+
 </style>
 
 <div class="cv-popup-overlay" id="cv-popup-overlay">
@@ -2555,8 +2583,21 @@ function renderOneSection(container, opts) {
                     '</div>' +
                 '</div>';
         } else {
+        // FAU <1 — below LOD quick-entry
+        var fauBelowActive = (pole.kod === 'metnosc_fau' && existing && existing.wartosc_text === '<1');
+        var fauBelowBtn = '';
+        if (pole.kod === 'metnosc_fau') {
+            fauBelowBtn =
+                '<button type="button" class="ff-lod-btn' + (fauBelowActive ? ' active' : '') + '"' +
+                ' onclick="toggleFauBelow(this)"' +
+                ' title="Poni\u017Cej limitu detekcji (<1)">&lt;1</button>';
+        }
+        // When qualitative state from DB, show wartosc_text instead of numeric val
+        var effectiveVal = fauBelowActive ? '<1' : (val !== '' && val !== null ? String(val).replace('.', ',') : '');
+        var isReadonlyQual = fauBelowActive;
+
         fieldsHtml +=
-            '<div class="ff' + (isTitr ? ' titr' : '') + (isObl ? ' computed' : '') + highlightCls + '" ' +
+            '<div class="ff' + (isTitr ? ' titr' : '') + (isObl ? ' computed' : '') + (isReadonlyQual ? ' ff-qual' : '') + highlightCls + '" ' +
                 (isTitr && !isReadonly ? 'data-kod="' + esc(pole.kod) + '" data-tag="' + esc(pole.tag) + '" data-sekcja="' + esc(sekcja) + '"' : '') + ' ' + calcMethodAttr + '>' +
                 '<div class="status-dot"></div>' +
                 '<label>' + rtHtml(pole.skrot || pole.label) + '</label>' +
@@ -2571,12 +2612,14 @@ function renderOneSection(container, opts) {
                     (pole.metoda_id ? ' data-metoda-id="' + pole.metoda_id + '"' : '') +
                     (pole.calc_method && pole.calc_method.suggested_mass ? ' data-nawazka="' + pole.calc_method.suggested_mass + '"' : '') +
                     (isObl && pole.formula ? ' data-formula="' + esc(pole.formula) + '"' : '') +
-                    ' value="' + (val !== '' && val !== null ? String(val).replace('.', ',') : '') + '"' +
+                    ' value="' + effectiveVal + '"' +
                     ' class="' + inputClass.trim() + '"' +
                     (isReadonly ? ' readonly' : '') +
                     (isObl && !isReadonly ? ' readonly' : '') +
+                    (isReadonlyQual ? ' readonly' : '') +
                     ' placeholder="\u2014"' +
                     ' oninput="validateField(this); autoSaveField(this)" onblur="doSaveField(this, this.dataset.sekcja, this.dataset.kod, true)">' +
+                fauBelowBtn +
                 '<div class="ff-right">' +
                     '<span class="norm-range">' + normRange + '</span>' +
                     typeTag +
@@ -3443,6 +3486,34 @@ function setBinary(btn, sekcja, kod, value) {
         body: JSON.stringify({sekcja: sekcja, values: values})
     }).then(_handleShiftRequired);
 }
+
+
+// ── FAU <1 (below LOD) quick-entry toggle ────────────────────────
+window.toggleFauBelow = function(btn) {
+    var wrapper = btn.closest('.ff');
+    if (!wrapper) return;
+    var inp = wrapper.querySelector('input[data-kod="metnosc_fau"]');
+    if (!inp) return;
+    var nowBelow = !btn.classList.contains('active');
+    if (nowBelow) {
+        inp.value = '<1';
+        inp.readOnly = true;
+        btn.classList.add('active');
+        wrapper.classList.add('ff-qual');
+        // Trigger autosave — dispatching blur fires doSaveField which sends '<1'
+        // to the backend; backend detects qualitative prefix and stores wartosc_text='<1'.
+        inp.dispatchEvent(new Event('input', { bubbles: true }));
+        inp.dispatchEvent(new Event('blur', { bubbles: true }));
+    } else {
+        inp.value = '';
+        inp.readOnly = false;
+        btn.classList.remove('active');
+        wrapper.classList.remove('ff-qual');
+        // DB wartosc_text is cleared the next time user enters a numeric value and blurs.
+        // (Backend sets wartosc_text=NULL for any non-qualitative numeric entry.)
+        inp.focus();
+    }
+};
 
 
 // ── Pump Modal: tank selection for batch completion ──────────────
