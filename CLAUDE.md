@@ -76,6 +76,10 @@ Five roles, enforced via `@role_required`: `technolog`, `laborant`, `laborant_kj
 - Variant / field configuration in `mbr/cert_config.json` — the SSOT for which parameters appear on which cert variant. Migration/deploy scripts live in `scripts/migrate_cert_config.py` and `scripts/deploy_cert_ssot.py`.
 - `generator.py` fills the DOCX via `docxtpl`, then POSTs to Gotenberg for PDF conversion. `build_preview_context()` powers the live editor preview.
 - Cert PDF naming convention: `Świadectwo_<product>_...` — see recent commit `746f860`.
+- Runtime typography (font family, header font size) lives in the `cert_settings` table (key-value). Admin edits via the "Ustawienia globalne" modal in `/admin/wzory-cert`. `generator._load_cert_settings(db)` reads them; `generator._apply_typography_overrides()` post-processes the rendered DOCX bytes to patch `w:rFonts` attributes and sentinel `<w:sz w:val="999"/>` values — docxtpl can't reach these because they're in XML attributes, not `<w:t>` text.
+- Template `cert_master_template.docx` uses sentinel `w:val="999"` in header runs (and Nagwek8 style) as a marker for the header-size override. The sentinel is always replaced at render time — if it ever leaks to output, it renders as ~500pt (obvious visual failure, easy to spot).
+- Parameter names in the editor support markup: `^{X}` (superscript), `_{X}` (subscript), `|` (manual line break — wrapped in `<w:r><w:br/></w:r>` at render time). See `generator._md_to_richtext`.
+- Cert config edit history (who/when) is logged via `audit` with events `cert.config.updated` (any PUT/copy) and `cert.settings.updated` (global settings PUT). Per-product history is exposed at `GET /api/cert/config/product/<key>/audit-history` and displayed in the editor's "Historia" tab.
 
 ### Database
 

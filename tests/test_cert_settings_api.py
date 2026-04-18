@@ -102,3 +102,13 @@ def test_cert_settings_put_partial_update(client):
 def test_cert_settings_put_empty_body_400(client):
     r = client.put("/api/cert/settings", json={})
     assert r.status_code == 400
+
+
+def test_cert_settings_put_rejects_xml_unsafe_font(client):
+    """Font name with XML-special chars (quotes, angle brackets, ampersand) must be rejected."""
+    r = client.put("/api/cert/settings", json={"body_font_family": 'Bad" font'})
+    assert r.status_code == 400
+    r2 = client.put("/api/cert/settings", json={"body_font_family": "Bad<font>"})
+    assert r2.status_code == 400
+    r3 = client.put("/api/cert/settings", json={"body_font_family": "Bad&font"})
+    assert r3.status_code == 400

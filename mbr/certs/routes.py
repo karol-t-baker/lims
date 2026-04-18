@@ -750,6 +750,12 @@ def api_cert_settings_put():
         val = (data["body_font_family"] or "").strip()
         if not val or len(val) > 120:
             return jsonify({"error": "body_font_family: pusta lub za długa nazwa"}), 400
+        # Font names must be safe for direct XML attribute interpolation.
+        # Whitelist: Unicode letters, digits, space, hyphen, period, apostrophe.
+        # Google Fonts / standard font-family names all fit this.
+        import re as _re
+        if not _re.match(r"^[\w\s\-.']+$", val, flags=_re.UNICODE):
+            return jsonify({"error": "body_font_family: niedozwolone znaki (dozwolone: litery, cyfry, spacje, - . ')"}), 400
         updated["body_font_family"] = val
 
     if "header_font_size_pt" in data:

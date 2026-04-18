@@ -773,11 +773,11 @@ function editProduct(key) {
   ]).then(function(results) {
     var data = results[0];
     var pr = results[1];
-    if (pr && pr.no_mbr) {
-      flash('Ten produkt nie ma jeszcze skonfigurowanych analiz — lista parametrów do wyboru jest pusta. Skonfiguruj parametry w zakładce Etapy.', false);
-      _availableCodes = [];
-    } else if (pr && Array.isArray(pr.params)) {
+    if (pr && Array.isArray(pr.params)) {
       _availableCodes = pr.params;
+      if (pr.no_mbr) {
+        flash('Ten produkt nie ma jeszcze skonfigurowanych analiz w MBR — wszystkie parametry z rejestru są oznaczone jako „poza MBR". Możesz dodawać parametry opisowe (ze stałą wartością) lub powiązać z parametrami z rejestru.', true);
+      }
     } else {
       _availableCodes = Array.isArray(pr) ? pr : [];
     }
