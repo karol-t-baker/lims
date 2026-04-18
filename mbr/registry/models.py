@@ -11,7 +11,7 @@ def list_completed_registry(
 ) -> list[dict]:
     """Get completed batches with all wyniki for registry table view."""
     sql = """
-        SELECT eb.ebr_id, eb.batch_id, eb.nr_partii, mt.produkt, eb.dt_end, eb.typ, eb.nr_zbiornika, eb.uwagi_koncowe
+        SELECT eb.ebr_id, eb.batch_id, eb.nr_partii, mt.produkt, eb.dt_end, eb.typ, eb.nr_zbiornika, eb.uwagi_koncowe, eb.pakowanie_bezposrednie
         FROM ebr_batches eb
         JOIN mbr_templates mt ON mt.mbr_id = eb.mbr_id
         WHERE eb.status = 'completed'
