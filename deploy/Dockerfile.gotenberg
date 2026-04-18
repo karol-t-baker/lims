@@ -1,7 +1,13 @@
 FROM gotenberg/gotenberg:8
 
-# TeX Gyre Bonum — drop-in replacement for Bookman Old Style (GUST license)
+# TeX Gyre Bonum — FOSS Bookman (GUST license). Kept as fallback.
 COPY fonts/texgyrebonum-*.otf /usr/share/fonts/
+
+# Bookman Old Style — Monotype trademark, used under existing license.
+# The running template (cert_master_template.docx) and the default
+# body_font_family in cert_settings both reference this exact family
+# name; rendering without it would fall back via fontconfig heuristics.
+COPY fonts/bookmanoldstyle*.ttf /usr/share/fonts/
 
 # Rebuild font cache
 USER root
