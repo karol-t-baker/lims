@@ -14,14 +14,12 @@ from mbr.shared.decorators import login_required, role_required
 ROLES_EDIT = ("lab", "kj", "cert", "technolog", "admin")
 
 
-def _current_worker_id(db):
-    """Resolve session user → workers.id.
-
-    For 'lab'/'cert' roles, returns the FIRST shift worker id (sessions can have
-    multiple, but a single id is sufficient as `updated_by`; audit retains the
-    full shift via actors_from_request).
-    For other roles, returns None (audit still records actor, but updated_by
-    column will be NULL — that's fine; NULL is used for non-laborant writes).
+def _current_worker_id():
+    """Resolve current session user → workers.id for the `updated_by`/`created_by`
+    column. Returns the first shift worker id for roles `lab`/`cert`. Other roles
+    (`kj`, `technolog`, `admin`) have no shift_workers and return None — that is
+    fine, `updated_by` is nullable. Audit-level actor resolution still happens
+    via `actors_from_request(db)` in `log_event`, so identity is not lost.
     """
     user = session.get("user") or {}
     rola = user.get("rola")
@@ -36,7 +34,7 @@ def _current_worker_id(db):
 def api_session_today():
     today = date.today().isoformat()
     with db_session() as db:
-        worker_id = _current_worker_id(db)
+        worker_id = _current_worker_id()
         session_id, created = get_or_create_session(db, today, created_by=worker_id, n_kontenery=8)
         if created:
             log_event(

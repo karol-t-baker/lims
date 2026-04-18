@@ -137,6 +137,10 @@ def test_get_session_with_pomiary_shape(db):
     assert hala["srednia"] is None
 
 
+def test_get_session_with_pomiary_returns_none_when_missing(db):
+    assert get_session_with_pomiary(db, 99999) is None
+
+
 @pytest.fixture
 def client(monkeypatch, db):
     """Flask test client with session user + shift workers seeded."""
