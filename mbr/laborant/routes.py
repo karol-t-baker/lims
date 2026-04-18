@@ -395,8 +395,9 @@ def complete_entry(ebr_id):
         row = db.execute("SELECT status FROM ebr_batches WHERE ebr_id=?", (ebr_id,)).fetchone()
         old_status = row["status"] if row else "unknown"
 
-        complete_ebr(db, ebr_id, zbiorniki=zbiorniki)
-
+        # Write pakowanie / uwagi BEFORE complete_ebr so the annotation
+        # block inside complete_ebr sees the final values. Otherwise the
+        # auto-append reads NULL pakowanie and skips.
         if pak_bezp:
             db.execute(
                 "UPDATE ebr_batches SET pakowanie_bezposrednie = ? WHERE ebr_id = ?",
@@ -408,6 +409,8 @@ def complete_entry(ebr_id):
                 "UPDATE ebr_batches SET uwagi_koncowe = ? WHERE ebr_id = ?",
                 (uwagi, ebr_id),
             )
+
+        complete_ebr(db, ebr_id, zbiorniki=zbiorniki)
 
         # Audit: log status change
         payload = {"old_status": old_status, "new_status": "completed"}
