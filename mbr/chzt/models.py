@@ -1,9 +1,8 @@
 """ChZT SQLite schema + helpers.
 
-Neither helper commits — callers own the transaction.
+`init_chzt_tables()` commits its DDL. SQL helpers defined later do NOT commit —
+callers own the transaction.
 """
-
-from datetime import datetime
 
 
 def init_chzt_tables(db):

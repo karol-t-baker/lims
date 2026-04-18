@@ -76,10 +76,10 @@ def create_app():
     # Initialize database tables
     from mbr.db import db_session
     from mbr.models import init_mbr_tables
+    from mbr.chzt.models import init_chzt_tables
     with app.app_context():
         with db_session() as db:
             init_mbr_tables(db)
-            from mbr.chzt.models import init_chzt_tables
             init_chzt_tables(db)
             # Fix metoda_id links for parameters created after seed_metody ran
             from mbr.parametry.seed import _PARAM_METHOD_MAP
