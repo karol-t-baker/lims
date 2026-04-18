@@ -882,6 +882,21 @@ def cert_audit_history(cert_id):
     return jsonify({"history": history})
 
 
+@certs_bp.route("/api/cert/config/product/<key>/audit-history")
+@role_required("admin", "kj")
+def cert_config_audit_history(key):
+    """Return cert config edit history for a specific product.
+
+    Filters audit_log on entity_type='cert' AND entity_label=key. Events
+    include CERT_CONFIG_UPDATED (save, copy). Used by the editor's
+    "Historia" tab (T14).
+    """
+    from mbr.shared import audit
+    with db_session() as db:
+        history = audit.query_audit_history_by_label(db, "cert", key)
+    return jsonify({"history": history})
+
+
 @certs_bp.route("/pdf/ebr/<int:ebr_id>")
 @login_required
 def pdf_ebr(ebr_id):
