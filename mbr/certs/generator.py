@@ -816,17 +816,29 @@ def _apply_typography_overrides(docx_bytes: bytes, font: str, header_size_pt: in
             if item == "word/document.xml":
                 txt = data.decode("utf-8")
                 if font and font != _BODY_FONT_LITERAL:
-                    txt = txt.replace(_BODY_FONT_LITERAL, font)
+                    txt = re.sub(
+                        r'(w:ascii|w:hAnsi|w:cs|w:eastAsia)="' + re.escape(_BODY_FONT_LITERAL) + r'"',
+                        lambda m: f'{m.group(1)}="{font}"',
+                        txt,
+                    )
                 data = txt.encode("utf-8")
             elif item == "word/header1.xml":
                 txt = data.decode("utf-8")
                 if font and font != _HEADER_FONT_LITERAL:
-                    txt = txt.replace(_HEADER_FONT_LITERAL, font)
+                    txt = re.sub(
+                        r'(w:ascii|w:hAnsi|w:cs|w:eastAsia)="' + re.escape(_HEADER_FONT_LITERAL) + r'"',
+                        lambda m: f'{m.group(1)}="{font}"',
+                        txt,
+                    )
                 txt = txt.replace(sentinel_sz, target_sz)
                 txt = txt.replace(sentinel_szcs, target_szcs)
                 data = txt.encode("utf-8")
             elif item == "word/styles.xml":
                 txt = data.decode("utf-8")
+                # styles.xml: only header size is parameterized here. The body font
+                # is declared per-run in document.xml; styles.xml has no rFonts
+                # referencing the body font literal. If a future refactor moves font
+                # to styles.xml, add a font substitution pass to this block.
                 txt = txt.replace(sentinel_sz, target_sz)
                 data = txt.encode("utf-8")
             zout.writestr(item, data)
