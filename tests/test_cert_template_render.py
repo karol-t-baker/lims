@@ -43,20 +43,21 @@ def test_docx_geometry_changed(db):
     with zipfile.ZipFile(_TEMPLATE_PATH, "r") as z:
         xml = z.read("word/document.xml").decode("utf-8")
     # Geometry changes
-    assert 'w:right="737"' in xml, "margin right not updated"
-    assert 'w:left="737"' in xml, "margin left not updated"
-    assert 'w:w="10432"' in xml, "tblW not updated"
-    assert 'w:w="4673"' in xml, "name column not sized to 82mm"
-    assert 'w:w="991"' in xml, "method column not narrowed"
-    assert 'w:w="2384"' in xml, "result/requirement column not widened to 42mm"
-    assert 'w:w="991"' in xml, "method column stable"
+    assert 'w:right="567"' in xml, "margin right not reduced to 10mm"
+    assert 'w:left="567"' in xml, "margin left not reduced to 10mm"
+    assert 'w:w="10772"' in xml, "tblW not resized to 190mm"
+    assert 'w:w="4873"' in xml, "name column not sized to 86mm"
+    assert 'w:w="2450"' in xml, "result/requirement not widened to 43mm"
+    assert 'w:w="999"' in xml, "method column not sized"
     # Old values should be absent
     assert 'w:w="4471"' not in xml, "old name column value still present"
     assert 'w:w="1095"' not in xml, "old method column value still present"
     assert 'w:w="1984"' not in xml, "old result column value still present"
-    assert 'w:w="1727"' not in xml, "previous narrow requirement column still present"
-    assert 'w:w="5330"' not in xml, "previous wide name column still present"
-    assert 'w:right="1134"' not in xml, "old margin right still present"
+    assert 'w:w="4673"' not in xml, "previous narrow name column still present"
+    assert 'w:w="2384"' not in xml, "previous narrower req/result still present"
+    assert 'w:w="10432"' not in xml, "previous tblW still present"
+    assert 'w:right="737"' not in xml, "previous 13mm margin still present"
+    assert 'w:right="1134"' not in xml, "very old 20mm margin still present"
 
 
 # ---------------------------------------------------------------------------
