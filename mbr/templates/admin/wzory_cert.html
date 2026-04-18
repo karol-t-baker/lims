@@ -206,6 +206,7 @@
       <button class="wc-tab active" onclick="switchEdTab('produkt',this)">Produkt</button>
       <button class="wc-tab" onclick="switchEdTab('parametry',this)">Parametry świadectwa</button>
       <button class="wc-tab" onclick="switchEdTab('warianty',this)">Warianty</button>
+      <button class="wc-tab" onclick="switchEdTab('historia',this)">Historia</button>
     </div>
 
     <!-- Tab 1: Produkt -->
@@ -294,6 +295,23 @@
           <tbody id="wc-var-params"></tbody>
         </table>
       </div>
+    </div>
+
+    <!-- Tab 4: Historia -->
+    <div class="wc-panel" id="panel-historia" style="display:none;">
+      <div style="font-size:13px;font-weight:600;margin-bottom:10px;">Historia zmian szablonu</div>
+      <table class="wc-tbl">
+        <thead>
+          <tr>
+            <th style="width:140px;">Data</th>
+            <th>Kto</th>
+            <th>Zmiana</th>
+          </tr>
+        </thead>
+        <tbody id="wc-history-body">
+          <tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:16px;">— kliknij zakładkę żeby załadować —</td></tr>
+        </tbody>
+      </table>
     </div>
 
     <!-- Save -->
@@ -493,12 +511,59 @@ function onCodeSelectAp(sel) {
 
 /* ═══ Tab switching ═══ */
 function switchEdTab(which, btn) {
-  ['produkt','parametry','warianty'].forEach(function(t) {
+  ['produkt','parametry','warianty','historia'].forEach(function(t) {
     var p = document.getElementById('panel-' + t);
     if (p) p.style.display = (t === which) ? '' : 'none';
   });
   document.querySelectorAll('.wc-tab').forEach(function(b) { b.classList.remove('active'); });
   if (btn) btn.classList.add('active');
+  if (which === 'historia') loadHistory();
+}
+
+function _fmtDt(iso) {
+  if (!iso) return '';
+  // "2026-04-18T14:30:15" → "18.04.2026 14:30"
+  var m = iso.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if (!m) return iso;
+  return m[3] + '.' + m[2] + '.' + m[1] + ' ' + m[4] + ':' + m[5];
+}
+
+function loadHistory() {
+  if (!_currentKey) return;
+  var tbody = document.getElementById('wc-history-body');
+  tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:16px;">Ładowanie...</td></tr>';
+  fetch('/api/cert/config/product/' + encodeURIComponent(_currentKey) + '/audit-history')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var hist = (data && data.history) || [];
+      if (!hist.length) {
+        tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--text-dim);padding:16px;">Brak historii.</td></tr>';
+        return;
+      }
+      var html = '';
+      hist.forEach(function(row) {
+        var actors = (row.actors || []).map(function(a) { return a.actor_name || a.actor_login; }).join(', ') || '—';
+        var payload = {};
+        try { payload = row.payload_json ? JSON.parse(row.payload_json) : {}; } catch (e) {}
+        var summary = '';
+        if (payload.copied_from) {
+          summary = 'Skopiowano z <code>' + _esc(payload.copied_from) + '</code>, ' +
+                    (payload.params_count || 0) + ' parametrów';
+        } else {
+          summary = (payload.params_count != null ? payload.params_count : '?') + ' parametrów, ' +
+                    (payload.variants_count != null ? payload.variants_count : '?') + ' wariantów';
+        }
+        html += '<tr>' +
+          '<td style="font-family:var(--mono);font-size:10px;">' + _esc(_fmtDt(row.dt)) + '</td>' +
+          '<td>' + _esc(actors) + '</td>' +
+          '<td>' + summary + '</td>' +
+        '</tr>';
+      });
+      tbody.innerHTML = html;
+    })
+    .catch(function(e) {
+      tbody.innerHTML = '<tr><td colspan="3" style="color:var(--red);padding:16px;">Błąd: ' + _esc(e.message) + '</td></tr>';
+    });
 }
 
 /* ═══ Product List ═══ */
