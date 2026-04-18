@@ -230,6 +230,11 @@ def test_compute_srednia_average_of_nonnull():
     assert compute_srednia({"p1": 10, "p2": 20, "p3": 30, "p4": 40, "p5": 50}) == 30.0
 
 
+def test_compute_srednia_exactly_2_values():
+    """Boundary: threshold is >= 2, so 2 non-null must compute."""
+    assert compute_srednia({"p1": 100, "p2": 200, "p3": None, "p4": None, "p5": None}) == 150.0
+
+
 from mbr.chzt.models import get_pomiar, update_pomiar
 
 

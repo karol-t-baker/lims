@@ -77,6 +77,10 @@ EVENT_PALIWO_OSOBA_CREATED = "paliwo.osoba.created"
 EVENT_PALIWO_OSOBA_UPDATED = "paliwo.osoba.updated"
 EVENT_PALIWO_OSOBA_DELETED = "paliwo.osoba.deleted"
 
+# chzt
+EVENT_CHZT_SESSION_CREATED = "chzt.session.created"
+EVENT_CHZT_POMIAR_UPDATED = "chzt.pomiar.updated"
+
 # admin
 EVENT_ADMIN_BACKUP_CREATED = "admin.backup.created"
 EVENT_ADMIN_BATCH_CANCELLED = "admin.batch.cancelled"

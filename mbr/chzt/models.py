@@ -108,10 +108,11 @@ def update_pomiar(db, pomiar_id: int, new_values: dict, *, updated_by: int):
     """Write new_values to the given pomiar + recompute srednia + timestamp.
 
     Caller owns the transaction (no commit here). Returns the updated row dict.
+    Raises ValueError if pomiar_id does not exist.
     """
     srednia = compute_srednia(new_values)
     now = datetime.now().isoformat(timespec="seconds")
-    db.execute(
+    cur = db.execute(
         "UPDATE chzt_pomiary "
         "SET ph=?, p1=?, p2=?, p3=?, p4=?, p5=?, srednia=?, updated_at=?, updated_by=? "
         "WHERE id=?",
@@ -128,6 +129,8 @@ def update_pomiar(db, pomiar_id: int, new_values: dict, *, updated_by: int):
             pomiar_id,
         ),
     )
+    if cur.rowcount == 0:
+        raise ValueError(f"pomiar {pomiar_id} not found")
     return get_pomiar(db, pomiar_id)
 
 

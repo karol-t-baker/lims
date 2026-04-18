@@ -13,11 +13,31 @@ from mbr.chzt.models import (
     POMIAR_FIELDS,
 )
 from mbr.db import db_session
-from mbr.shared.audit import diff_fields, log_event
+from mbr.shared.audit import (
+    log_event,
+    diff_fields,
+    EVENT_CHZT_SESSION_CREATED,
+    EVENT_CHZT_POMIAR_UPDATED,
+)
 from mbr.shared.decorators import login_required, role_required
 
 
 ROLES_EDIT = ("lab", "kj", "cert", "technolog", "admin")
+
+
+def _coerce_float(v):
+    """Coerce incoming JSON value to float; None/missing stays None; invalid → None.
+
+    The JS client sends parsed floats, but robustness at the API boundary matters
+    because autosave fires every 400ms and a single string breaking a PUT would
+    both crash srednia math and pollute the audit log with phantom diffs.
+    """
+    if v is None:
+        return None
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
 
 
 def _current_worker_id():
@@ -44,7 +64,7 @@ def api_session_today():
         session_id, created = get_or_create_session(db, today, created_by=worker_id, n_kontenery=8)
         if created:
             log_event(
-                "chzt.session.created",
+                EVENT_CHZT_SESSION_CREATED,
                 entity_type="chzt_sesje",
                 entity_id=session_id,
                 entity_label=today,
@@ -59,7 +79,7 @@ def api_session_today():
 @role_required(*ROLES_EDIT)
 def api_pomiar_update(pomiar_id: int):
     payload = request.get_json(force=True) or {}
-    new_values = {k: payload.get(k) for k in POMIAR_FIELDS}
+    new_values = {k: _coerce_float(payload.get(k)) for k in POMIAR_FIELDS}
 
     with db_session() as db:
         old = get_pomiar(db, pomiar_id)
@@ -71,7 +91,7 @@ def api_pomiar_update(pomiar_id: int):
 
         if changes:
             log_event(
-                "chzt.pomiar.updated",
+                EVENT_CHZT_POMIAR_UPDATED,
                 entity_type="chzt_pomiary",
                 entity_id=pomiar_id,
                 entity_label=old["punkt_nazwa"],
