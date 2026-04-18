@@ -2542,7 +2542,10 @@ function renderOneSection(container, opts) {
 
         var inputClass = '';
         if (existing) {
-            inputClass = existing.w_limicie === 1 ? 'ok' : 'err';
+            // NULL w_limicie (qualitative entry like FAU <1) — neutral,
+            // no ok/err class. Only numeric values get green/red.
+            if (existing.w_limicie === 1) inputClass = 'ok';
+            else if (existing.w_limicie === 0) inputClass = 'err';
         }
         if (isObl) inputClass += ' calc';
 
