@@ -111,10 +111,14 @@ def test_docx_header_size_reflects_settings():
 
 
 def test_docx_default_settings_produce_substituted_output():
-    """Default settings (TeX Gyre Bonum, 14pt) replace sentinel with 28 half-points."""
+    """Default settings (Bookman Old Style, 14pt) use Bookman everywhere.
+
+    Body font literal 'TeX Gyre Bonum' is replaced with default 'Bookman Old Style';
+    header literal stays as 'Bookman Old Style' (default == literal, no-op).
+    """
     from mbr.certs.generator import _apply_typography_overrides
     raw = _template_bytes()
-    result = _apply_typography_overrides(raw, "TeX Gyre Bonum", 14)
+    result = _apply_typography_overrides(raw, "Bookman Old Style", 14)
     hdr_xml = _read_xml(result, "word/header1.xml")
     sty_xml = _read_xml(result, "word/styles.xml")
     doc_xml = _read_xml(result, "word/document.xml")
@@ -126,8 +130,10 @@ def test_docx_default_settings_produce_substituted_output():
     assert '<w:sz w:val="28"/>' in hdr_xml, "header sz=28 (14pt default) not in header"
     assert '<w:szCs w:val="28"/>' in hdr_xml, "header szCs=28 not in header"
     assert '<w:sz w:val="28"/>' in sty_xml, "Nagwek8 sz=28 not in styles"
-    # Body font unchanged (default == template literal)
-    assert "TeX Gyre Bonum" in doc_xml, "default body font missing from document.xml"
+    # Bookman Old Style appears (both body-substituted and header-native).
+    assert "Bookman Old Style" in doc_xml, "Bookman Old Style not in document.xml"
+    # Body literal was substituted — no stale "TeX Gyre Bonum" in output.
+    assert "TeX Gyre Bonum" not in doc_xml, "body literal TeX Gyre Bonum leaked to output"
 
 
 def test_docxtpl_render_respects_settings():

@@ -1154,7 +1154,7 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
 
     # Seed defaults (INSERT OR IGNORE — idempotent, preserves existing overrides)
     _cert_settings_defaults = [
-        ("body_font_family", "TeX Gyre Bonum"),
+        ("body_font_family", "Bookman Old Style"),
         ("header_font_size_pt", "14"),
     ]
     for k, v in _cert_settings_defaults:

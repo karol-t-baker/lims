@@ -23,7 +23,7 @@ from docxtpl import DocxTemplate, RichText
 _RT_RE = re.compile(r"(\^\{[^}]*\}|_\{[^}]*\})")
 
 
-_CERT_FONT = "TeX Gyre Bonum"
+_CERT_FONT = "Bookman Old Style"
 _CERT_SIZE = 22  # 11pt in half-points (docxtpl w:sz unit)
 
 
@@ -82,7 +82,7 @@ def _load_cert_settings(db) -> dict:
 
     Missing keys fall back to defaults (same as seed in init_mbr_tables).
     """
-    defaults = {"body_font_family": "TeX Gyre Bonum", "header_font_size_pt": 14}
+    defaults = {"body_font_family": "Bookman Old Style", "header_font_size_pt": 14}
     rows = db.execute("SELECT key, value FROM cert_settings").fetchall()
     out = dict(defaults)
     for r in rows:

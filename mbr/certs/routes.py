@@ -725,7 +725,7 @@ def api_cert_settings_get():
     """Return current cert_settings (typography globals)."""
     with db_session() as db:
         rows = db.execute("SELECT key, value FROM cert_settings").fetchall()
-    out = {"body_font_family": "TeX Gyre Bonum", "header_font_size_pt": 14}
+    out = {"body_font_family": "Bookman Old Style", "header_font_size_pt": 14}
     for r in rows:
         k = r["key"]
         v = r["value"]

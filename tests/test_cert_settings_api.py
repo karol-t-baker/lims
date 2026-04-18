@@ -41,7 +41,7 @@ def test_cert_settings_get_returns_defaults(client):
     r = client.get("/api/cert/settings")
     assert r.status_code == 200
     data = r.get_json()
-    assert data["body_font_family"] == "TeX Gyre Bonum"
+    assert data["body_font_family"] == "Bookman Old Style"
     assert data["header_font_size_pt"] == 14
 
 
