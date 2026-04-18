@@ -51,7 +51,7 @@
 .wc-card-stats { margin-top: auto; padding-top: 8px; display: flex; gap: 10px; font-size: 9px; color: var(--text-sec); }
 .wc-card-stat { display: flex; align-items: center; gap: 3px; }
 .wc-card-stat svg { opacity: .6; }
-.wc-card-bottom { display: flex; justify-content: flex-end; padding-top: 6px; border-top: 1px solid var(--border-subtle, #f0ece4); margin-top: 6px; }
+.wc-card-bottom { display: flex; justify-content: flex-end; gap: 6px; padding-top: 6px; border-top: 1px solid var(--border-subtle, #f0ece4); margin-top: 6px; }
 
 /* ═══ Buttons ═══ */
 .wc-btn { padding: 7px 16px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: var(--font); transition: opacity .15s; }
@@ -319,6 +319,27 @@
   </div>
 </div>
 
+<!-- ═══ Copy Modal ═══ -->
+<div class="wc-modal" id="wc-copy-modal" onclick="if(event.target===this)closeCopyModal()">
+  <div class="wc-modal-box" style="max-width:420px;height:auto;">
+    <div class="wc-modal-head">
+      <span style="font-weight:700;">Kopiuj wzór świadectwa</span>
+      <button class="wc-modal-close" onclick="closeCopyModal()">&times;</button>
+    </div>
+    <div style="padding:16px 20px;">
+      <div style="margin-bottom:14px;color:var(--text-sec);font-size:12px;">
+        Skopiuj parametry i układ ze wzoru <strong id="wc-copy-src"></strong>. Nowy produkt dostaje świeże meta (nazwa, specyfikacja, opinie) — warianty poza bazowym nie są kopiowane.
+      </div>
+      <label class="wc-lbl">Nazwa nowego produktu *</label>
+      <input class="wc-inp" type="text" id="wc-copy-name" placeholder="np. Chegina_GLOL40">
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
+        <button class="wc-btn wc-btn-o" onclick="closeCopyModal()">Anuluj</button>
+        <button class="wc-btn wc-btn-p" onclick="doCopyProduct()">Kopiuj</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ═══ State ═══ */
 var _products = [];
@@ -327,6 +348,7 @@ var _currentProduct = null;
 var _dbMeta = null;
 var _availableCodes = [];
 var _prevBlobUrl = null;
+var _copySrcKey = null;
 
 /* ═══ Helpers ═══ */
 function _esc(s) {
@@ -468,6 +490,7 @@ function renderProductList(filtered) {
         '</div>' +
       '</div>' +
       '<div class="wc-card-bottom">' +
+        '<button class="wc-btn wc-btn-o wc-btn-sm" onclick="event.stopPropagation();copyProduct(\'' + _esc(p.key) + '\',\'' + _esc(p.display_name) + '\')">Kopiuj</button>' +
         '<button class="wc-btn wc-btn-d" onclick="event.stopPropagation();deleteProduct(\'' + _esc(p.key) + '\',\'' + _esc(p.display_name) + '\')">Usuń</button>' +
       '</div>' +
     '</div>';
@@ -535,6 +558,38 @@ function deleteProduct(key, name) {
           if (data.ok) { flash('Produkt usunięty.', true); loadProducts(); }
           else { flash(data.error || 'Błąd usuwania', false); }
         });
+    });
+}
+
+function copyProduct(srcKey, srcName) {
+  _copySrcKey = srcKey;
+  document.getElementById('wc-copy-src').textContent = srcName;
+  document.getElementById('wc-copy-name').value = '';
+  document.getElementById('wc-copy-modal').classList.add('show');
+  setTimeout(function() { document.getElementById('wc-copy-name').focus(); }, 60);
+}
+
+function closeCopyModal() {
+  document.getElementById('wc-copy-modal').classList.remove('show');
+  _copySrcKey = null;
+}
+
+function doCopyProduct() {
+  var name = document.getElementById('wc-copy-name').value.trim();
+  if (!name) { flash('Nazwa jest wymagana', false); return; }
+  if (!_copySrcKey) return;
+  fetch('/api/cert/config/product/' + encodeURIComponent(_copySrcKey) + '/copy', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ new_display_name: name }),
+  }).then(function(r) { return r.json().then(function(d) { return { status: r.status, data: d }; }); })
+    .then(function(res) {
+      if (res.data.ok) {
+        flash('Skopiowano jako ' + res.data.key, true);
+        closeCopyModal();
+        loadProducts();
+      } else {
+        flash('Błąd: ' + (res.data.error || 'kopia nie powiodła się'), false);
+      }
     });
 }
 
@@ -972,6 +1027,10 @@ function refreshPreview() {
 }
 
 /* ═══ Init ═══ */
+var _copyInp = document.getElementById('wc-copy-name');
+if (_copyInp) _copyInp.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') doCopyProduct();
+});
 loadProducts();
 </script>
 {% endblock %}
