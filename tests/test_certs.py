@@ -199,3 +199,39 @@ def test_build_preview_context_includes_typography():
         ctx = build_preview_context(product, "base")
     assert ctx["body_font_family"] == "EB Garamond"
     assert ctx["header_font_size_pt"] == 18
+
+
+def test_md_to_richtext_pipe_becomes_line_break():
+    """'|' in parameter name must split into two lines with <w:br/> between."""
+    from mbr.certs.generator import _md_to_richtext
+    rt = _md_to_richtext("kokamido|amidoamin")
+    xml = str(rt)
+    assert "kokamido" in xml and "amidoamin" in xml
+    assert "<w:br/>" in xml, f"no line break in: {xml}"
+
+
+def test_md_to_richtext_pipe_combined_with_sub_super():
+    """| must coexist with ^{} / _{} markers."""
+    from mbr.certs.generator import _md_to_richtext
+    rt = _md_to_richtext("n_{D}^{20}|value")
+    xml = str(rt)
+    assert "<w:br/>" in xml
+    # sub/sup markers should have been expanded (no literal _{ or ^{ left)
+    assert "_{" not in xml and "^{" not in xml
+
+
+def test_md_to_richtext_no_pipe_no_break():
+    """Plain text without '|' must not introduce a break."""
+    from mbr.certs.generator import _md_to_richtext
+    rt = _md_to_richtext("plain text no pipe")
+    xml = str(rt)
+    assert "<w:br/>" not in xml
+
+
+def test_md_to_richtext_multiple_pipes():
+    """Multiple '|' markers should produce multiple line breaks."""
+    from mbr.certs.generator import _md_to_richtext
+    rt = _md_to_richtext("line1|line2|line3")
+    xml = str(rt)
+    # Should have exactly 2 line breaks for 3 lines
+    assert xml.count("<w:br/>") == 2

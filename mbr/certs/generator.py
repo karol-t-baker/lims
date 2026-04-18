@@ -28,7 +28,12 @@ _CERT_SIZE = 22  # 11pt in half-points (docxtpl w:sz unit)
 
 
 def _md_to_richtext(text: str, *, font: str = None, size: int = None) -> RichText:
-    """Convert a string with `^{sup}` / `_{sub}` markers into a docxtpl RichText.
+    """Convert a string with `^{sup}` / `_{sub}` / `|` markers into a docxtpl RichText.
+
+    Markers:
+      - `^{X}` — superscript
+      - `_{X}` — subscript
+      - `|`  — manual line break (renders as <w:br/>)
 
     Plain strings (no markers) are still returned as RichText — the template uses
     `{{r ... }}` tags everywhere, so values must be RichText objects.
@@ -36,7 +41,7 @@ def _md_to_richtext(text: str, *, font: str = None, size: int = None) -> RichTex
     losing the template's formatting.
 
     Args:
-        text: Markup string with optional ^{...}/_{...} markers.
+        text: Markup string with optional ^{...}/_{...}/| markers.
         font: Font family override. Defaults to module constant _CERT_FONT.
         size: Font size in half-points. Defaults to module constant _CERT_SIZE.
     """
@@ -45,15 +50,24 @@ def _md_to_richtext(text: str, *, font: str = None, size: int = None) -> RichTex
     rt = RichText()
     if not text:
         return rt
-    for part in _RT_RE.split(text):
-        if not part:
-            continue
-        if part.startswith("^{") and part.endswith("}"):
-            rt.add(part[2:-1], superscript=True, font=font, size=size)
-        elif part.startswith("_{") and part.endswith("}"):
-            rt.add(part[2:-1], subscript=True, font=font, size=size)
-        else:
-            rt.add(part, font=font, size=size)
+    # Split on '|' first — each segment is rendered with its sub/sup markers,
+    # and we inject <w:br/> between segments via direct XML manipulation.
+    segments = text.split("|")
+    for seg_idx, seg in enumerate(segments):
+        for part in _RT_RE.split(seg):
+            if not part:
+                continue
+            if part.startswith("^{") and part.endswith("}"):
+                rt.add(part[2:-1], superscript=True, font=font, size=size)
+            elif part.startswith("_{") and part.endswith("}"):
+                rt.add(part[2:-1], subscript=True, font=font, size=size)
+            else:
+                rt.add(part, font=font, size=size)
+        if seg_idx < len(segments) - 1:
+            # Insert a line break element directly into the XML.
+            # RichText.xml is a simple string concatenation of run elements,
+            # so we inject <w:br/> as a sibling run element.
+            rt.xml += "<w:br/>"
     return rt
 
 
