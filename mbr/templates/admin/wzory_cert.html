@@ -349,6 +349,8 @@ var _dbMeta = null;
 var _availableCodes = [];
 var _prevBlobUrl = null;
 var _copySrcKey = null;
+var _dirty = false;
+var _unloadHandler = null;
 
 /* ═══ Helpers ═══ */
 function _esc(s) {
@@ -380,6 +382,38 @@ function _rtHtml(text) {
 function updateRtPreview(input) {
   var prev = input.parentElement.querySelector('.rt-prev');
   if (prev) prev.innerHTML = _rtHtml(input.value || '');
+}
+
+function _setDirty(flag) {
+  _dirty = !!flag;
+  var title = document.getElementById('ed-title');
+  if (title) {
+    var txt = title.textContent.replace(/\s*\*$/, '');
+    title.textContent = _dirty ? txt + ' *' : txt;
+  }
+  var saveBtn = document.querySelector('.wc-save .wc-btn-p');
+  if (saveBtn) {
+    saveBtn.style.opacity = _dirty ? '1' : '0.55';
+  }
+}
+
+function _installDirtyListener() {
+  var editor = document.getElementById('wc-editor');
+  if (!editor || editor._dirtyInstalled) return;
+  editor._dirtyInstalled = true;
+  editor.addEventListener('input', function() { _setDirty(true); });
+  editor.addEventListener('change', function() { _setDirty(true); });
+}
+
+function _installBeforeunload() {
+  if (_unloadHandler) return;
+  _unloadHandler = function(e) {
+    if (!_dirty) return;
+    e.preventDefault();
+    e.returnValue = 'Masz niezapisane zmiany w edytorze świadectwa.';
+    return e.returnValue;
+  };
+  window.addEventListener('beforeunload', _unloadHandler);
 }
 
 function _codeOptions(current) {
@@ -619,10 +653,17 @@ function editProduct(key) {
     document.getElementById('wc-editor').style.display = '';
     switchEdTab('produkt', document.querySelector('.wc-tab'));
     updatePreviewVariantSelect();
+    _setDirty(false);
+    _installDirtyListener();
+    _installBeforeunload();
   });
 }
 
 function backToList() {
+  if (_dirty) {
+    if (!confirm('Masz niezapisane zmiany. Porzucić?')) return;
+  }
+  _setDirty(false);
   _currentKey = null; _currentProduct = null; _dbMeta = null;
   document.getElementById('wc-editor').style.display = 'none';
   document.getElementById('wc-list').style.display = '';
@@ -693,6 +734,7 @@ function removeBaseParam(btn) {
   if (typeof _currentVarIdx === 'number' && _variantsData[_currentVarIdx]) {
     showVariant(_currentVarIdx);
   }
+  _setDirty(true);
 }
 
 function addParameter() {
@@ -705,6 +747,7 @@ function addParameter() {
   initDragAndDrop();
   var np = row.querySelector('[data-field="name_pl"]');
   if (np) np.focus();
+  _setDirty(true);
 }
 
 function autoId(input) {
@@ -861,6 +904,7 @@ function addVariant() {
   _currentVarIdx = n;
   renderVariantSelector();
   showVariant(n);
+  _setDirty(true);
 }
 
 function removeCurrentVariant() {
@@ -870,6 +914,7 @@ function removeCurrentVariant() {
   _currentVarIdx = 0;
   renderVariantSelector();
   showVariant(0);
+  _setDirty(true);
 }
 
 function addVariantParam() {
@@ -878,6 +923,7 @@ function addVariantParam() {
   var tmp = document.createElement('tbody');
   tmp.innerHTML = _varParamRow({});
   tbody.appendChild(tmp.firstChild);
+  _setDirty(true);
 }
 
 function onVarFlagChange(cb) {
@@ -980,6 +1026,7 @@ function saveProduct() {
       flash('Zapisano pomyślnie', true);
       st.textContent = 'Zapisano'; st.style.color = 'var(--green)';
       _currentProduct = Object.assign(_currentProduct || {}, state);
+      _setDirty(false);
       updatePreviewVariantSelect();
     } else {
       flash('Błąd zapisu: ' + ((res && res.error) || ''), false);
