@@ -235,3 +235,34 @@ def test_md_to_richtext_multiple_pipes():
     xml = str(rt)
     # Should have exactly 2 line breaks for 3 lines
     assert xml.count("<w:br/>") == 2
+
+
+@pytest.mark.parametrize("text, expected_br_count", [
+    ("", 0),
+    ("nobreak", 0),
+    ("a|b", 1),
+    ("a||b", 2),            # consecutive pipes — empty middle segment
+    ("|leading", 1),         # leading pipe — empty first segment
+    ("trailing|", 1),        # trailing pipe — break + empty final segment
+])
+def test_md_to_richtext_pipe_edge_cases(text, expected_br_count):
+    """Edge cases for | → <w:br/> — empty, consecutive, leading, trailing."""
+    from mbr.certs.generator import _md_to_richtext
+    rt = _md_to_richtext(text)
+    xml = str(rt)
+    # Count <w:r><w:br/></w:r> occurrences (post-fix, wrapped in run).
+    # Match on the <w:br/> substring — the enclosing run is the fix target
+    # but the test logic remains "count the break markers".
+    assert xml.count("<w:br/>") == expected_br_count
+
+
+def test_md_to_richtext_pipe_preserves_segment_order():
+    """Segment order must be preserved across the line break."""
+    from mbr.certs.generator import _md_to_richtext
+    rt = _md_to_richtext("kokamido|amidoamin")
+    xml = str(rt)
+    # kokamido must come before <w:br/> which must come before amidoamin
+    idx_first = xml.index("kokamido")
+    idx_br = xml.index("<w:br/>")
+    idx_second = xml.index("amidoamin")
+    assert idx_first < idx_br < idx_second

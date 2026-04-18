@@ -64,10 +64,12 @@ def _md_to_richtext(text: str, *, font: str = None, size: int = None) -> RichTex
             else:
                 rt.add(part, font=font, size=size)
         if seg_idx < len(segments) - 1:
-            # Insert a line break element directly into the XML.
-            # RichText.xml is a simple string concatenation of run elements,
-            # so we inject <w:br/> as a sibling run element.
-            rt.xml += "<w:br/>"
+            # Insert a line break run between segments. Per ECMA-376 CT_P,
+            # <w:br/> must live inside a <w:r> — bare <w:br/> at paragraph
+            # level is schema-invalid even though Word/LibreOffice tolerate
+            # it. RichText.xml is a simple string concat of run elements,
+            # so we append a self-contained break run.
+            rt.xml += "<w:r><w:br/></w:r>"
     return rt
 
 
