@@ -369,6 +369,8 @@ var _prevBlobUrl = null;
 var _copySrcKey = null;
 var _dirty = false;
 var _unloadHandler = null;
+var _prevDebounce = null;
+var _prevModalOpen = false;
 
 /* ═══ Helpers ═══ */
 function _esc(s) {
@@ -415,12 +417,24 @@ function _setDirty(flag) {
   }
 }
 
+function _triggerPreviewAutoRefresh() {
+  if (!_prevModalOpen) return;
+  if (_prevDebounce) clearTimeout(_prevDebounce);
+  _prevDebounce = setTimeout(function() { refreshPreview(); }, 800);
+}
+
 function _installDirtyListener() {
   var editor = document.getElementById('wc-editor');
   if (!editor || editor._dirtyInstalled) return;
   editor._dirtyInstalled = true;
-  editor.addEventListener('input', function() { _setDirty(true); });
-  editor.addEventListener('change', function() { _setDirty(true); });
+  editor.addEventListener('input', function() {
+    _setDirty(true);
+    _triggerPreviewAutoRefresh();
+  });
+  editor.addEventListener('change', function() {
+    _setDirty(true);
+    _triggerPreviewAutoRefresh();
+  });
 }
 
 function _installBeforeunload() {
@@ -1196,9 +1210,15 @@ function updatePreviewVariantSelect() {
 function openPreview() {
   updatePreviewVariantSelect();
   document.getElementById('wc-modal').classList.add('show');
+  _prevModalOpen = true;
+  refreshPreview();  // initial render when opening
 }
 
-function closePreview() { document.getElementById('wc-modal').classList.remove('show'); }
+function closePreview() {
+  document.getElementById('wc-modal').classList.remove('show');
+  _prevModalOpen = false;
+  if (_prevDebounce) { clearTimeout(_prevDebounce); _prevDebounce = null; }
+}
 
 function refreshPreview() {
   var state = collectEditorState();
