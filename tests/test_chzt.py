@@ -333,3 +333,99 @@ def test_put_pomiar_404_for_missing(client, db):
         "ph": 10, "p1": 1, "p2": 2, "p3": None, "p4": None, "p5": None
     })
     assert resp.status_code == 404
+
+
+from mbr.chzt.models import resize_kontenery
+
+
+def test_resize_kontenery_up_adds_rows(db):
+    sid, _ = get_or_create_session(db, "2026-04-18", created_by=1, n_kontenery=2)
+    db.commit()
+    resize_kontenery(db, sid, new_n=5)
+    db.commit()
+    rows = db.execute(
+        "SELECT punkt_nazwa, kolejnosc FROM chzt_pomiary WHERE sesja_id=? ORDER BY kolejnosc",
+        (sid,),
+    ).fetchall()
+    names = [r["punkt_nazwa"] for r in rows]
+    assert names == ["hala", "rura", "kontener 1", "kontener 2", "kontener 3",
+                     "kontener 4", "kontener 5", "szambiarka"]
+    assert rows[-1]["kolejnosc"] == 8
+
+
+def test_resize_kontenery_down_empty_deletes(db):
+    sid, _ = get_or_create_session(db, "2026-04-18", created_by=1, n_kontenery=5)
+    db.commit()
+    resize_kontenery(db, sid, new_n=2)
+    db.commit()
+    names = [r["punkt_nazwa"] for r in db.execute(
+        "SELECT punkt_nazwa FROM chzt_pomiary WHERE sesja_id=? ORDER BY kolejnosc", (sid,)
+    ).fetchall()]
+    assert "kontener 3" not in names
+    assert "kontener 4" not in names
+    assert "kontener 5" not in names
+    assert names[-1] == "szambiarka"
+
+
+def test_resize_kontenery_down_with_data_raises(db):
+    sid, _ = get_or_create_session(db, "2026-04-18", created_by=1, n_kontenery=5)
+    db.commit()
+    db.execute(
+        "UPDATE chzt_pomiary SET ph=7 WHERE sesja_id=? AND punkt_nazwa='kontener 4'",
+        (sid,),
+    )
+    db.commit()
+    with pytest.raises(ValueError) as exc:
+        resize_kontenery(db, sid, new_n=2)
+    assert "kontener 4" in str(exc.value)
+
+
+def test_resize_kontenery_updates_session_n(db):
+    sid, _ = get_or_create_session(db, "2026-04-18", created_by=1, n_kontenery=2)
+    db.commit()
+    resize_kontenery(db, sid, new_n=7)
+    db.commit()
+    n = db.execute("SELECT n_kontenery FROM chzt_sesje WHERE id=?", (sid,)).fetchone()["n_kontenery"]
+    assert n == 7
+
+
+def test_patch_session_n_kontenery_up(client, db):
+    r0 = client.get("/api/chzt/session/today").get_json()
+    sid = r0["session"]["id"]
+    resp = client.patch(f"/api/chzt/session/{sid}", json={"n_kontenery": 10})
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["session"]["n_kontenery"] == 10
+    names = [p["punkt_nazwa"] for p in data["session"]["punkty"]]
+    assert "kontener 10" in names
+
+
+def test_patch_session_n_kontenery_down_blocked(client, db):
+    r0 = client.get("/api/chzt/session/today").get_json()
+    sid = r0["session"]["id"]
+    k5_pid = None
+    for p in r0["session"]["punkty"]:
+        if p["punkt_nazwa"] == "kontener 5":
+            k5_pid = p["id"]
+    client.put(f"/api/chzt/pomiar/{k5_pid}", json={
+        "ph": 10, "p1": 100, "p2": 200, "p3": None, "p4": None, "p5": None
+    })
+    resp = client.patch(f"/api/chzt/session/{sid}", json={"n_kontenery": 3})
+    assert resp.status_code == 409
+    body = resp.get_json()
+    assert "kontener 5" in body["error"]
+
+
+def test_patch_session_logs_audit(client, db):
+    r0 = client.get("/api/chzt/session/today").get_json()
+    sid = r0["session"]["id"]
+    client.patch(f"/api/chzt/session/{sid}", json={"n_kontenery": 10})
+    rows = db.execute(
+        "SELECT event_type, diff_json FROM audit_log "
+        "WHERE event_type='chzt.session.n_kontenery_changed'"
+    ).fetchall()
+    assert len(rows) == 1
+    diff = _json.loads(rows[0]["diff_json"])
+    assert diff[0]["pole"] == "n_kontenery"
+    assert diff[0]["stara"] == 8
+    assert diff[0]["nowa"] == 10

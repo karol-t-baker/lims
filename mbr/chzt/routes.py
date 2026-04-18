@@ -10,6 +10,7 @@ from mbr.chzt.models import (
     get_session_with_pomiary,
     get_pomiar,
     update_pomiar,
+    resize_kontenery,
     POMIAR_FIELDS,
 )
 from mbr.db import db_session
@@ -17,6 +18,7 @@ from mbr.shared.audit import (
     log_event,
     diff_fields,
     EVENT_CHZT_SESSION_CREATED,
+    EVENT_CHZT_SESSION_N_KONTENERY_CHANGED,
     EVENT_CHZT_POMIAR_UPDATED,
 )
 from mbr.shared.decorators import login_required, role_required
@@ -102,3 +104,34 @@ def api_pomiar_update(pomiar_id: int):
         db.commit()
 
     return jsonify({"pomiar": updated})
+
+
+@chzt_bp.route("/api/chzt/session/<int:session_id>", methods=["PATCH"])
+@role_required(*ROLES_EDIT)
+def api_session_patch(session_id: int):
+    payload = request.get_json(force=True) or {}
+    new_n = payload.get("n_kontenery")
+    if not isinstance(new_n, int) or new_n < 0 or new_n > 50:
+        return jsonify({"error": "n_kontenery: oczekuję int 0..50"}), 400
+
+    with db_session() as db:
+        srow = db.execute("SELECT n_kontenery FROM chzt_sesje WHERE id=?", (session_id,)).fetchone()
+        if srow is None:
+            return jsonify({"error": "sesja nie istnieje"}), 404
+        old_n = srow["n_kontenery"]
+        try:
+            resize_kontenery(db, session_id, new_n=new_n)
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 409
+
+        if new_n != old_n:
+            log_event(
+                EVENT_CHZT_SESSION_N_KONTENERY_CHANGED,
+                entity_type="chzt_sesje",
+                entity_id=session_id,
+                diff=[{"pole": "n_kontenery", "stara": old_n, "nowa": new_n}],
+                db=db,
+            )
+        db.commit()
+        payload_out = get_session_with_pomiary(db, session_id)
+    return jsonify({"session": payload_out})

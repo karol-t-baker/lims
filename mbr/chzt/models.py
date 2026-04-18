@@ -134,6 +134,63 @@ def update_pomiar(db, pomiar_id: int, new_values: dict, *, updated_by: int):
     return get_pomiar(db, pomiar_id)
 
 
+def resize_kontenery(db, session_id: int, *, new_n: int):
+    """Change n_kontenery — add missing kontener rows or delete trailing empty ones.
+
+    Raises ValueError listing rejected punkt_nazwa values if shrinking would
+    delete rows with any non-null data (ph, p1..p5).
+    """
+    srow = db.execute("SELECT n_kontenery FROM chzt_sesje WHERE id=?", (session_id,)).fetchone()
+    if srow is None:
+        raise ValueError(f"session {session_id} not found")
+    old_n = srow["n_kontenery"]
+
+    if new_n == old_n:
+        return
+
+    now = datetime.now().isoformat(timespec="seconds")
+
+    if new_n > old_n:
+        # Add kontener (old_n+1)..new_n. Shift szambiarka kolejnosc.
+        db.execute(
+            "UPDATE chzt_pomiary SET kolejnosc=? WHERE sesja_id=? AND punkt_nazwa='szambiarka'",
+            (new_n + 3, session_id),
+        )
+        for i in range(old_n + 1, new_n + 1):
+            db.execute(
+                "INSERT INTO chzt_pomiary (sesja_id, punkt_nazwa, kolejnosc, updated_at) "
+                "VALUES (?, ?, ?, ?)",
+                (session_id, f"kontener {i}", i + 2, now),
+            )
+    else:
+        # Shrink — check kontener (new_n+1)..old_n have no data
+        to_delete = [f"kontener {i}" for i in range(new_n + 1, old_n + 1)]
+        placeholders = ",".join("?" * len(to_delete))
+        rows_with_data = db.execute(
+            f"SELECT punkt_nazwa FROM chzt_pomiary WHERE sesja_id=? AND punkt_nazwa IN ({placeholders}) "
+            f"AND (ph IS NOT NULL OR p1 IS NOT NULL OR p2 IS NOT NULL OR p3 IS NOT NULL "
+            f"     OR p4 IS NOT NULL OR p5 IS NOT NULL)",
+            (session_id, *to_delete),
+        ).fetchall()
+        if rows_with_data:
+            names = [r["punkt_nazwa"] for r in rows_with_data]
+            raise ValueError(f"Kontenery z danymi: {', '.join(names)}")
+
+        db.execute(
+            f"DELETE FROM chzt_pomiary WHERE sesja_id=? AND punkt_nazwa IN ({placeholders})",
+            (session_id, *to_delete),
+        )
+        db.execute(
+            "UPDATE chzt_pomiary SET kolejnosc=? WHERE sesja_id=? AND punkt_nazwa='szambiarka'",
+            (new_n + 3, session_id),
+        )
+
+    db.execute(
+        "UPDATE chzt_sesje SET n_kontenery=? WHERE id=?",
+        (new_n, session_id),
+    )
+
+
 def get_session_with_pomiary(db, session_id: int) -> dict:
     """Return {session fields..., punkty: [pomiar rows ordered by kolejnosc]}.
 

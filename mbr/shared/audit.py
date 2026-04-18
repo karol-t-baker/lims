@@ -79,6 +79,7 @@ EVENT_PALIWO_OSOBA_DELETED = "paliwo.osoba.deleted"
 
 # chzt
 EVENT_CHZT_SESSION_CREATED = "chzt.session.created"
+EVENT_CHZT_SESSION_N_KONTENERY_CHANGED = "chzt.session.n_kontenery_changed"
 EVENT_CHZT_POMIAR_UPDATED = "chzt.pomiar.updated"
 
 # admin
