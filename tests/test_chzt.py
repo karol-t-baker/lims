@@ -215,3 +215,116 @@ def test_session_today_logs_created_audit_only_once(client, db):
         "SELECT event_type FROM audit_log WHERE event_type='chzt.session.created'"
     ).fetchall()
     assert len(rows) == 1
+
+
+from mbr.chzt.models import compute_srednia
+
+
+def test_compute_srednia_none_when_lt_2():
+    assert compute_srednia({"p1": 10, "p2": None, "p3": None, "p4": None, "p5": None}) is None
+    assert compute_srednia({"p1": None, "p2": None, "p3": None, "p4": None, "p5": None}) is None
+
+
+def test_compute_srednia_average_of_nonnull():
+    assert compute_srednia({"p1": 10, "p2": 20, "p3": None, "p4": None, "p5": None}) == 15.0
+    assert compute_srednia({"p1": 10, "p2": 20, "p3": 30, "p4": 40, "p5": 50}) == 30.0
+
+
+from mbr.chzt.models import get_pomiar, update_pomiar
+
+
+def test_get_pomiar_returns_row(db):
+    sid, _ = get_or_create_session(db, "2026-04-18", created_by=1, n_kontenery=2)
+    db.commit()
+    row = db.execute("SELECT id FROM chzt_pomiary WHERE sesja_id=? AND punkt_nazwa='hala'", (sid,)).fetchone()
+    p = get_pomiar(db, row["id"])
+    assert p["punkt_nazwa"] == "hala"
+    assert p["ph"] is None
+    assert p["sesja_id"] == sid
+
+
+def test_get_pomiar_returns_none_for_missing(db):
+    assert get_pomiar(db, 99999) is None
+
+
+def test_update_pomiar_writes_fields_and_srednia(db):
+    sid, _ = get_or_create_session(db, "2026-04-18", created_by=1, n_kontenery=2)
+    db.commit()
+    pid = db.execute("SELECT id FROM chzt_pomiary WHERE sesja_id=? AND punkt_nazwa='hala'", (sid,)).fetchone()["id"]
+    update_pomiar(db, pid, {"ph": 10, "p1": 100, "p2": 200, "p3": None, "p4": None, "p5": None}, updated_by=1)
+    db.commit()
+    row = db.execute("SELECT ph, p1, p2, srednia FROM chzt_pomiary WHERE id=?", (pid,)).fetchone()
+    assert row["ph"] == 10
+    assert row["p1"] == 100
+    assert row["p2"] == 200
+    assert row["srednia"] == 150.0
+
+
+def test_update_pomiar_clears_srednia_if_lt_2(db):
+    sid, _ = get_or_create_session(db, "2026-04-18", created_by=1, n_kontenery=2)
+    db.commit()
+    pid = db.execute("SELECT id FROM chzt_pomiary WHERE sesja_id=? AND punkt_nazwa='hala'", (sid,)).fetchone()["id"]
+    update_pomiar(db, pid, {"ph": 10, "p1": 100, "p2": None, "p3": None, "p4": None, "p5": None}, updated_by=1)
+    db.commit()
+    row = db.execute("SELECT srednia FROM chzt_pomiary WHERE id=?", (pid,)).fetchone()
+    assert row["srednia"] is None
+
+
+def _get_today_pomiar_id(client, db, punkt="hala"):
+    resp = client.get("/api/chzt/session/today")
+    session_payload = resp.get_json()["session"]
+    for p in session_payload["punkty"]:
+        if p["punkt_nazwa"] == punkt:
+            return p["id"]
+    raise AssertionError(f"punkt {punkt} not found")
+
+
+def test_put_pomiar_updates_row(client, db):
+    pid = _get_today_pomiar_id(client, db, "hala")
+    resp = client.put(f"/api/chzt/pomiar/{pid}", json={
+        "ph": 10, "p1": 25000, "p2": 26000, "p3": None, "p4": None, "p5": None
+    })
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["pomiar"]["ph"] == 10
+    assert data["pomiar"]["srednia"] == 25500.0
+    assert data["pomiar"]["updated_at"] is not None
+
+
+def test_put_pomiar_logs_audit_with_diff(client, db):
+    pid = _get_today_pomiar_id(client, db, "hala")
+    client.put(f"/api/chzt/pomiar/{pid}", json={
+        "ph": 10, "p1": 25000, "p2": 26000, "p3": None, "p4": None, "p5": None
+    })
+    rows = db.execute(
+        "SELECT event_type, diff_json, entity_id FROM audit_log "
+        "WHERE event_type='chzt.pomiar.updated'"
+    ).fetchall()
+    assert len(rows) == 1
+    assert rows[0]["entity_id"] == pid
+    diff = _json.loads(rows[0]["diff_json"])
+    fields = {d["pole"] for d in diff}
+    assert "ph" in fields
+    assert "p1" in fields
+    assert "p2" in fields
+
+
+def test_put_pomiar_no_audit_on_noop(client, db):
+    pid = _get_today_pomiar_id(client, db, "hala")
+    client.put(f"/api/chzt/pomiar/{pid}", json={
+        "ph": 10, "p1": 25000, "p2": 26000, "p3": None, "p4": None, "p5": None
+    })
+    client.put(f"/api/chzt/pomiar/{pid}", json={
+        "ph": 10, "p1": 25000, "p2": 26000, "p3": None, "p4": None, "p5": None
+    })
+    rows = db.execute(
+        "SELECT event_type FROM audit_log WHERE event_type='chzt.pomiar.updated'"
+    ).fetchall()
+    assert len(rows) == 1
+
+
+def test_put_pomiar_404_for_missing(client, db):
+    resp = client.put("/api/chzt/pomiar/99999", json={
+        "ph": 10, "p1": 1, "p2": 2, "p3": None, "p4": None, "p5": None
+    })
+    assert resp.status_code == 404

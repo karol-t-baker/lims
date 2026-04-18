@@ -82,6 +82,55 @@ def get_or_create_session(db, data_iso: str, *, created_by: int, n_kontenery: in
     return session_id, True
 
 
+def compute_srednia(row: dict):
+    """Return average of non-null p1..p5 if ≥2 non-null, else None."""
+    vals = [row.get(k) for k in ("p1", "p2", "p3", "p4", "p5")]
+    vals = [v for v in vals if v is not None]
+    if len(vals) < 2:
+        return None
+    return sum(vals) / len(vals)
+
+
+POMIAR_FIELDS = ("ph", "p1", "p2", "p3", "p4", "p5")
+
+
+def get_pomiar(db, pomiar_id: int) -> dict:
+    row = db.execute(
+        "SELECT id, sesja_id, punkt_nazwa, kolejnosc, ph, p1, p2, p3, p4, p5, "
+        "       srednia, updated_at, updated_by "
+        "FROM chzt_pomiary WHERE id=?",
+        (pomiar_id,),
+    ).fetchone()
+    return dict(row) if row else None
+
+
+def update_pomiar(db, pomiar_id: int, new_values: dict, *, updated_by: int):
+    """Write new_values to the given pomiar + recompute srednia + timestamp.
+
+    Caller owns the transaction (no commit here). Returns the updated row dict.
+    """
+    srednia = compute_srednia(new_values)
+    now = datetime.now().isoformat(timespec="seconds")
+    db.execute(
+        "UPDATE chzt_pomiary "
+        "SET ph=?, p1=?, p2=?, p3=?, p4=?, p5=?, srednia=?, updated_at=?, updated_by=? "
+        "WHERE id=?",
+        (
+            new_values.get("ph"),
+            new_values.get("p1"),
+            new_values.get("p2"),
+            new_values.get("p3"),
+            new_values.get("p4"),
+            new_values.get("p5"),
+            srednia,
+            now,
+            updated_by,
+            pomiar_id,
+        ),
+    )
+    return get_pomiar(db, pomiar_id)
+
+
 def get_session_with_pomiary(db, session_id: int) -> dict:
     """Return {session fields..., punkty: [pomiar rows ordered by kolejnosc]}.
 
