@@ -42,6 +42,15 @@ git pull origin main --quiet
 /opt/lims/venv/bin/python scripts/backfill_cert_name_en.py --db data/batch_db.sqlite
 /opt/lims/venv/bin/python scripts/migrate_cert_to_etapy.py
 
+# Rebuild Gotenberg image if Dockerfile or bundled fonts changed.
+# Dockerfile.gotenberg COPIES fonts from deploy/fonts/ into the image;
+# changes there aren't picked up by systemctl restart alone.
+if git diff --name-only HEAD@{1} HEAD 2>/dev/null | grep -qE '^deploy/(Dockerfile\.gotenberg|fonts/)'; then
+    echo "$(date): Gotenberg assets changed — rebuilding image"
+    docker build -t gotenberg-lims:latest -f deploy/Dockerfile.gotenberg deploy/ && \
+        sudo systemctl restart gotenberg
+fi
+
 # Restart app
 sudo systemctl restart lims
 
