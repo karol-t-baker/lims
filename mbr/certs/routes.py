@@ -621,6 +621,104 @@ def api_cert_config_product_create():
     return jsonify({"ok": True, "key": key})
 
 
+@certs_bp.route("/api/cert/config/product/<src_key>/copy", methods=["POST"])
+@role_required("admin", "kj")
+def api_cert_config_product_copy(src_key):
+    """Deep-copy parameters from source product to a new product.
+
+    Copies:
+      - all base parameters (parametry_cert with variant_id IS NULL) preserving order
+      - a fresh 'base' variant with label = new display_name
+
+    Does NOT copy:
+      - product metadata (spec_number, cas_number, opinions, expiry_months) —
+        user fills these in fresh via the editor
+      - non-base variants and their add_parameters
+    """
+    import re
+    from mbr.certs.generator import save_cert_config_export
+
+    data = request.get_json(silent=True) or {}
+    new_display_name = (data.get("new_display_name") or "").strip()
+    if not new_display_name:
+        return jsonify({"error": "new_display_name is required"}), 400
+
+    new_key = new_display_name.replace(" ", "_")
+    if not re.match(r'^[A-Za-z0-9_\-]+$', new_key):
+        return jsonify({"error": "Nazwa zawiera niedozwolone znaki (dozwolone: litery, cyfry, _, -)"}), 400
+
+    with db_session() as db:
+        src_exists = db.execute(
+            "SELECT 1 FROM cert_variants WHERE produkt = ? LIMIT 1", (src_key,)
+        ).fetchone()
+        if not src_exists:
+            return jsonify({"error": "Source product not found"}), 404
+
+        target_exists = db.execute(
+            "SELECT 1 FROM cert_variants WHERE produkt = ? LIMIT 1", (new_key,)
+        ).fetchone()
+        if target_exists:
+            return jsonify({"error": f"Product '{new_key}' already exists"}), 409
+
+        try:
+            with db:
+                # 1. produkty row (if not exists)
+                existing_prod = db.execute(
+                    "SELECT id FROM produkty WHERE nazwa = ?", (new_key,)
+                ).fetchone()
+                if not existing_prod:
+                    db.execute(
+                        "INSERT INTO produkty (nazwa, display_name, spec_number, cas_number, "
+                        "expiry_months, opinion_pl, opinion_en) VALUES (?, ?, '', '', 12, '', '')",
+                        (new_key, new_display_name),
+                    )
+
+                # 2. base variant
+                db.execute(
+                    "INSERT INTO cert_variants (produkt, variant_id, label, flags, kolejnosc) "
+                    "VALUES (?, 'base', ?, '[]', 0)",
+                    (new_key, new_display_name),
+                )
+
+                # 3. Copy base parametry_cert (variant_id IS NULL) — preserve order
+                src_params = db.execute(
+                    "SELECT parametr_id, kolejnosc, requirement, format, qualitative_result, "
+                    "name_pl, name_en, method "
+                    "FROM parametry_cert "
+                    "WHERE produkt = ? AND variant_id IS NULL "
+                    "ORDER BY kolejnosc",
+                    (src_key,),
+                ).fetchall()
+                for p in src_params:
+                    db.execute(
+                        "INSERT INTO parametry_cert (produkt, parametr_id, kolejnosc, requirement, "
+                        "format, qualitative_result, name_pl, name_en, method, variant_id) "
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)",
+                        (new_key, p["parametr_id"], p["kolejnosc"], p["requirement"],
+                         p["format"], p["qualitative_result"],
+                         p["name_pl"], p["name_en"], p["method"]),
+                    )
+
+                # 4. Audit entry
+                from mbr.shared import audit
+                audit.log_event(
+                    audit.EVENT_CERT_CONFIG_UPDATED,
+                    entity_type="cert",
+                    entity_label=new_key,
+                    payload={
+                        "copied_from": src_key,
+                        "params_count": len(src_params),
+                        "variants_count": 1,
+                    },
+                    db=db,
+                )
+        except Exception as e:
+            return jsonify({"error": f"kopia nie powiodła się: {e}"}), 500
+
+    save_cert_config_export()
+    return jsonify({"ok": True, "key": new_key})
+
+
 @certs_bp.route("/api/cert/config/product/<key>/issued-count", methods=["GET"])
 @role_required("admin", "kj")
 def api_cert_config_product_issued_count(key):
