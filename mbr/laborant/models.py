@@ -590,10 +590,21 @@ def save_wyniki(
             pole = {"kod": kod, "tag": "", "precision": 1}
         wartosc_raw = entry.get("wartosc", "")
         komentarz = entry.get("komentarz", "")
-        try:
-            wartosc = float(str(wartosc_raw).replace(",", "."))
-        except (ValueError, TypeError):
-            continue
+        # Qualitative prefix (<1, >50, ≤1, ≥50) — below/above detection
+        # limit. Stored as wartosc_text, wartosc=NULL, w_limicie=NULL
+        # (neutral — not numerically evaluated). Used for FAU <1 and
+        # similar analytical-chemistry conventions.
+        raw_str = str(wartosc_raw).strip()
+        is_qualitative = bool(raw_str) and raw_str[0] in ("<", ">", "≤", "≥")
+        if is_qualitative:
+            wartosc = None
+            wartosc_text = raw_str
+        else:
+            try:
+                wartosc = float(raw_str.replace(",", "."))
+            except (ValueError, TypeError):
+                continue
+            wartosc_text = None
         prec = pole.get("precision", 2)
 
         tag = pole.get("tag", "")
@@ -643,35 +654,43 @@ def save_wyniki(
         except Exception:
             pass  # Fallback to JSON blob limits
 
-        wartosc = round(wartosc, prec)
+        if wartosc is not None:
+            wartosc = round(wartosc, prec)
 
         # Check existing row for diff tracking (after rounding)
         old_row = db.execute(
-            "SELECT wynik_id, wartosc FROM ebr_wyniki WHERE ebr_id=? AND sekcja=? AND kod_parametru=?",
+            "SELECT wynik_id, wartosc, wartosc_text FROM ebr_wyniki "
+            "WHERE ebr_id=? AND sekcja=? AND kod_parametru=?",
             (ebr_id, sekcja, kod),
         ).fetchone()
         if old_row:
             has_updates = True
-            old_val = old_row["wartosc"]
-            if old_val != wartosc:
-                diffs.append({"pole": kod, "stara": old_val, "nowa": wartosc})
+            old_val = old_row["wartosc"] if old_row["wartosc"] is not None else old_row["wartosc_text"]
+            new_val = wartosc if wartosc is not None else wartosc_text
+            if old_val != new_val:
+                diffs.append({"pole": kod, "stara": old_val, "nowa": new_val})
         else:
             has_inserts = True
-            diffs.append({"pole": kod, "stara": None, "nowa": wartosc})
+            new_val = wartosc if wartosc is not None else wartosc_text
+            diffs.append({"pole": kod, "stara": None, "nowa": new_val})
 
-        # Compute w_limicie
-        w_limicie = 1
-        if min_limit is not None and wartosc < min_limit:
-            w_limicie = 0
-        if max_limit is not None and wartosc > max_limit:
-            w_limicie = 0
+        # Compute w_limicie — only for numeric values
+        if wartosc_text is not None:
+            w_limicie = None
+        else:
+            w_limicie = 1
+            if min_limit is not None and wartosc < min_limit:
+                w_limicie = 0
+            if max_limit is not None and wartosc > max_limit:
+                w_limicie = 0
 
         db.execute("""
-            INSERT INTO ebr_wyniki (ebr_id, sekcja, kod_parametru, tag, wartosc,
+            INSERT INTO ebr_wyniki (ebr_id, sekcja, kod_parametru, tag, wartosc, wartosc_text,
                 min_limit, max_limit, w_limicie, komentarz, is_manual, dt_wpisu, wpisal)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
             ON CONFLICT(ebr_id, sekcja, kod_parametru) DO UPDATE SET
                 wartosc = excluded.wartosc,
+                wartosc_text = excluded.wartosc_text,
                 min_limit = excluded.min_limit,
                 max_limit = excluded.max_limit,
                 w_limicie = excluded.w_limicie,
@@ -679,7 +698,7 @@ def save_wyniki(
                 dt_wpisu = excluded.dt_wpisu,
                 wpisal = excluded.wpisal
                 -- samples_json intentionally NOT overwritten here
-        """, (ebr_id, sekcja, kod, tag, wartosc, min_limit, max_limit,
+        """, (ebr_id, sekcja, kod, tag, wartosc, wartosc_text, min_limit, max_limit,
               w_limicie, komentarz, now, user))
 
     # Bump sync_seq so COA picks up the change
