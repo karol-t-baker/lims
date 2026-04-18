@@ -369,34 +369,22 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     for kod, label in _ETAPY_SEED:
         db.execute("INSERT OR IGNORE INTO etapy_procesowe (kod, label) VALUES (?, ?)", (kod, label))
 
-    # Seed produkt_etapy for K7 + GLOL products — skipped if MVP pipeline
-    # cleanup has been applied (marker `mvp_pipeline_cleanup_v1` in _migrations).
-    # Post-MVP, produkt_etapy is managed by the migration + admin UI only;
-    # hardcoded seeding here would resurrect the old multi-stage workflow for
-    # products meant to stay simple.
-    try:
-        mvp_applied = db.execute(
-            "SELECT 1 FROM _migrations WHERE name='mvp_pipeline_cleanup_v1'"
-        ).fetchone() is not None
-    except Exception:
-        mvp_applied = False  # _migrations table missing → fresh DB, seed freely
-
-    if not mvp_applied:
-        _K7_PRODUCTS = ["Chegina_K7", "Chegina_K40GL"]
-        _K7_STAGES = [("amidowanie", 1, 1), ("namca", 2, 1), ("czwartorzedowanie", 3, 0),
-                      ("sulfonowanie", 4, 0), ("utlenienie", 5, 0)]
-        for prod in _K7_PRODUCTS:
-            for etap, kolej, rown in _K7_STAGES:
-                db.execute("INSERT OR IGNORE INTO produkt_etapy (produkt, etap_kod, kolejnosc, rownolegle) VALUES (?,?,?,?)",
-                           (prod, etap, kolej, rown))
-
-        _GLOL_PRODUCTS = ["Chegina_K40GLO", "Chegina_K40GLOL", "Chegina_K40GLOS",
-                          "Chegina_K40GLOL_HQ", "Chegina_K40GLN", "Chegina_GLOL40"]
-        _GLOL_STAGES = _K7_STAGES + [("rozjasnianie", 6, 0)]
-        for prod in _GLOL_PRODUCTS:
-            for etap, kolej, rown in _GLOL_STAGES:
-                db.execute("INSERT OR IGNORE INTO produkt_etapy (produkt, etap_kod, kolejnosc, rownolegle) VALUES (?,?,?,?)",
-                           (prod, etap, kolej, rown))
+    # Seed produkt_etapy for Chegina_K7 (post-MVP: 3 process stages).
+    # MVP cleanup (2026-04-16, spec 2026-04-16-mvp-pipeline-cleanup-design.md)
+    # narrowed K7 szarża workflow to sulfonowanie → utlenienie → standaryzacja
+    # and removed workflow entirely for GLOL products (only analiza_koncowa).
+    # Seed is idempotent (INSERT OR IGNORE) — won't disturb existing prod rows.
+    _K7_STAGES = [
+        ("sulfonowanie", 1, 0),
+        ("utlenienie", 2, 0),
+        ("standaryzacja", 3, 0),
+    ]
+    for etap, kolej, rown in _K7_STAGES:
+        db.execute(
+            "INSERT OR IGNORE INTO produkt_etapy (produkt, etap_kod, kolejnosc, rownolegle) "
+            "VALUES (?, ?, ?, ?)",
+            ("Chegina_K7", etap, kolej, rown),
+        )
 
     # Migration: rename smca → namca in existing data
     try:
