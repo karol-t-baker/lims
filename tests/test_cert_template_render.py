@@ -48,9 +48,13 @@ def test_docx_geometry_changed(db):
     assert 'w:w="10432"' in xml, "tblW not updated"
     assert 'w:w="5330"' in xml, "name column not widened"
     assert 'w:w="991"' in xml, "method column not narrowed"
+    assert 'w:w="2384"' in xml, "result column not widened"
+    assert 'w:w="1727"' in xml, "requirement column not narrowed"
     # Old values should be absent
     assert 'w:w="4471"' not in xml, "old name column value still present"
     assert 'w:w="1095"' not in xml, "old method column value still present"
+    assert 'w:w="2127"' not in xml, "old requirement column value still present"
+    assert 'w:w="1984"' not in xml, "old result column value still present"
     assert 'w:right="1134"' not in xml, "old margin right still present"
 
 

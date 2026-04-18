@@ -479,8 +479,10 @@ def build_preview_context(product_json: dict, variant_id: str) -> dict:
         if param.get("qualitative_result"):
             result = param["qualitative_result"]
         elif param.get("data_field"):
-            fmt = param.get("format") or "1"
-            result = _format_value(12.34, fmt)
+            # Fixed placeholder in preview — width-representative "1,0000"
+            # lets the admin visually size the Wynik column without
+            # guessing what real values might look like.
+            result = "1,0000"
         _ne = param.get("name_en", "")
         rows.append({
             "name_pl": _md_to_richtext(param.get("name_pl", ""), font=_settings["body_font_family"]),
