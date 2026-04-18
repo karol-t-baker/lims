@@ -67,6 +67,7 @@ EVENT_CERT_GENERATED = "cert.generated"
 EVENT_CERT_VALUES_EDITED = "cert.values.edited"
 EVENT_CERT_CANCELLED = "cert.cancelled"
 EVENT_CERT_CONFIG_UPDATED = "cert.config.updated"
+EVENT_CERT_SETTINGS_UPDATED = "cert.settings.updated"
 
 # paliwo
 EVENT_PALIWO_WNIOSEK_CREATED = "paliwo.wniosek.created"
@@ -319,8 +320,8 @@ def log_event(
 
 
 def _build_where_clauses(*, dt_from=None, dt_to=None, event_type_glob=None,
-                        entity_type=None, entity_id=None, worker_id=None,
-                        free_text=None, request_id=None) -> tuple:
+                        entity_type=None, entity_id=None, entity_label=None,
+                        worker_id=None, free_text=None, request_id=None) -> tuple:
     """Translate filter args into a (where_sql, params) tuple."""
     clauses = []
     params = []
@@ -345,6 +346,9 @@ def _build_where_clauses(*, dt_from=None, dt_to=None, event_type_glob=None,
     if entity_id is not None:
         clauses.append("entity_id = ?")
         params.append(int(entity_id))
+    if entity_label is not None:
+        clauses.append("entity_label = ?")
+        params.append(entity_label)
     if worker_id is not None:
         clauses.append(
             "EXISTS (SELECT 1 FROM audit_log_actors a "
@@ -372,6 +376,7 @@ def query_audit_log(
     event_type_glob: str = None,
     entity_type: str = None,
     entity_id: int = None,
+    entity_label: str = None,
     worker_id: int = None,
     free_text: str = None,
     request_id: str = None,
@@ -391,8 +396,8 @@ def query_audit_log(
     """
     where_sql, params = _build_where_clauses(
         dt_from=dt_from, dt_to=dt_to, event_type_glob=event_type_glob,
-        entity_type=entity_type, entity_id=entity_id, worker_id=worker_id,
-        free_text=free_text, request_id=request_id,
+        entity_type=entity_type, entity_id=entity_id, entity_label=entity_label,
+        worker_id=worker_id, free_text=free_text, request_id=request_id,
     )
 
     # Total count first (cheap, same WHERE)
@@ -437,6 +442,22 @@ def query_audit_history_for_entity(db, entity_type: str, entity_id: int) -> list
         entity_type=entity_type,
         entity_id=entity_id,
         limit=1000,  # safety cap
+        offset=0,
+    )
+    return rows
+
+
+def query_audit_history_by_label(db, entity_type: str, entity_label: str) -> list:
+    """Per-label history for non-numeric-id entities (cert config is keyed by produkt string).
+
+    Returns rows sorted dt DESC with actors joined. No pagination — label-keyed
+    histories are bounded (typical product has <100 config edits in its lifetime).
+    """
+    rows, _total = query_audit_log(
+        db,
+        entity_type=entity_type,
+        entity_label=entity_label,
+        limit=1000,
         offset=0,
     )
     return rows

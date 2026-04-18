@@ -785,3 +785,35 @@ def test_audit_actors_filter_handles_empty():
     from mbr.shared.filters import audit_actors_filter
     assert audit_actors_filter({"actors": []}) == "—"
     assert audit_actors_filter({}) == "—"
+
+
+def test_event_cert_settings_updated_exists():
+    from mbr.shared import audit
+    assert audit.EVENT_CERT_SETTINGS_UPDATED == "cert.settings.updated"
+
+
+def test_query_audit_history_by_label_filters_on_label(audit_db):
+    """Filter by entity_label (string key) — used for cert config history per-product."""
+    from mbr.shared import audit
+    audit.log_event(
+        audit.EVENT_CERT_CONFIG_UPDATED,
+        entity_type="cert",
+        entity_label="K40GLOL",
+        payload={"params_count": 12},
+        actors=[{"worker_id": None, "actor_login": "admin", "actor_rola": "admin", "actor_name": "admin"}],
+        db=audit_db,
+    )
+    audit.log_event(
+        audit.EVENT_CERT_CONFIG_UPDATED,
+        entity_type="cert",
+        entity_label="GLOL40",
+        payload={"params_count": 8},
+        actors=[{"worker_id": None, "actor_login": "admin", "actor_rola": "admin", "actor_name": "admin"}],
+        db=audit_db,
+    )
+    audit_db.commit()
+
+    history = audit.query_audit_history_by_label(audit_db, "cert", "K40GLOL")
+    assert len(history) == 1
+    assert history[0]["entity_label"] == "K40GLOL"
+    assert history[0]["payload_json"] and "12" in history[0]["payload_json"]
