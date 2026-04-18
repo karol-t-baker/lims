@@ -191,6 +191,39 @@ def resize_kontenery(db, session_id: int, *, new_n: int):
     )
 
 
+def validate_for_finalize(db, session_id: int) -> list:
+    """Return list of errors [{punkt_nazwa, reason}]; empty list = OK."""
+    rows = db.execute(
+        "SELECT punkt_nazwa, ph, p1, p2, p3, p4, p5 "
+        "FROM chzt_pomiary WHERE sesja_id=? ORDER BY kolejnosc",
+        (session_id,),
+    ).fetchall()
+    errors = []
+    for r in rows:
+        if r["ph"] is None:
+            errors.append({"punkt_nazwa": r["punkt_nazwa"], "reason": "brak ph"})
+            continue
+        nonnull = sum(1 for k in ("p1", "p2", "p3", "p4", "p5") if r[k] is not None)
+        if nonnull < 2:
+            errors.append({"punkt_nazwa": r["punkt_nazwa"], "reason": "min. 2 pomiary"})
+    return errors
+
+
+def finalize_session(db, session_id: int, *, finalized_by: int):
+    now = datetime.now().isoformat(timespec="seconds")
+    db.execute(
+        "UPDATE chzt_sesje SET finalized_at=?, finalized_by=? WHERE id=?",
+        (now, finalized_by, session_id),
+    )
+
+
+def unfinalize_session(db, session_id: int):
+    db.execute(
+        "UPDATE chzt_sesje SET finalized_at=NULL, finalized_by=NULL WHERE id=?",
+        (session_id,),
+    )
+
+
 def get_session_with_pomiary(db, session_id: int) -> dict:
     """Return {session fields..., punkty: [pomiar rows ordered by kolejnosc]}.
 

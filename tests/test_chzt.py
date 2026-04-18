@@ -429,3 +429,116 @@ def test_patch_session_logs_audit(client, db):
     assert diff[0]["pole"] == "n_kontenery"
     assert diff[0]["stara"] == 8
     assert diff[0]["nowa"] == 10
+
+
+from mbr.chzt.models import validate_for_finalize, finalize_session, unfinalize_session
+
+
+def test_validate_for_finalize_empty_fails(db):
+    sid, _ = get_or_create_session(db, "2026-04-18", created_by=1, n_kontenery=1)
+    db.commit()
+    errors = validate_for_finalize(db, sid)
+    assert len(errors) == 4  # hala, rura, kontener 1, szambiarka all missing
+    assert any(e["punkt_nazwa"] == "hala" and "ph" in e["reason"] for e in errors)
+
+
+def test_validate_for_finalize_passes_when_complete(db):
+    sid, _ = get_or_create_session(db, "2026-04-18", created_by=1, n_kontenery=0)
+    db.commit()
+    for punkt in ("hala", "rura", "szambiarka"):
+        pid = db.execute(
+            "SELECT id FROM chzt_pomiary WHERE sesja_id=? AND punkt_nazwa=?",
+            (sid, punkt),
+        ).fetchone()["id"]
+        update_pomiar(db, pid, {"ph": 10, "p1": 1, "p2": 2, "p3": None, "p4": None, "p5": None}, updated_by=1)
+    db.commit()
+    errors = validate_for_finalize(db, sid)
+    assert errors == []
+
+
+def test_validate_for_finalize_flags_less_than_2(db):
+    sid, _ = get_or_create_session(db, "2026-04-18", created_by=1, n_kontenery=0)
+    db.commit()
+    for punkt in ("hala", "rura"):
+        pid = db.execute(
+            "SELECT id FROM chzt_pomiary WHERE sesja_id=? AND punkt_nazwa=?",
+            (sid, punkt),
+        ).fetchone()["id"]
+        update_pomiar(db, pid, {"ph": 10, "p1": 1, "p2": 2, "p3": None, "p4": None, "p5": None}, updated_by=1)
+    szam_id = db.execute(
+        "SELECT id FROM chzt_pomiary WHERE sesja_id=? AND punkt_nazwa='szambiarka'", (sid,)
+    ).fetchone()["id"]
+    update_pomiar(db, szam_id, {"ph": 10, "p1": 1, "p2": None, "p3": None, "p4": None, "p5": None}, updated_by=1)
+    db.commit()
+    errors = validate_for_finalize(db, sid)
+    assert len(errors) == 1
+    assert errors[0]["punkt_nazwa"] == "szambiarka"
+    assert "pomiary" in errors[0]["reason"]
+
+
+def _fill_all_today(client, db, ph=10, p1=100, p2=200):
+    r = client.get("/api/chzt/session/today").get_json()
+    for p in r["session"]["punkty"]:
+        client.put(f"/api/chzt/pomiar/{p['id']}", json={
+            "ph": ph, "p1": p1, "p2": p2, "p3": None, "p4": None, "p5": None
+        })
+    return r["session"]["id"]
+
+
+def test_finalize_empty_returns_400_with_errors(client, db):
+    r = client.get("/api/chzt/session/today").get_json()
+    sid = r["session"]["id"]
+    resp = client.post(f"/api/chzt/session/{sid}/finalize")
+    assert resp.status_code == 400
+    body = resp.get_json()
+    assert "errors" in body
+    assert len(body["errors"]) > 0
+
+
+def test_finalize_valid_sets_marker(client, db):
+    sid = _fill_all_today(client, db)
+    resp = client.post(f"/api/chzt/session/{sid}/finalize")
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["session"]["finalized_at"] is not None
+    assert body["session"]["finalized_by"] == 1
+
+
+def test_finalize_logs_audit(client, db):
+    sid = _fill_all_today(client, db)
+    client.post(f"/api/chzt/session/{sid}/finalize")
+    rows = db.execute(
+        "SELECT event_type FROM audit_log WHERE event_type='chzt.session.finalized'"
+    ).fetchall()
+    assert len(rows) == 1
+
+
+def test_finalize_allows_edit_after(client, db):
+    sid = _fill_all_today(client, db)
+    client.post(f"/api/chzt/session/{sid}/finalize")
+    pid = _get_today_pomiar_id(client, db, "hala")
+    client.put(f"/api/chzt/pomiar/{pid}", json={
+        "ph": 11, "p1": 100, "p2": 200, "p3": None, "p4": None, "p5": None
+    })
+    row = db.execute(
+        "SELECT finalized_at FROM chzt_sesje WHERE id=?", (sid,)
+    ).fetchone()
+    assert row["finalized_at"] is not None
+
+
+def test_unfinalize_lab_forbidden(client, db):
+    sid = _fill_all_today(client, db)
+    client.post(f"/api/chzt/session/{sid}/finalize")
+    resp = client.post(f"/api/chzt/session/{sid}/unfinalize")
+    assert resp.status_code == 403
+
+
+def test_unfinalize_admin_ok(admin_client, client, db):
+    sid = _fill_all_today(client, db)
+    client.post(f"/api/chzt/session/{sid}/finalize")
+    resp = admin_client.post(f"/api/chzt/session/{sid}/unfinalize")
+    assert resp.status_code == 200
+    row = db.execute(
+        "SELECT finalized_at FROM chzt_sesje WHERE id=?", (sid,)
+    ).fetchone()
+    assert row["finalized_at"] is None

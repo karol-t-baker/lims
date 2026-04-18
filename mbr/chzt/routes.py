@@ -11,6 +11,9 @@ from mbr.chzt.models import (
     get_pomiar,
     update_pomiar,
     resize_kontenery,
+    validate_for_finalize,
+    finalize_session,
+    unfinalize_session,
     POMIAR_FIELDS,
 )
 from mbr.db import db_session
@@ -20,6 +23,8 @@ from mbr.shared.audit import (
     EVENT_CHZT_SESSION_CREATED,
     EVENT_CHZT_SESSION_N_KONTENERY_CHANGED,
     EVENT_CHZT_POMIAR_UPDATED,
+    EVENT_CHZT_SESSION_FINALIZED,
+    EVENT_CHZT_SESSION_UNFINALIZED,
 )
 from mbr.shared.decorators import login_required, role_required
 
@@ -135,3 +140,42 @@ def api_session_patch(session_id: int):
         db.commit()
         payload_out = get_session_with_pomiary(db, session_id)
     return jsonify({"session": payload_out})
+
+
+@chzt_bp.route("/api/chzt/session/<int:session_id>/finalize", methods=["POST"])
+@role_required(*ROLES_EDIT)
+def api_session_finalize(session_id: int):
+    with db_session() as db:
+        if db.execute("SELECT 1 FROM chzt_sesje WHERE id=?", (session_id,)).fetchone() is None:
+            return jsonify({"error": "sesja nie istnieje"}), 404
+        errors = validate_for_finalize(db, session_id)
+        if errors:
+            return jsonify({"error": "walidacja", "errors": errors}), 400
+        finalize_session(db, session_id, finalized_by=_current_worker_id())
+        log_event(
+            EVENT_CHZT_SESSION_FINALIZED,
+            entity_type="chzt_sesje",
+            entity_id=session_id,
+            db=db,
+        )
+        db.commit()
+        payload = get_session_with_pomiary(db, session_id)
+    return jsonify({"session": payload})
+
+
+@chzt_bp.route("/api/chzt/session/<int:session_id>/unfinalize", methods=["POST"])
+@role_required("admin")
+def api_session_unfinalize(session_id: int):
+    with db_session() as db:
+        if db.execute("SELECT 1 FROM chzt_sesje WHERE id=?", (session_id,)).fetchone() is None:
+            return jsonify({"error": "sesja nie istnieje"}), 404
+        unfinalize_session(db, session_id)
+        log_event(
+            EVENT_CHZT_SESSION_UNFINALIZED,
+            entity_type="chzt_sesje",
+            entity_id=session_id,
+            db=db,
+        )
+        db.commit()
+        payload = get_session_with_pomiary(db, session_id)
+    return jsonify({"session": payload})

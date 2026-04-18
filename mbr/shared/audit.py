@@ -81,6 +81,8 @@ EVENT_PALIWO_OSOBA_DELETED = "paliwo.osoba.deleted"
 EVENT_CHZT_SESSION_CREATED = "chzt.session.created"
 EVENT_CHZT_SESSION_N_KONTENERY_CHANGED = "chzt.session.n_kontenery_changed"
 EVENT_CHZT_POMIAR_UPDATED = "chzt.pomiar.updated"
+EVENT_CHZT_SESSION_FINALIZED = "chzt.session.finalized"
+EVENT_CHZT_SESSION_UNFINALIZED = "chzt.session.unfinalized"
 
 # admin
 EVENT_ADMIN_BACKUP_CREATED = "admin.backup.created"
