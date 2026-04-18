@@ -755,14 +755,82 @@ def _fix_single_line_valign(doc) -> None:
         new_t.text = ' '
 
 
+_SENTINEL_SZ = "999"
+_BODY_FONT_LITERAL = "TeX Gyre Bonum"   # 298× in word/document.xml
+_HEADER_FONT_LITERAL = "Bookman Old Style"  # 12× in word/header1.xml
+
+
 def _docxtpl_render(context: dict) -> bytes:
-    """Render the master .docx template with context, return .docx bytes."""
+    """Render the master .docx template with context, return .docx bytes.
+
+    After docxtpl fills Jinja placeholders (which only work inside <w:t> text
+    nodes), we post-process the raw DOCX bytes to apply typography settings
+    that live in XML attributes — specifically font names in w:rFonts and font
+    sizes in w:sz / w:szCs.  Those cannot be driven by docxtpl {{ }} tags.
+    """
     tpl = DocxTemplate(str(_TEMPLATE_PATH))
     tpl.render(_escape_xml_chars(context))
     _fix_single_line_valign(tpl.docx)
     buf = io.BytesIO()
     tpl.save(buf)
-    return buf.getvalue()
+    docx_bytes = buf.getvalue()
+    font = context.get("body_font_family", _CERT_FONT)
+    header_size_pt = context.get("header_font_size_pt", 14)
+    return _apply_typography_overrides(docx_bytes, font, header_size_pt)
+
+
+def _apply_typography_overrides(docx_bytes: bytes, font: str, header_size_pt: int) -> bytes:
+    """Post-render byte-level substitution for typography settings.
+
+    The template encodes two sentinels that cannot be handled by docxtpl:
+
+    * word/document.xml  — body font: 298 occurrences of "TeX Gyre Bonum" in
+      w:rFonts attributes.  Replaced globally with ``font``.
+
+    * word/header1.xml   — header font: 12 occurrences of "Bookman Old Style".
+      Replaced globally with ``font``.  Also contains sentinel
+      ``<w:sz w:val="999"/>`` (1×) and ``<w:szCs w:val="999"/>`` (11×) which
+      are replaced with ``header_size_pt * 2`` (half-points).
+
+    * word/styles.xml    — Nagwek8 paragraph style carries
+      ``<w:sz w:val="999"/>`` (1×).  Replaced with ``header_size_pt * 2``.
+
+    The sentinel value 999 is chosen because it does not appear elsewhere in
+    the template and is far outside any usable font size range.
+    """
+    import zipfile
+    from io import BytesIO
+
+    new_sz = str(int(header_size_pt) * 2)
+    sentinel_sz = f'<w:sz w:val="{_SENTINEL_SZ}"/>'
+    sentinel_szcs = f'<w:szCs w:val="{_SENTINEL_SZ}"/>'
+    target_sz = f'<w:sz w:val="{new_sz}"/>'
+    target_szcs = f'<w:szCs w:val="{new_sz}"/>'
+
+    in_buf = BytesIO(docx_bytes)
+    out_buf = BytesIO()
+    with zipfile.ZipFile(in_buf, "r") as zin, \
+         zipfile.ZipFile(out_buf, "w", zipfile.ZIP_DEFLATED) as zout:
+        for item in zin.namelist():
+            data = zin.read(item)
+            if item == "word/document.xml":
+                txt = data.decode("utf-8")
+                if font and font != _BODY_FONT_LITERAL:
+                    txt = txt.replace(_BODY_FONT_LITERAL, font)
+                data = txt.encode("utf-8")
+            elif item == "word/header1.xml":
+                txt = data.decode("utf-8")
+                if font and font != _HEADER_FONT_LITERAL:
+                    txt = txt.replace(_HEADER_FONT_LITERAL, font)
+                txt = txt.replace(sentinel_sz, target_sz)
+                txt = txt.replace(sentinel_szcs, target_szcs)
+                data = txt.encode("utf-8")
+            elif item == "word/styles.xml":
+                txt = data.decode("utf-8")
+                txt = txt.replace(sentinel_sz, target_sz)
+                data = txt.encode("utf-8")
+            zout.writestr(item, data)
+    return out_buf.getvalue()
 
 
 def _gotenberg_convert(docx_bytes: bytes) -> bytes:
