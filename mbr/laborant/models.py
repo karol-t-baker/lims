@@ -3,6 +3,7 @@ laborant/models.py — EBR batch management, lab data entry, and sync functions.
 """
 
 import json
+import re
 import sqlite3
 from datetime import datetime
 
@@ -732,6 +733,26 @@ def complete_ebr(db: sqlite3.Connection, ebr_id: int, zbiorniki: list | None = N
                     "INSERT OR REPLACE INTO zbiornik_szarze (ebr_id, zbiornik_id, masa_kg, dt_dodania) VALUES (?, ?, ?, ?)",
                     (ebr_id, zbiornik_id, z.get("kg"), now),
                 )
+
+    # Auto-append pakowanie_bezposrednie annotation to uwagi_koncowe.
+    # Whitelist: 'IBC' / 'Beczki'. Word-boundary regex (case-insensitive)
+    # makes this idempotent against repeated calls and respects manual
+    # entries the laborant may have added to uwagi earlier. See spec
+    # docs/superpowers/specs/2026-04-18-pakowanie-annotation-design.md.
+    row = db.execute(
+        "SELECT pakowanie_bezposrednie, uwagi_koncowe FROM ebr_batches WHERE ebr_id=?",
+        (ebr_id,),
+    ).fetchone()
+    pak = (row["pakowanie_bezposrednie"] or "").strip()
+    if pak in ("IBC", "Beczki"):
+        uwagi = (row["uwagi_koncowe"] or "").strip()
+        word_re = re.compile(rf"\b{re.escape(pak)}\b", re.IGNORECASE)
+        if not word_re.search(uwagi):
+            new_uwagi = f"{uwagi}\n{pak}" if uwagi else pak
+            db.execute(
+                "UPDATE ebr_batches SET uwagi_koncowe=? WHERE ebr_id=?",
+                (new_uwagi, ebr_id),
+            )
 
 
 
