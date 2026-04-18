@@ -56,6 +56,7 @@ def create_app():
     from mbr.zbiorniki import zbiorniki_bp
     from mbr.pipeline import pipeline_bp
     from mbr.ml_export import ml_export_bp
+    from mbr.chzt import chzt_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(workers_bp)
@@ -70,6 +71,7 @@ def create_app():
     app.register_blueprint(zbiorniki_bp)
     app.register_blueprint(pipeline_bp)
     app.register_blueprint(ml_export_bp)
+    app.register_blueprint(chzt_bp)
 
     # Initialize database tables
     from mbr.db import db_session
@@ -77,6 +79,8 @@ def create_app():
     with app.app_context():
         with db_session() as db:
             init_mbr_tables(db)
+            from mbr.chzt.models import init_chzt_tables
+            init_chzt_tables(db)
             # Fix metoda_id links for parameters created after seed_metody ran
             from mbr.parametry.seed import _PARAM_METHOD_MAP
             nazwa_to_id = {
