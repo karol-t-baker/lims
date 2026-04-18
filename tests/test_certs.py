@@ -161,3 +161,41 @@ def test_cert_settings_init_idempotent(db):
     rows = db.execute("SELECT key FROM cert_settings").fetchall()
     keys = [r["key"] for r in rows]
     assert len(keys) == len(set(keys)), f"duplicate keys: {keys}"
+
+
+def test_load_cert_settings_returns_seeded_defaults(db):
+    from mbr.certs.generator import _load_cert_settings
+    s = _load_cert_settings(db)
+    assert s["body_font_family"] == "TeX Gyre Bonum"
+    assert s["header_font_size_pt"] == 14  # int, parsed from "14"
+
+
+def test_load_cert_settings_reads_override(db):
+    db.execute("UPDATE cert_settings SET value=? WHERE key=?", ("EB Garamond", "body_font_family"))
+    db.execute("UPDATE cert_settings SET value=? WHERE key=?", ("18", "header_font_size_pt"))
+    db.commit()
+    from mbr.certs.generator import _load_cert_settings
+    s = _load_cert_settings(db)
+    assert s["body_font_family"] == "EB Garamond"
+    assert s["header_font_size_pt"] == 18
+
+
+def test_build_preview_context_includes_typography():
+    """build_preview_context must surface cert_settings in the render context."""
+    product = {
+        "display_name": "Test",
+        "spec_number": "P001",
+        "cas_number": "",
+        "expiry_months": 12,
+        "opinion_pl": "",
+        "opinion_en": "",
+        "parameters": [],
+        "variants": [{"id": "base", "label": "Test", "flags": [], "overrides": {}}],
+    }
+    import unittest.mock as mock
+    with mock.patch("mbr.certs.generator._load_cert_settings",
+                    return_value={"body_font_family": "EB Garamond", "header_font_size_pt": 18}):
+        from mbr.certs.generator import build_preview_context
+        ctx = build_preview_context(product, "base")
+    assert ctx["body_font_family"] == "EB Garamond"
+    assert ctx["header_font_size_pt"] == 18

@@ -27,14 +27,21 @@ _CERT_FONT = "TeX Gyre Bonum"
 _CERT_SIZE = 22  # 11pt in half-points (docxtpl w:sz unit)
 
 
-def _md_to_richtext(text: str) -> RichText:
+def _md_to_richtext(text: str, *, font: str = None, size: int = None) -> RichText:
     """Convert a string with `^{sup}` / `_{sub}` markers into a docxtpl RichText.
 
     Plain strings (no markers) are still returned as RichText — the template uses
     `{{r ... }}` tags everywhere, so values must be RichText objects.
     Font and size set explicitly because {{r}} replaces the entire run,
     losing the template's formatting.
+
+    Args:
+        text: Markup string with optional ^{...}/_{...} markers.
+        font: Font family override. Defaults to module constant _CERT_FONT.
+        size: Font size in half-points. Defaults to module constant _CERT_SIZE.
     """
+    font = font or _CERT_FONT
+    size = size or _CERT_SIZE
     rt = RichText()
     if not text:
         return rt
@@ -42,12 +49,38 @@ def _md_to_richtext(text: str) -> RichText:
         if not part:
             continue
         if part.startswith("^{") and part.endswith("}"):
-            rt.add(part[2:-1], superscript=True, font=_CERT_FONT, size=_CERT_SIZE)
+            rt.add(part[2:-1], superscript=True, font=font, size=size)
         elif part.startswith("_{") and part.endswith("}"):
-            rt.add(part[2:-1], subscript=True, font=_CERT_FONT, size=_CERT_SIZE)
+            rt.add(part[2:-1], subscript=True, font=font, size=size)
         else:
-            rt.add(part, font=_CERT_FONT, size=_CERT_SIZE)
+            rt.add(part, font=font, size=size)
     return rt
+
+
+def _load_cert_settings(db) -> dict:
+    """Load typography settings from cert_settings table.
+
+    Returns dict with typed values:
+      - body_font_family: str
+      - header_font_size_pt: int
+
+    Missing keys fall back to defaults (same as seed in init_mbr_tables).
+    """
+    defaults = {"body_font_family": "TeX Gyre Bonum", "header_font_size_pt": 14}
+    rows = db.execute("SELECT key, value FROM cert_settings").fetchall()
+    out = dict(defaults)
+    for r in rows:
+        k = r["key"]
+        v = r["value"]
+        if k == "header_font_size_pt":
+            try:
+                out[k] = int(v)
+            except (ValueError, TypeError):
+                out[k] = defaults[k]
+        else:
+            out[k] = v
+    return out
+
 
 _CONFIG_PATH = Path(__file__).resolve().parent.parent / "cert_config.json"
 _TEMPLATE_PATH = Path(__file__).resolve().parent.parent / "templates" / "cert_master_template.docx"
@@ -170,6 +203,8 @@ def build_context(
     key = produkt if "_" in produkt else produkt.replace(" ", "_")
 
     with _db_session() as db:
+        _settings = _load_cert_settings(db)
+
         # 1. Product metadata from produkty
         prod_row = db.execute(
             "SELECT display_name, spec_number, cas_number, expiry_months, "
@@ -288,8 +323,8 @@ def build_context(
                         result = str(val).replace(".", ",")
 
             rows.append({
-                "name_pl": _md_to_richtext(name_pl),
-                "name_en": _md_to_richtext(f"/{name_en}") if name_en else None,
+                "name_pl": _md_to_richtext(name_pl, font=_settings["body_font_family"]),
+                "name_en": _md_to_richtext(f"/{name_en}", font=_settings["body_font_family"]) if name_en else None,
                 "requirement": r["requirement"],
                 "method": method,
                 "result": result,
@@ -356,6 +391,8 @@ def build_context(
         "avon_code": avon_code,
         "avon_name": avon_name,
         "wystawil": wystawil,
+        "body_font_family": _settings["body_font_family"],
+        "header_font_size_pt": _settings["header_font_size_pt"],
     }
 
 
@@ -372,6 +409,11 @@ def build_preview_context(product_json: dict, variant_id: str) -> dict:
         Context dict matching the structure of build_context().
     """
     cfg = load_config()
+
+    # Typography settings from cert_settings table
+    from mbr.db import db_session as _db_session
+    with _db_session() as _db:
+        _settings = _load_cert_settings(_db)
 
     # 1. Global settings from cert_config.json
     company = cfg.get("company", {})
@@ -425,8 +467,8 @@ def build_preview_context(product_json: dict, variant_id: str) -> dict:
             result = _format_value(12.34, fmt)
         _ne = param.get("name_en", "")
         rows.append({
-            "name_pl": _md_to_richtext(param.get("name_pl", "")),
-            "name_en": _md_to_richtext(f"/{_ne}") if _ne else None,
+            "name_pl": _md_to_richtext(param.get("name_pl", ""), font=_settings["body_font_family"]),
+            "name_en": _md_to_richtext(f"/{_ne}", font=_settings["body_font_family"]) if _ne else None,
             "requirement": param.get("requirement", ""),
             "method": param.get("method", ""),
             "result": result,
@@ -475,6 +517,8 @@ def build_preview_context(product_json: dict, variant_id: str) -> dict:
         "avon_code": avon_code,
         "avon_name": avon_name,
         "wystawil": "Podgląd",
+        "body_font_family": _settings["body_font_family"],
+        "header_font_size_pt": _settings["header_font_size_pt"],
     }
 
 
