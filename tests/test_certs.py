@@ -132,3 +132,32 @@ def test_mark_swiadectwa_outdated_does_not_affect_other_ebr(db):
     create_swiadectwo(db, ebr2, "T", "4/2026", "/b.pdf", "user")
     mark_swiadectwa_outdated(db, ebr1)
     assert list_swiadectwa(db, ebr2)[0]["nieaktualne"] == 0
+
+
+# ---------------------------------------------------------------------------
+# cert_settings
+# ---------------------------------------------------------------------------
+
+def test_cert_settings_table_exists(db):
+    """init_mbr_tables must create cert_settings."""
+    rows = db.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='cert_settings'"
+    ).fetchall()
+    assert len(rows) == 1
+
+
+def test_cert_settings_default_seed(db):
+    """Defaults must be seeded on first init."""
+    rows = dict(db.execute("SELECT key, value FROM cert_settings").fetchall())
+    assert rows["body_font_family"] == "TeX Gyre Bonum"
+    assert rows["header_font_size_pt"] == "14"
+
+
+def test_cert_settings_init_idempotent(db):
+    """Re-running init_mbr_tables doesn't duplicate seed rows."""
+    from mbr.models import init_mbr_tables
+    init_mbr_tables(db)
+    init_mbr_tables(db)
+    rows = db.execute("SELECT key FROM cert_settings").fetchall()
+    keys = [r["key"] for r in rows]
+    assert len(keys) == len(set(keys)), f"duplicate keys: {keys}"

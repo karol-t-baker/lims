@@ -1143,6 +1143,27 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
         except Exception:
             pass
 
+    # Migration: create cert_settings table (global certificate typography)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS cert_settings (
+            key   TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        )
+    """)
+    db.commit()
+
+    # Seed defaults (INSERT OR IGNORE — idempotent, preserves existing overrides)
+    _cert_settings_defaults = [
+        ("body_font_family", "TeX Gyre Bonum"),
+        ("header_font_size_pt", "14"),
+    ]
+    for k, v in _cert_settings_defaults:
+        db.execute(
+            "INSERT OR IGNORE INTO cert_settings (key, value) VALUES (?, ?)",
+            (k, v),
+        )
+    db.commit()
+
     # Migration: fix swiadectwa FK reference (may point to _ebr_batches_old after ebr_batches rebuild)
     try:
         sw_sql = db.execute(
