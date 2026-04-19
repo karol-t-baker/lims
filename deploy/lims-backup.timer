@@ -1,0 +1,10 @@
+[Unit]
+Description=LIMS daily SQLite backup — 03:00 local
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+Unit=lims-backup.service
+
+[Install]
+WantedBy=timers.target

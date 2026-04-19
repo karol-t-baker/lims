@@ -1,0 +1,12 @@
+[Unit]
+Description=LIMS daily SQLite backup
+After=network.target
+
+[Service]
+Type=oneshot
+User=lims
+WorkingDirectory=/opt/lims
+ExecStart=/opt/lims/deploy/lims-backup.sh
+# Failures should not restart — the timer retries tomorrow; but log loudly.
+StandardOutput=journal
+StandardError=journal

@@ -55,6 +55,22 @@ ln -sf /etc/nginx/sites-available/lims /etc/nginx/sites-enabled/lims
 rm -f /etc/nginx/sites-enabled/default
 nginx -t && systemctl restart nginx
 
+# --- 7.5. Secrets ---
+if [ ! -f /etc/lims.env ]; then
+    echo "Creating /etc/lims.env with fresh secrets..."
+    install -m 600 -o root -g $LIMS_USER /dev/null /etc/lims.env
+    MBR_SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+    MBR_SYNC_TOKEN=$(python3 -c "import secrets; print(secrets.token_hex(16))")
+    tee /etc/lims.env > /dev/null <<EOF
+MBR_SECRET_KEY=${MBR_SECRET_KEY}
+MBR_SYNC_TOKEN=${MBR_SYNC_TOKEN}
+EOF
+    chmod 600 /etc/lims.env
+    chown root:$LIMS_USER /etc/lims.env
+else
+    echo "/etc/lims.env exists, preserving existing secrets"
+fi
+
 # --- 8. Services ---
 echo "[8/8] Installing systemd services..."
 cp "$LIMS_DIR/deploy/lims.service" /etc/systemd/system/
@@ -62,12 +78,16 @@ cp "$LIMS_DIR/deploy/gotenberg.service" /etc/systemd/system/
 cp "$LIMS_DIR/deploy/kiosk.service" /etc/systemd/system/
 cp "$LIMS_DIR/deploy/auto-deploy.service" /etc/systemd/system/
 cp "$LIMS_DIR/deploy/auto-deploy.timer" /etc/systemd/system/
+cp "$LIMS_DIR/deploy/lims-backup.service" /etc/systemd/system/
+cp "$LIMS_DIR/deploy/lims-backup.timer" /etc/systemd/system/
 chmod +x "$LIMS_DIR/deploy/auto-deploy.sh"
+chmod +x "$LIMS_DIR/deploy/lims-backup.sh"
 
 systemctl daemon-reload
 systemctl enable --now gotenberg
 systemctl enable --now lims
 systemctl enable --now auto-deploy.timer
+systemctl enable --now lims-backup.timer
 systemctl enable kiosk
 
 # --- DNS: add lims.local to hosts ---
@@ -75,7 +95,7 @@ grep -q "lims.local" /etc/hosts || echo "127.0.0.1 lims.local" >> /etc/hosts
 
 # --- Init DB ---
 echo "Initializing database..."
-sudo -u $LIMS_USER "$LIMS_DIR/venv/bin/python" -c "from mbr.app import create_app; create_app()"
+sudo -u $LIMS_USER bash -c "set -a; . /etc/lims.env; $LIMS_DIR/venv/bin/python -c 'from mbr.app import create_app; create_app()'"
 
 echo ""
 echo "=== DONE ==="
@@ -88,7 +108,7 @@ echo ""
 echo "  NEXT STEPS:"
 echo "  1. Edit REPO_URL in this script and re-run, or:"
 echo "     cd /opt/lims && git remote set-url origin YOUR_GITHUB_URL"
-echo "  2. Change MBR_SECRET_KEY in /etc/systemd/system/lims.service"
+echo "  2. Verify /etc/lims.env has real secrets (script generated them if missing)"
 echo "  3. Restore backup: copy batch_db.sqlite + swiadectwa/ to /opt/lims/data/"
 echo "  4. Reboot: sudo reboot"
 echo ""

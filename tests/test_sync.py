@@ -82,13 +82,23 @@ def test_save_wyniki_bumps_sync_seq_on_completed(db):
 # ---------------------------------------------------------------------------
 
 @pytest.fixture
-def client(tmp_path):
-    """Flask test client with fresh DB."""
+def client(tmp_path, monkeypatch):
+    """Flask test client with fresh DB; auto-sends X-Sync-Token on every request."""
+    monkeypatch.setenv("MBR_SYNC_TOKEN", "test-token")
     db_path = tmp_path / "test.sqlite"
     with patch("mbr.db.DB_PATH", db_path):
+        from mbr.app import create_app
         app = create_app()
         app.config["TESTING"] = True
         with app.test_client() as c:
+            # Auto-inject the sync token header on every request.
+            orig_open = c.open
+            def _open(*args, **kwargs):
+                headers = kwargs.setdefault("headers", {})
+                if isinstance(headers, dict):
+                    headers.setdefault("X-Sync-Token", "test-token")
+                return orig_open(*args, **kwargs)
+            c.open = _open
             yield c
 
 

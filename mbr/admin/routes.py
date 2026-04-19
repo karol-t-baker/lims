@@ -10,6 +10,7 @@ from flask import jsonify, render_template, request
 from mbr.admin import admin_bp
 from mbr.db import db_session, DB_PATH
 from mbr.shared.decorators import role_required
+from mbr.shared.sync_auth import sync_token_required
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 DEFAULT_BACKUP_DIR = PROJECT_ROOT / "data" / "backups"
@@ -358,8 +359,9 @@ def api_download_cert():
 
 
 @admin_bp.route("/api/admin/db-snapshot")
+@sync_token_required
 def api_db_snapshot():
-    """Download current DB as file (for COA app sync). No login required — LAN only."""
+    """Download current DB as file (for COA app sync). Shared-secret via X-Sync-Token."""
     from flask import send_file
     from mbr.db import DB_PATH
     return send_file(str(DB_PATH), mimetype="application/octet-stream",
@@ -367,9 +369,9 @@ def api_db_snapshot():
 
 
 @admin_bp.route("/api/completed")
+@sync_token_required
 def api_completed():
     """Return completed batches with sync_seq > since.
-<<<<<<< HEAD
 
     Query params:
         since (int): last known sync_seq (default 0 = return all)
