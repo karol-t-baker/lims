@@ -118,3 +118,47 @@ def test_put_parametry_grupa_only_non_admin_rejected(client_non_admin, db):
     assert r.status_code == 400
     row = db.execute("SELECT grupa FROM parametry_analityczne WHERE id=?", (pid,)).fetchone()
     assert row["grupa"] == "lab"
+
+
+def test_binding_legacy_inherits_grupa_from_parametr(client, db):
+    """Binding created via POST /api/parametry/etapy on a NON-pipeline product
+    (legacy path → parametry_etapy) inherits grupa from parametry_analityczne."""
+    pid = _seed_param(db, "tpc", "zewn")
+    r = client.post("/api/parametry/etapy", json={
+        "parametr_id": pid, "kontekst": "analiza_koncowa",
+        "produkt": "TEST_LEGACY",  # no pipeline row in the fixture → legacy branch
+        "min_limit": 0, "max_limit": 100,
+    })
+    assert r.status_code == 200, r.get_json()
+    row = db.execute(
+        "SELECT grupa FROM parametry_etapy WHERE parametr_id=? AND produkt='TEST_LEGACY'",
+        (pid,),
+    ).fetchone()
+    assert row is not None
+    assert row["grupa"] == "zewn"
+
+
+def test_binding_legacy_honors_explicit_grupa_override(client, db):
+    """Explicit 'grupa' in request body overrides the global default."""
+    pid = _seed_param(db, "tpc", "zewn")  # global grupa='zewn'
+    r = client.post("/api/parametry/etapy", json={
+        "parametr_id": pid, "kontekst": "analiza_koncowa", "produkt": "TEST_LEGACY",
+        "grupa": "lab",  # admin wants this particular binding to be 'lab' anyway
+        "min_limit": 0, "max_limit": 100,
+    })
+    assert r.status_code == 200
+    row = db.execute(
+        "SELECT grupa FROM parametry_etapy WHERE parametr_id=? AND produkt='TEST_LEGACY'",
+        (pid,),
+    ).fetchone()
+    assert row["grupa"] == "lab"
+
+
+def test_binding_legacy_rejects_invalid_grupa(client, db):
+    pid = _seed_param(db, "tpc", "lab")
+    r = client.post("/api/parametry/etapy", json={
+        "parametr_id": pid, "kontekst": "analiza_koncowa", "produkt": "TEST_LEGACY",
+        "grupa": "mikrobio",
+    })
+    assert r.status_code == 400
+    assert "grupa" in (r.get_json().get("error") or "").lower()

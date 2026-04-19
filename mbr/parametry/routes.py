@@ -181,7 +181,15 @@ def api_parametry_etapy_create():
         ).fetchone()
         if existing:
             return jsonify({"error": "Duplicate binding"}), 409
-        grupa = data.get("grupa", "lab")
+        if "grupa" in data:
+            grupa = data["grupa"]
+        else:
+            gr_row = db.execute(
+                "SELECT grupa FROM parametry_analityczne WHERE id=?", (parametr_id,)
+            ).fetchone()
+            grupa = (gr_row["grupa"] if gr_row and gr_row["grupa"] else "lab")
+        if grupa not in ALLOWED_GRUPY:
+            return jsonify({"error": f"grupa must be one of: {', '.join(sorted(ALLOWED_GRUPY))}"}), 400
         cur = db.execute(
             """INSERT INTO parametry_etapy (parametr_id, kontekst, produkt, nawazka_g, min_limit, max_limit, grupa)
                VALUES (?, ?, ?, ?, ?, ?, ?)""",
