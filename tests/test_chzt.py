@@ -646,3 +646,33 @@ def test_historia_page_renders(client, db):
     body = resp.get_data(as_text=True)
     assert "2026-04-18" in body
     assert "2026-04-17" in body
+
+
+def test_get_session_with_pomiary_includes_finalized_by_name(db):
+    sid, _ = get_or_create_session(db, "2026-04-18", created_by=1, n_kontenery=0)
+    db.commit()
+    # Populate all required fields for finalize
+    for punkt in ("hala", "rura", "szambiarka"):
+        pid = db.execute(
+            "SELECT id FROM chzt_pomiary WHERE sesja_id=? AND punkt_nazwa=?",
+            (sid, punkt),
+        ).fetchone()["id"]
+        update_pomiar(db, pid, {"ph": 10, "p1": 1, "p2": 2, "p3": None, "p4": None, "p5": None}, updated_by=1)
+    finalize_session(db, sid, finalized_by=2)
+    db.commit()
+    session_data = get_session_with_pomiary(db, sid)
+    assert session_data["finalized_by_name"] == "Anna Nowak"
+
+
+def test_get_session_with_pomiary_finalized_by_name_null_when_not_finalized(db):
+    sid, _ = get_or_create_session(db, "2026-04-18", created_by=1, n_kontenery=0)
+    db.commit()
+    session_data = get_session_with_pomiary(db, sid)
+    assert session_data["finalized_by_name"] is None
+
+
+def test_patch_session_n_kontenery_rejects_over_20(client, db):
+    r0 = client.get("/api/chzt/session/today").get_json()
+    sid = r0["session"]["id"]
+    resp = client.patch(f"/api/chzt/session/{sid}", json={"n_kontenery": 21})
+    assert resp.status_code == 400

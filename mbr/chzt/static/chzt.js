@@ -84,6 +84,10 @@
     html += '</tbody></table>';
     el('chzt-body').innerHTML = html;
     wireEnterNavigation();
+    _session.punkty.forEach(function(p) {
+      var avgEl = el('chzt-avg-' + p.id);
+      if (avgEl) styleAvgCell(avgEl, p.srednia);
+    });
   }
 
   function countNonNull(p) {
@@ -102,6 +106,14 @@
   function fmtAvg(v) {
     if (v === null || v === undefined) return '\u2014';
     return Math.round(v).toLocaleString('pl-PL');
+  }
+
+  function styleAvgCell(el, v) {
+    if (v !== null && v !== undefined && v > 40000) {
+      el.style.color = 'var(--red, #c13)';
+    } else {
+      el.style.color = '';  // fall back to CSS default (teal)
+    }
   }
 
   function escapeHtml(s) {
@@ -168,7 +180,10 @@
         }
       }
       var avgEl = el('chzt-avg-' + pid);
-      if (avgEl) avgEl.textContent = fmtAvg(resp.pomiar.srednia);
+      if (avgEl) {
+        avgEl.textContent = fmtAvg(resp.pomiar.srednia);
+        styleAvgCell(avgEl, resp.pomiar.srednia);
+      }
       setStatus('saved', 'zapisano · ' + fmtTime(resp.pomiar.updated_at));
     }).catch(function(err){
       _saveInFlight[pid] = false;

@@ -55,31 +55,35 @@ def build_punkty_names(n_kontenery: int) -> list:
 def get_or_create_session(db, data_iso: str, *, created_by: int, n_kontenery: int = 8):
     """Return (session_id, created_bool).
 
-    If session for `data_iso` exists, returns its id and created=False.
-    Otherwise inserts a new session with n_kontenery and seeds pomiary rows
-    in canonical order. `data_iso` format: YYYY-MM-DD.
-    """
-    row = db.execute("SELECT id FROM chzt_sesje WHERE data=?", (data_iso,)).fetchone()
-    if row:
-        return row["id"], False
+    Race-safe: uses INSERT OR IGNORE then follow-up SELECT. If two parallel
+    requests hit this for the same `data_iso`, the second one wins nothing —
+    only one INSERT succeeds, the loser falls through to the SELECT of the
+    winner's row. Caller can rely on `created=True` to gate audit `session.created`
+    — only the winning request sees created=True.
 
+    `data_iso` format: YYYY-MM-DD.
+    """
     now = datetime.now().isoformat(timespec="seconds")
     cur = db.execute(
-        "INSERT INTO chzt_sesje (data, n_kontenery, created_at, created_by) "
+        "INSERT OR IGNORE INTO chzt_sesje (data, n_kontenery, created_at, created_by) "
         "VALUES (?, ?, ?, ?)",
         (data_iso, n_kontenery, now, created_by),
     )
-    session_id = cur.lastrowid
+    created = cur.rowcount == 1
+    session_id = cur.lastrowid if created else db.execute(
+        "SELECT id FROM chzt_sesje WHERE data=?", (data_iso,)
+    ).fetchone()["id"]
 
-    names = build_punkty_names(n_kontenery)
-    for idx, name in enumerate(names, start=1):
-        db.execute(
-            "INSERT INTO chzt_pomiary (sesja_id, punkt_nazwa, kolejnosc, updated_at) "
-            "VALUES (?, ?, ?, ?)",
-            (session_id, name, idx, now),
-        )
+    if created:
+        names = build_punkty_names(n_kontenery)
+        for idx, name in enumerate(names, start=1):
+            db.execute(
+                "INSERT INTO chzt_pomiary (sesja_id, punkt_nazwa, kolejnosc, updated_at) "
+                "VALUES (?, ?, ?, ?)",
+                (session_id, name, idx, now),
+            )
 
-    return session_id, True
+    return session_id, created
 
 
 def compute_srednia(row: dict):
@@ -263,8 +267,12 @@ def get_session_with_pomiary(db, session_id: int) -> dict:
     Returns None if session not found.
     """
     srow = db.execute(
-        "SELECT id, data, n_kontenery, created_at, created_by, "
-        "       finalized_at, finalized_by FROM chzt_sesje WHERE id=?",
+        "SELECT s.id, s.data, s.n_kontenery, s.created_at, s.created_by, "
+        "       s.finalized_at, s.finalized_by, "
+        "       w.imie || ' ' || w.nazwisko AS finalized_by_name "
+        "FROM chzt_sesje s "
+        "LEFT JOIN workers w ON w.id = s.finalized_by "
+        "WHERE s.id=?",
         (session_id,),
     ).fetchone()
     if srow is None:
