@@ -22,6 +22,16 @@
     {% if ebr.typ == 'zbiornik' %}
       <span class="en-badge" style="background:var(--blue-bg, #e8f0fe);color:var(--blue, #1a73e8);margin-right:4px;">{{ ebr.nr_zbiornika or 'ZB' }}</span>
     {% endif %}
+    {# Zbiorniki assignment (mid-batch) — inline in topbar, only szarza + open #}
+    {% if ebr.typ == 'szarza' and ebr.status == 'open' %}
+    <span class="zb-assign-inline" id="zb-assign-section" data-ebr-id="{{ ebr.ebr_id }}">
+      <span class="zb-assign-label">Zbiorniki:</span>
+      <span class="zb-assign-pills" id="zb-assign-pills">
+        <span class="zb-assign-empty">—</span>
+      </span>
+      <button class="zb-assign-add" onclick="openZbAssignModal()" type="button" title="Dodaj zbiornik">+</button>
+    </span>
+    {% endif %}
     {% if ebr.status == 'open' %}
       <span class="en-badge b-wait">otwarta</span>
     {% else %}
@@ -36,18 +46,6 @@
     {% endif %}
   </span>
 </div>
-
-{# Zbiorniki assignment (mid-batch) — only for szarza-typed open batches.
-   MUST live OUTSIDE sections-container because JS renderers overwrite it. #}
-{% if ebr.typ == 'szarza' and ebr.status == 'open' %}
-<div class="zb-assign-section" id="zb-assign-section" data-ebr-id="{{ ebr.ebr_id }}">
-  <div class="zb-assign-label">Zbiorniki</div>
-  <div class="zb-assign-pills" id="zb-assign-pills">
-    <span class="zb-assign-empty">wczytywanie…</span>
-  </div>
-  <button class="zb-assign-add" onclick="openZbAssignModal()" type="button">+ Dodaj zbiornik</button>
-</div>
-{% endif %}
 
 <div id="detail-workspace">
   <div class="col-main" id="sections-container" {% if ebr.status != 'open' %}style="padding:20px 24px;"{% endif %}>

@@ -2280,52 +2280,51 @@ details[open].rh-round > .rh-summary::before { transform: rotate(90deg); }
   cursor: help;
 }
 
-/* ═══ Zbiorniki mid-batch section (batch detail view, typ=szarza + open) ═══ */
+/* ═══ Zbiorniki mid-batch — inline w topbarze (batch detail view) ═══ */
 
-.zb-assign-section {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  padding: 10px 14px;
-  background: var(--surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  margin: 12px 20px 14px;
+.zb-assign-inline {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin: 0 10px;
+  padding: 0 10px;
+  border-left: 1px solid var(--border-subtle);
+  border-right: 1px solid var(--border-subtle);
 }
 .zb-assign-label {
   font-size: 10px; font-weight: 700;
   color: var(--text-dim);
-  text-transform: uppercase; letter-spacing: 0.5px;
-  flex-shrink: 0;
+  text-transform: uppercase; letter-spacing: 0.4px;
 }
 .zb-assign-pills {
-  display: flex; gap: 6px; flex-wrap: wrap;
-  flex: 1; min-width: 0;
+  display: inline-flex; gap: 4px; flex-wrap: wrap;
 }
 .zb-assign-empty {
   color: var(--text-dim); font-style: italic; font-size: 11px;
 }
 .zb-pill {
   display: inline-flex; align-items: center; gap: 2px;
-  padding: 4px 10px;
+  padding: 2px 8px;
   border-radius: 999px;
   background: var(--blue-bg); color: var(--blue);
   font-size: 11px; font-weight: 600; font-family: var(--mono);
+  line-height: 1.4;
 }
 .zb-pill-remove {
   border: none; background: none; cursor: pointer;
-  color: var(--blue); font-size: 16px; line-height: 1;
-  padding: 0 2px; margin-left: 4px;
+  color: var(--blue); font-size: 14px; line-height: 1;
+  padding: 0 2px; margin-left: 2px;
   border-radius: 50%;
   transition: background 0.1s;
 }
-.zb-pill-remove:hover { background: rgba(0,0,0,0.1); }
+.zb-pill-remove:hover { background: rgba(0,0,0,0.12); }
 .zb-assign-add {
-  padding: 5px 12px;
+  width: 22px; height: 22px;
   border: 1px dashed var(--border);
-  border-radius: 6px;
+  border-radius: 50%;
   background: transparent; color: var(--text-sec);
-  font-size: 11px; font-weight: 500; font-family: var(--font);
+  font-size: 14px; font-weight: 600; font-family: var(--font);
   cursor: pointer; transition: all 0.12s;
-  flex-shrink: 0;
+  line-height: 1; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
 }
 .zb-assign-add:hover {
   border-color: var(--teal); color: var(--teal);
