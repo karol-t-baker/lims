@@ -171,9 +171,11 @@ def api_coa_sync():
     try:
         import urllib3
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        sync_token = os.environ.get("MBR_SYNC_TOKEN", "")
         r = http_requests.get(
             f"{server}/api/completed?since={last_seq}&ref_hash={ref_hash}",
             timeout=15, verify=False,
+            headers={"X-Sync-Token": sync_token} if sync_token else {},
         )
         r.raise_for_status()
         data = r.json()
@@ -267,7 +269,12 @@ def api_coa_sync_full():
     try:
         import urllib3
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-        r = http_requests.get(f"{server}/api/admin/db-snapshot", timeout=30, verify=False)
+        sync_token = os.environ.get("MBR_SYNC_TOKEN", "")
+        r = http_requests.get(
+            f"{server}/api/admin/db-snapshot",
+            timeout=30, verify=False,
+            headers={"X-Sync-Token": sync_token} if sync_token else {},
+        )
         r.raise_for_status()
         with open(DB_PATH, "wb") as f:
             f.write(r.content)
