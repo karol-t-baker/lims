@@ -75,7 +75,9 @@ def api_parametry_update(param_id):
     rola = session.get("user", {}).get("rola", "")
     allowed = {"label", "skrot", "formula", "metoda_nazwa", "metoda_formula", "metoda_factor", "precision"}
     if rola == "admin":
-        allowed |= {"typ", "jednostka", "aktywny", "name_en", "method_code"}
+        allowed |= {"typ", "jednostka", "aktywny", "name_en", "method_code", "grupa"}
+    if "grupa" in data and data["grupa"] not in ALLOWED_GRUPY:
+        return jsonify({"error": f"grupa must be one of: {', '.join(sorted(ALLOWED_GRUPY))}"}), 400
     updates = {k: v for k, v in data.items() if k in allowed}
     if not updates:
         return jsonify({"error": "No valid fields"}), 400

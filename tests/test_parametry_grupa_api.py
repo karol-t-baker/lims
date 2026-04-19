@@ -65,3 +65,56 @@ def test_post_parametry_rejects_unknown_grupa(client, db):
     assert "grupa" in (r.get_json().get("error") or "").lower()
     # Must not have created the row
     assert db.execute("SELECT COUNT(*) FROM parametry_analityczne WHERE kod='x'").fetchone()[0] == 0
+
+
+@pytest.fixture
+def client_non_admin(monkeypatch, db):
+    return _make_client(monkeypatch, db, rola="lab")
+
+
+def _seed_param(db, kod="sm", grupa="lab"):
+    db.execute(
+        "INSERT INTO parametry_analityczne (kod, label, typ, grupa) VALUES (?, ?, 'bezposredni', ?)",
+        (kod, kod.upper(), grupa),
+    )
+    db.commit()
+    return db.execute("SELECT id FROM parametry_analityczne WHERE kod=?", (kod,)).fetchone()["id"]
+
+
+def test_put_parametry_admin_can_change_grupa(client, db):
+    pid = _seed_param(db, "tpc", "lab")
+    r = client.put(f"/api/parametry/{pid}", json={"grupa": "zewn"})
+    assert r.status_code == 200
+    row = db.execute("SELECT grupa FROM parametry_analityczne WHERE id=?", (pid,)).fetchone()
+    assert row["grupa"] == "zewn"
+
+
+def test_put_parametry_rejects_unknown_grupa(client, db):
+    pid = _seed_param(db, "tpc", "lab")
+    r = client.put(f"/api/parametry/{pid}", json={"grupa": "nonsense"})
+    assert r.status_code == 400
+    # DB unchanged
+    row = db.execute("SELECT grupa FROM parametry_analityczne WHERE id=?", (pid,)).fetchone()
+    assert row["grupa"] == "lab"
+
+
+def test_put_parametry_non_admin_cannot_change_grupa(client_non_admin, db):
+    """Grupa is admin-only, like typ/aktywny. Non-admin PUT with grupa: ignored (silently dropped from allowed set).
+    The response may succeed (200) or reject (400 'No valid fields') depending on whether other fields are also sent.
+    Key invariant: DB row's grupa must NOT change."""
+    pid = _seed_param(db, "tpc", "lab")
+    r = client_non_admin.put(f"/api/parametry/{pid}", json={"grupa": "zewn", "label": "new label"})
+    # label IS allowed for non-admin, so request returns 200, grupa silently dropped
+    assert r.status_code == 200
+    row = db.execute("SELECT grupa, label FROM parametry_analityczne WHERE id=?", (pid,)).fetchone()
+    assert row["grupa"] == "lab"
+    assert row["label"] == "new label"
+
+
+def test_put_parametry_grupa_only_non_admin_rejected(client_non_admin, db):
+    pid = _seed_param(db, "tpc", "lab")
+    r = client_non_admin.put(f"/api/parametry/{pid}", json={"grupa": "zewn"})
+    # No valid fields for non-admin to update
+    assert r.status_code == 400
+    row = db.execute("SELECT grupa FROM parametry_analityczne WHERE id=?", (pid,)).fetchone()
+    assert row["grupa"] == "lab"
