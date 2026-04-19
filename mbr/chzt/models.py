@@ -120,38 +120,41 @@ def build_punkty_names(n_kontenery: int) -> list:
     return names
 
 
-def get_or_create_session(db, data_iso: str, *, created_by: int, n_kontenery: int = 8):
-    """Return (session_id, created_bool).
+def get_active_session(db) -> dict | None:
+    """Return the single open (finalized_at IS NULL) session as dict, or None."""
+    row = db.execute(
+        "SELECT id, dt_start, n_kontenery, created_at, created_by, finalized_at, finalized_by "
+        "FROM chzt_sesje WHERE finalized_at IS NULL "
+        "ORDER BY dt_start DESC LIMIT 1"
+    ).fetchone()
+    return dict(row) if row else None
 
-    Race-safe: uses INSERT OR IGNORE then follow-up SELECT. If two parallel
-    requests hit this for the same `data_iso`, the second one wins nothing —
-    only one INSERT succeeds, the loser falls through to the SELECT of the
-    winner's row. Caller can rely on `created=True` to gate audit `session.created`
-    — only the winning request sees created=True.
 
-    `data_iso` format: YYYY-MM-DD.
+def create_session(db, *, created_by: int, n_kontenery: int = 8) -> int:
+    """Create a new session with dt_start=now() and seed N+3 pomiary rows.
+
+    Raises ValueError("already_open") if another session is already open
+    (finalized_at IS NULL). Caller owns the transaction.
     """
+    if db.execute("SELECT 1 FROM chzt_sesje WHERE finalized_at IS NULL LIMIT 1").fetchone():
+        raise ValueError("already_open")
+
     now = datetime.now().isoformat(timespec="seconds")
     cur = db.execute(
-        "INSERT OR IGNORE INTO chzt_sesje (data, n_kontenery, created_at, created_by) "
+        "INSERT INTO chzt_sesje (dt_start, n_kontenery, created_at, created_by) "
         "VALUES (?, ?, ?, ?)",
-        (data_iso, n_kontenery, now, created_by),
+        (now, n_kontenery, now, created_by),
     )
-    created = cur.rowcount == 1
-    session_id = cur.lastrowid if created else db.execute(
-        "SELECT id FROM chzt_sesje WHERE data=?", (data_iso,)
-    ).fetchone()["id"]
+    session_id = cur.lastrowid
 
-    if created:
-        names = build_punkty_names(n_kontenery)
-        for idx, name in enumerate(names, start=1):
-            db.execute(
-                "INSERT INTO chzt_pomiary (sesja_id, punkt_nazwa, kolejnosc, updated_at) "
-                "VALUES (?, ?, ?, ?)",
-                (session_id, name, idx, now),
-            )
-
-    return session_id, created
+    names = build_punkty_names(n_kontenery)
+    for idx, name in enumerate(names, start=1):
+        db.execute(
+            "INSERT INTO chzt_pomiary (sesja_id, punkt_nazwa, kolejnosc, updated_at) "
+            "VALUES (?, ?, ?, ?)",
+            (session_id, name, idx, now),
+        )
+    return session_id
 
 
 def compute_srednia(row: dict):

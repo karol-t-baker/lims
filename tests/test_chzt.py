@@ -60,7 +60,7 @@ def test_build_punkty_names_n8():
     assert len(names) == 11
 
 
-from mbr.chzt.models import get_or_create_session, get_session_with_pomiary
+from mbr.chzt.models import get_session_with_pomiary
 
 
 def test_get_or_create_session_creates_fresh(db):
@@ -765,3 +765,63 @@ def test_migration_mbr_users_rola_check_includes_produkcja():
     row = conn.execute("SELECT rola FROM mbr_users WHERE login='mag1'").fetchone()
     assert row["rola"] == "produkcja"
     conn.close()
+
+
+# ───────────────────────────────────────────────────────────────
+# Session helpers (redesign: on-demand, max 1 open)
+# ───────────────────────────────────────────────────────────────
+
+from mbr.chzt.models import get_active_session, create_session
+
+
+def test_create_session_returns_id_and_seeds_pomiary(db):
+    sid = create_session(db, created_by=1, n_kontenery=3)
+    db.commit()
+    assert isinstance(sid, int)
+
+    row = db.execute(
+        "SELECT dt_start, n_kontenery, finalized_at FROM chzt_sesje WHERE id=?", (sid,)
+    ).fetchone()
+    assert row["n_kontenery"] == 3
+    assert row["finalized_at"] is None
+    assert "T" in row["dt_start"]
+
+    pomiary = db.execute(
+        "SELECT punkt_nazwa FROM chzt_pomiary WHERE sesja_id=? ORDER BY kolejnosc", (sid,)
+    ).fetchall()
+    names = [r["punkt_nazwa"] for r in pomiary]
+    assert names == ["hala", "rura", "kontener 1", "kontener 2", "kontener 3", "szambiarka"]
+
+
+def test_create_session_raises_when_another_open(db):
+    create_session(db, created_by=1, n_kontenery=3)
+    db.commit()
+    with pytest.raises(ValueError) as exc:
+        create_session(db, created_by=1, n_kontenery=5)
+    assert "already_open" in str(exc.value)
+
+
+def test_create_session_ok_after_previous_finalized(db):
+    sid1 = create_session(db, created_by=1, n_kontenery=3)
+    db.execute("UPDATE chzt_sesje SET finalized_at=? WHERE id=?", ("2026-04-18T12:00:00", sid1))
+    db.commit()
+    sid2 = create_session(db, created_by=2, n_kontenery=8)
+    db.commit()
+    assert sid2 != sid1
+
+
+def test_get_active_session_returns_open_one(db):
+    sid = create_session(db, created_by=1, n_kontenery=3)
+    db.commit()
+    active = get_active_session(db)
+    assert active is not None
+    assert active["id"] == sid
+    assert active["finalized_at"] is None
+
+
+def test_get_active_session_returns_none_when_no_open(db):
+    assert get_active_session(db) is None
+    sid = create_session(db, created_by=1, n_kontenery=1)
+    db.execute("UPDATE chzt_sesje SET finalized_at=? WHERE id=?", ("2026-04-18T12:00:00", sid))
+    db.commit()
+    assert get_active_session(db) is None

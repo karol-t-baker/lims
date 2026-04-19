@@ -6,7 +6,8 @@ from flask import jsonify, request, session, render_template
 
 from mbr.chzt import chzt_bp
 from mbr.chzt.models import (
-    get_or_create_session,
+    get_active_session,
+    create_session,
     get_session_with_pomiary,
     get_pomiar,
     update_pomiar,
