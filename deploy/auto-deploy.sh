@@ -20,9 +20,14 @@ echo "$(date): New commits detected, deploying..."
 git checkout -- .
 find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 
-# Backup database before deploy
+# Backup database before deploy (online .backup handles WAL correctly; cp does not)
 mkdir -p data/backups
-cp data/batch_db.sqlite "data/backups/pre-deploy-$(date +%Y%m%d-%H%M%S).sqlite"
+BACKUP_PATH="data/backups/pre-deploy-$(date +%Y%m%d-%H%M%S).sqlite"
+sqlite3 data/batch_db.sqlite ".backup '$BACKUP_PATH'"
+if [ ! -s "$BACKUP_PATH" ]; then
+    echo "$(date): BACKUP FAILED — aborting deploy" >&2
+    exit 1
+fi
 # Disk cleanup: old backups, __pycache__, stale WAL
 /opt/lims/venv/bin/python -m scripts.cleanup_disk 2>/dev/null || true
 
