@@ -1509,6 +1509,26 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     except Exception:
         pass
 
+    # Migration: cert_alias table for cross-product cert variant surfacing
+    try:
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS cert_alias (
+                source_produkt TEXT NOT NULL,
+                target_produkt TEXT NOT NULL,
+                PRIMARY KEY (source_produkt, target_produkt)
+            )
+        """)
+        db.commit()
+    except Exception:
+        pass
+
+    # Migration: add target_produkt to swiadectwa (for aliased cert archive)
+    try:
+        db.execute("ALTER TABLE swiadectwa ADD COLUMN target_produkt TEXT")
+        db.commit()
+    except Exception:
+        pass  # column already exists
+
 # ---------------------------------------------------------------------------
 # Auto-numbering — moved to mbr.laborant.models, re-exported for backward compat
 # ---------------------------------------------------------------------------
