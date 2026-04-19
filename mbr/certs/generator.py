@@ -27,6 +27,20 @@ _CERT_FONT = "Bookman Old Style"
 _CERT_SIZE = 22  # 11pt in half-points (docxtpl w:sz unit)
 
 
+def get_cert_aliases(db, source_produkt: str) -> list[str]:
+    """Return list of target_produkt strings that source_produkt can alias into.
+
+    An alias `(source_produkt, target_produkt)` means: batches of source_produkt
+    can issue cert variants owned by target_produkt. Used by api_cert_templates
+    to union variant lists and by api_cert_generate to validate the alias.
+    """
+    rows = db.execute(
+        "SELECT target_produkt FROM cert_alias WHERE source_produkt = ? ORDER BY target_produkt",
+        (source_produkt,),
+    ).fetchall()
+    return [r["target_produkt"] for r in rows]
+
+
 def _md_to_richtext(text: str, *, font: str = None, size: int = None) -> RichText:
     """Convert a string with `^{sup}` / `_{sub}` / `|` markers into a docxtpl RichText.
 
