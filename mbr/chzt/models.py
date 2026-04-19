@@ -245,7 +245,9 @@ def list_sessions_paginated(db, *, page: int = 1, per_page: int = 10) -> dict:
     rows = db.execute(
         "SELECT s.id, s.data, s.n_kontenery, s.finalized_at, "
         "       w.imie || ' ' || w.nazwisko AS finalized_by_name, "
-        "       (SELECT MAX(updated_at) FROM chzt_pomiary WHERE sesja_id=s.id) AS updated_at_max "
+        "       (SELECT MAX(updated_at) FROM chzt_pomiary WHERE sesja_id=s.id) AS updated_at_max, "
+        "       (SELECT ROUND(AVG(srednia)) FROM chzt_pomiary WHERE sesja_id=s.id AND srednia IS NOT NULL) AS avg_chzt, "
+        "       (SELECT ROUND(MAX(srednia)) FROM chzt_pomiary WHERE sesja_id=s.id AND srednia IS NOT NULL) AS max_chzt "
         "FROM chzt_sesje s "
         "LEFT JOIN workers w ON w.id = s.finalized_by "
         "ORDER BY s.data DESC "

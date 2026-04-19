@@ -572,6 +572,24 @@ def test_list_sessions_paginated_splits_pages(db):
     assert page2["page"] == 2
 
 
+def test_list_sessions_paginated_includes_avg_and_max(db):
+    sid, _ = get_or_create_session(db, "2026-04-18", created_by=1, n_kontenery=1)
+    db.commit()
+    pid_hala = db.execute(
+        "SELECT id FROM chzt_pomiary WHERE sesja_id=? AND punkt_nazwa='hala'", (sid,)
+    ).fetchone()["id"]
+    pid_k1 = db.execute(
+        "SELECT id FROM chzt_pomiary WHERE sesja_id=? AND punkt_nazwa='kontener 1'", (sid,)
+    ).fetchone()["id"]
+    update_pomiar(db, pid_hala, {"ph": 10, "p1": 20000, "p2": 22000, "p3": None, "p4": None, "p5": None}, updated_by=1)
+    update_pomiar(db, pid_k1,   {"ph": 10, "p1": 45000, "p2": 44000, "p3": None, "p4": None, "p5": None}, updated_by=1)
+    db.commit()
+    page = list_sessions_paginated(db, page=1, per_page=10)
+    s = page["sesje"][0]
+    assert s["avg_chzt"] is not None
+    assert s["max_chzt"] == 44500  # max of {21000, 44500} rounded
+
+
 def test_get_session_by_date_ok(client, db):
     client.get("/api/chzt/session/today")
     today = date.today().isoformat()

@@ -1,13 +1,13 @@
-// ChZT Ścieków — modal logic with per-row autosave (debounce 400ms).
+// ChZT Ścieków — modal logic with per-row autosave (on blur).
 // Pattern: DB is SSOT. No localStorage. Modal opens → GET session → render.
-// Each field edit → debounced PUT /api/chzt/pomiar/<id> with the whole row.
+// Each field blur → PUT /api/chzt/pomiar/<id> with the whole row.
 
 (function(){
   'use strict';
 
   var _session = null;           // {id, data, n_kontenery, finalized_at, finalized_by, punkty: [...]}
-  var _debounceTimers = {};      // pomiar_id → timeout handle
   var _saveInFlight = {};        // pomiar_id → bool
+  var _dirtyRows = {};           // pomiar_id → true if edited but not yet saved
 
   function el(id) { return document.getElementById(id); }
 
@@ -51,16 +51,19 @@
     var saveBtn = el('chzt-save-btn');
     if (_session.finalized_at) {
       var who = _session.finalized_by_name || ('id=' + _session.finalized_by);
-      banner.textContent = '✓ Sfinalizowano ' + fmtTime(_session.finalized_at) +
-        ' przez ' + who + ' — edycja możliwa, logowana';
+      banner.textContent = '✓ Sfinalizowano ' + fmtTime(_session.finalized_at) + ' przez ' + who;
       banner.style.display = 'block';
       saveBtn.style.display = 'none';
-      footerInfo.textContent = '✓ Zakończono · edycja aktywna';
+      footerInfo.textContent = 'Dzień sfinalizowany — nowa sesja rozpocznie się jutro';
       footerInfo.style.display = 'inline';
+      var autosaveNote = document.querySelector('.chzt-autosave-note');
+      if (autosaveNote) autosaveNote.style.display = 'none';
     } else {
       banner.style.display = 'none';
       saveBtn.style.display = '';
       footerInfo.style.display = 'none';
+      var autosaveNote = document.querySelector('.chzt-autosave-note');
+      if (autosaveNote) autosaveNote.style.display = '';
     }
   }
 
@@ -144,20 +147,35 @@
   function wireInputHandlers() {
     document.querySelectorAll('#chzt-body .chzt-inp').forEach(function(inp) {
       inp.addEventListener('input', function(){
-        var pid = parseInt(inp.dataset.pid);
+        // regex validation only — no save
         if (inp.value !== '' && !/^[0-9]*[.,]?[0-9]*$/.test(inp.value)) {
           inp.classList.add('invalid');
         } else {
           inp.classList.remove('invalid');
         }
-        scheduleAutosave(pid);
+        _markDirty(parseInt(inp.dataset.pid));
+      });
+      inp.addEventListener('blur', function(){
+        var pid = parseInt(inp.dataset.pid);
+        if (_dirtyRows[pid]) {
+          saveRow(pid, 0);
+          _dirtyRows[pid] = false;
+        }
       });
     });
   }
 
-  function scheduleAutosave(pid) {
-    if (_debounceTimers[pid]) clearTimeout(_debounceTimers[pid]);
-    _debounceTimers[pid] = setTimeout(function(){ saveRow(pid, 0); }, 400);
+  function _markDirty(pid) {
+    _dirtyRows[pid] = true;
+  }
+
+  function flushDirtyRows() {
+    Object.keys(_dirtyRows).forEach(function(pidStr){
+      if (_dirtyRows[pidStr]) {
+        saveRow(parseInt(pidStr), 0);
+        _dirtyRows[pidStr] = false;
+      }
+    });
   }
 
   function saveRow(pid, attempt) {
@@ -248,8 +266,13 @@
   };
 
   window.closeChztModal = function() {
+    flushDirtyRows();
     el('chzt-overlay').classList.remove('show');
   };
+
+  window.addEventListener('beforeunload', function(){
+    flushDirtyRows();
+  });
 
   window.chztApplyKontenery = function() {
     if (!_session) return;
@@ -281,6 +304,7 @@
 
   window.chztFinalize = function() {
     if (!_session) return;
+    flushDirtyRows();
     var localErrors = [];
     _session.punkty.forEach(function(p) {
       var row = getRowValues(p.id);
@@ -344,44 +368,53 @@
       }
     });
   }
-  var _historiaLoaded = {};  // session_id → 'pomiary' | 'audit' | null
-
   function fetchJson(url) {
     return fetch(url, {headers: {'Accept': 'application/json'}})
       .then(function(r){ if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
   }
 
-  window.chztHistoriaTogglePomiary = function(sid) {
-    var body = document.getElementById('chzt-card-body-' + sid);
-    if (!body) return;
-    if (_historiaLoaded[sid] === 'pomiary' && body.dataset.loaded === 'yes') {
-      body.dataset.loaded = 'no';
-      body.style.display = 'none';
-      _historiaLoaded[sid] = null;
+  window.chztHistToggle = function(rowEl, sid) {
+    var expandRow = document.getElementById('chzt-expand-' + sid);
+    var inner = document.getElementById('chzt-expand-inner-' + sid);
+    if (!expandRow || !inner) return;
+
+    if (expandRow.style.display !== 'none') {
+      expandRow.style.display = 'none';
+      rowEl.classList.remove('expanded');
       return;
     }
-    body.style.display = 'block';
-    body.dataset.loaded = 'yes';
-    body.innerHTML = '<div class="chzt-card-loading">wczytywanie…</div>';
-    var card = document.querySelector('.chzt-hist-item[data-sid="'+sid+'"]');
-    var dataIso = card.dataset.data;
+    // Close all others
+    document.querySelectorAll('.chzt-hist-expand').forEach(function(r){ r.style.display = 'none'; });
+    document.querySelectorAll('.chzt-hist-row.expanded').forEach(function(r){ r.classList.remove('expanded'); });
+
+    expandRow.style.display = '';
+    rowEl.classList.add('expanded');
+    inner.innerHTML = '<div class="chzt-card-loading">wczytywanie…</div>';
+
+    var dataIso = rowEl.dataset.data;
     fetchJson('/api/chzt/session/' + encodeURIComponent(dataIso)).then(function(resp){
       var s = resp.session;
       var html = '<table class="chzt-table"><thead><tr>' +
         '<th>Punkt</th><th>pH</th><th>P1</th><th>P2</th><th>P3</th><th>P4</th><th>P5</th><th>\u015arednia</th>' +
         '</tr></thead><tbody>';
       s.punkty.forEach(function(p){
-        html += '<tr><td class="chzt-punkt">' + escapeHtmlHist(p.punkt_nazwa) + '</td>' +
+        var warn = p.srednia !== null && p.srednia > 40000;
+        html += '<tr' + (warn ? ' class="row-warn"' : '') + '>' +
+          '<td>' + escapeHtmlHist(p.punkt_nazwa) + '</td>' +
           readCell(p.ph) + readCell(p.p1) + readCell(p.p2) + readCell(p.p3) +
           readCell(p.p4) + readCell(p.p5) +
-          '<td class="chzt-avg">' + (p.srednia === null ? '—' : Math.round(p.srednia).toLocaleString('pl-PL')) + '</td>' +
+          '<td><span class="chzt-avg' + (warn ? ' warn' : '') + '">' +
+            (p.srednia === null ? '—' : Math.round(p.srednia).toLocaleString('pl-PL')) +
+          '</span></td>' +
           '</tr>';
       });
       html += '</tbody></table>';
-      body.innerHTML = html;
-      _historiaLoaded[sid] = 'pomiary';
+      html += '<div class="chzt-expand-actions">' +
+        '<button class="chzt-btn-primary-sm" onclick="event.stopPropagation(); openChztModal(\'' + s.data + '\')">Edytuj</button>' +
+        '</div>';
+      inner.innerHTML = html;
     }).catch(function(){
-      body.innerHTML = '<div class="chzt-card-loading">błąd wczytywania</div>';
+      inner.innerHTML = '<div class="chzt-card-loading">błąd wczytywania</div>';
     });
   };
 

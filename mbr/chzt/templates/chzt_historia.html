@@ -3,47 +3,63 @@
 {% block title %}Historia ChZT{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="{{ url_for('chzt.static', filename='chzt.css') }}?v=2">
+<link rel="stylesheet" href="{{ url_for('chzt.static', filename='chzt.css') }}?v=3">
 
-<div class="chzt-historia-page">
-  <div class="chzt-historia-head">
-    <h1>ChZT Ścieków — <strong>Historia</strong></h1>
-    <p>{{ total }} sesji · strona {{ page }} / {{ pages }}</p>
+<div class="chzt-hist-page">
+  <div class="completed-header">
+    <div class="ch-top">
+      <a class="ch-back" href="{{ url_for('registry.narzedzia') }}" title="Powrót">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/></svg>
+      </a>
+      <span class="ch-title">Rejestr ChZT Ścieków</span>
+      <span class="ch-count">{{ total }}</span>
+    </div>
   </div>
 
-  {% if sesje|length == 0 %}
-  <div class="chzt-historia-empty">
-    Brak zapisanych pomiarów ChZT.
-    <a href="{{ url_for('technolog.narzedzia') }}">Zacznij nową sesję</a>
-  </div>
-  {% else %}
-    <div class="chzt-hist-list">
-      {% for s in sesje %}
-      <div class="chzt-hist-item" data-sid="{{ s.id }}" data-data="{{ s.data }}">
-        <div class="chzt-hist-date-col">
-          <div class="chzt-hist-date">{{ s.data }}</div>
-          <div class="chzt-hist-day">{{ s.n_kontenery }} kontenerów</div>
-        </div>
-        <div class="chzt-hist-body">
-          <div class="chzt-hist-status">
-            {% if s.finalized_at %}
-              <span class="chzt-dot saved"></span>
-              Sfinalizowano · {{ s.finalized_by_name or '—' }} · {{ s.finalized_at[11:16] }}
-            {% else %}
-              <span class="chzt-dot draft"></span>
-              Draft{% if s.updated_at_max %} · ostatnia edycja {{ s.updated_at_max[11:16] }}{% endif %}
-            {% endif %}
-          </div>
-          <div class="chzt-hist-body-expand" id="chzt-card-body-{{ s.id }}" data-loaded="no" style="display:none;">
-            <div class="chzt-card-loading">wczytywanie…</div>
-          </div>
-          <div class="chzt-hist-actions">
-            <button class="chzt-btn-ghost" onclick="chztHistoriaTogglePomiary({{ s.id }})">Pokaż pomiary</button>
-            <button class="chzt-btn-ghost" onclick="openChztModal('{{ s.data }}')">Edytuj</button>
-          </div>
-        </div>
-      </div>
-      {% endfor %}
+  <div class="registry-wrap">
+    {% if sesje|length == 0 %}
+      <div class="registry-empty">Brak zapisanych pomiarów ChZT. <a href="{{ url_for('registry.narzedzia') }}" style="color:var(--teal);">Zacznij nową sesję</a></div>
+    {% else %}
+    <div class="registry">
+      <table class="chzt-hist-table">
+        <thead>
+          <tr>
+            <th class="th-date">Data</th>
+            <th class="th-punkty">Punkty</th>
+            <th class="th-avg">Śr. ChZT</th>
+            <th class="th-max">Max ChZT</th>
+            <th class="th-status">Status</th>
+            <th class="th-who">Sfinalizował</th>
+            <th class="th-exp" aria-label="Rozwiń"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in sesje %}
+          <tr class="chzt-hist-row" data-sid="{{ s.id }}" data-data="{{ s.data }}" onclick="chztHistToggle(this, {{ s.id }})">
+            <td class="td-date-iso">{{ s.data }}</td>
+            <td class="td-punkty">{{ s.n_kontenery + 3 }}</td>
+            <td class="td-avg">{% if s.avg_chzt %}{{ '{:,}'.format(s.avg_chzt|int).replace(',', ' ') }}{% else %}—{% endif %}</td>
+            <td class="td-max {% if s.max_chzt and s.max_chzt > 40000 %}val-warn{% endif %}">{% if s.max_chzt %}{{ '{:,}'.format(s.max_chzt|int).replace(',', ' ') }}{% else %}—{% endif %}</td>
+            <td class="td-status">
+              {% if s.finalized_at %}
+                <span class="status-ok">Sfinalizowano</span>
+              {% else %}
+                <span class="status-draft">Draft</span>
+              {% endif %}
+            </td>
+            <td class="td-who">{{ s.finalized_by_name or '—' }}</td>
+            <td class="td-exp"><span class="exp-caret">▸</span></td>
+          </tr>
+          <tr class="chzt-hist-expand" id="chzt-expand-{{ s.id }}" style="display:none;" onclick="event.stopPropagation()">
+            <td colspan="7" class="chzt-expand-cell">
+              <div class="chzt-expand-inner" id="chzt-expand-inner-{{ s.id }}">
+                <div class="chzt-card-loading">wczytywanie…</div>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
 
     <div class="chzt-pagination">
@@ -51,10 +67,11 @@
       <span class="chzt-pagination-info">strona {{ page }} / {{ pages }}</span>
       {% if page < pages %}<a href="?page={{ page + 1 }}">Starsze →</a>{% else %}<span></span>{% endif %}
     </div>
-  {% endif %}
+    {% endif %}
+  </div>
 </div>
 
 {% include "chzt_modal.html" %}
 
-<script src="{{ url_for('chzt.static', filename='chzt.js') }}?v=2" defer></script>
+<script src="{{ url_for('chzt.static', filename='chzt.js') }}?v=3" defer></script>
 {% endblock %}
