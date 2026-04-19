@@ -1457,6 +1457,22 @@ function _buildRegistryRow(columns, b) {
   }
   html += '<td class="td-date">' + dtStr + '</td>';
   columns.forEach(function(col) {
+    if (col.kod === '__surowce__') {
+      var grouped = {};
+      var order = [];
+      (b.surowce || []).forEach(function(s) {
+        if (!grouped[s.nazwa]) { grouped[s.nazwa] = []; order.push(s.nazwa); }
+        if (s.nr_partii) grouped[s.nazwa].push(s.nr_partii);
+      });
+      var parts = order.map(function(nazwa) {
+        var partie = grouped[nazwa];
+        return nazwa + ': ' + (partie.length ? partie.join(', ') : '\u2014');
+      });
+      var txt = parts.join(' \u00b7 ') || '\u2014';
+      var esc = txt.replace(/"/g, '&quot;');
+      html += '<td class="td-surowce" title="' + esc + '">' + txt + '</td>';
+      return;
+    }
     var w = b.wyniki[col.kod];
     if (w && w.wartosc != null) {
       var cls = w.w_limicie ? 'val-ok' : 'val-err';

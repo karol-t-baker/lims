@@ -324,3 +324,68 @@ def test_cancel_non_completed_batch(admin_client, tmp_path):
     with patch("mbr.db.DB_PATH", tmp_path / "test.sqlite"):
         resp = admin_client.post("/api/registry/2/cancel")
         assert resp.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# Surowce column (Alkinol A/B uses substrat_produkty config)
+# ---------------------------------------------------------------------------
+
+def _seed_substrat(db, nazwa, produkt):
+    """Create a substrat and link it to a product."""
+    cur = db.execute("INSERT INTO substraty (nazwa) VALUES (?)", (nazwa,))
+    sid = cur.lastrowid
+    db.execute(
+        "INSERT INTO substrat_produkty (substrat_id, produkt) VALUES (?, ?)",
+        (sid, produkt),
+    )
+    db.commit()
+    return sid
+
+
+def _link_batch_substrat(db, ebr_id, substrat_id, nr_partii):
+    db.execute(
+        "INSERT INTO platkowanie_substraty (ebr_id, substrat_id, nr_partii_substratu) "
+        "VALUES (?, ?, ?)",
+        (ebr_id, substrat_id, nr_partii),
+    )
+    db.commit()
+
+
+def test_registry_columns_includes_surowce_for_alkinol(db):
+    mbr = _insert_mbr(db, "Alkinol")
+    _seed_substrat(db, "Kwas XYZ", "Alkinol")
+    cols = get_registry_columns(db, "Alkinol")
+    kods = [c["kod"] for c in cols]
+    assert "__surowce__" in kods
+    surowce_col = next(c for c in cols if c["kod"] == "__surowce__")
+    assert surowce_col["label"] == "Surowce"
+
+
+def test_registry_columns_omits_surowce_for_other_products(db):
+    mbr = _insert_mbr(db, "Chegina K7")
+    cols = get_registry_columns(db, "Chegina K7")
+    kods = [c["kod"] for c in cols]
+    assert "__surowce__" not in kods
+
+
+def test_registry_row_groups_same_surowiec_multiple_partie(db):
+    mbr = _insert_mbr(db, "Alkinol")
+    ebr = _insert_ebr(db, mbr, "B-A-001", "1/26")
+    sid = _seed_substrat(db, "NaOH", "Alkinol")
+    _link_batch_substrat(db, ebr, sid, "100/26")
+    _link_batch_substrat(db, ebr, sid, "101/26")
+
+    rows = list_completed_registry(db, produkt="Alkinol")
+    assert len(rows) == 1
+    surowce = rows[0]["surowce"]
+    assert len(surowce) == 2
+    assert all(s["nazwa"] == "NaOH" for s in surowce)
+    partie = [s["nr_partii"] for s in surowce]
+    assert sorted(partie) == ["100/26", "101/26"]
+
+
+def test_registry_row_empty_surowce_for_batch_without_data(db):
+    mbr = _insert_mbr(db, "Alkinol")
+    ebr = _insert_ebr(db, mbr, "B-A-002", "2/26")
+    rows = list_completed_registry(db, produkt="Alkinol")
+    assert rows[0]["surowce"] == []

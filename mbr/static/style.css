@@ -2270,6 +2270,15 @@ details[open].rh-round > .rh-summary::before { transform: rotate(90deg); }
   margin-left: 4px;
 }
 
+.registry tbody td.td-surowce {
+  font-family: var(--mono); font-size: 11px;
+  color: var(--text-sec);
+  max-width: 240px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  text-align: left;
+  padding-left: 10px;
+}
+
 .registry-empty {
   padding: 60px; text-align: center; color: var(--text-dim);
 }

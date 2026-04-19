@@ -55,6 +55,26 @@ def list_completed_registry(
         for r in result:
             r["zbiorniki"] = zb_map.get(r["ebr_id"], [])
 
+    # Attach surowce (raw-material batch numbers) per batch — from platkowanie_substraty.
+    # Empty list for batches without entries; frontend decides whether to render.
+    if result:
+        placeholders = ",".join("?" * len(ebr_ids))
+        sur_rows = db.execute(
+            f"SELECT ps.ebr_id, s.nazwa, ps.nr_partii_substratu AS nr_partii "
+            f"FROM platkowanie_substraty ps JOIN substraty s ON s.id = ps.substrat_id "
+            f"WHERE ps.ebr_id IN ({placeholders}) "
+            f"ORDER BY s.nazwa, ps.id",
+            ebr_ids,
+        ).fetchall()
+        sur_map: dict = {}
+        for sr in sur_rows:
+            sur_map.setdefault(sr["ebr_id"], []).append({
+                "nazwa": sr["nazwa"],
+                "nr_partii": sr["nr_partii"],
+            })
+        for r in result:
+            r["surowce"] = sur_map.get(r["ebr_id"], [])
+
     # Attach "who approved" from audit_log
     if result:
         placeholders = ",".join("?" * len(ebr_ids))
@@ -89,12 +109,14 @@ def get_registry_columns(db: sqlite3.Connection, produkt: str) -> list:
     """
     from mbr.pipeline.adapter import build_pipeline_context
     ctx = build_pipeline_context(db, produkt, typ=None)
-    if ctx is None:
-        return []
-
     pola: list = []
-    sekcje = ctx.get("parametry_lab", {})
-    etapy_json = ctx.get("etapy_json", [])
+    if ctx is None:
+        # No pipeline, but virtual columns (e.g. surowce) may still apply — fall through.
+        sekcje = {}
+        etapy_json = []
+    else:
+        sekcje = ctx.get("parametry_lab", {})
+        etapy_json = ctx.get("etapy_json", [])
 
     # 1. Jednorazowy etapy → include their sekcja's pola (typically analiza_koncowa)
     # 2. Last cykliczny etap → include its sekcja_lab (e.g. "analiza" for K7 standaryzacja)
@@ -134,6 +156,18 @@ def get_registry_columns(db: sqlite3.Connection, produkt: str) -> list:
     for pole in pola:
         if pole.get("kod") in skroty:
             pole["label"] = skroty[pole["kod"]]
+
+    # Append Surowce virtual column if product uses raw-material batch tracking
+    # (defined in substrat_produkty). Currently: Alkinol, Alkinol_B.
+    try:
+        has_surowce = db.execute(
+            "SELECT 1 FROM substrat_produkty WHERE produkt=? LIMIT 1", (produkt,)
+        ).fetchone() is not None
+        if has_surowce:
+            pola.append({"kod": "__surowce__", "label": "Surowce", "is_surowce": True})
+    except Exception:
+        pass
+
     return pola
 
 
