@@ -7,6 +7,8 @@ from mbr.parametry.registry import get_parametry_for_kontekst, get_calc_methods,
 from mbr.shared.decorators import login_required, role_required
 from mbr.db import db_session
 
+ALLOWED_GRUPY = {"lab", "zewn"}
+
 
 def _find_pipeline_etap_id(db, produkt, kontekst, pipeline):
     """Map kontekst to pipeline etap_id."""
@@ -107,15 +109,19 @@ def api_parametry_create():
     kod = (data.get("kod") or "").strip()
     label = (data.get("label") or "").strip()
     typ = data.get("typ", "bezposredni")
+    grupa = data.get("grupa", "lab")
     if not kod or not label:
         return jsonify({"error": "kod and label required"}), 400
+    if grupa not in ALLOWED_GRUPY:
+        return jsonify({"error": f"grupa must be one of: {', '.join(sorted(ALLOWED_GRUPY))}"}), 400
     with db_session() as db:
         try:
             cur = db.execute(
-                "INSERT INTO parametry_analityczne (kod, label, skrot, typ, jednostka, precision, name_en, method_code) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO parametry_analityczne (kod, label, skrot, typ, jednostka, precision, name_en, method_code, grupa) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (kod, label, data.get("skrot", ""), typ, data.get("jednostka", ""),
-                 data.get("precision", 2), data.get("name_en", ""), data.get("method_code", "")),
+                 data.get("precision", 2), data.get("name_en", ""), data.get("method_code", ""),
+                 grupa),
             )
             db.commit()
         except Exception:
