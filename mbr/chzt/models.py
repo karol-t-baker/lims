@@ -37,26 +37,37 @@ def init_chzt_tables(db):
     else:
         cols = {r[1] for r in db.execute("PRAGMA table_info(chzt_sesje)").fetchall()}
         if "dt_start" not in cols and "data" in cols:
-            db.executescript("""
-                PRAGMA foreign_keys=OFF;
-                CREATE TABLE chzt_sesje_v2 (
-                    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-                    dt_start     TEXT NOT NULL,
-                    n_kontenery  INTEGER NOT NULL DEFAULT 8,
-                    created_at   TEXT NOT NULL,
-                    created_by   INTEGER,
-                    finalized_at TEXT,
-                    finalized_by INTEGER
-                );
-                INSERT INTO chzt_sesje_v2 (id, dt_start, n_kontenery, created_at, created_by, finalized_at, finalized_by)
-                SELECT id,
-                       CASE WHEN length(data) = 10 THEN data || 'T00:00:00' ELSE data END AS dt_start,
-                       n_kontenery, created_at, created_by, finalized_at, finalized_by
-                FROM chzt_sesje;
-                DROP TABLE chzt_sesje;
-                ALTER TABLE chzt_sesje_v2 RENAME TO chzt_sesje;
-                PRAGMA foreign_keys=ON;
-            """)
+            # Disable FK at connection level — otherwise DROP TABLE would
+            # CASCADE-delete chzt_pomiary rows that still point to old id space.
+            db.execute("PRAGMA foreign_keys=OFF")
+            try:
+                db.execute("BEGIN")
+                db.execute("""
+                    CREATE TABLE chzt_sesje_v2 (
+                        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                        dt_start     TEXT NOT NULL,
+                        n_kontenery  INTEGER NOT NULL DEFAULT 8,
+                        created_at   TEXT NOT NULL,
+                        created_by   INTEGER REFERENCES workers(id),
+                        finalized_at TEXT,
+                        finalized_by INTEGER REFERENCES workers(id)
+                    )
+                """)
+                db.execute("""
+                    INSERT INTO chzt_sesje_v2 (id, dt_start, n_kontenery, created_at, created_by, finalized_at, finalized_by)
+                    SELECT id,
+                           CASE WHEN length(data) = 10 THEN data || 'T00:00:00' ELSE data END AS dt_start,
+                           n_kontenery, created_at, created_by, finalized_at, finalized_by
+                    FROM chzt_sesje
+                """)
+                db.execute("DROP TABLE chzt_sesje")
+                db.execute("ALTER TABLE chzt_sesje_v2 RENAME TO chzt_sesje")
+                db.execute("COMMIT")
+            except Exception:
+                db.execute("ROLLBACK")
+                db.execute("PRAGMA foreign_keys=ON")
+                raise
+            db.execute("PRAGMA foreign_keys=ON")
 
     db.execute("DROP INDEX IF EXISTS idx_chzt_sesje_data")
     db.execute("CREATE INDEX IF NOT EXISTS idx_chzt_sesje_dt_start ON chzt_sesje(dt_start DESC)")

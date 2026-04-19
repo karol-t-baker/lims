@@ -1000,18 +1000,27 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
         if row:
             ddl = row[0] if isinstance(row, tuple) else row["sql"]
             if "'lab'" not in ddl:
-                db.executescript("""
-                    CREATE TABLE mbr_users_new (
-                        user_id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                        login           TEXT UNIQUE NOT NULL,
-                        password_hash   TEXT NOT NULL,
-                        rola            TEXT NOT NULL CHECK(rola IN ('technolog', 'lab', 'cert', 'kj', 'admin')),
-                        imie_nazwisko   TEXT
-                    );
-                    INSERT INTO mbr_users_new SELECT * FROM mbr_users;
-                    DROP TABLE mbr_users;
-                    ALTER TABLE mbr_users_new RENAME TO mbr_users;
-                """)
+                db.execute("PRAGMA foreign_keys=OFF")
+                try:
+                    db.execute("BEGIN")
+                    db.execute("""
+                        CREATE TABLE mbr_users_new (
+                            user_id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                            login           TEXT UNIQUE NOT NULL,
+                            password_hash   TEXT NOT NULL,
+                            rola            TEXT NOT NULL CHECK(rola IN ('technolog', 'lab', 'cert', 'kj', 'admin')),
+                            imie_nazwisko   TEXT
+                        )
+                    """)
+                    db.execute("INSERT INTO mbr_users_new SELECT * FROM mbr_users")
+                    db.execute("DROP TABLE mbr_users")
+                    db.execute("ALTER TABLE mbr_users_new RENAME TO mbr_users")
+                    db.execute("COMMIT")
+                except Exception:
+                    db.execute("ROLLBACK")
+                    db.execute("PRAGMA foreign_keys=ON")
+                    raise
+                db.execute("PRAGMA foreign_keys=ON")
     except Exception:
         pass
 
@@ -1021,18 +1030,27 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
         if row:
             ddl = row[0] if isinstance(row, tuple) else row["sql"]
             if "'produkcja'" not in ddl:
-                db.executescript("""
-                    CREATE TABLE mbr_users_new_prodcheck (
-                        user_id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                        login           TEXT UNIQUE NOT NULL,
-                        password_hash   TEXT NOT NULL,
-                        rola            TEXT NOT NULL CHECK(rola IN ('technolog', 'lab', 'cert', 'kj', 'admin', 'produkcja')),
-                        imie_nazwisko   TEXT
-                    );
-                    INSERT INTO mbr_users_new_prodcheck SELECT * FROM mbr_users;
-                    DROP TABLE mbr_users;
-                    ALTER TABLE mbr_users_new_prodcheck RENAME TO mbr_users;
-                """)
+                db.execute("PRAGMA foreign_keys=OFF")
+                try:
+                    db.execute("BEGIN")
+                    db.execute("""
+                        CREATE TABLE mbr_users_new_prodcheck (
+                            user_id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                            login           TEXT UNIQUE NOT NULL,
+                            password_hash   TEXT NOT NULL,
+                            rola            TEXT NOT NULL CHECK(rola IN ('technolog', 'lab', 'cert', 'kj', 'admin', 'produkcja')),
+                            imie_nazwisko   TEXT
+                        )
+                    """)
+                    db.execute("INSERT INTO mbr_users_new_prodcheck SELECT * FROM mbr_users")
+                    db.execute("DROP TABLE mbr_users")
+                    db.execute("ALTER TABLE mbr_users_new_prodcheck RENAME TO mbr_users")
+                    db.execute("COMMIT")
+                except Exception:
+                    db.execute("ROLLBACK")
+                    db.execute("PRAGMA foreign_keys=ON")
+                    raise
+                db.execute("PRAGMA foreign_keys=ON")
     except Exception:
         pass
 

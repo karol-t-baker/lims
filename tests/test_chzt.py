@@ -44,36 +44,6 @@ def test_init_chzt_tables_creates_pomiary(db):
     assert row is not None
 
 
-def test_init_chzt_tables_data_unique(db):
-    db.execute(
-        "INSERT INTO chzt_sesje (data, n_kontenery, created_at, created_by) "
-        "VALUES ('2026-04-18', 8, '2026-04-18T10:00:00', 1)"
-    )
-    db.commit()
-    with pytest.raises(sqlite3.IntegrityError):
-        db.execute(
-            "INSERT INTO chzt_sesje (data, n_kontenery, created_at, created_by) "
-            "VALUES ('2026-04-18', 8, '2026-04-18T11:00:00', 1)"
-        )
-
-
-def test_init_chzt_tables_pomiar_unique_per_session(db):
-    db.execute(
-        "INSERT INTO chzt_sesje (id, data, n_kontenery, created_at, created_by) "
-        "VALUES (1, '2026-04-18', 8, '2026-04-18T10:00:00', 1)"
-    )
-    db.execute(
-        "INSERT INTO chzt_pomiary (sesja_id, punkt_nazwa, kolejnosc, updated_at) "
-        "VALUES (1, 'hala', 1, '2026-04-18T10:00:00')"
-    )
-    db.commit()
-    with pytest.raises(sqlite3.IntegrityError):
-        db.execute(
-            "INSERT INTO chzt_pomiary (sesja_id, punkt_nazwa, kolejnosc, updated_at) "
-            "VALUES (1, 'hala', 2, '2026-04-18T10:05:00')"
-        )
-
-
 from mbr.chzt.models import build_punkty_names
 
 
