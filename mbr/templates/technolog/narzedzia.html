@@ -8,6 +8,7 @@
 
 {% block content %}
 <div class="narz-page">
+<link rel="stylesheet" href="{{ url_for('chzt.static', filename='chzt.css') }}?v=1">
 
   <div class="narz-shortcuts-card">
     <div class="nsc-header">
@@ -872,97 +873,7 @@ async function chztSave() {
 }
 </script>
 
-{# ═══ ChZT MODAL — Stripe Accent Style ═══ #}
-<div class="pal-overlay" id="chzt-overlay" onclick="if(event.target===this)closeChztModal()" style="display:none;">
-  <div class="chzt-modal">
-    <div class="chzt-topbar">
-      <span class="chzt-topbar-title">ChZT Ścieków</span>
-      <span class="chzt-topbar-date" id="chzt-date"></span>
-      <button class="chzt-topbar-close" onclick="closeChztModal()">&times;</button>
-    </div>
-    <div class="chzt-toolbar">
-      <span class="chzt-toolbar-label">Kontenery:</span>
-      <input type="number" id="chzt-n-kontenery" value="8" min="0" max="20" class="chzt-toolbar-input" onchange="chztSetKontenery()">
-      <button class="chzt-btn chzt-btn-sm" onclick="chztSetKontenery()">Generuj</button>
-    </div>
-    <div id="chzt-body" class="chzt-body"></div>
-    <div class="chzt-footer">
-      <button class="chzt-btn" id="chzt-save-btn" onclick="chztSave()">Zapisz</button>
-    </div>
-  </div>
-</div>
-
-<style>
-/* ═══ ChZT Modal — Stripe Accent ═══ */
-.chzt-modal {
-  width: 880px; max-width: 95vw; max-height: 90vh;
-  background: #fff; border: 1px solid var(--border); border-left: 3px solid var(--teal);
-  border-radius: 10px; overflow: hidden;
-  display: flex; flex-direction: column;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.12);
-  animation: modalIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.chzt-topbar {
-  padding: 14px 18px; display: flex; align-items: center; gap: 10px;
-  border-bottom: 1px solid var(--border-subtle, #e8e4dc);
-}
-.chzt-topbar-title { font-size: 15px; font-weight: 700; color: var(--teal); }
-.chzt-topbar-date { font-size: 11px; color: var(--text-dim); }
-.chzt-topbar-close {
-  margin-left: auto; background: none; border: none; font-size: 20px;
-  color: var(--text-dim); cursor: pointer; width: 30px; height: 30px;
-  border-radius: 6px; display: flex; align-items: center; justify-content: center;
-}
-.chzt-topbar-close:hover { background: var(--surface-alt); color: var(--text); }
-.chzt-toolbar {
-  padding: 10px 18px; display: flex; align-items: center; gap: 8px;
-  border-bottom: 1px solid #f0ece4; font-size: 11px; color: var(--text-sec);
-}
-.chzt-toolbar-label { font-weight: 600; }
-.chzt-toolbar-input {
-  width: 48px; padding: 4px 8px; border: 1.5px solid var(--border);
-  border-radius: 5px; font-size: 12px; text-align: center; font-family: var(--mono);
-}
-.chzt-body { padding: 14px 18px; overflow-y: auto; flex: 1; min-height: 0; }
-.chzt-footer {
-  padding: 12px 18px; border-top: 1px solid var(--border-subtle, #e8e4dc);
-  display: flex; justify-content: flex-end;
-}
-.chzt-btn {
-  padding: 7px 20px; border-radius: 6px; border: none; cursor: pointer;
-  font-family: var(--font); font-size: 12px; font-weight: 600;
-  background: var(--teal); color: #fff; transition: filter 0.15s;
-}
-.chzt-btn:hover { filter: brightness(0.9); }
-.chzt-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.chzt-btn-sm { padding: 4px 10px; font-size: 10px; }
-
-/* Table */
-.chzt-table { width: 100%; border-collapse: collapse; font-size: 11px; }
-.chzt-table th {
-  padding: 7px 4px; background: #fafaf7; font-size: 8px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim);
-  text-align: center; border-bottom: 1px solid var(--border-subtle, #e8e4dc);
-}
-.chzt-table td {
-  padding: 5px 3px; border-bottom: 1px solid #f0ece4; text-align: center;
-}
-.chzt-punkt {
-  font-weight: 700; font-size: 11px; color: var(--teal);
-  text-align: left !important; white-space: nowrap; padding-left: 10px !important;
-}
-.chzt-inp {
-  width: 58px; padding: 4px 4px; border: 1px solid var(--border);
-  border-radius: 4px; font-size: 11px; font-family: var(--mono);
-  text-align: center; background: #fff; transition: border-color 0.15s;
-}
-.chzt-inp:focus {
-  border-color: var(--teal); outline: none;
-  box-shadow: 0 0 0 2px var(--teal-bg);
-}
-.chzt-ph { width: 36px; }
-.chzt-avg { font-weight: 700; font-family: var(--mono); font-size: 12px; color: var(--teal); }
-#chzt-overlay.show { display: flex !important; align-items: center; justify-content: center; }
-</style>
+{# ═══ ChZT MODAL (include'owany z blueprintu) ═══ #}
+{% include "chzt_modal.html" %}
 
 {% endblock %}

@@ -1,0 +1,24 @@
+{# ChZT Ścieków modal — Stripe Accent style. Include z kart Narzędzi. #}
+<div class="pal-overlay" id="chzt-overlay" onclick="if(event.target===this)closeChztModal()" style="display:none;">
+  <div class="chzt-modal">
+    <div class="chzt-topbar">
+      <span class="chzt-topbar-title">ChZT Ścieków</span>
+      <span class="chzt-topbar-date" id="chzt-date"></span>
+      <span class="chzt-status-pill" id="chzt-status-pill"></span>
+      <button class="chzt-topbar-close" onclick="closeChztModal()">&times;</button>
+    </div>
+    <div class="chzt-finalize-banner" id="chzt-finalize-banner" style="display:none;"></div>
+    <div class="chzt-toolbar">
+      <span class="chzt-toolbar-label">Kontenery:</span>
+      <input type="number" id="chzt-n-kontenery" value="8" min="0" max="20" class="chzt-toolbar-input">
+      <button class="chzt-btn chzt-btn-sm" id="chzt-generuj-btn" onclick="chztApplyKontenery()">Generuj</button>
+      <span class="chzt-toolbar-error" id="chzt-toolbar-error"></span>
+    </div>
+    <div id="chzt-body" class="chzt-body"></div>
+    <div class="chzt-errors" id="chzt-errors" style="display:none;"></div>
+    <div class="chzt-footer">
+      <button class="chzt-btn" id="chzt-save-btn" onclick="chztFinalize()">Zapisz (finalizuj)</button>
+      <span class="chzt-finalized-info" id="chzt-finalized-info" style="display:none;"></span>
+    </div>
+  </div>
+</div>
