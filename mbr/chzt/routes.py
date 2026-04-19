@@ -157,7 +157,7 @@ def api_pomiar_update(pomiar_id: int):
 def api_session_patch(session_id: int):
     payload = request.get_json(force=True) or {}
     new_n = payload.get("n_kontenery")
-    if not isinstance(new_n, int) or new_n < 0 or new_n > 20:
+    if not isinstance(new_n, int) or isinstance(new_n, bool) or new_n < 0 or new_n > 20:
         return jsonify({"error": "n_kontenery: oczekuję int 0..20"}), 400
 
     with db_session() as db:

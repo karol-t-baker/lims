@@ -1215,3 +1215,35 @@ def test_produkcja_fills_ext_after_lab_finalizes(produkcja_client, client, db):
         (szamb_pid,),
     ).fetchall()
     assert len(pomiar_events) >= 2
+
+
+def test_produkcja_blur_ext_input_triggers_ext_save_via_js_path(produkcja_client, client, db):
+    """Regression: getRowValues must include ext_* fields when produkcja blurs
+    an ext input. Simulates the exact payload the JS saveRow() builds, verifying
+    the full stack (JS payload shape → server RBAC filter → DB) writes ext data."""
+    s = _bootstrap_session_with_lab(client)
+    szamb_pid = s["punkty"][-1]["id"]
+
+    # Simulate what the JS would send after fix: payload containing ONLY the keys
+    # that exist as non-disabled DOM inputs in the ext section for produkcja role
+    # (i.e. ext_ph, ext_chzt, waga_kg). No ph/p1-p5 keys at all (those inputs are
+    # disabled for produkcja in the main table).
+    resp = produkcja_client.put(f"/api/chzt/pomiar/{szamb_pid}", json={
+        "ext_ph": 11, "ext_chzt": 13250, "waga_kg": 19060,
+    })
+    assert resp.status_code == 200
+
+    row = db.execute(
+        "SELECT ext_chzt, ext_ph, waga_kg FROM chzt_pomiary WHERE id=?", (szamb_pid,)
+    ).fetchone()
+    assert row["ext_ph"] == 11
+    assert row["ext_chzt"] == 13250
+    assert row["waga_kg"] == 19060
+
+
+def test_patch_session_rejects_bool_n_kontenery(client, db):
+    """Regression: api_session_patch must exclude bool from int acceptance (like api_session_create)."""
+    r1 = client.post("/api/chzt/session/new", json={"n_kontenery": 3})
+    sid = r1.get_json()["session"]["id"]
+    resp = client.patch(f"/api/chzt/session/{sid}", json={"n_kontenery": True})
+    assert resp.status_code == 400

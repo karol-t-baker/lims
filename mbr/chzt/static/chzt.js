@@ -69,7 +69,7 @@
 
   function renderDate() {
     if (!_session) return;
-    var iso = _session.dt_start || _session.data || '';
+    var iso = _session.dt_start || '';
     var parts = iso.split('T');
     var dateParts = (parts[0] || '').split('-');
     var timeParts = (parts[1] || '').split(':');
@@ -145,9 +145,11 @@
 
   function getRowValues(pid) {
     var out = {};
-    ['ph','p1','p2','p3','p4','p5'].forEach(function(f){
-      var inp = document.querySelector('input[data-pid="'+pid+'"][data-field="'+f+'"]');
-      out[f] = inp ? parseNum(inp.value) : null;
+    document.querySelectorAll('input[data-pid="' + pid + '"]').forEach(function(inp) {
+      if (inp.disabled) return;
+      var field = inp.dataset.field;
+      if (!field) return;
+      out[field] = parseNum(inp.value);
     });
     return out;
   }
