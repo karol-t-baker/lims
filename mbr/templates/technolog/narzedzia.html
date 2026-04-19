@@ -776,12 +776,18 @@ async function palGeneruj() {
 {% include "chzt_modal.html" %}
 
 <script>
-// Auto-open ChZT modal when arriving via ?chzt=1 (from global C shortcut on other pages)
+// Auto-open ChZT modal when arriving via ?chzt=1 (from global C shortcut on other pages).
+// Note: chzt.js is loaded with `defer`, so openChztModal isn't defined at inline-script
+// parse time — retry until it is (up to ~1s) to handle any load-order scenario.
 (function(){
   try {
-    if (new URLSearchParams(location.search).get('chzt') === '1' && typeof openChztModal === 'function') {
-      window.addEventListener('DOMContentLoaded', function(){ openChztModal(); });
+    if (new URLSearchParams(location.search).get('chzt') !== '1') return;
+    var tries = 0;
+    function tryOpen() {
+      if (typeof openChztModal === 'function') { openChztModal(); return; }
+      if (++tries < 20) setTimeout(tryOpen, 50);
     }
+    tryOpen();
   } catch (e) {}
 })();
 </script>
