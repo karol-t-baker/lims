@@ -369,7 +369,6 @@ def api_db_snapshot():
 @admin_bp.route("/api/completed")
 def api_completed():
     """Return completed batches with sync_seq > since.
-<<<<<<< HEAD
 
     Query params:
         since (int): last known sync_seq (default 0 = return all)
