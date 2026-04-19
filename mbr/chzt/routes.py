@@ -1,22 +1,14 @@
 """ChZT Flask handlers."""
 
-from datetime import date
-
 from flask import jsonify, request, session, render_template
 
 from mbr.chzt import chzt_bp
 from mbr.chzt.models import (
-    get_active_session,
-    create_session,
-    get_session_with_pomiary,
-    get_pomiar,
-    update_pomiar,
-    resize_kontenery,
-    validate_for_finalize,
-    finalize_session,
-    unfinalize_session,
+    get_active_session, create_session, get_session_with_pomiary,
+    get_pomiar, update_pomiar, resize_kontenery,
+    validate_for_finalize, finalize_session, unfinalize_session,
     list_sessions_paginated,
-    POMIAR_FIELDS,
+    POMIAR_FIELDS, POMIAR_FIELDS_INTERNAL, POMIAR_FIELDS_EXTERNAL,
 )
 from mbr.db import db_session
 from mbr.shared.audit import (
@@ -31,7 +23,9 @@ from mbr.shared.audit import (
 from mbr.shared.decorators import login_required, role_required
 
 
-ROLES_EDIT = ("lab", "kj", "cert", "technolog", "admin")
+ROLES_VIEW = ("lab", "kj", "cert", "technolog", "admin", "produkcja")
+ROLES_EDIT_INTERNAL = ("lab", "kj", "cert", "technolog", "admin")
+ROLES_EDIT_EXTERNAL = ("produkcja", "technolog", "admin")
 
 
 def _coerce_float(v):
@@ -64,28 +58,47 @@ def _current_worker_id():
     return None
 
 
-@chzt_bp.route("/api/chzt/session/today", methods=["GET"])
-@role_required(*ROLES_EDIT)
-def api_session_today():
-    today = date.today().isoformat()
+@chzt_bp.route("/api/chzt/session/active", methods=["GET"])
+@role_required(*ROLES_VIEW)
+def api_session_active():
     with db_session() as db:
-        worker_id = _current_worker_id()
-        session_id, created = get_or_create_session(db, today, created_by=worker_id, n_kontenery=8)
-        if created:
-            log_event(
-                EVENT_CHZT_SESSION_CREATED,
-                entity_type="chzt_sesje",
-                entity_id=session_id,
-                entity_label=today,
-                db=db,
-            )
-        db.commit()
-        payload = get_session_with_pomiary(db, session_id)
+        active = get_active_session(db)
+        if active is None:
+            return jsonify({"session": None})
+        payload = get_session_with_pomiary(db, active["id"])
     return jsonify({"session": payload})
 
 
+@chzt_bp.route("/api/chzt/session/new", methods=["POST"])
+@role_required(*ROLES_EDIT_INTERNAL)
+def api_session_create():
+    payload = request.get_json(force=True) or {}
+    n_kontenery = payload.get("n_kontenery", 8)
+    if not isinstance(n_kontenery, int) or isinstance(n_kontenery, bool) or n_kontenery < 0 or n_kontenery > 20:
+        return jsonify({"error": "n_kontenery: oczekuję int 0..20"}), 400
+
+    with db_session() as db:
+        try:
+            session_id = create_session(
+                db, created_by=_current_worker_id(), n_kontenery=n_kontenery
+            )
+        except ValueError as e:
+            if "already_open" in str(e):
+                return jsonify({"error": "Istnieje otwarta sesja — zakończ ją najpierw."}), 409
+            raise
+        log_event(
+            EVENT_CHZT_SESSION_CREATED,
+            entity_type="chzt_sesje",
+            entity_id=session_id,
+            db=db,
+        )
+        db.commit()
+        payload_out = get_session_with_pomiary(db, session_id)
+    return jsonify({"session": payload_out})
+
+
 @chzt_bp.route("/api/chzt/pomiar/<int:pomiar_id>", methods=["PUT"])
-@role_required(*ROLES_EDIT)
+@role_required(*ROLES_VIEW)
 def api_pomiar_update(pomiar_id: int):
     payload = request.get_json(force=True) or {}
     new_values = {k: _coerce_float(payload.get(k)) for k in POMIAR_FIELDS}
@@ -114,7 +127,7 @@ def api_pomiar_update(pomiar_id: int):
 
 
 @chzt_bp.route("/api/chzt/session/<int:session_id>", methods=["PATCH"])
-@role_required(*ROLES_EDIT)
+@role_required(*ROLES_EDIT_INTERNAL)
 def api_session_patch(session_id: int):
     payload = request.get_json(force=True) or {}
     new_n = payload.get("n_kontenery")
@@ -145,7 +158,7 @@ def api_session_patch(session_id: int):
 
 
 @chzt_bp.route("/api/chzt/session/<int:session_id>/finalize", methods=["POST"])
-@role_required(*ROLES_EDIT)
+@role_required(*ROLES_EDIT_INTERNAL)
 def api_session_finalize(session_id: int):
     with db_session() as db:
         if db.execute("SELECT 1 FROM chzt_sesje WHERE id=?", (session_id,)).fetchone() is None:
@@ -183,46 +196,57 @@ def api_session_unfinalize(session_id: int):
     return jsonify({"session": payload})
 
 
-@chzt_bp.route("/api/chzt/session/<data_iso>", methods=["GET"])
-@role_required(*ROLES_EDIT)
-def api_session_by_date(data_iso: str):
+@chzt_bp.route("/api/chzt/session/<int:session_id>", methods=["GET"])
+@role_required(*ROLES_VIEW)
+def api_session_by_id(session_id: int):
     with db_session() as db:
-        row = db.execute("SELECT id FROM chzt_sesje WHERE data=?", (data_iso,)).fetchone()
-        if row is None:
-            return jsonify({"error": "brak sesji dla tej daty"}), 404
-        payload = get_session_with_pomiary(db, row["id"])
+        payload = get_session_with_pomiary(db, session_id)
+        if payload is None:
+            return jsonify({"error": "sesja nie istnieje"}), 404
     return jsonify({"session": payload})
 
 
 @chzt_bp.route("/api/chzt/day/<data_iso>", methods=["GET"])
-@role_required(*ROLES_EDIT)
+@role_required(*ROLES_VIEW)
 def api_day_frame(data_iso: str):
-    """Export frame for Excel-filling script. Finalized sessions only."""
+    """Export frame for Excel script. Returns newest finalized session whose
+    DATE(dt_start) matches. Max 1/day guaranteed by policy — LIMIT 1.
+    Includes ext fields (ext_chzt, ext_ph, waga_kg)."""
     with db_session() as db:
         row = db.execute(
-            "SELECT id, data, finalized_at FROM chzt_sesje WHERE data=? AND finalized_at IS NOT NULL",
+            "SELECT id, dt_start, finalized_at "
+            "FROM chzt_sesje "
+            "WHERE DATE(dt_start) = ? AND finalized_at IS NOT NULL "
+            "ORDER BY dt_start DESC LIMIT 1",
             (data_iso,),
         ).fetchone()
         if row is None:
             return jsonify({"error": "brak sfinalizowanej sesji"}), 404
         prows = db.execute(
-            "SELECT punkt_nazwa, ph, srednia FROM chzt_pomiary "
-            "WHERE sesja_id=? ORDER BY kolejnosc",
+            "SELECT punkt_nazwa, ph, srednia, ext_chzt, ext_ph, waga_kg "
+            "FROM chzt_pomiary WHERE sesja_id=? ORDER BY kolejnosc",
             (row["id"],),
         ).fetchall()
         punkty = [
-            {"nazwa": p["punkt_nazwa"], "ph": p["ph"], "srednia": p["srednia"]}
+            {
+                "nazwa": p["punkt_nazwa"],
+                "ph": p["ph"],
+                "srednia": p["srednia"],
+                "ext_chzt": p["ext_chzt"],
+                "ext_ph": p["ext_ph"],
+                "waga_kg": p["waga_kg"],
+            }
             for p in prows
         ]
     return jsonify({
-        "data": row["data"],
+        "dt_start": row["dt_start"],
         "finalized_at": row["finalized_at"],
         "punkty": punkty,
     })
 
 
 @chzt_bp.route("/api/chzt/history", methods=["GET"])
-@role_required(*ROLES_EDIT)
+@role_required(*ROLES_VIEW)
 def api_history():
     try:
         page = int(request.args.get("page", 1))
@@ -234,7 +258,7 @@ def api_history():
 
 
 @chzt_bp.route("/chzt/historia", methods=["GET"])
-@role_required(*ROLES_EDIT)
+@role_required(*ROLES_VIEW)
 def historia_page():
     try:
         page = int(request.args.get("page", 1))

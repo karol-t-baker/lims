@@ -7,7 +7,19 @@ from contextlib import contextmanager
 from datetime import datetime, date
 
 from mbr.models import init_mbr_tables
-from mbr.chzt.models import init_chzt_tables
+from mbr.chzt.models import init_chzt_tables, create_session as _create_session
+
+
+def get_or_create_session(db, data_iso: str, *, created_by: int, n_kontenery: int = 8):
+    """Test-only shim replacing the old API. Creates a session if none open,
+    returns (session_id, created_bool)."""
+    existing = db.execute(
+        "SELECT id FROM chzt_sesje WHERE finalized_at IS NULL LIMIT 1"
+    ).fetchone()
+    if existing:
+        return existing["id"], False
+    sid = _create_session(db, created_by=created_by, n_kontenery=n_kontenery)
+    return sid, True
 
 
 @pytest.fixture
@@ -63,49 +75,6 @@ def test_build_punkty_names_n8():
 from mbr.chzt.models import get_session_with_pomiary
 
 
-def test_get_or_create_session_creates_fresh(db):
-    session_id, created = get_or_create_session(db, "2026-04-18", created_by=1, n_kontenery=8)
-    db.commit()
-    assert created is True
-    assert isinstance(session_id, int)
-
-    pomiary = db.execute(
-        "SELECT punkt_nazwa, kolejnosc FROM chzt_pomiary WHERE sesja_id=? ORDER BY kolejnosc",
-        (session_id,),
-    ).fetchall()
-    assert len(pomiary) == 11
-    assert pomiary[0]["punkt_nazwa"] == "hala"
-    assert pomiary[0]["kolejnosc"] == 1
-    assert pomiary[-1]["punkt_nazwa"] == "szambiarka"
-    assert pomiary[-1]["kolejnosc"] == 11
-
-
-def test_get_or_create_session_idempotent(db):
-    sid1, c1 = get_or_create_session(db, "2026-04-18", created_by=1, n_kontenery=8)
-    db.commit()
-    sid2, c2 = get_or_create_session(db, "2026-04-18", created_by=2, n_kontenery=5)
-    db.commit()
-    assert sid1 == sid2
-    assert c1 is True
-    assert c2 is False
-    row = db.execute("SELECT n_kontenery FROM chzt_sesje WHERE id=?", (sid1,)).fetchone()
-    assert row["n_kontenery"] == 8
-
-
-def test_get_session_with_pomiary_shape(db):
-    sid, _ = get_or_create_session(db, "2026-04-18", created_by=1, n_kontenery=2)
-    db.commit()
-    session = get_session_with_pomiary(db, sid)
-    assert session["id"] == sid
-    assert session["data"] == "2026-04-18"
-    assert session["n_kontenery"] == 2
-    assert session["finalized_at"] is None
-    assert len(session["punkty"]) == 5
-    hala = session["punkty"][0]
-    assert hala["punkt_nazwa"] == "hala"
-    assert hala["ph"] is None
-    assert hala["srednia"] is None
-
 
 def test_get_session_with_pomiary_returns_none_when_missing(db):
     assert get_session_with_pomiary(db, 99999) is None
@@ -154,37 +123,6 @@ def admin_client(monkeypatch, db):
         sess["user"] = {"login": "admin", "rola": "admin", "imie_nazwisko": "Admin"}
     return c
 
-
-def test_session_today_creates_and_returns(client, db):
-    resp = client.get("/api/chzt/session/today")
-    assert resp.status_code == 200
-    data = resp.get_json()
-    assert data["session"]["data"] == date.today().isoformat()
-    assert data["session"]["finalized_at"] is None
-    assert len(data["session"]["punkty"]) == 11
-
-
-def test_session_today_idempotent(client, db):
-    r1 = client.get("/api/chzt/session/today").get_json()
-    r2 = client.get("/api/chzt/session/today").get_json()
-    assert r1["session"]["id"] == r2["session"]["id"]
-
-
-def test_session_today_logs_created_audit(client, db):
-    client.get("/api/chzt/session/today")
-    rows = db.execute(
-        "SELECT event_type FROM audit_log WHERE event_type='chzt.session.created'"
-    ).fetchall()
-    assert len(rows) == 1
-
-
-def test_session_today_logs_created_audit_only_once(client, db):
-    client.get("/api/chzt/session/today")
-    client.get("/api/chzt/session/today")
-    rows = db.execute(
-        "SELECT event_type FROM audit_log WHERE event_type='chzt.session.created'"
-    ).fetchall()
-    assert len(rows) == 1
 
 
 from mbr.chzt.models import compute_srednia
@@ -246,9 +184,10 @@ def test_update_pomiar_clears_srednia_if_lt_2(db):
 
 
 def _get_today_pomiar_id(client, db, punkt="hala"):
-    resp = client.get("/api/chzt/session/today")
-    session_payload = resp.get_json()["session"]
-    for p in session_payload["punkty"]:
+    active = client.get("/api/chzt/session/active").get_json()["session"]
+    if active is None:
+        active = client.post("/api/chzt/session/new", json={"n_kontenery": 8}).get_json()["session"]
+    for p in active["punkty"]:
         if p["punkt_nazwa"] == punkt:
             return p["id"]
     raise AssertionError(f"punkt {punkt} not found")
@@ -360,7 +299,7 @@ def test_resize_kontenery_updates_session_n(db):
 
 
 def test_patch_session_n_kontenery_up(client, db):
-    r0 = client.get("/api/chzt/session/today").get_json()
+    r0 = client.post("/api/chzt/session/new", json={"n_kontenery": 8}).get_json()
     sid = r0["session"]["id"]
     resp = client.patch(f"/api/chzt/session/{sid}", json={"n_kontenery": 10})
     assert resp.status_code == 200
@@ -371,7 +310,7 @@ def test_patch_session_n_kontenery_up(client, db):
 
 
 def test_patch_session_n_kontenery_down_blocked(client, db):
-    r0 = client.get("/api/chzt/session/today").get_json()
+    r0 = client.post("/api/chzt/session/new", json={"n_kontenery": 8}).get_json()
     sid = r0["session"]["id"]
     k5_pid = None
     for p in r0["session"]["punkty"]:
@@ -387,7 +326,7 @@ def test_patch_session_n_kontenery_down_blocked(client, db):
 
 
 def test_patch_session_logs_audit(client, db):
-    r0 = client.get("/api/chzt/session/today").get_json()
+    r0 = client.post("/api/chzt/session/new", json={"n_kontenery": 8}).get_json()
     sid = r0["session"]["id"]
     client.patch(f"/api/chzt/session/{sid}", json={"n_kontenery": 10})
     rows = db.execute(
@@ -447,16 +386,20 @@ def test_validate_for_finalize_flags_less_than_2(db):
 
 
 def _fill_all_today(client, db, ph=10, p1=100, p2=200):
-    r = client.get("/api/chzt/session/today").get_json()
-    for p in r["session"]["punkty"]:
+    # Ensure active session (create one if none)
+    active = client.get("/api/chzt/session/active").get_json()["session"]
+    if active is None:
+        active = client.post("/api/chzt/session/new", json={"n_kontenery": 8}).get_json()["session"]
+    sid = active["id"]
+    for p in active["punkty"]:
         client.put(f"/api/chzt/pomiar/{p['id']}", json={
             "ph": ph, "p1": p1, "p2": p2, "p3": None, "p4": None, "p5": None
         })
-    return r["session"]["id"]
+    return sid
 
 
 def test_finalize_empty_returns_400_with_errors(client, db):
-    r = client.get("/api/chzt/session/today").get_json()
+    r = client.post("/api/chzt/session/new", json={"n_kontenery": 8}).get_json()
     sid = r["session"]["id"]
     resp = client.post(f"/api/chzt/session/{sid}/finalize")
     assert resp.status_code == 400
@@ -518,12 +461,17 @@ from mbr.chzt.models import list_sessions_paginated
 
 
 def test_list_sessions_paginated_desc_order(db):
-    get_or_create_session(db, "2026-04-16", created_by=1, n_kontenery=8); db.commit()
-    get_or_create_session(db, "2026-04-18", created_by=1, n_kontenery=8); db.commit()
-    get_or_create_session(db, "2026-04-17", created_by=1, n_kontenery=8); db.commit()
+    for dt in ["2026-04-16T08:00:00", "2026-04-18T08:00:00", "2026-04-17T08:00:00"]:
+        db.execute(
+            "INSERT INTO chzt_sesje (dt_start, n_kontenery, created_at, created_by) "
+            "VALUES (?, 8, ?, 1)", (dt, dt)
+        )
+    db.commit()
     page = list_sessions_paginated(db, page=1, per_page=10)
-    dates = [s["data"] for s in page["sesje"]]
-    assert dates == ["2026-04-18", "2026-04-17", "2026-04-16"]
+    dts = [s["dt_start"] for s in page["sesje"]]
+    assert dts[0].startswith("2026-04-18")
+    assert dts[1].startswith("2026-04-17")
+    assert dts[2].startswith("2026-04-16")
     assert page["total"] == 3
     assert page["page"] == 1
     assert page["pages"] == 1
@@ -533,7 +481,12 @@ def test_list_sessions_paginated_splits_pages(db):
     for d in ["2026-04-01", "2026-04-02", "2026-04-03", "2026-04-04", "2026-04-05",
               "2026-04-06", "2026-04-07", "2026-04-08", "2026-04-09", "2026-04-10",
               "2026-04-11", "2026-04-12"]:
-        get_or_create_session(db, d, created_by=1, n_kontenery=0); db.commit()
+        dt = d + "T08:00:00"
+        db.execute(
+            "INSERT INTO chzt_sesje (dt_start, n_kontenery, created_at, created_by) "
+            "VALUES (?, 0, ?, 1)", (dt, dt)
+        )
+    db.commit()
     page1 = list_sessions_paginated(db, page=1, per_page=10)
     page2 = list_sessions_paginated(db, page=2, per_page=10)
     assert len(page1["sesje"]) == 10
@@ -566,18 +519,6 @@ def test_list_sessions_paginated_includes_avg_and_max(db):
     assert s["avg_ph"] == 10.0
 
 
-def test_get_session_by_date_ok(client, db):
-    client.get("/api/chzt/session/today")
-    today = date.today().isoformat()
-    resp = client.get(f"/api/chzt/session/{today}")
-    assert resp.status_code == 200
-    assert resp.get_json()["session"]["data"] == today
-
-
-def test_get_session_by_date_missing_404(client, db):
-    resp = client.get("/api/chzt/session/2020-01-01")
-    assert resp.status_code == 404
-
 
 def test_get_day_finalized_returns_frame(client, db):
     sid = _fill_all_today(client, db, ph=10, p1=25000, p2=26000)
@@ -586,7 +527,7 @@ def test_get_day_finalized_returns_frame(client, db):
     resp = client.get(f"/api/chzt/day/{today}")
     assert resp.status_code == 200
     body = resp.get_json()
-    assert body["data"] == today
+    assert body["dt_start"].startswith(today)
     assert body["finalized_at"] is not None
     punkty = {p["nazwa"]: p for p in body["punkty"]}
     assert punkty["hala"]["ph"] == 10
@@ -602,26 +543,27 @@ def test_get_day_draft_returns_404(client, db):
 
 def test_get_history_paginated(client, db):
     for d in ["2026-04-10", "2026-04-11", "2026-04-12"]:
+        dt = d + "T10:00:00"
         db.execute(
-            "INSERT INTO chzt_sesje (data, n_kontenery, created_at, created_by) "
+            "INSERT INTO chzt_sesje (dt_start, n_kontenery, created_at, created_by) "
             "VALUES (?, 0, ?, 1)",
-            (d, d + "T10:00:00"),
+            (dt, dt),
         )
     db.commit()
     resp = client.get("/api/chzt/history?page=1")
     assert resp.status_code == 200
     body = resp.get_json()
     assert body["total"] == 3
-    assert body["sesje"][0]["data"] == "2026-04-12"
-
+    assert body["sesje"][0]["dt_start"].startswith("2026-04-12")
 
 
 def test_historia_page_renders(client, db):
     for d in ["2026-04-17", "2026-04-18"]:
+        dt = d + "T10:00:00"
         db.execute(
-            "INSERT INTO chzt_sesje (data, n_kontenery, created_at, created_by) "
+            "INSERT INTO chzt_sesje (dt_start, n_kontenery, created_at, created_by) "
             "VALUES (?, 0, ?, 1)",
-            (d, d + "T10:00:00"),
+            (dt, dt),
         )
     db.commit()
     resp = client.get("/chzt/historia")
@@ -655,7 +597,7 @@ def test_get_session_with_pomiary_finalized_by_name_null_when_not_finalized(db):
 
 
 def test_patch_session_n_kontenery_rejects_over_20(client, db):
-    r0 = client.get("/api/chzt/session/today").get_json()
+    r0 = client.post("/api/chzt/session/new", json={"n_kontenery": 8}).get_json()
     sid = r0["session"]["id"]
     resp = client.patch(f"/api/chzt/session/{sid}", json={"n_kontenery": 21})
     assert resp.status_code == 400
@@ -935,3 +877,83 @@ def test_list_sessions_paginated_returns_dt_start_not_data(db):
     assert "dt_start" in s
     assert s["dt_start"] == "2026-04-18T08:00:00"
     assert "data" not in s
+
+
+# ───────────────────────────────────────────────────────────────
+# T4: API endpoints /active, /new, /<int:id>
+# ───────────────────────────────────────────────────────────────
+
+
+def test_session_active_returns_null_when_no_open(client, db):
+    resp = client.get("/api/chzt/session/active")
+    assert resp.status_code == 200
+    assert resp.get_json() == {"session": None}
+
+
+def test_session_active_returns_open_session(client, db):
+    r1 = client.post("/api/chzt/session/new", json={"n_kontenery": 8})
+    assert r1.status_code == 200
+    sid = r1.get_json()["session"]["id"]
+    r2 = client.get("/api/chzt/session/active")
+    assert r2.status_code == 200
+    assert r2.get_json()["session"]["id"] == sid
+
+
+def test_session_new_creates_and_returns_session(client, db):
+    resp = client.post("/api/chzt/session/new", json={"n_kontenery": 3})
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["session"]["n_kontenery"] == 3
+    assert len(data["session"]["punkty"]) == 6  # hala + rura + 3 kontener + szambiarka
+
+
+def test_session_new_default_n_kontenery(client, db):
+    resp = client.post("/api/chzt/session/new", json={})
+    assert resp.status_code == 200
+    assert resp.get_json()["session"]["n_kontenery"] == 8
+
+
+def test_session_new_rejects_out_of_range(client, db):
+    r1 = client.post("/api/chzt/session/new", json={"n_kontenery": -1})
+    assert r1.status_code == 400
+    r2 = client.post("/api/chzt/session/new", json={"n_kontenery": 21})
+    assert r2.status_code == 400
+
+
+def test_session_new_409_when_already_open(client, db):
+    client.post("/api/chzt/session/new", json={"n_kontenery": 3})
+    resp = client.post("/api/chzt/session/new", json={"n_kontenery": 3})
+    assert resp.status_code == 409
+
+
+def test_session_new_after_finalize_ok(client, db):
+    r1 = client.post("/api/chzt/session/new", json={"n_kontenery": 0})
+    sid1 = r1.get_json()["session"]["id"]
+    for p in r1.get_json()["session"]["punkty"]:
+        client.put(f"/api/chzt/pomiar/{p['id']}", json={"ph": 10, "p1": 1, "p2": 2})
+    client.post(f"/api/chzt/session/{sid1}/finalize")
+
+    r2 = client.post("/api/chzt/session/new", json={"n_kontenery": 0})
+    assert r2.status_code == 200
+    assert r2.get_json()["session"]["id"] != sid1
+
+
+def test_get_session_by_int_id(client, db):
+    r1 = client.post("/api/chzt/session/new", json={"n_kontenery": 2})
+    sid = r1.get_json()["session"]["id"]
+    r2 = client.get(f"/api/chzt/session/{sid}")
+    assert r2.status_code == 200
+    assert r2.get_json()["session"]["id"] == sid
+
+
+def test_get_session_by_int_id_404(client, db):
+    resp = client.get("/api/chzt/session/99999")
+    assert resp.status_code == 404
+
+
+def test_session_new_logs_audit(client, db):
+    client.post("/api/chzt/session/new", json={"n_kontenery": 3})
+    rows = db.execute(
+        "SELECT event_type FROM audit_log WHERE event_type='chzt.session.created'"
+    ).fetchall()
+    assert len(rows) == 1

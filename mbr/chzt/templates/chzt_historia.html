@@ -44,8 +44,8 @@
           <tbody>
             {% for s in sesje %}
             {% set range_val = (s.max_chzt - s.min_chzt) if (s.max_chzt and s.min_chzt is not none) else None %}
-            <tr class="chzt-hist-row" data-sid="{{ s.id }}" data-data="{{ s.data }}" onclick="chztShowDetail({{ s.id }}, '{{ s.data }}')">
-              <td class="td-date-iso">{{ s.data }}</td>
+            <tr class="chzt-hist-row" data-sid="{{ s.id }}" data-data="{{ s.dt_start }}" onclick="chztShowDetail({{ s.id }}, '{{ s.dt_start }}')">
+              <td class="td-date-iso">{{ s.dt_start }}</td>
               <td class="td-kont">{{ s.n_kontenery }}</td>
               <td class="td-avg">{% if s.avg_chzt %}{{ '{:,}'.format(s.avg_chzt|int).replace(',', ' ') }}{% else %}—{% endif %}</td>
               <td class="td-min">{% if s.min_chzt is not none %}{{ '{:,}'.format(s.min_chzt|int).replace(',', ' ') }}{% else %}—{% endif %}</td>
