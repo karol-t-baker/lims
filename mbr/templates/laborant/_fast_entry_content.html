@@ -5879,9 +5879,14 @@ if (typeof window.openCalculator === 'undefined') {
     <div class="zb-assign-modal-grid" id="zb-assign-grid">
       <div style="padding:20px;color:var(--text-dim);font-size:12px;">wczytywanie…</div>
     </div>
+    <div class="zb-assign-mass-section" id="zb-assign-mass-section" style="display:none;">
+      <div class="zb-assign-mass-label">Rozkład masy (opcjonalnie)</div>
+      <div class="zb-assign-mass-rows" id="zb-assign-mass-rows"></div>
+      <div class="zb-assign-mass-total" id="zb-assign-mass-total"></div>
+    </div>
     <div class="zb-assign-modal-footer">
       <button type="button" class="btn btn-o" onclick="closeZbAssignModal()">Anuluj</button>
-      <button type="button" class="btn btn-p" id="zb-assign-confirm" onclick="confirmZbAssign()">Dodaj wybrane</button>
+      <button type="button" class="btn btn-p" id="zb-assign-confirm" onclick="confirmZbAssign()">Zapisz</button>
     </div>
   </div>
 </div>
@@ -5890,12 +5895,22 @@ if (typeof window.openCalculator === 'undefined') {
 (function(){
   'use strict';
 
-  var _zbAssignSelected = new Set();
+  // Current modal state:
+  //   _zbAssignSelected[zid] = {nr, masa}  — picked tanks + their mass (editable)
+  //   _zbAssignInitial[zid]  = {link_id, masa}  — snapshot of what was linked BEFORE opening modal
+  var _zbAssignSelected = {};
+  var _zbAssignInitial = {};
 
   function _zbEsc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) {
       return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
     });
+  }
+
+  function _parseMass(v) {
+    if (v === '' || v == null) return null;
+    var n = parseFloat(String(v).replace(',', '.'));
+    return isFinite(n) ? n : null;
   }
 
   window.loadZbAssignedPills = async function() {
@@ -5907,18 +5922,89 @@ if (typeof window.openCalculator === 'undefined') {
       var resp = await fetch('/api/zbiornik-szarze/' + ebrIdLocal);
       var data = await resp.json();
       if (!data || data.length === 0) {
-        container.innerHTML = '<span class="zb-assign-empty">(brak — dodaj podczas pracy lub przy zakończeniu)</span>';
+        container.innerHTML = '<span class="zb-assign-empty">—</span>';
         return;
       }
       container.innerHTML = data.map(function(d) {
-        var mass = d.masa_kg ? ' \u00b7 ' + d.masa_kg + ' kg' : '';
-        return '<span class="zb-pill" data-link-id="' + d.id + '">' +
-          _zbEsc(d.nr_zbiornika) + mass +
-          ' <button type="button" class="zb-pill-remove" onclick="unlinkZbiornik(' + d.id + ')" title="Odepnij">&times;</button>' +
+        var mass = d.masa_kg ? ' \u00b7 ' + Math.round(d.masa_kg).toLocaleString('pl-PL') + ' kg' : '';
+        return '<span class="zb-pill" data-link-id="' + d.id + '" title="Kliknij aby edytować">' +
+          '<span class="zb-pill-body" onclick="openZbAssignModal()">' +
+            _zbEsc(d.nr_zbiornika) + mass +
+          '</span>' +
+          '<button type="button" class="zb-pill-remove" onclick="event.stopPropagation();unlinkZbiornik(' + d.id + ')" title="Odepnij">&times;</button>' +
           '</span>';
       }).join('');
     } catch (e) {
       container.innerHTML = '<span class="zb-assign-empty" style="color:var(--red);">Błąd ładowania</span>';
+    }
+  };
+
+  function _renderMassSection() {
+    var massSec = document.getElementById('zb-assign-mass-section');
+    var massRows = document.getElementById('zb-assign-mass-rows');
+    var massTotal = document.getElementById('zb-assign-mass-total');
+    var keys = Object.keys(_zbAssignSelected);
+    if (keys.length === 0) {
+      massSec.style.display = 'none';
+      return;
+    }
+    massSec.style.display = '';
+    var rowsHtml = '';
+    keys.forEach(function(zid) {
+      var s = _zbAssignSelected[zid];
+      var val = s.masa != null ? s.masa : '';
+      rowsHtml += '<div class="zb-assign-mass-row">' +
+        '<span class="zb-assign-mass-nr">' + _zbEsc(s.nr) + '</span>' +
+        '<input type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" ' +
+               'class="zb-assign-mass-input" data-zid="' + zid + '" value="' + val + '" ' +
+               'placeholder="kg" oninput="_zbMassInput(' + zid + ', this.value)">' +
+        '<span class="zb-assign-mass-unit">kg</span>' +
+        '</div>';
+    });
+    massRows.innerHTML = rowsHtml;
+
+    var total = 0; var hasAny = false;
+    keys.forEach(function(zid) {
+      var m = _zbAssignSelected[zid].masa;
+      if (m != null && isFinite(m)) { total += m; hasAny = true; }
+    });
+    var nastaw = (typeof ebrNastaw !== 'undefined' && ebrNastaw) ? ebrNastaw : 0;
+    if (hasAny || nastaw) {
+      var htmlTot = 'Razem: <strong>' + total.toLocaleString('pl-PL') + ' kg</strong>';
+      if (nastaw) {
+        var diff = nastaw - total;
+        var cls = Math.abs(diff) < 0.5 ? 'ok' : 'warn';
+        htmlTot += ' <span class="zb-assign-mass-diff ' + cls + '">(nastaw ' + nastaw.toLocaleString('pl-PL') + ' kg, pozostaje ' + diff.toLocaleString('pl-PL') + ')</span>';
+      }
+      massTotal.innerHTML = htmlTot;
+    } else {
+      massTotal.innerHTML = '';
+    }
+  }
+
+  window._zbMassInput = function(zid, val) {
+    if (_zbAssignSelected[zid]) {
+      _zbAssignSelected[zid].masa = _parseMass(val);
+      // Update total only (don't re-render row — would lose cursor)
+      var massTotal = document.getElementById('zb-assign-mass-total');
+      var keys = Object.keys(_zbAssignSelected);
+      var total = 0; var hasAny = false;
+      keys.forEach(function(k) {
+        var m = _zbAssignSelected[k].masa;
+        if (m != null && isFinite(m)) { total += m; hasAny = true; }
+      });
+      var nastaw = (typeof ebrNastaw !== 'undefined' && ebrNastaw) ? ebrNastaw : 0;
+      if (hasAny || nastaw) {
+        var htmlTot = 'Razem: <strong>' + total.toLocaleString('pl-PL') + ' kg</strong>';
+        if (nastaw) {
+          var diff = nastaw - total;
+          var cls = Math.abs(diff) < 0.5 ? 'ok' : 'warn';
+          htmlTot += ' <span class="zb-assign-mass-diff ' + cls + '">(nastaw ' + nastaw.toLocaleString('pl-PL') + ' kg, pozostaje ' + diff.toLocaleString('pl-PL') + ')</span>';
+        }
+        massTotal.innerHTML = htmlTot;
+      } else {
+        massTotal.innerHTML = '';
+      }
     }
   };
 
@@ -5927,45 +6013,52 @@ if (typeof window.openCalculator === 'undefined') {
     if (!section) return;
     var grid = document.getElementById('zb-assign-grid');
     grid.innerHTML = '<div style="padding:20px;color:var(--text-dim);font-size:12px;">wczytywanie…</div>';
-    _zbAssignSelected.clear();
+    _zbAssignSelected = {};
+    _zbAssignInitial = {};
     document.getElementById('zb-assign-modal').style.display = 'flex';
+    document.getElementById('zb-assign-mass-section').style.display = 'none';
 
-    // Reuse existing helpers from pump modal
     await loadZbiornikList();
     var batchKod = _getBatchKod();
     var matched = batchKod
       ? _zbiornikList.filter(function(z) { return z.kod_produktu === batchKod; })
       : _zbiornikList.slice();
 
-    // Exclude already-linked tanks
+    // Load current assignments for pre-select + masy
     var assignedResp = await fetch('/api/zbiornik-szarze/' + section.dataset.ebrId);
     var assigned = await assignedResp.json();
-    var assignedIds = {};
-    (assigned || []).forEach(function(a){ assignedIds[a.zbiornik_id] = true; });
-    var available = matched.filter(function(z){ return !assignedIds[z.id] && z.aktywny !== 0; });
+    (assigned || []).forEach(function(a){
+      _zbAssignInitial[a.zbiornik_id] = {link_id: a.id, masa: a.masa_kg};
+      _zbAssignSelected[a.zbiornik_id] = {nr: a.nr_zbiornika, masa: a.masa_kg};
+    });
 
+    var available = matched.filter(function(z){ return z.aktywny !== 0; });
     if (available.length === 0) {
       grid.innerHTML = '<div style="padding:20px;color:var(--text-dim);font-size:12px;">' +
-        'Wszystkie dostępne zbiorniki tego produktu są już przypisane.</div>';
+        'Brak zbiorników tego produktu w katalogu.</div>';
       return;
     }
 
     grid.innerHTML = available.map(function(t) {
-      return '<button type="button" class="zb-assign-tile" data-zid="' + t.id + '" onclick="toggleZbAssign(' + t.id + ', this)">' +
+      var selCls = _zbAssignSelected[t.id] ? ' selected' : '';
+      return '<button type="button" class="zb-assign-tile' + selCls + '" data-zid="' + t.id + '" data-nr="' + _zbEsc(t.nr_zbiornika) + '" onclick="toggleZbAssign(' + t.id + ', this)">' +
         '<div class="zb-assign-tile-nr">' + _zbEsc(t.nr_zbiornika) + '</div>' +
         '<div class="zb-assign-tile-cap">' + (t.max_pojemnosc || '—') + ' kg</div>' +
         '</button>';
     }).join('');
+
+    _renderMassSection();
   };
 
   window.toggleZbAssign = function(zid, btn) {
-    if (_zbAssignSelected.has(zid)) {
-      _zbAssignSelected.delete(zid);
+    if (_zbAssignSelected[zid]) {
+      delete _zbAssignSelected[zid];
       btn.classList.remove('selected');
     } else {
-      _zbAssignSelected.add(zid);
+      _zbAssignSelected[zid] = {nr: btn.dataset.nr, masa: null};
       btn.classList.add('selected');
     }
+    _renderMassSection();
   };
 
   window.confirmZbAssign = async function() {
@@ -5973,34 +6066,53 @@ if (typeof window.openCalculator === 'undefined') {
     if (!section) return;
     var btn = document.getElementById('zb-assign-confirm');
     btn.disabled = true;
-    btn.textContent = 'Dodawanie…';
+    btn.textContent = 'Zapisywanie…';
     var ebrIdLocal = parseInt(section.dataset.ebrId);
+
     var promises = [];
-    _zbAssignSelected.forEach(function(zid) {
-      promises.push(fetch('/api/zbiornik-szarze', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ebr_id: ebrIdLocal, zbiornik_id: zid}),
-      }));
+    // Adds / updates: each currently-selected tank → POST (INSERT OR REPLACE handles both)
+    Object.keys(_zbAssignSelected).forEach(function(zidStr) {
+      var zid = parseInt(zidStr);
+      var sel = _zbAssignSelected[zidStr];
+      var init = _zbAssignInitial[zidStr];
+      var changed = !init || (init.masa !== sel.masa);
+      if (changed) {
+        var body = {ebr_id: ebrIdLocal, zbiornik_id: zid};
+        if (sel.masa != null) body.masa_kg = sel.masa;
+        promises.push(fetch('/api/zbiornik-szarze', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(body),
+        }));
+      }
     });
+    // Removals: previously linked but now not selected → DELETE
+    Object.keys(_zbAssignInitial).forEach(function(zidStr) {
+      if (!_zbAssignSelected[zidStr]) {
+        var linkId = _zbAssignInitial[zidStr].link_id;
+        promises.push(fetch('/api/zbiornik-szarze/' + linkId, {method: 'DELETE'}));
+      }
+    });
+
     try {
       await Promise.all(promises);
     } catch (e) {}
     closeZbAssignModal();
     btn.disabled = false;
-    btn.textContent = 'Dodaj wybrane';
+    btn.textContent = 'Zapisz';
     await loadZbAssignedPills();
+  };
+
+  window.closeZbAssignModal = function() {
+    document.getElementById('zb-assign-modal').style.display = 'none';
+    _zbAssignSelected = {};
+    _zbAssignInitial = {};
   };
 
   window.unlinkZbiornik = async function(linkId) {
     if (!confirm('Odepnąć zbiornik od tej szarży?')) return;
     await fetch('/api/zbiornik-szarze/' + linkId, {method: 'DELETE'});
     await loadZbAssignedPills();
-  };
-
-  window.closeZbAssignModal = function() {
-    document.getElementById('zb-assign-modal').style.display = 'none';
-    _zbAssignSelected.clear();
   };
 
   // Auto-load on batch view render
