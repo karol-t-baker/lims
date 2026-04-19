@@ -224,6 +224,39 @@ def unfinalize_session(db, session_id: int):
     )
 
 
+def list_sessions_paginated(db, *, page: int = 1, per_page: int = 10) -> dict:
+    """Return paginated list of sessions DESC by data.
+
+    Shape: {sesje: [{id, data, n_kontenery, finalized_at, finalized_by_name, updated_at_max}],
+            total, page, pages, per_page}
+    """
+    page = max(1, int(page))
+    per_page = max(1, min(100, int(per_page)))
+    offset = (page - 1) * per_page
+
+    total_row = db.execute("SELECT COUNT(*) AS c FROM chzt_sesje").fetchone()
+    total = total_row["c"] if total_row else 0
+    pages = max(1, (total + per_page - 1) // per_page)
+
+    rows = db.execute(
+        "SELECT s.id, s.data, s.n_kontenery, s.finalized_at, "
+        "       w.imie || ' ' || w.nazwisko AS finalized_by_name, "
+        "       (SELECT MAX(updated_at) FROM chzt_pomiary WHERE sesja_id=s.id) AS updated_at_max "
+        "FROM chzt_sesje s "
+        "LEFT JOIN workers w ON w.id = s.finalized_by "
+        "ORDER BY s.data DESC "
+        "LIMIT ? OFFSET ?",
+        (per_page, offset),
+    ).fetchall()
+    return {
+        "sesje": [dict(r) for r in rows],
+        "total": total,
+        "page": page,
+        "pages": pages,
+        "per_page": per_page,
+    }
+
+
 def get_session_with_pomiary(db, session_id: int) -> dict:
     """Return {session fields..., punkty: [pomiar rows ordered by kolejnosc]}.
 

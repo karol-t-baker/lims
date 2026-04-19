@@ -542,3 +542,80 @@ def test_unfinalize_admin_ok(admin_client, client, db):
         "SELECT finalized_at FROM chzt_sesje WHERE id=?", (sid,)
     ).fetchone()
     assert row["finalized_at"] is None
+
+
+from mbr.chzt.models import list_sessions_paginated
+
+
+def test_list_sessions_paginated_desc_order(db):
+    get_or_create_session(db, "2026-04-16", created_by=1, n_kontenery=8); db.commit()
+    get_or_create_session(db, "2026-04-18", created_by=1, n_kontenery=8); db.commit()
+    get_or_create_session(db, "2026-04-17", created_by=1, n_kontenery=8); db.commit()
+    page = list_sessions_paginated(db, page=1, per_page=10)
+    dates = [s["data"] for s in page["sesje"]]
+    assert dates == ["2026-04-18", "2026-04-17", "2026-04-16"]
+    assert page["total"] == 3
+    assert page["page"] == 1
+    assert page["pages"] == 1
+
+
+def test_list_sessions_paginated_splits_pages(db):
+    for d in ["2026-04-01", "2026-04-02", "2026-04-03", "2026-04-04", "2026-04-05",
+              "2026-04-06", "2026-04-07", "2026-04-08", "2026-04-09", "2026-04-10",
+              "2026-04-11", "2026-04-12"]:
+        get_or_create_session(db, d, created_by=1, n_kontenery=0); db.commit()
+    page1 = list_sessions_paginated(db, page=1, per_page=10)
+    page2 = list_sessions_paginated(db, page=2, per_page=10)
+    assert len(page1["sesje"]) == 10
+    assert len(page2["sesje"]) == 2
+    assert page1["pages"] == 2
+    assert page2["page"] == 2
+
+
+def test_get_session_by_date_ok(client, db):
+    client.get("/api/chzt/session/today")
+    today = date.today().isoformat()
+    resp = client.get(f"/api/chzt/session/{today}")
+    assert resp.status_code == 200
+    assert resp.get_json()["session"]["data"] == today
+
+
+def test_get_session_by_date_missing_404(client, db):
+    resp = client.get("/api/chzt/session/2020-01-01")
+    assert resp.status_code == 404
+
+
+def test_get_day_finalized_returns_frame(client, db):
+    sid = _fill_all_today(client, db, ph=10, p1=25000, p2=26000)
+    client.post(f"/api/chzt/session/{sid}/finalize")
+    today = date.today().isoformat()
+    resp = client.get(f"/api/chzt/day/{today}")
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["data"] == today
+    assert body["finalized_at"] is not None
+    punkty = {p["nazwa"]: p for p in body["punkty"]}
+    assert punkty["hala"]["ph"] == 10
+    assert punkty["hala"]["srednia"] == 25500.0
+
+
+def test_get_day_draft_returns_404(client, db):
+    _fill_all_today(client, db)
+    today = date.today().isoformat()
+    resp = client.get(f"/api/chzt/day/{today}")
+    assert resp.status_code == 404
+
+
+def test_get_history_paginated(client, db):
+    for d in ["2026-04-10", "2026-04-11", "2026-04-12"]:
+        db.execute(
+            "INSERT INTO chzt_sesje (data, n_kontenery, created_at, created_by) "
+            "VALUES (?, 0, ?, 1)",
+            (d, d + "T10:00:00"),
+        )
+    db.commit()
+    resp = client.get("/api/chzt/history?page=1")
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["total"] == 3
+    assert body["sesje"][0]["data"] == "2026-04-12"

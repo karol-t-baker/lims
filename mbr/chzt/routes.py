@@ -14,6 +14,7 @@ from mbr.chzt.models import (
     validate_for_finalize,
     finalize_session,
     unfinalize_session,
+    list_sessions_paginated,
     POMIAR_FIELDS,
 )
 from mbr.db import db_session
@@ -179,3 +180,53 @@ def api_session_unfinalize(session_id: int):
         db.commit()
         payload = get_session_with_pomiary(db, session_id)
     return jsonify({"session": payload})
+
+
+@chzt_bp.route("/api/chzt/session/<data_iso>", methods=["GET"])
+@role_required(*ROLES_EDIT)
+def api_session_by_date(data_iso: str):
+    with db_session() as db:
+        row = db.execute("SELECT id FROM chzt_sesje WHERE data=?", (data_iso,)).fetchone()
+        if row is None:
+            return jsonify({"error": "brak sesji dla tej daty"}), 404
+        payload = get_session_with_pomiary(db, row["id"])
+    return jsonify({"session": payload})
+
+
+@chzt_bp.route("/api/chzt/day/<data_iso>", methods=["GET"])
+@role_required(*ROLES_EDIT)
+def api_day_frame(data_iso: str):
+    """Export frame for Excel-filling script. Finalized sessions only."""
+    with db_session() as db:
+        row = db.execute(
+            "SELECT id, data, finalized_at FROM chzt_sesje WHERE data=? AND finalized_at IS NOT NULL",
+            (data_iso,),
+        ).fetchone()
+        if row is None:
+            return jsonify({"error": "brak sfinalizowanej sesji"}), 404
+        prows = db.execute(
+            "SELECT punkt_nazwa, ph, srednia FROM chzt_pomiary "
+            "WHERE sesja_id=? ORDER BY kolejnosc",
+            (row["id"],),
+        ).fetchall()
+        punkty = [
+            {"nazwa": p["punkt_nazwa"], "ph": p["ph"], "srednia": p["srednia"]}
+            for p in prows
+        ]
+    return jsonify({
+        "data": row["data"],
+        "finalized_at": row["finalized_at"],
+        "punkty": punkty,
+    })
+
+
+@chzt_bp.route("/api/chzt/history", methods=["GET"])
+@role_required(*ROLES_EDIT)
+def api_history():
+    try:
+        page = int(request.args.get("page", 1))
+    except ValueError:
+        page = 1
+    with db_session() as db:
+        payload = list_sessions_paginated(db, page=page, per_page=10)
+    return jsonify(payload)
