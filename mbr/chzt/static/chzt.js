@@ -69,8 +69,15 @@
 
   function renderDate() {
     if (!_session) return;
-    var parts = _session.data.split('-'); // YYYY-MM-DD
-    el('chzt-date').textContent = parts[2] + '.' + parts[1] + '.' + parts[0];
+    var iso = _session.dt_start || _session.data || '';
+    var parts = iso.split('T');
+    var dateParts = (parts[0] || '').split('-');
+    var timeParts = (parts[1] || '').split(':');
+    var formatted = (dateParts[2] || '—') + '.' + (dateParts[1] || '—') + '.' + (dateParts[0] || '—');
+    if (timeParts.length >= 2) {
+      formatted += ' ' + timeParts[0] + ':' + timeParts[1];
+    }
+    el('chzt-date').textContent = formatted;
   }
 
   function renderTable() {
@@ -257,6 +264,7 @@
   }
 
   function loadSession(urlSuffix) {
+    // urlSuffix can be numeric id or (legacy) data string — routes now expect int id
     setStatus('saving', '🟡 ładowanie…');
     fetch('/api/chzt/session/' + urlSuffix, {
       headers: {'Accept': 'application/json'},
@@ -266,8 +274,7 @@
     }).then(function(resp){
       _session = resp.session;
       el('chzt-n-kontenery').value = _session.n_kontenery;
-      var pct = _session.punkty.length;
-      el('chzt-meta-punkty').textContent = pct + ' punktów';
+      el('chzt-meta-punkty').textContent = _session.punkty.length + ' punktów';
       el('chzt-meta-kontenery').textContent = _session.n_kontenery + ' kontenerów';
       renderDate();
       renderTable();
@@ -278,11 +285,102 @@
     });
   }
 
-  window.openChztModal = function(dataIso) {
+  window.openChztModal = function(arg) {
     el('chzt-overlay').classList.add('show');
-    el('chzt-errors').style.display = 'none';
-    el('chzt-toolbar-error').textContent = '';
-    loadSession(dataIso ? encodeURIComponent(dataIso) : 'today');
+    if (el('chzt-errors')) el('chzt-errors').style.display = 'none';
+    if (el('chzt-toolbar-error')) el('chzt-toolbar-error').textContent = '';
+    if (el('chzt-create-error')) el('chzt-create-error').textContent = '';
+    if (typeof arg === 'number' || (typeof arg === 'string' && /^\d+$/.test(arg))) {
+      // Numeric id — load specific session (e.g. from historia Edit)
+      _showEditPane();
+      loadSession(arg);
+    } else {
+      // From narzedzia card: try active session, else show create pane
+      loadActiveOrCreate();
+    }
+  };
+
+  function _showCreatePane() {
+    if (el('chzt-create-pane')) el('chzt-create-pane').style.display = '';
+    if (el('chzt-edit-pane')) el('chzt-edit-pane').style.display = 'none';
+  }
+
+  function _showEditPane() {
+    if (el('chzt-create-pane')) el('chzt-create-pane').style.display = 'none';
+    if (el('chzt-edit-pane')) el('chzt-edit-pane').style.display = '';
+  }
+
+  function loadActiveOrCreate() {
+    fetch('/api/chzt/session/active', {headers: {'Accept': 'application/json'}})
+      .then(function(r){ if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function(resp){
+        if (resp.session === null) {
+          _showCreatePane();
+          var inp = el('chzt-create-n');
+          if (inp) {
+            inp.value = 8;
+            setTimeout(function(){ inp.focus(); inp.select(); }, 50);
+          }
+        } else {
+          _showEditPane();
+          _session = resp.session;
+          el('chzt-n-kontenery').value = _session.n_kontenery;
+          el('chzt-meta-punkty').textContent = _session.punkty.length + ' punktów';
+          el('chzt-meta-kontenery').textContent = _session.n_kontenery + ' kontenerów';
+          renderDate();
+          renderTable();
+          renderFinalizedBanner();
+          initialStatus();
+        }
+      })
+      .catch(function(){
+        _showEditPane();
+        setStatus('error', '🔴 nie udało się wczytać');
+      });
+  }
+
+  window.chztSubmitNew = function() {
+    var input = el('chzt-create-n');
+    var n = parseInt(input.value);
+    var errBox = el('chzt-create-error');
+    if (isNaN(n) || n < 0 || n > 20) {
+      errBox.textContent = 'Oczekuję liczby 0–20';
+      return;
+    }
+    errBox.textContent = '';
+    var btn = el('chzt-create-submit');
+    btn.disabled = true;
+    btn.textContent = 'Tworzenie…';
+
+    fetch('/api/chzt/session/new', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({n_kontenery: n}),
+    }).then(function(r){
+      if (r.status === 409) {
+        return r.json().then(function(b){
+          errBox.textContent = b.error || 'Istnieje otwarta sesja';
+          throw new Error('conflict');
+        });
+      }
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }).then(function(resp){
+      _session = resp.session;
+      _showEditPane();
+      el('chzt-n-kontenery').value = _session.n_kontenery;
+      el('chzt-meta-punkty').textContent = _session.punkty.length + ' punktów';
+      el('chzt-meta-kontenery').textContent = _session.n_kontenery + ' kontenerów';
+      renderDate();
+      renderTable();
+      renderFinalizedBanner();
+      initialStatus();
+      btn.disabled = false;
+      btn.textContent = 'Rozpocznij sesję';
+    }).catch(function(){
+      btn.disabled = false;
+      btn.textContent = 'Rozpocznij sesję';
+    });
   };
 
   window.closeChztModal = function() {
@@ -415,7 +513,7 @@
     var parts = dataIso.split('-');
     if (dateEl) dateEl.textContent = parts[2] + '.' + parts[1] + '.' + parts[0];
 
-    fetchJson('/api/chzt/session/' + encodeURIComponent(dataIso)).then(function(resp){
+    fetchJson('/api/chzt/session/' + sid).then(function(resp){
       _session = resp.session;
 
       if (badge) {
