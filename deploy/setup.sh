@@ -78,12 +78,16 @@ cp "$LIMS_DIR/deploy/gotenberg.service" /etc/systemd/system/
 cp "$LIMS_DIR/deploy/kiosk.service" /etc/systemd/system/
 cp "$LIMS_DIR/deploy/auto-deploy.service" /etc/systemd/system/
 cp "$LIMS_DIR/deploy/auto-deploy.timer" /etc/systemd/system/
+cp "$LIMS_DIR/deploy/lims-backup.service" /etc/systemd/system/
+cp "$LIMS_DIR/deploy/lims-backup.timer" /etc/systemd/system/
 chmod +x "$LIMS_DIR/deploy/auto-deploy.sh"
+chmod +x "$LIMS_DIR/deploy/lims-backup.sh"
 
 systemctl daemon-reload
 systemctl enable --now gotenberg
 systemctl enable --now lims
 systemctl enable --now auto-deploy.timer
+systemctl enable --now lims-backup.timer
 systemctl enable kiosk
 
 # --- DNS: add lims.local to hosts ---
