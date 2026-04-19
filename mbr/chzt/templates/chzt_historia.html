@@ -5,7 +5,7 @@
 {% block topbar %}{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="{{ url_for('chzt.static', filename='chzt.css') }}?v=6">
+<link rel="stylesheet" href="{{ url_for('chzt.static', filename='chzt.css') }}?v=7">
 
 <div class="chzt-hist-page">
 
@@ -35,12 +35,11 @@
               <th class="th-max">Max ChZT</th>
               <th class="th-status">Status</th>
               <th class="th-who">Sfinalizował</th>
-              <th class="th-action"></th>
             </tr>
           </thead>
           <tbody>
             {% for s in sesje %}
-            <tr class="chzt-hist-row" data-sid="{{ s.id }}" data-data="{{ s.data }}">
+            <tr class="chzt-hist-row" data-sid="{{ s.id }}" data-data="{{ s.data }}" onclick="chztShowDetail({{ s.id }}, '{{ s.data }}')">
               <td class="td-date-iso">{{ s.data }}</td>
               <td class="td-punkty">{{ s.n_kontenery + 3 }}</td>
               <td class="td-avg">{% if s.avg_chzt %}{{ '{:,}'.format(s.avg_chzt|int).replace(',', ' ') }}{% else %}—{% endif %}</td>
@@ -53,12 +52,6 @@
                 {% endif %}
               </td>
               <td class="td-who">{{ s.finalized_by_name or '—' }}</td>
-              <td class="td-action">
-                <button class="chzt-btn-show-details" onclick="chztShowDetail({{ s.id }}, '{{ s.data }}')">
-                  Pokaż szczegóły
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-                </button>
-              </td>
             </tr>
             {% endfor %}
           </tbody>
@@ -114,5 +107,5 @@
 
 {% include "chzt_modal.html" %}
 
-<script src="{{ url_for('chzt.static', filename='chzt.js') }}?v=6" defer></script>
+<script src="{{ url_for('chzt.static', filename='chzt.js') }}?v=7" defer></script>
 {% endblock %}

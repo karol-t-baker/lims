@@ -230,9 +230,7 @@
 .chzt-hist-table thead th.th-avg { min-width: 80px; }
 .chzt-hist-table thead th.th-max { min-width: 80px; }
 .chzt-hist-table thead th.th-status { min-width: 100px; }
-.chzt-hist-table thead th.th-action { width: 170px; }
-
-.chzt-hist-row { transition: background 0.08s; }
+.chzt-hist-row { cursor: pointer; transition: background 0.08s; }
 .chzt-hist-row:hover td { background: var(--teal-bg); }
 .chzt-hist-row td {
   padding: 10px 10px;
@@ -252,33 +250,6 @@
 
 .status-ok { color: var(--green); font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; }
 .status-draft { color: var(--text-dim); font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; }
-
-.chzt-hist-row td.td-action {
-  padding-right: 16px;
-  text-align: right;
-}
-
-.chzt-btn-show-details {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 7px 14px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text-sec);
-  border-radius: 6px;
-  font-family: var(--font); font-size: 12px; font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.chzt-btn-show-details svg {
-  width: 12px; height: 12px; flex-shrink: 0;
-  transition: transform 0.15s;
-}
-.chzt-btn-show-details:hover {
-  border-color: var(--teal);
-  color: var(--teal);
-  background: var(--teal-bg);
-}
-.chzt-btn-show-details:hover svg { transform: translateX(2px); }
 
 /* ── DETAIL VIEW — punkt x pomiar table (editable) ── */
 
