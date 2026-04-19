@@ -254,6 +254,61 @@ def api_cert_config_products():
     return jsonify({"ok": True, "products": [dict(r) for r in rows]})
 
 
+# ---------------------------------------------------------------------------
+# Cert alias CRUD (admin only)
+# ---------------------------------------------------------------------------
+
+
+@certs_bp.route("/api/cert/aliases", methods=["GET"])
+@role_required("admin")
+def api_cert_aliases_list():
+    """List all cert-alias pairs."""
+    with db_session() as db:
+        rows = db.execute(
+            "SELECT source_produkt, target_produkt FROM cert_alias "
+            "ORDER BY source_produkt, target_produkt"
+        ).fetchall()
+    return jsonify({"aliases": [dict(r) for r in rows]})
+
+
+@certs_bp.route("/api/cert/aliases", methods=["POST"])
+@role_required("admin")
+def api_cert_aliases_create():
+    """Create a cert alias. Idempotent (INSERT OR IGNORE)."""
+    data = request.get_json(silent=True) or {}
+    source = (data.get("source_produkt") or "").strip()
+    target = (data.get("target_produkt") or "").strip()
+    if not source or not target:
+        return jsonify({"error": "source_produkt and target_produkt required"}), 400
+    if source == target:
+        return jsonify({"error": "self-alias not allowed"}), 400
+    with db_session() as db:
+        target_row = db.execute(
+            "SELECT 1 FROM produkty WHERE nazwa=?", (target,)
+        ).fetchone()
+        if not target_row:
+            return jsonify({"error": f"target produkt not found: {target}"}), 404
+        db.execute(
+            "INSERT OR IGNORE INTO cert_alias (source_produkt, target_produkt) VALUES (?, ?)",
+            (source, target),
+        )
+        db.commit()
+    return jsonify({"ok": True})
+
+
+@certs_bp.route("/api/cert/aliases/<source_produkt>/<target_produkt>", methods=["DELETE"])
+@role_required("admin")
+def api_cert_aliases_delete(source_produkt, target_produkt):
+    """Delete a cert alias. Idempotent (no error if the row didn't exist)."""
+    with db_session() as db:
+        db.execute(
+            "DELETE FROM cert_alias WHERE source_produkt=? AND target_produkt=?",
+            (source_produkt, target_produkt),
+        )
+        db.commit()
+    return jsonify({"ok": True})
+
+
 @certs_bp.route("/api/cert/config/product/<key>")
 @role_required("admin", "kj")
 def api_cert_config_product_get(key):
