@@ -394,7 +394,8 @@
     var dataIso = rowEl.dataset.data;
     fetchJson('/api/chzt/session/' + encodeURIComponent(dataIso)).then(function(resp){
       var s = resp.session;
-      var html = '<div class="registry"><table><thead><tr>' +
+      var html = '<div class="chzt-expand-title">Pomiary per punkt</div>' +
+        '<div class="registry"><table><thead><tr>' +
         '<th>Punkt</th><th>pH</th><th>P1</th><th>P2</th><th>P3</th><th>P4</th><th>P5</th><th>\u015arednia</th>' +
         '</tr></thead><tbody>';
       s.punkty.forEach(function(p){
