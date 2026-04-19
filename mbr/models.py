@@ -1486,6 +1486,13 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     except Exception:
         pass
 
+    # Migration: add grupa to parametry_analityczne (global per-parameter default)
+    try:
+        db.execute("ALTER TABLE parametry_analityczne ADD COLUMN grupa TEXT DEFAULT 'lab'")
+        db.commit()
+    except Exception:
+        pass
+
     # Migration: add default_grupa to mbr_users (default parameter group filter)
     try:
         db.execute("ALTER TABLE mbr_users ADD COLUMN default_grupa TEXT DEFAULT 'lab'")

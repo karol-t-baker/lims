@@ -7,6 +7,8 @@ from mbr.parametry.registry import get_parametry_for_kontekst, get_calc_methods,
 from mbr.shared.decorators import login_required, role_required
 from mbr.db import db_session
 
+ALLOWED_GRUPY = {"lab", "zewn"}
+
 
 def _find_pipeline_etap_id(db, produkt, kontekst, pipeline):
     """Map kontekst to pipeline etap_id."""
@@ -73,7 +75,9 @@ def api_parametry_update(param_id):
     rola = session.get("user", {}).get("rola", "")
     allowed = {"label", "skrot", "formula", "metoda_nazwa", "metoda_formula", "metoda_factor", "precision"}
     if rola == "admin":
-        allowed |= {"typ", "jednostka", "aktywny", "name_en", "method_code"}
+        allowed |= {"typ", "jednostka", "aktywny", "name_en", "method_code", "grupa"}
+    if "grupa" in data and data["grupa"] not in ALLOWED_GRUPY:
+        return jsonify({"error": f"grupa must be one of: {', '.join(sorted(ALLOWED_GRUPY))}"}), 400
     updates = {k: v for k, v in data.items() if k in allowed}
     if not updates:
         return jsonify({"error": "No valid fields"}), 400
@@ -107,15 +111,19 @@ def api_parametry_create():
     kod = (data.get("kod") or "").strip()
     label = (data.get("label") or "").strip()
     typ = data.get("typ", "bezposredni")
+    grupa = data.get("grupa", "lab")
     if not kod or not label:
         return jsonify({"error": "kod and label required"}), 400
+    if grupa not in ALLOWED_GRUPY:
+        return jsonify({"error": f"grupa must be one of: {', '.join(sorted(ALLOWED_GRUPY))}"}), 400
     with db_session() as db:
         try:
             cur = db.execute(
-                "INSERT INTO parametry_analityczne (kod, label, skrot, typ, jednostka, precision, name_en, method_code) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO parametry_analityczne (kod, label, skrot, typ, jednostka, precision, name_en, method_code, grupa) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (kod, label, data.get("skrot", ""), typ, data.get("jednostka", ""),
-                 data.get("precision", 2), data.get("name_en", ""), data.get("method_code", "")),
+                 data.get("precision", 2), data.get("name_en", ""), data.get("method_code", ""),
+                 grupa),
             )
             db.commit()
         except Exception:
@@ -145,6 +153,16 @@ def api_parametry_etapy_create():
             if pipeline:
                 etap_id = _find_pipeline_etap_id(db, produkt, kontekst, pipeline)
                 if etap_id:
+                    # Resolve grupa: explicit body value → else inherit from parametry_analityczne → else 'lab'
+                    if "grupa" in data:
+                        grupa_val = data["grupa"]
+                    else:
+                        gr_row = db.execute(
+                            "SELECT grupa FROM parametry_analityczne WHERE id=?", (parametr_id,)
+                        ).fetchone()
+                        grupa_val = (gr_row["grupa"] if gr_row and gr_row["grupa"] else "lab")
+                    if grupa_val not in ALLOWED_GRUPY:
+                        return jsonify({"error": f"grupa must be one of: {', '.join(sorted(ALLOWED_GRUPY))}"}), 400
                     # Ensure param exists in global etap_parametry
                     existing_ep = db.execute(
                         "SELECT id FROM etap_parametry WHERE etap_id=? AND parametr_id=?",
@@ -156,9 +174,10 @@ def api_parametry_etapy_create():
                     ).fetchone()[0] or 0
                     if not existing_ep:
                         add_etap_parametr(db, etap_id, parametr_id, kolejnosc=max_kol + 1)
-                    # Set product limit
+                    # Set product limit — include grupa
                     set_produkt_etap_limit(db, produkt, etap_id, parametr_id,
-                                          min_limit=mn, max_limit=mx, nawazka_g=nawazka)
+                                          min_limit=mn, max_limit=mx, nawazka_g=nawazka,
+                                          grupa=grupa_val)
                     pel = db.execute(
                         "SELECT id FROM produkt_etap_limity WHERE produkt=? AND etap_id=? AND parametr_id=?",
                         (produkt, etap_id, parametr_id),
@@ -173,7 +192,15 @@ def api_parametry_etapy_create():
         ).fetchone()
         if existing:
             return jsonify({"error": "Duplicate binding"}), 409
-        grupa = data.get("grupa", "lab")
+        if "grupa" in data:
+            grupa = data["grupa"]
+        else:
+            gr_row = db.execute(
+                "SELECT grupa FROM parametry_analityczne WHERE id=?", (parametr_id,)
+            ).fetchone()
+            grupa = (gr_row["grupa"] if gr_row and gr_row["grupa"] else "lab")
+        if grupa not in ALLOWED_GRUPY:
+            return jsonify({"error": f"grupa must be one of: {', '.join(sorted(ALLOWED_GRUPY))}"}), 400
         cur = db.execute(
             """INSERT INTO parametry_etapy (parametr_id, kontekst, produkt, nawazka_g, min_limit, max_limit, grupa)
                VALUES (?, ?, ?, ?, ?, ?, ?)""",
@@ -516,6 +543,8 @@ def api_bindings_create():
         return jsonify({"error": "produkt and parametr_id are required"}), 400
     if not etap_id and not etap_kod:
         return jsonify({"error": "etap_id or etap_kod is required"}), 400
+    if "grupa" in data and data["grupa"] not in ALLOWED_GRUPY:
+        return jsonify({"error": f"grupa must be one of: {', '.join(sorted(ALLOWED_GRUPY))}"}), 400
 
     row_fields = {k: data[k] for k in _BINDING_FIELDS if k in data}
     for k, v in _BINDING_DEFAULTS.items():
@@ -554,6 +583,8 @@ def api_bindings_create():
 def api_bindings_update(binding_id: int):
     """Update a binding. If all three typ flags end up 0, auto-DELETE the row."""
     data = request.get_json(silent=True) or {}
+    if "grupa" in data and data["grupa"] not in ALLOWED_GRUPY:
+        return jsonify({"error": f"grupa must be one of: {', '.join(sorted(ALLOWED_GRUPY))}"}), 400
     updates = {k: v for k, v in data.items() if k in _BINDING_FIELDS}
     if not updates:
         return jsonify({"error": "no valid fields to update"}), 400
