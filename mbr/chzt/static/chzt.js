@@ -106,13 +106,14 @@
     return ['p1','p2','p3','p4','p5'].filter(function(k){ return p[k] !== null; }).length;
   }
 
-  function inputCell(p, field, extraCls) {
+  function inputCell(p, field, extraCls, disabled) {
     var val = p[field] === null || p[field] === undefined ? '' : p[field];
     var cls = 'chzt-inp' + (extraCls ? ' ' + extraCls : '');
+    var disabledAttr = disabled ? ' disabled' : '';
     return '<td><input class="' + cls + '" type="text" inputmode="decimal" ' +
       'pattern="[0-9]*[.,]?[0-9]*" ' +
       'data-pid="' + p.id + '" data-field="' + field + '" ' +
-      'value="' + val + '"></td>';
+      'value="' + val + '"' + disabledAttr + '></td>';
   }
 
   function fmtAvg(v) {
@@ -186,6 +187,68 @@
         _dirtyRows[pidStr] = false;
       }
     });
+  }
+
+  function _canEditExt(rola) {
+    return ['produkcja', 'admin', 'technolog'].indexOf(rola) >= 0;
+  }
+
+  function _canEditInternal(rola) {
+    return ['lab', 'kj', 'cert', 'admin', 'technolog'].indexOf(rola) >= 0;
+  }
+
+  function _renderExtSection(rola) {
+    if (!_session) return;
+    var szambiarka = _session.punkty.find(function(p){ return p.punkt_nazwa === 'szambiarka'; });
+    if (!szambiarka) return;
+
+    var canEdit = _canEditExt(rola);
+    var detailView = el('chzt-detail-view');
+    if (!detailView) return;
+
+    var section = document.createElement('div');
+    section.id = 'chzt-ext-section';
+    section.className = 'chzt-ext-section';
+
+    var fmt = function(v) { return v === null || v === undefined ? '' : v; };
+    var roCls = canEdit ? '' : 'readonly';
+    var disabledAttr = canEdit ? '' : 'disabled';
+
+    section.innerHTML =
+      '<div class="chzt-ext-title">Analiza zewnętrzna \u2014 Szambiarka</div>' +
+      '<div class="chzt-ext-grid">' +
+        '<div class="chzt-ext-field">' +
+          '<label>pH zewnętrzne</label>' +
+          '<input class="chzt-inp ' + roCls + '" type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" ' +
+                 'data-pid="' + szambiarka.id + '" data-field="ext_ph" value="' + fmt(szambiarka.ext_ph) + '" ' +
+                 disabledAttr + '>' +
+        '</div>' +
+        '<div class="chzt-ext-field">' +
+          '<label>ChZT zewnętrzne</label>' +
+          '<input class="chzt-inp ' + roCls + '" type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" ' +
+                 'data-pid="' + szambiarka.id + '" data-field="ext_chzt" value="' + fmt(szambiarka.ext_chzt) + '" ' +
+                 disabledAttr + '>' +
+          '<span class="chzt-ext-unit">mg O\u2082/l</span>' +
+        '</div>' +
+        '<div class="chzt-ext-field">' +
+          '<label>Waga beczki</label>' +
+          '<input class="chzt-inp ' + roCls + '" type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" ' +
+                 'data-pid="' + szambiarka.id + '" data-field="waga_kg" value="' + fmt(szambiarka.waga_kg) + '" ' +
+                 disabledAttr + '>' +
+          '<span class="chzt-ext-unit">kg</span>' +
+        '</div>' +
+      '</div>';
+
+    var registryEl = detailView.querySelector('.registry');
+    if (registryEl && registryEl.parentNode) {
+      registryEl.parentNode.insertAdjacentElement('afterend', section);
+    } else {
+      detailView.appendChild(section);
+    }
+
+    if (canEdit) {
+      wireInputHandlers('#chzt-ext-section');
+    }
   }
 
   function saveRow(pid, attempt) {
@@ -493,7 +556,7 @@
 
   // ══════ Historia — list ↔ detail view swap (jak w Rejestrze ukończonych) ══════
 
-  window.chztShowDetail = function(sid, dataIso) {
+  window.chztShowDetail = function(sid, dtStart) {
     flushDirtyRows();
 
     var listView = el('chzt-list-view');
@@ -506,49 +569,71 @@
 
     listView.style.display = 'none';
     detailView.style.display = '';
-    tbody.innerHTML = '<tr><td colspan="8" class="chzt-card-loading">wczytywanie…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="chzt-card-loading">wczytywanie\u2026</td></tr>';
     if (badge) badge.innerHTML = '';
     if (statusEl) { statusEl.className = 'chzt-expand-status'; statusEl.textContent = ''; }
 
-    var parts = dataIso.split('-');
-    if (dateEl) dateEl.textContent = parts[2] + '.' + parts[1] + '.' + parts[0];
+    // Remove any prior ext section
+    var prevExt = document.getElementById('chzt-ext-section');
+    if (prevExt) prevExt.remove();
+
+    // Format date for header (from dtStart string)
+    if (dateEl && dtStart) {
+      var p = (dtStart || '').split('T');
+      var d = (p[0] || '').split('-');
+      var t = (p[1] || '').split(':');
+      var fmt = (d[2] || '\u2014') + '.' + (d[1] || '\u2014') + '.' + (d[0] || '\u2014');
+      if (t.length >= 2) fmt += ' ' + t[0] + ':' + t[1];
+      dateEl.textContent = fmt;
+    }
 
     fetchJson('/api/chzt/session/' + sid).then(function(resp){
       _session = resp.session;
+      var rola = window._chztUserRola || 'lab';
 
       if (badge) {
         if (_session.finalized_at) {
-          var who = _session.finalized_by_name || '—';
-          badge.innerHTML = '<span class="chzt-expand-finalized">✓ Ukończono ' +
-            fmtTime(_session.finalized_at) + ' · ' + escapeHtmlHist(who) + '</span>';
+          var who = _session.finalized_by_name || '\u2014';
+          badge.innerHTML = '<span class="chzt-expand-finalized">\u2713 Uko\u0144czono ' +
+            fmtTime(_session.finalized_at) + ' \u00b7 ' + escapeHtmlHist(who) + '</span>';
         } else {
-          badge.innerHTML = '<span class="chzt-expand-draft">● Otwarta</span>';
+          badge.innerHTML = '<span class="chzt-expand-draft">\u25cf Otwarta</span>';
         }
       }
 
+      // Main pomiary table
+      var canEditInt = _canEditInternal(rola);
       var rows = '';
       _session.punkty.forEach(function(p) {
         var warn = p.srednia !== null && p.srednia > 40000;
         rows += '<tr data-pid="' + p.id + '"' + (warn ? ' class="row-warn"' : '') + '>' +
           '<td>' + escapeHtmlHist(p.punkt_nazwa) + '</td>' +
-          inputCell(p, 'ph', 'chzt-ph') +
-          inputCell(p, 'p1') + inputCell(p, 'p2') + inputCell(p, 'p3') +
-          inputCell(p, 'p4') + inputCell(p, 'p5') +
+          inputCell(p, 'ph', canEditInt ? 'chzt-ph' : 'chzt-ph readonly', !canEditInt) +
+          inputCell(p, 'p1', canEditInt ? '' : 'readonly', !canEditInt) +
+          inputCell(p, 'p2', canEditInt ? '' : 'readonly', !canEditInt) +
+          inputCell(p, 'p3', canEditInt ? '' : 'readonly', !canEditInt) +
+          inputCell(p, 'p4', canEditInt ? '' : 'readonly', !canEditInt) +
+          inputCell(p, 'p5', canEditInt ? '' : 'readonly', !canEditInt) +
           '<td><span class="srednia-val' + (warn ? ' warn' : '') + '" id="chzt-avg-' + p.id + '">' +
-            (p.srednia === null ? '—' : Math.round(p.srednia).toLocaleString('pl-PL')) +
+            (p.srednia === null ? '\u2014' : Math.round(p.srednia).toLocaleString('pl-PL')) +
           '</span></td>' +
           '</tr>';
       });
       tbody.innerHTML = rows;
 
-      wireInputHandlers('#chzt-detail-tbody');
+      if (canEditInt) {
+        wireInputHandlers('#chzt-detail-tbody');
+      }
 
       _session.punkty.forEach(function(p) {
         var avgEl = el('chzt-avg-' + p.id);
         if (avgEl) styleAvgCell(avgEl, p.srednia);
       });
+
+      // Render bottom ext section (szambiarka)
+      _renderExtSection(rola);
     }).catch(function(){
-      tbody.innerHTML = '<tr><td colspan="8" class="chzt-card-loading">błąd wczytywania</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" class="chzt-card-loading">b\u0142\u0105d wczytywania</td></tr>';
     });
   };
 
