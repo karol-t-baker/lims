@@ -25,6 +25,7 @@
       <div class="nsc-group">
         <div class="nsc-group-label">Akcje</div>
         <div class="nsc-item"><kbd>N</kbd><span>Nowa szarża</span></div>
+        <div class="nsc-item"><kbd>C</kbd><span>ChZT Ścieków</span></div>
         <div class="nsc-item"><kbd>F</kbd><span>Feedback</span></div>
         <div class="nsc-item"><kbd>Z</kbd><span>Zmiana</span></div>
       </div>
@@ -774,4 +775,14 @@ async function palGeneruj() {
 {# ═══ ChZT MODAL (include'owany z blueprintu) ═══ #}
 {% include "chzt_modal.html" %}
 
+<script>
+// Auto-open ChZT modal when arriving via ?chzt=1 (from global C shortcut on other pages)
+(function(){
+  try {
+    if (new URLSearchParams(location.search).get('chzt') === '1' && typeof openChztModal === 'function') {
+      window.addEventListener('DOMContentLoaded', function(){ openChztModal(); });
+    }
+  } catch (e) {}
+})();
+</script>
 {% endblock %}

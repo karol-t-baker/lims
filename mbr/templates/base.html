@@ -478,6 +478,16 @@ document.addEventListener('keydown', function(e) {
     if (shModal && shModal.classList.contains('show')) closeShiftModal();
     else openShiftModal();
   }
+  if (e.key === 'c' || e.key === 'C') {
+    var _rola = "{{ session.get('user', {}).get('rola', '') }}";
+    if (_rola === 'produkcja') return;  // produkcja doesn't start sessions
+    e.preventDefault();
+    if (typeof openChztModal === 'function') {
+      openChztModal();
+    } else {
+      location.href = '{{ url_for("registry.narzedzia") }}?chzt=1';
+    }
+  }
 });
 
 // ═══ FEEDBACK ═══
