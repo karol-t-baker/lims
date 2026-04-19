@@ -1,10 +1,11 @@
-"""One-time migration: rename lab roles.
+"""One-time migration: rename lab roles (HISTORICAL — already applied on prod).
 
 laborant / laborant_kj → lab
 laborant_coa → cert
 
-Recreates mbr_users with updated CHECK constraint, updates login+rola+password.
-Idempotent — skips if 'lab' role already exists.
+No longer invoked by deploy/auto-deploy.sh. Kept in-repo only for dev boxes that
+still hold pre-rename user rows. Idempotent — returns early if any user has
+rola='lab'.
 """
 import sqlite3
 import bcrypt
@@ -42,7 +43,7 @@ def migrate():
             user_id         INTEGER PRIMARY KEY AUTOINCREMENT,
             login           TEXT UNIQUE NOT NULL,
             password_hash   TEXT NOT NULL,
-            rola            TEXT NOT NULL CHECK(rola IN ('technolog', 'lab', 'cert', 'admin')),
+            rola            TEXT NOT NULL CHECK(rola IN ('technolog', 'lab', 'cert', 'kj', 'admin', 'produkcja')),
             imie_nazwisko   TEXT
         );
         INSERT INTO mbr_users SELECT * FROM mbr_users_tmp;
