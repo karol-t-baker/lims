@@ -4144,6 +4144,12 @@ function saveBias(kod) {
             document.querySelectorAll('input[data-kod="' + kod + '"][data-formula]').forEach(function(saInp) {
                 saInp.dataset.formula = newFormula;
                 recomputeField(saInp);
+                // recomputeField sets .value programmatically — does NOT fire input/blur.
+                // Without dispatchEvent, autoSaveField never runs and the new SA never
+                // reaches /laborant/ebr/<id>/save, leaving ebr_wyniki stale (old pre-bias
+                // value lingers in hero/CV on next render).
+                saInp.dispatchEvent(new Event('input', { bubbles: true }));
+                saInp.dispatchEvent(new Event('blur', { bubbles: true }));
             });
             // Re-attach listeners with new formula
             setupComputedFields();
