@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v={{ v }}">
+  <link rel="stylesheet" href="{{ url_for('chzt.static', filename='chzt.css') }}?v={{ v }}">
   <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
   <meta name="theme-color" content="#0d7377">
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.png') }}">
@@ -130,6 +131,12 @@
 
 <!-- Standaryzacja modal (global — S shortcut from any page) -->
 {% include "_modal_standaryzacja.html" %}
+
+<!-- ChZT modal (global — C shortcut from any page) -->
+{% if session.get('user', {}).get('rola') != 'produkcja' %}
+{% include "chzt_modal.html" %}
+<script src="{{ url_for('chzt.static', filename='chzt.js') }}?v={{ v }}" defer></script>
+{% endif %}
 
 <!-- Shift modal -->
 <div class="modal-overlay" id="shift-overlay" onclick="if(event.target===this)closeShiftModal()">
@@ -482,11 +489,8 @@ document.addEventListener('keydown', function(e) {
     var _rola = "{{ session.get('user', {}).get('rola', '') }}";
     if (_rola === 'produkcja') return;  // produkcja doesn't start sessions
     e.preventDefault();
-    if (typeof openChztModal === 'function') {
-      openChztModal();
-    } else {
-      location.href = '{{ url_for("registry.narzedzia") }}?chzt=1';
-    }
+    // chzt.js is loaded globally (defer) from base.html — openChztModal is always defined
+    if (typeof openChztModal === 'function') openChztModal();
   }
 });
 

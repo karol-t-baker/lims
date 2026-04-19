@@ -166,7 +166,16 @@
 .chzt-btn-primary:hover { background: var(--teal-dark, #094e52); }
 .chzt-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
-#chzt-overlay.show { display: flex !important; align-items: center; justify-content: center; }
+/* Self-contained overlay — works globally (base.html include), no dependency on paliwo's .pal-overlay */
+#chzt-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  z-index: 600;
+  background: rgba(0,0,0,0.3);
+  backdrop-filter: blur(3px);
+  align-items: center; justify-content: center;
+}
+#chzt-overlay.show { display: flex !important; }
 
 @keyframes modalIn {
   from { opacity: 0; transform: translateY(8px); }
