@@ -1812,6 +1812,7 @@ function renderCompletedView() {
                     ' data-kod="' + esc(pole.kod) + '" data-sekcja="' + esc(editSekcja) + '"' +
                     ' data-grupa="' + esc(pole.grupa || 'lab') + '"' +
                     ' data-min="' + (pole.min != null ? pole.min : '') + '" data-max="' + (pole.max != null ? pole.max : '') + '"' +
+                    ' data-precision="' + prec + '"' +
                     ' readonly oninput="validateField(this); autoSaveField(this)" onblur="doSaveField(this, this.dataset.sekcja, this.dataset.kod, true)">';
             } else {
                 paramsHtml += '<span class="cv-p-val ' + (ok ? '' : 'cv-val-err') + '">' + (valFmt || '—') + '</span>';
