@@ -581,13 +581,19 @@ def test_list_sessions_paginated_includes_avg_and_max(db):
     pid_k1 = db.execute(
         "SELECT id FROM chzt_pomiary WHERE sesja_id=? AND punkt_nazwa='kontener 1'", (sid,)
     ).fetchone()["id"]
-    update_pomiar(db, pid_hala, {"ph": 10, "p1": 20000, "p2": 22000, "p3": None, "p4": None, "p5": None}, updated_by=1)
-    update_pomiar(db, pid_k1,   {"ph": 10, "p1": 45000, "p2": 44000, "p3": None, "p4": None, "p5": None}, updated_by=1)
+    update_pomiar(db, pid_hala, {"ph": 9, "p1": 20000, "p2": 22000, "p3": None, "p4": None, "p5": None}, updated_by=1)
+    update_pomiar(db, pid_k1,   {"ph": 11, "p1": 45000, "p2": 44000, "p3": None, "p4": None, "p5": None}, updated_by=1)
     db.commit()
     page = list_sessions_paginated(db, page=1, per_page=10)
     s = page["sesje"][0]
+    # Hala avg = 21000, Kontener 1 avg = 44500
     assert s["avg_chzt"] is not None
-    assert s["max_chzt"] == 44500  # max of {21000, 44500} rounded
+    assert s["min_chzt"] == 21000
+    assert s["max_chzt"] == 44500
+    # Only Kontener 1 (44500) exceeds 40k
+    assert s["over_40k_count"] == 1
+    # pH avg of {9, 11} = 10.0
+    assert s["avg_ph"] == 10.0
 
 
 def test_get_session_by_date_ok(client, db):

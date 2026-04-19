@@ -224,12 +224,16 @@
   text-transform: uppercase; letter-spacing: 0.3px;
   color: var(--text-sec);
 }
-.chzt-hist-table thead th.th-date { text-align: left; padding-left: 20px; min-width: 110px; }
-.chzt-hist-table thead th.th-who { text-align: left; min-width: 140px; }
-.chzt-hist-table thead th.th-punkty { min-width: 60px; }
+.chzt-hist-table thead th.th-date { text-align: left; padding-left: 20px; min-width: 100px; }
+.chzt-hist-table thead th.th-kont { min-width: 60px; }
 .chzt-hist-table thead th.th-avg { min-width: 80px; }
-.chzt-hist-table thead th.th-max { min-width: 80px; }
+.chzt-hist-table thead th.th-min { min-width: 70px; }
+.chzt-hist-table thead th.th-max { min-width: 70px; }
+.chzt-hist-table thead th.th-range { min-width: 70px; }
+.chzt-hist-table thead th.th-over { min-width: 90px; }
+.chzt-hist-table thead th.th-avg-ph { min-width: 60px; }
 .chzt-hist-table thead th.th-status { min-width: 100px; }
+.chzt-hist-table thead th.th-who { text-align: left; min-width: 140px; }
 .chzt-hist-row { cursor: pointer; transition: background 0.08s; }
 .chzt-hist-row:hover td { background: var(--teal-bg); }
 .chzt-hist-row td {

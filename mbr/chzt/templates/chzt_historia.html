@@ -5,7 +5,7 @@
 {% block topbar %}{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="{{ url_for('chzt.static', filename='chzt.css') }}?v=7">
+<link rel="stylesheet" href="{{ url_for('chzt.static', filename='chzt.css') }}?v=8">
 
 <div class="chzt-hist-page">
 
@@ -30,20 +30,29 @@
           <thead>
             <tr>
               <th class="th-date">Data</th>
-              <th class="th-punkty">Punkty</th>
+              <th class="th-kont">Kontenery</th>
               <th class="th-avg">Śr. ChZT</th>
-              <th class="th-max">Max ChZT</th>
+              <th class="th-min">Min</th>
+              <th class="th-max">Max</th>
+              <th class="th-range">Rozstęp</th>
+              <th class="th-over">Przekroczeń &gt;40k</th>
+              <th class="th-avg-ph">Śr. pH</th>
               <th class="th-status">Status</th>
               <th class="th-who">Sfinalizował</th>
             </tr>
           </thead>
           <tbody>
             {% for s in sesje %}
+            {% set range_val = (s.max_chzt - s.min_chzt) if (s.max_chzt and s.min_chzt is not none) else None %}
             <tr class="chzt-hist-row" data-sid="{{ s.id }}" data-data="{{ s.data }}" onclick="chztShowDetail({{ s.id }}, '{{ s.data }}')">
               <td class="td-date-iso">{{ s.data }}</td>
-              <td class="td-punkty">{{ s.n_kontenery + 3 }}</td>
+              <td class="td-kont">{{ s.n_kontenery }}</td>
               <td class="td-avg">{% if s.avg_chzt %}{{ '{:,}'.format(s.avg_chzt|int).replace(',', ' ') }}{% else %}—{% endif %}</td>
+              <td class="td-min">{% if s.min_chzt is not none %}{{ '{:,}'.format(s.min_chzt|int).replace(',', ' ') }}{% else %}—{% endif %}</td>
               <td class="td-max {% if s.max_chzt and s.max_chzt > 40000 %}val-warn{% endif %}">{% if s.max_chzt %}{{ '{:,}'.format(s.max_chzt|int).replace(',', ' ') }}{% else %}—{% endif %}</td>
+              <td class="td-range">{% if range_val is not none %}{{ '{:,}'.format(range_val|int).replace(',', ' ') }}{% else %}—{% endif %}</td>
+              <td class="td-over {% if s.over_40k_count and s.over_40k_count > 0 %}val-warn{% endif %}">{{ s.over_40k_count or 0 }}</td>
+              <td class="td-avg-ph">{% if s.avg_ph is not none %}{{ ('%.1f' % s.avg_ph)|replace('.', ',') }}{% else %}—{% endif %}</td>
               <td class="td-status">
                 {% if s.finalized_at %}
                   <span class="status-ok">Ukończono</span>
@@ -107,5 +116,5 @@
 
 {% include "chzt_modal.html" %}
 
-<script src="{{ url_for('chzt.static', filename='chzt.js') }}?v=7" defer></script>
+<script src="{{ url_for('chzt.static', filename='chzt.js') }}?v=8" defer></script>
 {% endblock %}
