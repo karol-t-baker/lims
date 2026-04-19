@@ -238,38 +238,79 @@
 .status-ok { color: var(--green); font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; }
 .status-draft { color: var(--text-dim); font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: 0.3px; }
 
-.chzt-hist-row td.td-exp { color: var(--text-dim); }
+.chzt-hist-row td.td-exp { padding: 0; width: 44px; }
 .exp-caret {
-  display: inline-block;
-  transition: transform 0.15s;
-  font-size: 11px;
+  display: inline-flex;
+  align-items: center; justify-content: center;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  color: var(--teal);
+  background: var(--teal-bg);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background 0.12s;
 }
-.chzt-hist-row.expanded .exp-caret {
-  transform: rotate(90deg);
-}
+.exp-caret svg { width: 14px; height: 14px; stroke-width: 2.5; }
+.chzt-hist-row:hover .exp-caret { background: var(--teal); color: #fff; }
+.chzt-hist-row.expanded .exp-caret { transform: rotate(180deg); background: var(--teal); color: #fff; }
 
 .chzt-hist-expand td {
   padding: 0 !important;
-  background: var(--bg, #f7f5f0);
-  border-bottom: 1px solid var(--border);
+  background: var(--surface-alt);
+  border-bottom: 2px solid var(--teal);
+  border-top: 1px solid var(--teal);
 }
 .chzt-expand-inner {
-  padding: 16px 20px 20px;
+  padding: 18px 28px 20px;
 }
 
-.chzt-expand-inner .chzt-table {
+/* Expanded table — mimics .registry for visual consistency with "Rejestr ukonczonych" */
+.chzt-expand-inner .registry {
   background: var(--surface);
   border: 1px solid var(--border-subtle);
-  border-radius: 6px;
+  border-radius: var(--radius, 10px);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
 }
-.chzt-expand-inner .chzt-table th {
-  padding: 8px 6px;
-  font-size: 9px;
+.chzt-expand-inner .registry table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
 }
-.chzt-expand-inner .chzt-table td {
-  padding: 5px 6px;
-  font-size: 11px;
+.chzt-expand-inner .registry thead th {
+  padding: 10px 8px;
+  text-align: center;
+  background: var(--surface-alt);
+  border-bottom: 1px solid var(--border);
+  font-size: 9px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.3px;
+  color: var(--text-sec);
 }
+.chzt-expand-inner .registry thead th:first-child {
+  text-align: left; padding-left: 18px; min-width: 110px;
+}
+.chzt-expand-inner .registry tbody td {
+  padding: 8px 8px;
+  text-align: center;
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: var(--mono); font-size: 12px;
+}
+.chzt-expand-inner .registry tbody td:first-child {
+  text-align: left; padding-left: 18px;
+  font-family: var(--font); font-weight: 600; font-size: 12px;
+  color: var(--text);
+}
+.chzt-expand-inner .registry tbody tr:last-child td { border-bottom: none; }
+.chzt-expand-inner .registry tbody tr:hover td { background: var(--teal-bg); }
+.chzt-expand-inner .registry tbody tr.row-warn td {
+  background: var(--amber-bg);
+}
+.chzt-expand-inner .registry tbody tr.row-warn td:first-child {
+  border-left: 3px solid var(--amber);
+  padding-left: 15px;
+}
+.chzt-expand-inner .registry .srednia-val {
+  font-weight: 700; color: var(--teal);
+}
+.chzt-expand-inner .registry .srednia-val.warn { color: var(--amber); }
 
 .chzt-expand-actions {
   margin-top: 12px;

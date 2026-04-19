@@ -394,7 +394,7 @@
     var dataIso = rowEl.dataset.data;
     fetchJson('/api/chzt/session/' + encodeURIComponent(dataIso)).then(function(resp){
       var s = resp.session;
-      var html = '<table class="chzt-table"><thead><tr>' +
+      var html = '<div class="registry"><table><thead><tr>' +
         '<th>Punkt</th><th>pH</th><th>P1</th><th>P2</th><th>P3</th><th>P4</th><th>P5</th><th>\u015arednia</th>' +
         '</tr></thead><tbody>';
       s.punkty.forEach(function(p){
@@ -403,14 +403,14 @@
           '<td>' + escapeHtmlHist(p.punkt_nazwa) + '</td>' +
           readCell(p.ph) + readCell(p.p1) + readCell(p.p2) + readCell(p.p3) +
           readCell(p.p4) + readCell(p.p5) +
-          '<td><span class="chzt-avg' + (warn ? ' warn' : '') + '">' +
+          '<td><span class="srednia-val' + (warn ? ' warn' : '') + '">' +
             (p.srednia === null ? '—' : Math.round(p.srednia).toLocaleString('pl-PL')) +
           '</span></td>' +
           '</tr>';
       });
-      html += '</tbody></table>';
+      html += '</tbody></table></div>';
       html += '<div class="chzt-expand-actions">' +
-        '<button class="chzt-btn-primary-sm" onclick="event.stopPropagation(); openChztModal(\'' + s.data + '\')">Edytuj</button>' +
+        '<button class="chzt-btn-primary-sm" onclick="event.stopPropagation(); openChztModal(\'' + s.data + '\')">Edytuj sesję</button>' +
         '</div>';
       inner.innerHTML = html;
     }).catch(function(){
