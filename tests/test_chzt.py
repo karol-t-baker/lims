@@ -1070,3 +1070,53 @@ def test_admin_put_pomiar_can_write_all_fields(admin_client, client, db):
     assert row["ph"] == 10
     assert row["p1"] == 100
     assert row["ext_chzt"] == 5000
+
+
+# ───────────────────────────────────────────────────────────────
+# T6: Day endpoint — DATE(dt_start) lookup + ext fields in response
+# ───────────────────────────────────────────────────────────────
+
+
+def test_day_endpoint_finds_by_dt_start_date_and_returns_ext_fields(client, db):
+    """Session spanning midnight (starts 22:00 day X, finalizes 06:00 day X+1)
+    is found by /day/X but NOT /day/X+1. Response includes ext_chzt/ext_ph/waga_kg."""
+    # Insert directly — can't use POST /new because we need to control dt_start
+    db.execute(
+        "INSERT INTO chzt_sesje (dt_start, n_kontenery, created_at, finalized_at, finalized_by) "
+        "VALUES ('2026-04-18T22:00:00', 0, '2026-04-18T22:00:00', '2026-04-19T06:00:00', 1)"
+    )
+    sid = db.execute(
+        "SELECT id FROM chzt_sesje WHERE dt_start='2026-04-18T22:00:00'"
+    ).fetchone()["id"]
+    # Seed pomiary including szambiarka with ext fields
+    for idx, name in enumerate(["hala", "rura", "szambiarka"], start=1):
+        is_szamb = name == "szambiarka"
+        db.execute(
+            "INSERT INTO chzt_pomiary (sesja_id, punkt_nazwa, kolejnosc, ph, p1, p2, srednia, "
+            "ext_chzt, ext_ph, waga_kg, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                sid, name, idx, 10, 15000, 16000, 15500,
+                13250 if is_szamb else None,
+                11 if is_szamb else None,
+                19060 if is_szamb else None,
+                "2026-04-18T23:00:00",
+            ),
+        )
+    db.commit()
+
+    # /day/2026-04-18 — finds the session (matches DATE(dt_start))
+    r1 = client.get("/api/chzt/day/2026-04-18")
+    assert r1.status_code == 200
+    body = r1.get_json()
+    assert "dt_start" in body
+    assert body["dt_start"].startswith("2026-04-18T22")
+    assert "data" not in body  # old response key removed
+    szamb = next(p for p in body["punkty"] if p["nazwa"] == "szambiarka")
+    assert szamb["ext_chzt"] == 13250
+    assert szamb["ext_ph"] == 11
+    assert szamb["waga_kg"] == 19060
+
+    # /day/2026-04-19 — 404 (session started the 18th, not the 19th)
+    r2 = client.get("/api/chzt/day/2026-04-19")
+    assert r2.status_code == 404
