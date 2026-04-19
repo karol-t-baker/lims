@@ -118,41 +118,6 @@ def wniosek_dojazd_pdf():
                     headers={"Content-Disposition": "inline; filename=wniosek_dojazd.pdf"})
 
 
-@registry_bp.route("/api/chzt/save", methods=["POST"])
-@login_required
-def api_chzt_save():
-    """Save ChZT measurements to JSON file."""
-    import json
-    from pathlib import Path
-    from datetime import datetime
-
-    payload = request.get_json(force=True) or {}
-    data_items = payload.get("data", [])
-    if not data_items:
-        return jsonify({"ok": False, "error": "Brak danych"}), 400
-
-    today = date.today().isoformat()
-    output = {
-        "data": today,
-        "dt_saved": datetime.now().isoformat(timespec="seconds"),
-        "saved_by": session.get("user", {}).get("login", "unknown"),
-        "punkty": data_items,
-    }
-
-    chzt_dir = Path(__file__).parent.parent.parent / "data" / "chzt"
-    chzt_dir.mkdir(parents=True, exist_ok=True)
-    filepath = chzt_dir / f"chzt_{today}.json"
-
-    # If file exists for today, append index
-    if filepath.exists():
-        idx = 2
-        while (chzt_dir / f"chzt_{today}_{idx}.json").exists():
-            idx += 1
-        filepath = chzt_dir / f"chzt_{today}_{idx}.json"
-
-    filepath.write_text(json.dumps(output, ensure_ascii=False, indent=2), encoding="utf-8")
-    return jsonify({"ok": True, "file": filepath.name})
-
 
 @registry_bp.route("/technolog/export")
 @role_required("technolog")
