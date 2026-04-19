@@ -1449,6 +1449,15 @@ function _htmlEsc(s) {
   });
 }
 
+  function _attrEsc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
 function _buildRegistryRow(columns, b) {
   var html = '<tr data-ebr="' + b.ebr_id + '" onclick="loadBatch(' + b.ebr_id + ')">';
   if (_userRola === 'admin') {
@@ -1475,9 +1484,9 @@ function _buildRegistryRow(columns, b) {
         var shortLabel = s.skrot || s.nazwa;
         var nr = s.nr_partii || '\u2014';
         lines.push(_htmlEsc(shortLabel) + ' \u2014 ' + _htmlEsc(nr));
-        tooltipLines.push(s.nazwa + ' — ' + nr);
+        tooltipLines.push(String(s.nazwa || '') + ' — ' + String(nr));
       });
-      var tt = tooltipLines.join('\n').replace(/"/g, '&quot;');
+      var tt = _attrEsc(tooltipLines.join('\n'));
       html += '<td class="td-surowce" title="' + tt + '">' + lines.join('<br>') + '</td>';
       return;
     }
@@ -1491,11 +1500,11 @@ function _buildRegistryRow(columns, b) {
   });
   var whoShort = b.zatwierdzil_short || '\u2014';
   var whoFull = b.zatwierdzil_full || '';
-  html += '<td class="td-who" style="font-size:11px;color:var(--text-sec);"' + (whoFull ? ' title="' + whoFull.replace(/"/g, '&quot;') + '"' : '') + '>' + whoShort + '</td>';
+  html += '<td class="td-who" style="font-size:11px;color:var(--text-sec);"' + (whoFull ? ' title="' + _attrEsc(whoFull) + '"' : '') + '>' + _htmlEsc(whoShort) + '</td>';
   var uwagi = b.uwagi_koncowe || '';
   var uwagiShort = uwagi.length > 50 ? uwagi.slice(0, 47) + '…' : uwagi;
   if (uwagi) {
-    html += '<td class="td-uwagi" style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-sec);font-size:12px;" title="' + uwagi.replace(/"/g, '&quot;') + '">' + uwagiShort + '</td>';
+    html += '<td class="td-uwagi" style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-sec);font-size:12px;" title="' + _attrEsc(uwagi) + '">' + _htmlEsc(uwagiShort) + '</td>';
   } else {
     html += '<td class="td-uwagi" style="color:var(--text-dim);">—</td>';
   }
