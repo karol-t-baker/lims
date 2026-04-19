@@ -144,8 +144,11 @@
     return out;
   }
 
-  function wireInputHandlers() {
-    document.querySelectorAll('#chzt-body .chzt-inp').forEach(function(inp) {
+  function wireInputHandlers(rootSelector) {
+    var sel = (rootSelector || '#chzt-body') + ' .chzt-inp';
+    document.querySelectorAll(sel).forEach(function(inp) {
+      if (inp.dataset.wired === '1') return;
+      inp.dataset.wired = '1';
       inp.addEventListener('input', function(){
         // regex validation only — no save
         if (inp.value !== '' && !/^[0-9]*[.,]?[0-9]*$/.test(inp.value)) {
@@ -180,11 +183,11 @@
 
   function saveRow(pid, attempt) {
     if (_saveInFlight[pid]) {
-      _debounceTimers[pid] = setTimeout(function(){ saveRow(pid, 0); }, 400);
+      setTimeout(function(){ saveRow(pid, 0); }, 400);
       return;
     }
     _saveInFlight[pid] = true;
-    setStatus('saving', '🟡 zapisywanie…');
+    _pushStatus('saving', '🟡 zapisywanie…');
     var values = getRowValues(pid);
     fetch('/api/chzt/pomiar/' + pid, {
       method: 'PUT',
@@ -195,10 +198,12 @@
       return r.json();
     }).then(function(resp){
       _saveInFlight[pid] = false;
-      for (var i = 0; i < _session.punkty.length; i++) {
-        if (_session.punkty[i].id === pid) {
-          _session.punkty[i] = Object.assign(_session.punkty[i], resp.pomiar);
-          break;
+      if (_session) {
+        for (var i = 0; i < _session.punkty.length; i++) {
+          if (_session.punkty[i].id === pid) {
+            _session.punkty[i] = Object.assign(_session.punkty[i], resp.pomiar);
+            break;
+          }
         }
       }
       var avgEl = el('chzt-avg-' + pid);
@@ -206,14 +211,29 @@
         avgEl.textContent = fmtAvg(resp.pomiar.srednia);
         styleAvgCell(avgEl, resp.pomiar.srednia);
       }
-      setStatus('saved', 'zapisano · ' + fmtTime(resp.pomiar.updated_at));
+      _pushStatus('saved', 'zapisano · ' + fmtTime(resp.pomiar.updated_at));
     }).catch(function(err){
       _saveInFlight[pid] = false;
       if (attempt < 3) {
         setTimeout(function(){ saveRow(pid, attempt + 1); }, 1000);
       } else {
-        setStatus('error', '🔴 błąd połączenia');
+        _pushStatus('error', '🔴 błąd połączenia');
       }
+    });
+  }
+
+  // _pushStatus writes status into whatever indicator is active:
+  // the modal status-pill if modal is visible, else the expand status badge.
+  function _pushStatus(kind, text) {
+    var overlay = el('chzt-overlay');
+    if (overlay && overlay.classList.contains('show')) {
+      setStatus(kind, text);
+      return;
+    }
+    var badges = document.querySelectorAll('.chzt-expand-status');
+    badges.forEach(function(b){
+      b.className = 'chzt-expand-status ' + kind;
+      b.textContent = text;
     });
   }
 
@@ -379,11 +399,14 @@
     if (!expandRow || !inner) return;
 
     if (expandRow.style.display !== 'none') {
+      // Closing this expand — flush any pending edits first
+      flushDirtyRows();
       expandRow.style.display = 'none';
       rowEl.classList.remove('expanded');
       return;
     }
-    // Close all others
+    // Close all others (flushing their edits) before opening new
+    flushDirtyRows();
     document.querySelectorAll('.chzt-hist-expand').forEach(function(r){ r.style.display = 'none'; });
     document.querySelectorAll('.chzt-hist-row.expanded').forEach(function(r){ r.classList.remove('expanded'); });
 
@@ -393,27 +416,50 @@
 
     var dataIso = rowEl.dataset.data;
     fetchJson('/api/chzt/session/' + encodeURIComponent(dataIso)).then(function(resp){
-      var s = resp.session;
-      var html = '<div class="chzt-expand-title">Pomiary per punkt</div>' +
-        '<div class="registry"><table><thead><tr>' +
+      _session = resp.session;
+
+      var finalizedBadge = '';
+      if (_session.finalized_at) {
+        var who = _session.finalized_by_name || '—';
+        finalizedBadge = '<span class="chzt-expand-finalized">✓ Sfinalizowano ' +
+          fmtTime(_session.finalized_at) + ' · ' + escapeHtmlHist(who) + '</span>';
+      } else {
+        finalizedBadge = '<span class="chzt-expand-draft">● Draft</span>';
+      }
+
+      var html = '<div class="chzt-expand-title-row">' +
+        '<div class="chzt-expand-title">Pomiary per punkt</div>' +
+        finalizedBadge +
+        '<span class="chzt-expand-status"></span>' +
+        '</div>';
+
+      html += '<div class="registry chzt-expand-registry"><table><thead><tr>' +
         '<th>Punkt</th><th>pH</th><th>P1</th><th>P2</th><th>P3</th><th>P4</th><th>P5</th><th>\u015arednia</th>' +
         '</tr></thead><tbody>';
-      s.punkty.forEach(function(p){
+      _session.punkty.forEach(function(p) {
         var warn = p.srednia !== null && p.srednia > 40000;
-        html += '<tr' + (warn ? ' class="row-warn"' : '') + '>' +
+        html += '<tr data-pid="' + p.id + '"' + (warn ? ' class="row-warn"' : '') + '>' +
           '<td>' + escapeHtmlHist(p.punkt_nazwa) + '</td>' +
-          readCell(p.ph) + readCell(p.p1) + readCell(p.p2) + readCell(p.p3) +
-          readCell(p.p4) + readCell(p.p5) +
-          '<td><span class="srednia-val' + (warn ? ' warn' : '') + '">' +
+          inputCell(p, 'ph', 'chzt-ph') +
+          inputCell(p, 'p1') + inputCell(p, 'p2') + inputCell(p, 'p3') +
+          inputCell(p, 'p4') + inputCell(p, 'p5') +
+          '<td><span class="srednia-val' + (warn ? ' warn' : '') + '" id="chzt-avg-' + p.id + '">' +
             (p.srednia === null ? '—' : Math.round(p.srednia).toLocaleString('pl-PL')) +
           '</span></td>' +
           '</tr>';
       });
       html += '</tbody></table></div>';
-      html += '<div class="chzt-expand-actions">' +
-        '<button class="chzt-btn-primary-sm" onclick="event.stopPropagation(); openChztModal(\'' + s.data + '\')">Edytuj sesję</button>' +
-        '</div>';
+
       inner.innerHTML = html;
+
+      // Wire input/blur handlers scoped to this expand's inputs
+      wireInputHandlers('#chzt-expand-inner-' + sid);
+
+      // Style avg cells (row-warn + amber color above 40k)
+      _session.punkty.forEach(function(p) {
+        var avgEl = el('chzt-avg-' + p.id);
+        if (avgEl) styleAvgCell(avgEl, p.srednia);
+      });
     }).catch(function(){
       inner.innerHTML = '<div class="chzt-card-loading">błąd wczytywania</div>';
     });
