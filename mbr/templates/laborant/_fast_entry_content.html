@@ -2690,7 +2690,7 @@ async function saveSection(sekcja) {
 
 // Clear stale timers from previous batch load
 if (window._saveTimers) {
-    Object.values(window._saveTimers).forEach(function(t) { clearTimeout(t); });
+    Object.values(window._saveTimers).forEach(function(t) { clearTimeout(t && t.tid ? t.tid : t); });
 }
 window._saveTimers = {};
 var _saveTimers = window._saveTimers;
@@ -2702,12 +2702,41 @@ function autoSaveField(input) {
     if (!sekcja || !kod) return;
     var key = sekcja + '__' + kod;
 
-    if (_saveTimers[key]) clearTimeout(_saveTimers[key]);
+    if (_saveTimers[key]) clearTimeout(_saveTimers[key].tid);
 
-    _saveTimers[key] = setTimeout(function() {
-        doSaveField(input, sekcja, kod);
-    }, 1500);
+    // Store input ref so flushPendingSaves() can fire them immediately
+    // before /complete (otherwise 1.5s debounce race drops the last value).
+    _saveTimers[key] = {
+        input: input, sekcja: sekcja, kod: kod,
+        tid: setTimeout(function() {
+            doSaveField(input, sekcja, kod);
+        }, 1500)
+    };
 }
+
+/**
+ * Flush all pending debounced saves synchronously-awaitable.
+ * Must be awaited before POST /complete — otherwise the last
+ * auto-computed SA (and any other field saved via debounce) may
+ * never reach the server.
+ */
+async function flushPendingSaves() {
+    var entries = Object.values(_saveTimers);
+    window._saveTimers = {};
+    _saveTimers = window._saveTimers;
+    var promises = [];
+    entries.forEach(function(e) {
+        clearTimeout(e.tid);
+        if (e.input && e.input.value !== '') {
+            var p = doSaveField(e.input, e.sekcja, e.kod, false);
+            if (p && typeof p.then === 'function') promises.push(p);
+        }
+    });
+    if (promises.length) {
+        try { await Promise.allSettled(promises); } catch (_) {}
+    }
+}
+window.flushPendingSaves = flushPendingSaves;
 
 // ═══ PIPELINE GATE + DECISIONS ═══
 
@@ -3407,7 +3436,10 @@ function saveSpecLimit(input) {
 function doSaveField(input, sekcja, kod, fromBlur) {
     // Clear pending debounce to prevent double-save
     var key = sekcja + '__' + kod;
-    if (_saveTimers[key]) { clearTimeout(_saveTimers[key]); delete _saveTimers[key]; }
+    if (_saveTimers[key]) {
+        clearTimeout(_saveTimers[key].tid || _saveTimers[key]);
+        delete _saveTimers[key];
+    }
     if (input.value === '') return;
 
     // Auto-round to parameter precision ONLY on blur (not during typing)
@@ -3426,7 +3458,7 @@ function doSaveField(input, sekcja, kod, fromBlur) {
 
     input.style.outline = '2px solid var(--teal)';
 
-    fetch('/laborant/ebr/' + _saveEbrId + '/save', {
+    return fetch('/laborant/ebr/' + _saveEbrId + '/save', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({sekcja: sekcja, values: values})
@@ -3728,6 +3760,10 @@ function recalcLastMass() {
 }
 
 async function confirmPump() {
+    // Flush any pending debounced /save calls before /complete — otherwise
+    // the last auto-computed SA (or any field saved via 1.5s debounce) never
+    // reaches ebr_wyniki and the hero renders empty on the completed view.
+    await flushPendingSaves();
     var keys = Object.keys(_pumpSelected);
     if (window._pumpPakBezp && keys.length === 0) {
         var btn = document.getElementById('pm-confirm-btn');
@@ -3982,6 +4018,7 @@ function _askUwagiBeforeComplete(title) {
 async function completePlatkowanie() {
     var uwagi = await _askUwagiBeforeComplete('Zakończyć płatkowanie?');
     if (uwagi === false) return;
+    await flushPendingSaves();
     var bodyObj = {zbiorniki: []};
     if (uwagi) bodyObj.uwagi = uwagi;
     var resp = await fetch('/laborant/ebr/' + ebrId + '/complete', {
@@ -4026,6 +4063,7 @@ function completeSimple() {
 async function doCompleteSimple() {
     var btn = document.querySelector('#confirm-complete-simple .cd-confirm');
     if (btn) { btn.textContent = 'Zatwierdzanie...'; btn.disabled = true; }
+    await flushPendingSaves();
     var uwagi = (document.getElementById('cs-uwagi') || {}).value || '';
     var bodyObj = {};
     if (uwagi.trim()) bodyObj.uwagi = uwagi.trim();
