@@ -153,6 +153,16 @@ def api_parametry_etapy_create():
             if pipeline:
                 etap_id = _find_pipeline_etap_id(db, produkt, kontekst, pipeline)
                 if etap_id:
+                    # Resolve grupa: explicit body value → else inherit from parametry_analityczne → else 'lab'
+                    if "grupa" in data:
+                        grupa_val = data["grupa"]
+                    else:
+                        gr_row = db.execute(
+                            "SELECT grupa FROM parametry_analityczne WHERE id=?", (parametr_id,)
+                        ).fetchone()
+                        grupa_val = (gr_row["grupa"] if gr_row and gr_row["grupa"] else "lab")
+                    if grupa_val not in ALLOWED_GRUPY:
+                        return jsonify({"error": f"grupa must be one of: {', '.join(sorted(ALLOWED_GRUPY))}"}), 400
                     # Ensure param exists in global etap_parametry
                     existing_ep = db.execute(
                         "SELECT id FROM etap_parametry WHERE etap_id=? AND parametr_id=?",
@@ -164,9 +174,10 @@ def api_parametry_etapy_create():
                     ).fetchone()[0] or 0
                     if not existing_ep:
                         add_etap_parametr(db, etap_id, parametr_id, kolejnosc=max_kol + 1)
-                    # Set product limit
+                    # Set product limit — include grupa
                     set_produkt_etap_limit(db, produkt, etap_id, parametr_id,
-                                          min_limit=mn, max_limit=mx, nawazka_g=nawazka)
+                                          min_limit=mn, max_limit=mx, nawazka_g=nawazka,
+                                          grupa=grupa_val)
                     pel = db.execute(
                         "SELECT id FROM produkt_etap_limity WHERE produkt=? AND etap_id=? AND parametr_id=?",
                         (produkt, etap_id, parametr_id),

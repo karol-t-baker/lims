@@ -298,7 +298,7 @@ def reorder_pipeline(db: sqlite3.Connection, produkt: str, etap_ids: list[int]) 
 # Task 3: produkt_etap_limity CRUD
 # ---------------------------------------------------------------------------
 
-_PEL_ALLOWED_FIELDS = {"min_limit", "max_limit", "nawazka_g", "precision", "spec_value"}
+_PEL_ALLOWED_FIELDS = {"min_limit", "max_limit", "nawazka_g", "precision", "spec_value", "grupa"}
 
 
 def set_produkt_etap_limit(

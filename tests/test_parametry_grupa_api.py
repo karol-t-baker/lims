@@ -162,3 +162,56 @@ def test_binding_legacy_rejects_invalid_grupa(client, db):
     })
     assert r.status_code == 400
     assert "grupa" in (r.get_json().get("error") or "").lower()
+
+
+def _seed_pipeline_product(db, produkt="TEST_PIPE"):
+    """Set up minimal pipeline so the route takes the pipeline branch."""
+    db.execute("INSERT OR IGNORE INTO etapy_analityczne (id, kod, nazwa, typ_cyklu) "
+               "VALUES (6, 'analiza_koncowa', 'Analiza końcowa', 'jednorazowy')")
+    db.execute("INSERT INTO produkt_pipeline (produkt, etap_id, kolejnosc) VALUES (?, 6, 1)",
+               (produkt,))
+    db.commit()
+
+
+def test_binding_pipeline_inherits_grupa_from_parametr(client, db):
+    """POST /api/parametry/etapy for a PIPELINE product (writes to produkt_etap_limity)
+    inherits grupa from parametry_analityczne."""
+    pid = _seed_param(db, "tpc", "zewn")
+    _seed_pipeline_product(db, "TEST_PIPE")
+    r = client.post("/api/parametry/etapy", json={
+        "parametr_id": pid, "kontekst": "analiza_koncowa", "produkt": "TEST_PIPE",
+        "min_limit": 0, "max_limit": 100,
+    })
+    assert r.status_code == 200, r.get_json()
+    row = db.execute(
+        "SELECT grupa FROM produkt_etap_limity WHERE produkt='TEST_PIPE' AND parametr_id=?",
+        (pid,),
+    ).fetchone()
+    assert row is not None
+    assert row["grupa"] == "zewn"
+
+
+def test_binding_pipeline_honors_explicit_grupa_override(client, db):
+    pid = _seed_param(db, "tpc", "zewn")
+    _seed_pipeline_product(db, "TEST_PIPE")
+    r = client.post("/api/parametry/etapy", json={
+        "parametr_id": pid, "kontekst": "analiza_koncowa", "produkt": "TEST_PIPE",
+        "grupa": "lab",
+        "min_limit": 0, "max_limit": 100,
+    })
+    assert r.status_code == 200
+    row = db.execute(
+        "SELECT grupa FROM produkt_etap_limity WHERE produkt='TEST_PIPE' AND parametr_id=?",
+        (pid,),
+    ).fetchone()
+    assert row["grupa"] == "lab"
+
+
+def test_binding_pipeline_rejects_invalid_grupa(client, db):
+    pid = _seed_param(db, "tpc", "lab")
+    _seed_pipeline_product(db, "TEST_PIPE")
+    r = client.post("/api/parametry/etapy", json={
+        "parametr_id": pid, "kontekst": "analiza_koncowa", "produkt": "TEST_PIPE",
+        "grupa": "nonsense",
+    })
+    assert r.status_code == 400
