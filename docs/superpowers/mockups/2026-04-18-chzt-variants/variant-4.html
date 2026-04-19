@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Variant 4 — Scientific / Academic</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Source+Serif+4:ital,wght@0,400;0,600;1,400&family=Source+Sans+3:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy: #1e3a5f;
+    --navy-light: #2a4e7a;
+    --navy-dim: #4a6a8a;
+    --hazel: #a0522d;
+    --hazel-light: #c9782f;
+    --cream: #fafaf5;
+    --cream-alt: #f5f5ec;
+    --cream-dark: #eeeedf;
+    --text: #1a1a1a;
+    --text-sec: #3d3d3d;
+    --text-dim: #6e6e6e;
+    --border: #d0cfc4;
+    --border-light: #e5e5d8;
+    --serif: 'Playfair Display', Georgia, serif;
+    --body-serif: 'Source Serif 4', Georgia, serif;
+    --sans: 'Source Sans 3', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+    --warn-bg: #fef3cd;
+    --warn-border: #e6b800;
+    --warn-text: #7a5c00;
+  }
+  body {
+    font-family: var(--sans);
+    background: var(--cream);
+    color: var(--text);
+    padding: 40px 48px;
+    line-height: 1.6;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .screen-label {
+    font-family: var(--sans);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 24px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .screen-wrap { margin-bottom: 80px; }
+
+  /* ── SCREEN 1: Narzędzia ── */
+  .tools-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    border: 1px solid var(--border);
+    max-width: 900px;
+    background: var(--border);
+  }
+  .tool-card {
+    background: white;
+    padding: 20px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    cursor: pointer;
+    transition: background 0.15s;
+    border-right: 1px solid var(--border);
+  }
+  .tool-card:last-child { border-right: none; }
+  .tool-card:hover { background: var(--cream-alt); }
+  .tool-card.active {
+    background: var(--cream-alt);
+    border-top: 3px solid var(--hazel);
+  }
+  .tool-icon {
+    font-size: 22px;
+    line-height: 1;
+    color: var(--navy-dim);
+  }
+  .tool-card.active .tool-icon { color: var(--hazel); }
+  .tool-name {
+    font-family: var(--body-serif);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--navy);
+    line-height: 1.3;
+  }
+  .tool-desc { font-size: 11px; color: var(--text-dim); line-height: 1.4; }
+
+  /* ── SCREEN 2: Modal ── */
+  .modal-wrap {
+    max-width: 880px;
+    background: white;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 16px rgba(30,58,95,0.08);
+  }
+  .modal-masthead {
+    padding: 24px 32px 16px;
+    border-bottom: 2px solid var(--navy);
+    background: white;
+  }
+  .modal-discipline {
+    font-family: var(--sans);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--hazel);
+    margin-bottom: 6px;
+  }
+  .modal-main-title {
+    font-family: var(--serif);
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 6px;
+    line-height: 1.2;
+  }
+  .modal-subtitle {
+    font-family: var(--body-serif);
+    font-style: italic;
+    font-size: 13px;
+    color: var(--text-dim);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .modal-meta-right {
+    margin-left: auto;
+    text-align: right;
+  }
+  .modal-session {
+    font-family: var(--sans);
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+  }
+  .modal-status-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border: 1px solid;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-family: var(--sans);
+  }
+  .badge-saved { border-color: var(--navy); color: var(--navy); }
+  .badge-warn { border-color: var(--warn-border); color: var(--warn-text); background: var(--warn-bg); }
+
+  .modal-subbar {
+    padding: 10px 32px;
+    border-bottom: 1px solid var(--border-light);
+    background: var(--cream-alt);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 12px;
+    color: var(--text-sec);
+  }
+  .subbar-label { font-weight: 600; }
+  .subbar-input {
+    width: 50px;
+    padding: 3px 8px;
+    border: 1px solid var(--border);
+    background: white;
+    font-family: var(--mono);
+    font-size: 12px;
+    text-align: center;
+    color: var(--text);
+    outline: none;
+  }
+  .subbar-input:focus { border-color: var(--navy); }
+  .subbar-btn {
+    padding: 4px 14px;
+    border: 1px solid var(--navy);
+    background: white;
+    color: var(--navy);
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+  }
+  .subbar-btn:hover { background: var(--navy); color: white; }
+
+  .modal-table-wrap { overflow-x: auto; }
+  table.chzt {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+    font-family: var(--sans);
+  }
+  table.chzt thead {
+    border-bottom: 1.5px solid var(--navy);
+  }
+  table.chzt th {
+    padding: 8px 10px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--navy);
+    text-align: center;
+    border-bottom: 1.5px solid var(--navy);
+    background: white;
+  }
+  table.chzt th:first-child { text-align: left; padding-left: 32px; }
+  table.chzt td {
+    padding: 5px 8px;
+    border-bottom: 1px solid var(--border-light);
+    text-align: center;
+    vertical-align: middle;
+  }
+  table.chzt td:first-child {
+    text-align: left;
+    padding-left: 32px;
+    font-family: var(--body-serif);
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--navy);
+    white-space: nowrap;
+  }
+  table.chzt tbody tr:nth-child(even) td { background: var(--cream-alt); }
+  table.chzt tbody tr:hover td { background: var(--cream-dark); }
+  table.chzt tr.row-warn td { background: var(--warn-bg); }
+  table.chzt tr.row-warn td:first-child { color: var(--warn-text); }
+
+  .inp {
+    width: 80px;
+    height: 28px;
+    padding: 3px 6px;
+    border: 1px solid var(--border);
+    background: white;
+    font-family: var(--mono);
+    font-size: 12px;
+    text-align: right;
+    color: var(--text);
+    outline: none;
+  }
+  .inp:focus { border-color: var(--navy); box-shadow: 0 0 0 2px rgba(30,58,95,0.1); }
+  .inp.ph { width: 52px; text-align: center; }
+  .inp.warn { border-color: var(--warn-border); background: #fffdf0; }
+
+  .avg-val {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--navy);
+  }
+  .avg-val.warn { color: var(--hazel-light); font-weight: 700; }
+
+  /* Scientific notation helper */
+  .sci {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    display: block;
+    line-height: 1;
+  }
+
+  .modal-footer {
+    padding: 14px 32px;
+    border-top: 1.5px solid var(--navy);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+  }
+  .footer-cite {
+    font-family: var(--body-serif);
+    font-style: italic;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .btn-finalize {
+    padding: 8px 22px;
+    background: var(--navy);
+    color: white;
+    border: none;
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-finalize:hover { background: var(--navy-light); }
+
+  /* ── SCREEN 3: Historia ── */
+  .historia-wrap { max-width: 880px; }
+  .historia-masthead {
+    margin-bottom: 32px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid var(--navy);
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+  .historia-masthead h1 {
+    font-family: var(--serif);
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--navy);
+    letter-spacing: -0.5px;
+  }
+  .historia-masthead p {
+    font-family: var(--body-serif);
+    font-style: italic;
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+
+  .hist-entry {
+    margin-bottom: 32px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .hist-entry:last-child { border-bottom: none; }
+  .hist-entry-head {
+    display: flex;
+    align-items: baseline;
+    gap: 20px;
+    margin-bottom: 12px;
+  }
+  .hist-entry-date {
+    font-family: var(--serif);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--navy);
+  }
+  .hist-entry-who {
+    font-family: var(--body-serif);
+    font-style: italic;
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+  .hist-entry-status {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .status-check { color: var(--navy); font-weight: 700; }
+  .status-draft { color: var(--hazel); font-style: italic; }
+
+  table.hist-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    font-family: var(--sans);
+    margin-top: 8px;
+  }
+  table.hist-table th {
+    padding: 6px 10px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--navy);
+    border-bottom: 1.5px solid var(--navy);
+    text-align: center;
+    background: var(--cream-alt);
+  }
+  table.hist-table th:first-child { text-align: left; }
+  table.hist-table td {
+    padding: 5px 10px;
+    border-bottom: 1px solid var(--border-light);
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  table.hist-table td:first-child { font-family: var(--sans); text-align: left; font-weight: 500; color: var(--navy); }
+  table.hist-table tbody tr:nth-child(even) td { background: var(--cream-alt); }
+  .td-warn { color: var(--hazel-light); font-weight: 700; }
+
+  .hist-actions {
+    margin-top: 10px;
+    display: flex;
+    gap: 8px;
+  }
+  .btn-academic {
+    padding: 4px 14px;
+    border: 1px solid var(--border);
+    background: white;
+    color: var(--navy-dim);
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.03em;
+  }
+  .btn-academic:hover { border-color: var(--navy); color: var(--navy); }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     SCREEN 1 — Narzędzia
+     ══════════════════════════════════════════ -->
+<div class="screen-wrap">
+  <p class="screen-label">Screen 1 — Narzędzia Laboratoryjne</p>
+
+  <div class="tools-row">
+    <div class="tool-card">
+      <div class="tool-icon">⚗</div>
+      <div class="tool-name">Kalkulator miareczkowy</div>
+      <div class="tool-desc">Obliczenia mian i stężeń roztworów analitycznych</div>
+    </div>
+    <div class="tool-card">
+      <div class="tool-icon">⊜</div>
+      <div class="tool-name">Kalkulator standaryzacji</div>
+      <div class="tool-desc">Standaryzacja roztworów mianowanych</div>
+    </div>
+    <div class="tool-card active">
+      <div class="tool-icon">⬡</div>
+      <div class="tool-name">ChZT Ścieków</div>
+      <div class="tool-desc">Chemical Oxygen Demand · monitoring ścieków przemysłowych</div>
+    </div>
+    <div class="tool-card">
+      <div class="tool-icon">⊟</div>
+      <div class="tool-name">Historia ChZT</div>
+      <div class="tool-desc">Archiwum i przegląd sesji pomiarowych</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     SCREEN 2 — ChZT Modal
+     ══════════════════════════════════════════ -->
+<div class="screen-wrap">
+  <p class="screen-label">Screen 2 — ChZT Data Entry</p>
+
+  <div class="modal-wrap">
+    <div class="modal-masthead">
+      <div class="modal-discipline">Chemical Oxygen Demand · Wastewater Monitoring</div>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;">
+        <div>
+          <div class="modal-main-title">ChZT Ścieków — Sesja Pomiarowa</div>
+          <div class="modal-subtitle">18 kwietnia 2026 · Sesja nr 142 · iChegina K40GLO</div>
+        </div>
+        <div class="modal-meta-right">
+          <div class="modal-session">Laborant: Jan Kowalski</div>
+          <span class="modal-status-badge badge-saved">Saved 09:47</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-subbar">
+      <span class="subbar-label">Liczba kontenerów:</span>
+      <input class="subbar-input" type="number" value="8">
+      <button class="subbar-btn">Zastosuj</button>
+      <span style="margin-left:auto;font-style:italic;color:var(--text-dim);font-size:11px;">11 punktów pomiarowych · wartości w mg O₂/l</span>
+    </div>
+
+    <div class="modal-table-wrap">
+      <table class="chzt">
+        <thead>
+          <tr>
+            <th>Punkt</th>
+            <th>pH</th>
+            <th>P₁</th>
+            <th>P₂</th>
+            <th>P₃</th>
+            <th>P₄</th>
+            <th>P₅</th>
+            <th>x̄ (mg O₂/l)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Hala</td>
+            <td><input class="inp ph" value="9.2"></td>
+            <td><input class="inp" value="12400"></td>
+            <td><input class="inp" value="11800"></td>
+            <td><input class="inp" value="13100"></td>
+            <td><input class="inp" value=""></td>
+            <td><input class="inp" value=""></td>
+            <td><span class="avg-val">12 433</span><span class="sci">1.24 × 10⁴</span></td>
+          </tr>
+          <tr>
+            <td>Rura</td>
+            <td><input class="inp ph" value="10.1"></td>
+            <td><input class="inp" value="18200"></td>
+            <td><input class="inp" value="17900"></td>
+            <td><input class="inp" value="18500"></td>
+            <td><input class="inp" value="18100"></td>
+            <td><input class="inp" value=""></td>
+            <td><span class="avg-val">18 175</span><span class="sci">1.82 × 10⁴</span></td>
+          </tr>
+          <tr>
+            <td>Kontener 1</td>
+            <td><input class="inp ph" value="9.8"></td>
+            <td><input class="inp" value="21000"></td>
+            <td><input class="inp" value="20500"></td>
+            <td><input class="inp" value="21800"></td>
+            <td><input class="inp" value=""></td>
+            <td><input class="inp" value=""></td>
+            <td><span class="avg-val">21 100</span><span class="sci">2.11 × 10⁴</span></td>
+          </tr>
+          <tr>
+            <td>Kontener 2</td>
+            <td><input class="inp ph" value="10.3"></td>
+            <td><input class="inp" value="25600"></td>
+            <td><input class="inp" value="24900"></td>
+            <td><input class="inp" value="26200"></td>
+            <td><input class="inp" value="25100"></td>
+            <td><input class="inp" value=""></td>
+            <td><span class="avg-val">25 450</span><span class="sci">2.55 × 10⁴</span></td>
+          </tr>
+          <tr>
+            <td>Kontener 3</td>
+            <td><input class="inp ph" value="9.5"></td>
+            <td><input class="inp" value="19800"></td>
+            <td><input class="inp" value="20200"></td>
+            <td><input class="inp" value=""></td>
+            <td><input class="inp" value=""></td>
+            <td><input class="inp" value=""></td>
+            <td><span class="avg-val">20 000</span><span class="sci">2.00 × 10⁴</span></td>
+          </tr>
+          <tr>
+            <td>Kontener 4</td>
+            <td><input class="inp ph" value="10.7"></td>
+            <td><input class="inp" value="28100"></td>
+            <td><input class="inp" value="27500"></td>
+            <td><input class="inp" value="29000"></td>
+            <td><input class="inp" value=""></td>
+            <td><input class="inp" value=""></td>
+            <td><span class="avg-val">28 200</span><span class="sci">2.82 × 10⁴</span></td>
+          </tr>
+          <tr>
+            <td>Kontener 5</td>
+            <td><input class="inp ph" value="9.9"></td>
+            <td><input class="inp" value="15500"></td>
+            <td><input class="inp" value="16100"></td>
+            <td><input class="inp" value="15800"></td>
+            <td><input class="inp" value=""></td>
+            <td><input class="inp" value=""></td>
+            <td><span class="avg-val">15 800</span><span class="sci">1.58 × 10⁴</span></td>
+          </tr>
+          <tr>
+            <td>Kontener 6</td>
+            <td><input class="inp ph" value="10.4"></td>
+            <td><input class="inp" value="22400"></td>
+            <td><input class="inp" value="23000"></td>
+            <td><input class="inp" value="22800"></td>
+            <td><input class="inp" value="22100"></td>
+            <td><input class="inp" value=""></td>
+            <td><span class="avg-val">22 575</span><span class="sci">2.26 × 10⁴</span></td>
+          </tr>
+          <tr>
+            <td>Kontener 7</td>
+            <td><input class="inp ph" value="9.6"></td>
+            <td><input class="inp" value="17200"></td>
+            <td><input class="inp" value="17800"></td>
+            <td><input class="inp" value="16900"></td>
+            <td><input class="inp" value=""></td>
+            <td><input class="inp" value=""></td>
+            <td><span class="avg-val">17 300</span><span class="sci">1.73 × 10⁴</span></td>
+          </tr>
+          <tr>
+            <td>Kontener 8</td>
+            <td><input class="inp ph" value="11.1"></td>
+            <td><input class="inp" value="30200"></td>
+            <td><input class="inp" value="29800"></td>
+            <td><input class="inp" value="31000"></td>
+            <td><input class="inp" value="30500"></td>
+            <td><input class="inp" value=""></td>
+            <td><span class="avg-val">30 375</span><span class="sci">3.04 × 10⁴</span></td>
+          </tr>
+          <tr class="row-warn">
+            <td>Szambiarka</td>
+            <td><input class="inp ph warn" value="11.8"></td>
+            <td><input class="inp warn" value="44500"></td>
+            <td><input class="inp warn" value="45200"></td>
+            <td><input class="inp warn" value="43800"></td>
+            <td><input class="inp" value=""></td>
+            <td><input class="inp" value=""></td>
+            <td><span class="avg-val warn">44 500 †</span><span class="sci" style="color:var(--hazel-light);">4.45 × 10⁴</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="modal-footer">
+      <div class="footer-cite">† Szambiarka przekracza próg alarmowy 40 000 mg O₂/l. Wynik wymaga adnotacji w raporcie.</div>
+      <button class="btn-finalize">Finalizuj sesję</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     SCREEN 3 — Historia
+     ══════════════════════════════════════════ -->
+<div class="screen-wrap">
+  <p class="screen-label">Screen 3 — Archiwum Pomiarów ChZT</p>
+
+  <div class="historia-wrap">
+    <div class="historia-masthead">
+      <h1>ChZT Ścieków — Historia</h1>
+      <p>3 sesje · strona 1 z 1</p>
+    </div>
+
+    <div class="hist-entry">
+      <div class="hist-entry-head">
+        <div class="hist-entry-date">18 kwietnia 2026</div>
+        <div class="hist-entry-who">Sfinalizowano przez: Jan Kowalski, 10:22</div>
+        <div class="hist-entry-status">
+          <span class="status-check">✓ Sfinalizowano</span>
+          <span class="modal-status-badge badge-warn">UWAGA: max &gt;40k</span>
+        </div>
+      </div>
+      <table class="hist-table">
+        <thead>
+          <tr>
+            <th>Parametr</th>
+            <th>Punkty</th>
+            <th>Próbki razem</th>
+            <th>x̄ ChZT</th>
+            <th>Max ChZT</th>
+            <th>pH min–max</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Sesja 142</td>
+            <td>11</td>
+            <td>37</td>
+            <td>22 351</td>
+            <td class="td-warn">44 500 †</td>
+            <td>9.2–11.8</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="hist-actions">
+        <button class="btn-academic">Pokaż pomiary P1–P5</button>
+        <button class="btn-academic">Audit</button>
+        <button class="btn-academic">Edytuj</button>
+      </div>
+    </div>
+
+    <div class="hist-entry">
+      <div class="hist-entry-head">
+        <div class="hist-entry-date">17 kwietnia 2026</div>
+        <div class="hist-entry-who">Sfinalizowano przez: Anna Nowak, 09:55</div>
+        <div class="hist-entry-status">
+          <span class="status-check">✓ Sfinalizowano</span>
+        </div>
+      </div>
+      <table class="hist-table">
+        <thead>
+          <tr>
+            <th>Parametr</th>
+            <th>Punkty</th>
+            <th>Próbki razem</th>
+            <th>x̄ ChZT</th>
+            <th>Max ChZT</th>
+            <th>pH min–max</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Sesja 141</td>
+            <td>11</td>
+            <td>42</td>
+            <td>20 840</td>
+            <td>38 200</td>
+            <td>9.0–11.4</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="hist-actions">
+        <button class="btn-academic">Pokaż pomiary P1–P5</button>
+        <button class="btn-academic">Audit</button>
+        <button class="btn-academic">Edytuj</button>
+      </div>
+    </div>
+
+    <div class="hist-entry">
+      <div class="hist-entry-head">
+        <div class="hist-entry-date">16 kwietnia 2026</div>
+        <div class="hist-entry-who">Niezakończona — ostatnia edycja 14:33</div>
+        <div class="hist-entry-status">
+          <span class="status-draft">Draft (niesfinalizowana)</span>
+        </div>
+      </div>
+      <table class="hist-table">
+        <thead>
+          <tr>
+            <th>Parametr</th>
+            <th>Punkty</th>
+            <th>Próbki razem</th>
+            <th>x̄ ChZT</th>
+            <th>Max ChZT</th>
+            <th>pH min–max</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="font-style:italic;color:var(--text-dim);">Sesja 140 (draft)</td>
+            <td style="color:var(--text-dim);">11</td>
+            <td style="color:var(--text-dim);">—</td>
+            <td style="color:var(--text-dim);">—</td>
+            <td style="color:var(--text-dim);">—</td>
+            <td style="color:var(--text-dim);">—</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="hist-actions">
+        <button class="btn-academic">Pokaż pomiary P1–P5</button>
+        <button class="btn-academic">Audit</button>
+        <button class="btn-academic">Edytuj / Kontynuuj</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

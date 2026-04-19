@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Variant 2 — Industrial Dense</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0e1116;
+    --bg2: #13171e;
+    --bg3: #1c2128;
+    --panel: #21262d;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-dim: #8b949e;
+    --text-muted: #484f58;
+    --green: #3fb950;
+    --amber: #d29922;
+    --red: #f85149;
+    --blue: #58a6ff;
+    --mono: 'JetBrains Mono', 'Courier New', monospace;
+  }
+  body {
+    font-family: var(--mono);
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px 32px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .screen-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .screen-wrap { margin-bottom: 48px; }
+
+  /* ── SCREEN 1: Narzędzia ── */
+  .tools-bar {
+    display: flex;
+    gap: 0;
+    border: 1px solid var(--border);
+    max-width: 900px;
+  }
+  .tool-tile {
+    flex: 1;
+    padding: 12px 14px;
+    border-right: 1px solid var(--border);
+    background: var(--bg2);
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .tool-tile:last-child { border-right: none; }
+  .tool-tile:hover { background: var(--bg3); }
+  .tool-tile.active { background: var(--bg3); border-top: 2px solid var(--green); }
+  .tool-sym {
+    font-size: 16px;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+    line-height: 1;
+  }
+  .tool-tile.active .tool-sym { color: var(--green); }
+  .tool-name {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 3px;
+  }
+  .tool-desc { font-size: 10px; color: var(--text-dim); }
+
+  /* ── SCREEN 2: Modal ── */
+  .modal-wrap {
+    max-width: 860px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .modal-header {
+    background: var(--panel);
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+  }
+  .modal-header-title {
+    font-weight: 700;
+    color: var(--green);
+    letter-spacing: 0.05em;
+  }
+  .modal-header-sep { color: var(--text-muted); }
+  .modal-header-date { color: var(--text-dim); }
+  .modal-header-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .badge {
+    padding: 1px 6px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .badge-green { background: rgba(63,185,80,0.15); color: var(--green); border: 1px solid rgba(63,185,80,0.3); }
+  .badge-amber { background: rgba(210,153,34,0.15); color: var(--amber); border: 1px solid rgba(210,153,34,0.3); }
+  .badge-red { background: rgba(248,81,73,0.15); color: var(--red); border: 1px solid rgba(248,81,73,0.3); }
+
+  .modal-toolbar {
+    padding: 6px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .toolbar-key { color: var(--text-muted); font-size: 10px; }
+  .toolbar-val { color: var(--text); font-weight: 700; }
+  .toolbar-input {
+    width: 44px;
+    padding: 2px 6px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 11px;
+    text-align: center;
+  }
+  .toolbar-btn {
+    padding: 2px 10px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .toolbar-btn:hover { border-color: var(--text-dim); color: var(--text); }
+
+  table.chzt {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+  }
+  table.chzt thead { background: var(--bg); }
+  table.chzt th {
+    padding: 5px 8px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    text-align: right;
+    border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--bg3);
+    white-space: nowrap;
+  }
+  table.chzt th:first-child { text-align: left; }
+  table.chzt th:last-child { border-right: none; }
+  table.chzt td {
+    padding: 3px 6px;
+    border-bottom: 1px solid var(--bg3);
+    border-right: 1px solid var(--bg3);
+    text-align: right;
+    vertical-align: middle;
+  }
+  table.chzt td:last-child { border-right: none; }
+  table.chzt tbody tr:nth-child(even) td { background: rgba(255,255,255,0.015); }
+  table.chzt tbody tr:hover td { background: var(--bg3); }
+  table.chzt td:first-child {
+    text-align: left;
+    padding-left: 14px;
+    color: var(--text-dim);
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  table.chzt tr.row-limit td { background: rgba(248,81,73,0.06); }
+  table.chzt tr.row-limit td:first-child { color: var(--red); }
+
+  .inp {
+    width: 74px;
+    height: 24px;
+    padding: 2px 6px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 11px;
+    text-align: right;
+    outline: none;
+  }
+  .inp:focus { border-color: var(--blue); }
+  .inp.ph { width: 48px; }
+  .inp.over { border-color: var(--red); background: rgba(248,81,73,0.08); }
+
+  .avg-val { font-weight: 700; color: var(--blue); }
+  .avg-val.over { color: var(--red); }
+
+  .modal-statusbar {
+    padding: 5px 14px;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+  .statusbar-item { display: flex; align-items: center; gap: 4px; }
+  .statusbar-item .sym { color: var(--green); }
+  .statusbar-right { margin-left: auto; display: flex; gap: 12px; }
+  .btn-finalize {
+    padding: 4px 14px;
+    background: var(--green);
+    color: #000;
+    border: none;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+  }
+  .btn-finalize:hover { opacity: 0.85; }
+
+  /* ── SCREEN 3: Historia ── */
+  .hist-header {
+    padding: 8px 14px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .hist-header span { color: var(--text-muted); font-weight: 400; font-size: 10px; }
+
+  .hist-log {
+    border: 1px solid var(--border);
+    background: var(--bg2);
+    max-width: 860px;
+  }
+  .hist-row {
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--bg3);
+    display: grid;
+    grid-template-columns: 120px 160px 120px 80px 80px 1fr;
+    gap: 12px;
+    align-items: center;
+    font-size: 11px;
+    transition: background 0.1s;
+  }
+  .hist-row:last-child { border-bottom: none; }
+  .hist-row:hover { background: var(--bg3); }
+  .hist-row-head {
+    padding: 5px 14px;
+    border-bottom: 1px solid var(--border);
+    display: grid;
+    grid-template-columns: 120px 160px 120px 80px 80px 1fr;
+    gap: 12px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    background: var(--bg);
+  }
+  .hist-date-val { color: var(--blue); font-weight: 700; }
+  .hist-who { color: var(--text-dim); }
+  .hist-avg { color: var(--text); font-family: var(--mono); }
+  .hist-max { color: var(--text); font-family: var(--mono); }
+  .hist-max.over { color: var(--red); font-weight: 700; }
+  .hist-status-badge { }
+  .hist-actions-row {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+  }
+  .btn-tiny {
+    padding: 2px 8px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    cursor: pointer;
+    letter-spacing: 0.06em;
+  }
+  .btn-tiny:hover { border-color: var(--text-dim); color: var(--text); }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     SCREEN 1 — Narzędzia
+     ══════════════════════════════════════════ -->
+<div class="screen-wrap">
+  <p class="screen-label">// screen:1 · narzędzia::kafelki</p>
+
+  <div class="tools-bar">
+    <div class="tool-tile">
+      <div class="tool-sym">⊞</div>
+      <div class="tool-name">Kalkulator miareczkowy</div>
+      <div class="tool-desc">obliczenia mian i stężeń</div>
+    </div>
+    <div class="tool-tile">
+      <div class="tool-sym">◈</div>
+      <div class="tool-name">Kalkulator standaryzacji</div>
+      <div class="tool-desc">standaryzacja roztworów</div>
+    </div>
+    <div class="tool-tile active">
+      <div class="tool-sym">▶</div>
+      <div class="tool-name">ChZT Ścieków</div>
+      <div class="tool-desc">pomiary COD · 11 pkt/dzień</div>
+    </div>
+    <div class="tool-tile">
+      <div class="tool-sym">■</div>
+      <div class="tool-name">Historia ChZT</div>
+      <div class="tool-desc">archiwum sesji pomiarowych</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     SCREEN 2 — ChZT Modal
+     ══════════════════════════════════════════ -->
+<div class="screen-wrap">
+  <p class="screen-label">// screen:2 · chzt::modal · sesja aktywna</p>
+
+  <div class="modal-wrap">
+    <div class="modal-header">
+      <span class="modal-header-title">CHZT/ŚCIEKI</span>
+      <span class="modal-header-sep">·</span>
+      <span class="modal-header-date">2026-04-18</span>
+      <span class="modal-header-sep">·</span>
+      <span class="modal-header-date">SESJA-142</span>
+      <div class="modal-header-right">
+        <span class="badge badge-green">● SAVED 09:47</span>
+        <span style="color:var(--text-muted);font-size:10px;">[×] CLOSE</span>
+      </div>
+    </div>
+
+    <div class="modal-toolbar">
+      <span class="toolbar-key">KONTENERY:</span>
+      <input class="toolbar-input" type="number" value="8">
+      <button class="toolbar-btn">GENERUJ</button>
+      <span class="toolbar-key" style="margin-left:16px;">PUNKTY:</span>
+      <span class="toolbar-val">11</span>
+      <span class="toolbar-key" style="margin-left:16px;">STATUS:</span>
+      <span style="color:var(--green);font-weight:700;">AKTYWNA</span>
+    </div>
+
+    <table class="chzt">
+      <thead>
+        <tr>
+          <th>PUNKT</th>
+          <th>pH</th>
+          <th>P1</th>
+          <th>P2</th>
+          <th>P3</th>
+          <th>P4</th>
+          <th>P5</th>
+          <th>AVG</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>HALA</td>
+          <td><input class="inp ph" value="9.2"></td>
+          <td><input class="inp" value="12400"></td>
+          <td><input class="inp" value="11800"></td>
+          <td><input class="inp" value="13100"></td>
+          <td><input class="inp" value=""></td>
+          <td><input class="inp" value=""></td>
+          <td><span class="avg-val">12433</span></td>
+        </tr>
+        <tr>
+          <td>RURA</td>
+          <td><input class="inp ph" value="10.1"></td>
+          <td><input class="inp" value="18200"></td>
+          <td><input class="inp" value="17900"></td>
+          <td><input class="inp" value="18500"></td>
+          <td><input class="inp" value="18100"></td>
+          <td><input class="inp" value=""></td>
+          <td><span class="avg-val">18175</span></td>
+        </tr>
+        <tr>
+          <td>KONT-1</td>
+          <td><input class="inp ph" value="9.8"></td>
+          <td><input class="inp" value="21000"></td>
+          <td><input class="inp" value="20500"></td>
+          <td><input class="inp" value="21800"></td>
+          <td><input class="inp" value=""></td>
+          <td><input class="inp" value=""></td>
+          <td><span class="avg-val">21100</span></td>
+        </tr>
+        <tr>
+          <td>KONT-2</td>
+          <td><input class="inp ph" value="10.3"></td>
+          <td><input class="inp" value="25600"></td>
+          <td><input class="inp" value="24900"></td>
+          <td><input class="inp" value="26200"></td>
+          <td><input class="inp" value="25100"></td>
+          <td><input class="inp" value=""></td>
+          <td><span class="avg-val">25450</span></td>
+        </tr>
+        <tr>
+          <td>KONT-3</td>
+          <td><input class="inp ph" value="9.5"></td>
+          <td><input class="inp" value="19800"></td>
+          <td><input class="inp" value="20200"></td>
+          <td><input class="inp" value=""></td>
+          <td><input class="inp" value=""></td>
+          <td><input class="inp" value=""></td>
+          <td><span class="avg-val">20000</span></td>
+        </tr>
+        <tr>
+          <td>KONT-4</td>
+          <td><input class="inp ph" value="10.7"></td>
+          <td><input class="inp" value="28100"></td>
+          <td><input class="inp" value="27500"></td>
+          <td><input class="inp" value="29000"></td>
+          <td><input class="inp" value=""></td>
+          <td><input class="inp" value=""></td>
+          <td><span class="avg-val">28200</span></td>
+        </tr>
+        <tr>
+          <td>KONT-5</td>
+          <td><input class="inp ph" value="9.9"></td>
+          <td><input class="inp" value="15500"></td>
+          <td><input class="inp" value="16100"></td>
+          <td><input class="inp" value="15800"></td>
+          <td><input class="inp" value=""></td>
+          <td><input class="inp" value=""></td>
+          <td><span class="avg-val">15800</span></td>
+        </tr>
+        <tr>
+          <td>KONT-6</td>
+          <td><input class="inp ph" value="10.4"></td>
+          <td><input class="inp" value="22400"></td>
+          <td><input class="inp" value="23000"></td>
+          <td><input class="inp" value="22800"></td>
+          <td><input class="inp" value="22100"></td>
+          <td><input class="inp" value=""></td>
+          <td><span class="avg-val">22575</span></td>
+        </tr>
+        <tr>
+          <td>KONT-7</td>
+          <td><input class="inp ph" value="9.6"></td>
+          <td><input class="inp" value="17200"></td>
+          <td><input class="inp" value="17800"></td>
+          <td><input class="inp" value="16900"></td>
+          <td><input class="inp" value=""></td>
+          <td><input class="inp" value=""></td>
+          <td><span class="avg-val">17300</span></td>
+        </tr>
+        <tr>
+          <td>KONT-8</td>
+          <td><input class="inp ph" value="11.1"></td>
+          <td><input class="inp" value="30200"></td>
+          <td><input class="inp" value="29800"></td>
+          <td><input class="inp" value="31000"></td>
+          <td><input class="inp" value="30500"></td>
+          <td><input class="inp" value=""></td>
+          <td><span class="avg-val">30375</span></td>
+        </tr>
+        <tr class="row-limit">
+          <td>SZAMBIARKA</td>
+          <td><input class="inp ph over" value="11.8"></td>
+          <td><input class="inp over" value="44500"></td>
+          <td><input class="inp over" value="45200"></td>
+          <td><input class="inp over" value="43800"></td>
+          <td><input class="inp" value=""></td>
+          <td><input class="inp" value=""></td>
+          <td><span class="avg-val over">44500 !</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="modal-statusbar">
+      <div class="statusbar-item"><span class="sym">●</span> AUTOSAVE:ON</div>
+      <div class="statusbar-item">SAVED:09:47:22</div>
+      <div class="statusbar-item" style="color:var(--amber);">WARN: szambiarka &gt;40000</div>
+      <div class="statusbar-right">
+        <button class="btn-finalize">[ FINALIZUJ SESJĘ ]</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     SCREEN 3 — Historia
+     ══════════════════════════════════════════ -->
+<div class="screen-wrap">
+  <p class="screen-label">// screen:3 · chzt::historia · 3 sesje</p>
+
+  <div class="hist-log" style="max-width:860px;">
+    <div class="hist-header">
+      CHZT/HISTORIA <span>· 3 SESJE · STRONA 1/1</span>
+    </div>
+    <div class="hist-row-head">
+      <span>DATA</span>
+      <span>KONTO</span>
+      <span>STATUS</span>
+      <span>AVG</span>
+      <span>MAX</span>
+      <span style="text-align:right;">AKCJE</span>
+    </div>
+    <div class="hist-row">
+      <span class="hist-date-val">2026-04-18</span>
+      <span class="hist-who">Jan Kowalski · 10:22</span>
+      <span><span class="badge badge-green">FINALIZED</span></span>
+      <span class="hist-avg">22 351</span>
+      <span class="hist-max over">44 500</span>
+      <div class="hist-actions-row">
+        <button class="btn-tiny">POMIARY</button>
+        <button class="btn-tiny">AUDIT</button>
+        <button class="btn-tiny">EDIT</button>
+      </div>
+    </div>
+    <div class="hist-row">
+      <span class="hist-date-val">2026-04-17</span>
+      <span class="hist-who">Anna Nowak · 09:55</span>
+      <span><span class="badge badge-green">FINALIZED</span></span>
+      <span class="hist-avg">20 840</span>
+      <span class="hist-max">38 200</span>
+      <div class="hist-actions-row">
+        <button class="btn-tiny">POMIARY</button>
+        <button class="btn-tiny">AUDIT</button>
+        <button class="btn-tiny">EDIT</button>
+      </div>
+    </div>
+    <div class="hist-row">
+      <span class="hist-date-val">2026-04-16</span>
+      <span class="hist-who">— · ostatnia ed. 14:33</span>
+      <span><span class="badge badge-amber">DRAFT</span></span>
+      <span class="hist-avg" style="color:var(--text-muted);">—</span>
+      <span class="hist-max" style="color:var(--text-muted);">—</span>
+      <div class="hist-actions-row">
+        <button class="btn-tiny">POMIARY</button>
+        <button class="btn-tiny">AUDIT</button>
+        <button class="btn-tiny">EDIT</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
