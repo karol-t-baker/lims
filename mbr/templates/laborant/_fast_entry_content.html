@@ -39,6 +39,16 @@
 
 <div id="detail-workspace">
   <div class="col-main" id="sections-container" {% if ebr.status != 'open' %}style="padding:20px 24px;"{% endif %}>
+    {# Zbiorniki assignment (mid-batch) — only for szarza-typed open batches #}
+    {% if ebr.typ == 'szarza' and ebr.status == 'open' %}
+    <div class="zb-assign-section" id="zb-assign-section" data-ebr-id="{{ ebr.ebr_id }}">
+      <div class="zb-assign-label">Zbiorniki</div>
+      <div class="zb-assign-pills" id="zb-assign-pills">
+        <span class="zb-assign-empty">wczytywanie…</span>
+      </div>
+      <button class="zb-assign-add" onclick="openZbAssignModal()" type="button">+ Dodaj zbiornik</button>
+    </div>
+    {% endif %}
     {# filled by JS #}
   </div>
   <div class="col-right" {% if ebr.status != 'open' %}style="display:none;"{% endif %}>
@@ -5857,3 +5867,148 @@ if (typeof window.openCalculator === 'undefined') {
     document.body.appendChild(s);
 }
 </script>
+
+{# ═══ Zbiorniki mid-batch picker — mini-modal + logic ═══ #}
+{% if ebr.typ == 'szarza' and ebr.status == 'open' %}
+<div class="pal-overlay" id="zb-assign-modal" style="display:none;">
+  <div class="zb-assign-modal-body">
+    <div class="zb-assign-modal-head">
+      <span>Wybierz zbiorniki</span>
+      <button type="button" onclick="closeZbAssignModal()" aria-label="Zamknij">&times;</button>
+    </div>
+    <div class="zb-assign-modal-grid" id="zb-assign-grid">
+      <div style="padding:20px;color:var(--text-dim);font-size:12px;">wczytywanie…</div>
+    </div>
+    <div class="zb-assign-modal-footer">
+      <button type="button" class="btn btn-o" onclick="closeZbAssignModal()">Anuluj</button>
+      <button type="button" class="btn btn-p" id="zb-assign-confirm" onclick="confirmZbAssign()">Dodaj wybrane</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  var _zbAssignSelected = new Set();
+
+  function _zbEsc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) {
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  window.loadZbAssignedPills = async function() {
+    var section = document.getElementById('zb-assign-section');
+    if (!section) return;
+    var ebrIdLocal = section.dataset.ebrId;
+    var container = document.getElementById('zb-assign-pills');
+    try {
+      var resp = await fetch('/api/zbiornik-szarze/' + ebrIdLocal);
+      var data = await resp.json();
+      if (!data || data.length === 0) {
+        container.innerHTML = '<span class="zb-assign-empty">(brak — dodaj podczas pracy lub przy zakończeniu)</span>';
+        return;
+      }
+      container.innerHTML = data.map(function(d) {
+        var mass = d.masa_kg ? ' \u00b7 ' + d.masa_kg + ' kg' : '';
+        return '<span class="zb-pill" data-link-id="' + d.id + '">' +
+          _zbEsc(d.nr_zbiornika) + mass +
+          ' <button type="button" class="zb-pill-remove" onclick="unlinkZbiornik(' + d.id + ')" title="Odepnij">&times;</button>' +
+          '</span>';
+      }).join('');
+    } catch (e) {
+      container.innerHTML = '<span class="zb-assign-empty" style="color:var(--red);">Błąd ładowania</span>';
+    }
+  };
+
+  window.openZbAssignModal = async function() {
+    var section = document.getElementById('zb-assign-section');
+    if (!section) return;
+    var grid = document.getElementById('zb-assign-grid');
+    grid.innerHTML = '<div style="padding:20px;color:var(--text-dim);font-size:12px;">wczytywanie…</div>';
+    _zbAssignSelected.clear();
+    document.getElementById('zb-assign-modal').style.display = 'flex';
+
+    // Reuse existing helpers from pump modal
+    await loadZbiornikList();
+    var batchKod = _getBatchKod();
+    var matched = batchKod
+      ? _zbiornikList.filter(function(z) { return z.kod_produktu === batchKod; })
+      : _zbiornikList.slice();
+
+    // Exclude already-linked tanks
+    var assignedResp = await fetch('/api/zbiornik-szarze/' + section.dataset.ebrId);
+    var assigned = await assignedResp.json();
+    var assignedIds = {};
+    (assigned || []).forEach(function(a){ assignedIds[a.zbiornik_id] = true; });
+    var available = matched.filter(function(z){ return !assignedIds[z.id] && z.aktywny !== 0; });
+
+    if (available.length === 0) {
+      grid.innerHTML = '<div style="padding:20px;color:var(--text-dim);font-size:12px;">' +
+        'Wszystkie dostępne zbiorniki tego produktu są już przypisane.</div>';
+      return;
+    }
+
+    grid.innerHTML = available.map(function(t) {
+      return '<button type="button" class="zb-assign-tile" data-zid="' + t.id + '" onclick="toggleZbAssign(' + t.id + ', this)">' +
+        '<div class="zb-assign-tile-nr">' + _zbEsc(t.nr_zbiornika) + '</div>' +
+        '<div class="zb-assign-tile-cap">' + (t.max_pojemnosc || '—') + ' kg</div>' +
+        '</button>';
+    }).join('');
+  };
+
+  window.toggleZbAssign = function(zid, btn) {
+    if (_zbAssignSelected.has(zid)) {
+      _zbAssignSelected.delete(zid);
+      btn.classList.remove('selected');
+    } else {
+      _zbAssignSelected.add(zid);
+      btn.classList.add('selected');
+    }
+  };
+
+  window.confirmZbAssign = async function() {
+    var section = document.getElementById('zb-assign-section');
+    if (!section) return;
+    var btn = document.getElementById('zb-assign-confirm');
+    btn.disabled = true;
+    btn.textContent = 'Dodawanie…';
+    var ebrIdLocal = parseInt(section.dataset.ebrId);
+    var promises = [];
+    _zbAssignSelected.forEach(function(zid) {
+      promises.push(fetch('/api/zbiornik-szarze', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ebr_id: ebrIdLocal, zbiornik_id: zid}),
+      }));
+    });
+    try {
+      await Promise.all(promises);
+    } catch (e) {}
+    closeZbAssignModal();
+    btn.disabled = false;
+    btn.textContent = 'Dodaj wybrane';
+    await loadZbAssignedPills();
+  };
+
+  window.unlinkZbiornik = async function(linkId) {
+    if (!confirm('Odepnąć zbiornik od tej szarży?')) return;
+    await fetch('/api/zbiornik-szarze/' + linkId, {method: 'DELETE'});
+    await loadZbAssignedPills();
+  };
+
+  window.closeZbAssignModal = function() {
+    document.getElementById('zb-assign-modal').style.display = 'none';
+    _zbAssignSelected.clear();
+  };
+
+  // Auto-load on batch view render
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadZbAssignedPills);
+  } else {
+    loadZbAssignedPills();
+  }
+})();
+</script>
+{% endif %}
