@@ -8,7 +8,7 @@
 <script>
   window._chztUserRola = {{ session.user.rola|tojson }};
 </script>
-<link rel="stylesheet" href="{{ url_for('chzt.static', filename='chzt.css') }}?v=10">
+<link rel="stylesheet" href="{{ url_for('chzt.static', filename='chzt.css') }}?v=11">
 
 <div class="chzt-hist-page">
 
@@ -119,5 +119,5 @@
 
 {% include "chzt_modal.html" %}
 
-<script src="{{ url_for('chzt.static', filename='chzt.js') }}?v=10" defer></script>
+<script src="{{ url_for('chzt.static', filename='chzt.js') }}?v=11" defer></script>
 {% endblock %}

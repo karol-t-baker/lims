@@ -527,11 +527,11 @@
         _session = resp.session;
         renderFinalizedBanner();
         initialStatus();
-        btn.textContent = 'Finalizuj sesję';
+        btn.textContent = 'Zakończ sesję';
         btn.disabled = false;
       })
       .catch(function(){
-        btn.textContent = 'Finalizuj sesję';
+        btn.textContent = 'Zakończ sesję';
         btn.disabled = false;
       });
   };
