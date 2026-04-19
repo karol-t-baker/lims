@@ -215,3 +215,34 @@ def test_binding_pipeline_rejects_invalid_grupa(client, db):
         "grupa": "nonsense",
     })
     assert r.status_code == 400
+
+
+def test_bindings_post_rejects_invalid_grupa(client, db):
+    pid = _seed_param(db, "tpc", "lab")
+    _seed_pipeline_product(db, "TEST_PIPE")
+
+    # POST /api/bindings with invalid grupa must return 400
+    r = client.post("/api/bindings", json={
+        "produkt": "TEST_PIPE", "etap_id": 6, "parametr_id": pid,
+        "grupa": "mikrobio",
+    })
+    assert r.status_code == 400, f"expected 400, got {r.status_code}: {r.get_json()}"
+    assert "grupa" in (r.get_json().get("error") or "").lower()
+
+
+def test_bindings_put_rejects_invalid_grupa(client, db):
+    pid = _seed_param(db, "tpc", "lab")
+    _seed_pipeline_product(db, "TEST_PIPE")
+    from mbr.pipeline.models import set_produkt_etap_limit
+    set_produkt_etap_limit(db, "TEST_PIPE", 6, pid, min_limit=0, max_limit=100)
+    db.commit()
+    bid = db.execute(
+        "SELECT id FROM produkt_etap_limity WHERE produkt='TEST_PIPE' AND parametr_id=?", (pid,)
+    ).fetchone()["id"]
+
+    r = client.put(f"/api/bindings/{bid}", json={"grupa": "nonsense"})
+    assert r.status_code == 400
+    assert "grupa" in (r.get_json().get("error") or "").lower()
+    # DB row's grupa unchanged
+    row = db.execute("SELECT grupa FROM produkt_etap_limity WHERE id=?", (bid,)).fetchone()
+    assert row["grupa"] == "lab"  # default from set_produkt_etap_limit

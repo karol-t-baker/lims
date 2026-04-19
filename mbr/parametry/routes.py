@@ -543,6 +543,8 @@ def api_bindings_create():
         return jsonify({"error": "produkt and parametr_id are required"}), 400
     if not etap_id and not etap_kod:
         return jsonify({"error": "etap_id or etap_kod is required"}), 400
+    if "grupa" in data and data["grupa"] not in ALLOWED_GRUPY:
+        return jsonify({"error": f"grupa must be one of: {', '.join(sorted(ALLOWED_GRUPY))}"}), 400
 
     row_fields = {k: data[k] for k in _BINDING_FIELDS if k in data}
     for k, v in _BINDING_DEFAULTS.items():
@@ -581,6 +583,8 @@ def api_bindings_create():
 def api_bindings_update(binding_id: int):
     """Update a binding. If all three typ flags end up 0, auto-DELETE the row."""
     data = request.get_json(silent=True) or {}
+    if "grupa" in data and data["grupa"] not in ALLOWED_GRUPY:
+        return jsonify({"error": f"grupa must be one of: {', '.join(sorted(ALLOWED_GRUPY))}"}), 400
     updates = {k: v for k, v in data.items() if k in _BINDING_FIELDS}
     if not updates:
         return jsonify({"error": "no valid fields to update"}), 400
