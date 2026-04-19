@@ -9,6 +9,7 @@
 {% block content %}
 <div class="narz-page">
 <link rel="stylesheet" href="{{ url_for('chzt.static', filename='chzt.css') }}?v=1">
+<script src="{{ url_for('chzt.static', filename='chzt.js') }}?v=1" defer></script>
 
   <div class="narz-shortcuts-card">
     <div class="nsc-header">
@@ -755,122 +756,7 @@ async function palGeneruj() {
     alert('Błąd: ' + (err.error || 'Nieznany'));
   }
 }
-// ═══ ChZT Ścieków Modal ═══
 
-var _chztKontenery = 8;
-
-function openChztModal() {
-  document.getElementById('chzt-overlay').classList.add('show');
-  chztRender();
-}
-function closeChztModal() {
-  document.getElementById('chzt-overlay').classList.remove('show');
-}
-
-function chztSetKontenery() {
-  var v = parseInt(document.getElementById('chzt-n-kontenery').value);
-  if (!isNaN(v) && v >= 0 && v <= 20) {
-    _chztKontenery = v;
-    chztRender();
-  }
-}
-
-function chztRender() {
-  var today = new Date().toLocaleDateString('pl-PL', {day:'2-digit',month:'2-digit',year:'numeric'});
-  document.getElementById('chzt-date').textContent = today;
-
-  var punkty = ['hala', 'rura'];
-  for (var i = 1; i <= _chztKontenery; i++) punkty.push('kontener ' + i);
-  punkty.push('szambiarka');
-
-  var html = '<table class="chzt-table">' +
-    '<thead><tr><th>Punkt</th><th>pH</th><th>P1</th><th>P2</th><th>P3</th><th>P4</th><th>P5</th><th>\u015arednia</th></tr></thead><tbody>';
-
-  punkty.forEach(function(p) {
-    var id = p.replace(/ /g, '_');
-    html += '<tr>' +
-      '<td class="chzt-punkt">' + p + '</td>' +
-      '<td><input class="chzt-inp chzt-ph" type="number" id="chzt-ph-' + id + '" min="0" max="14" step="1" inputmode="numeric"></td>';
-    for (var j = 1; j <= 5; j++) {
-      html += '<td><input class="chzt-inp" type="number" id="chzt-' + id + '-' + j + '" inputmode="numeric" oninput="chztCalcAvg(\'' + id + '\')"></td>';
-    }
-    html += '<td class="chzt-avg" id="chzt-avg-' + id + '">\u2014</td></tr>';
-  });
-
-  html += '</tbody></table>';
-  document.getElementById('chzt-body').innerHTML = html;
-}
-
-function chztCalcAvg(id) {
-  var vals = [];
-  for (var j = 1; j <= 5; j++) {
-    var el = document.getElementById('chzt-' + id + '-' + j);
-    if (el && el.value) {
-      var v = parseFloat(el.value);
-      if (!isNaN(v)) vals.push(v);
-    }
-  }
-  var avgEl = document.getElementById('chzt-avg-' + id);
-  if (vals.length >= 2) {
-    var avg = vals.reduce(function(a,b){return a+b;}, 0) / vals.length;
-    avgEl.textContent = Math.round(avg).toLocaleString('pl-PL');
-    avgEl.style.color = avg > 40000 ? 'var(--red)' : 'var(--teal)';
-  } else {
-    avgEl.textContent = '\u2014';
-    avgEl.style.color = '';
-  }
-}
-
-async function chztSave() {
-  var punkty = ['hala', 'rura'];
-  for (var i = 1; i <= _chztKontenery; i++) punkty.push('kontener ' + i);
-  punkty.push('szambiarka');
-
-  var data = [];
-  var hasError = false;
-  punkty.forEach(function(p) {
-    var id = p.replace(/ /g, '_');
-    var phEl = document.getElementById('chzt-ph-' + id);
-    var ph = phEl ? parseInt(phEl.value) : null;
-    var probki = [];
-    for (var j = 1; j <= 5; j++) {
-      var el = document.getElementById('chzt-' + id + '-' + j);
-      probki.push(el && el.value ? parseFloat(el.value) : null);
-    }
-    var filled = probki.filter(function(v) { return v !== null; });
-    if (filled.length < 2) { hasError = true; }
-    var avg = filled.length >= 2 ? Math.round(filled.reduce(function(a,b){return a+b;},0) / filled.length) : null;
-    data.push({nazwa: p, ph: ph, chzt_probki: probki, chzt_srednia: avg});
-  });
-
-  if (hasError) {
-    alert('Ka\u017Cdy punkt musi mie\u0107 minimum 2 pomiary ChZT.');
-    return;
-  }
-
-  var btn = document.getElementById('chzt-save-btn');
-  btn.disabled = true;
-  btn.textContent = 'Zapisywanie...';
-
-  try {
-    var resp = await fetch('/api/chzt/save', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({data: data})
-    });
-    var result = await resp.json();
-    if (result.ok) {
-      btn.textContent = 'Zapisano!';
-      setTimeout(function() { btn.disabled = false; btn.textContent = 'Zapisz'; }, 2000);
-    } else {
-      alert('B\u0142\u0105d: ' + (result.error || 'nieznany'));
-      btn.disabled = false; btn.textContent = 'Zapisz';
-    }
-  } catch(e) {
-    alert('B\u0142\u0105d po\u0142\u0105czenia');
-    btn.disabled = false; btn.textContent = 'Zapisz';
-  }
-}
 </script>
 
 {# ═══ ChZT MODAL (include'owany z blueprintu) ═══ #}
