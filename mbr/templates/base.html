@@ -489,8 +489,13 @@ document.addEventListener('keydown', function(e) {
     var _rola = "{{ session.get('user', {}).get('rola', '') }}";
     if (_rola === 'produkcja') return;  // produkcja doesn't start sessions
     e.preventDefault();
-    // chzt.js is loaded globally (defer) from base.html — openChztModal is always defined
-    if (typeof openChztModal === 'function') openChztModal();
+    // Toggle: close if open, open if closed
+    var chztOverlay = document.getElementById('chzt-overlay');
+    if (chztOverlay && chztOverlay.classList.contains('show')) {
+      if (typeof closeChztModal === 'function') closeChztModal();
+    } else if (typeof openChztModal === 'function') {
+      openChztModal();
+    }
   }
 });
 

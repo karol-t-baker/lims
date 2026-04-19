@@ -84,7 +84,11 @@
     var html = '<table class="chzt-table">' +
       '<thead><tr><th>Punkt</th><th>pH</th><th>P1</th><th>P2</th><th>P3</th><th>P4</th><th>P5</th><th>\u015arednia</th></tr></thead><tbody>';
     _session.punkty.forEach(function(p) {
-      var inv = (p.ph === null) || countNonNull(p) < 2;
+      // Mark as invalid ONLY if row has some data but it's incomplete.
+      // Empty rows (nothing entered yet) are NOT red — user hasn't started them.
+      var anyFilled = p.ph !== null || p.p1 !== null || p.p2 !== null ||
+                      p.p3 !== null || p.p4 !== null || p.p5 !== null;
+      var inv = anyFilled && ((p.ph === null) || countNonNull(p) < 2);
       html += '<tr data-pid="' + p.id + '"' + (inv ? ' class="invalid"' : '') + '>' +
         '<td>' + escapeHtml(p.punkt_nazwa) + '</td>' +
         inputCell(p, 'ph', 'chzt-ph') +
@@ -282,6 +286,17 @@
       if (avgEl) {
         avgEl.textContent = fmtAvg(resp.pomiar.srednia);
         styleAvgCell(avgEl, resp.pomiar.srednia);
+      }
+      // Dynamically update `.invalid` class on the row (clear if now complete,
+      // add if has data but still incomplete — never for fully empty rows)
+      var tr = document.querySelector('tr[data-pid="' + pid + '"]');
+      if (tr) {
+        var p = resp.pomiar;
+        var anyFilled = p.ph !== null || p.p1 !== null || p.p2 !== null ||
+                        p.p3 !== null || p.p4 !== null || p.p5 !== null;
+        var nonnull = ['p1','p2','p3','p4','p5'].filter(function(k){ return p[k] !== null; }).length;
+        var inv = anyFilled && (p.ph === null || nonnull < 2);
+        tr.classList.toggle('invalid', inv);
       }
       _pushStatus('saved', 'zapisano · ' + fmtTime(resp.pomiar.updated_at));
     }).catch(function(err){
