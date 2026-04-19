@@ -79,15 +79,13 @@ except Exception:
 
 ### 3. Backend — binding inheritance
 
-**File:** `mbr/parametry/routes.py`, specifically the route that creates `parametry_etapy` rows (currently `POST /api/parametry/etapy` per the admin editor wiring).
+**File:** `mbr/parametry/routes.py`, route `POST /api/parametry/etapy` (has two code paths: pipeline products → `produkt_etap_limity`, legacy/non-pipeline → `parametry_etapy`). Also `mbr/pipeline/models.py::set_produkt_etap_limit` (whitelist `_PEL_ALLOWED_FIELDS` needs `grupa`).
 
-When a new `parametry_etapy` row is created for a (produkt, kontekst, parametr_id):
+Both `parametry_etapy.grupa` and `produkt_etap_limity.grupa` exist (both `TEXT DEFAULT 'lab'`). When a new binding row is created for a (produkt, kontekst, parametr_id) via either path:
 
 - If the create-binding body does NOT include `grupa`, read it from `parametry_analityczne.grupa` for that `parametr_id` and use that as the default.
 - If the body explicitly includes `grupa`, honor it (admin override).
 - Validate the final value against the same `ALLOWED_GRUPY` whitelist.
-
-**Note:** `produkt_etap_limity` (legacy SSOT) has no `grupa` column — inheritance target is only `parametry_etapy`.
 
 This is *not* a cascade update — existing rows are untouched. Only new rows inherit.
 
