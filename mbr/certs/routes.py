@@ -62,6 +62,16 @@ def api_cert_generate():
         if ebr.get("typ") not in ("zbiornik", "platkowanie"):
             return jsonify({"ok": False, "error": "Świadectwa tylko dla zbiorników i płatkowania"}), 400
 
+        # Resolve target_produkt (defaults to ebr.produkt for backward compat)
+        requested_target = data.get("target_produkt") or ebr["produkt"]
+        if requested_target != ebr["produkt"]:
+            from mbr.certs.generator import get_cert_aliases
+            if requested_target not in get_cert_aliases(db, ebr["produkt"]):
+                return jsonify({"ok": False,
+                                "error": f"no cert alias configured: "
+                                         f"{ebr['produkt']}→{requested_target}"}), 400
+        target_produkt = requested_target
+
         wyniki = get_ebr_wyniki(db, ebr_id)
         wyniki_flat = {}
         for sekcja_data in wyniki.values():
@@ -82,8 +92,8 @@ def api_cert_generate():
             else:
                 wystawil = session["user"]["login"]
 
-        # Find variant label for filename
-        variants = get_variants(ebr["produkt"])
+        # Find variant label for filename — look up in target_produkt's variants
+        variants = get_variants(target_produkt)
         variant_label = variant_id
         for v in variants:
             if v["id"] == variant_id:
@@ -92,7 +102,7 @@ def api_cert_generate():
 
         try:
             pdf_bytes = generate_certificate_pdf(
-                ebr["produkt"], variant_id, ebr["nr_partii"],
+                target_produkt, variant_id, ebr["nr_partii"],
                 ebr.get("dt_start"), wyniki_flat, extra_fields,
                 wystawil=wystawil,
             )
@@ -103,6 +113,7 @@ def api_cert_generate():
         import json as _json
         generation_data = {
             "produkt": ebr["produkt"],
+            "target_produkt": target_produkt,
             "variant_id": variant_id,
             "variant_label": variant_label,
             "nr_partii": ebr["nr_partii"],
@@ -111,15 +122,20 @@ def api_cert_generate():
             "extra_fields": extra_fields,
             "wystawil": wystawil,
         }
-        save_certificate_data(ebr["produkt"], variant_label, ebr["nr_partii"], generation_data)
+        save_certificate_data(target_produkt, variant_label, ebr["nr_partii"], generation_data)
 
-        cert_id = create_swiadectwo(db, ebr_id, variant_label, ebr["nr_partii"], "regenerate", wystawil, data_json=_json.dumps(generation_data, ensure_ascii=False))
+        # Persist target_produkt ONLY when it differs from ebr.produkt — NULL otherwise
+        persist_target = target_produkt if target_produkt != ebr["produkt"] else None
+        cert_id = create_swiadectwo(
+            db, ebr_id, variant_label, ebr["nr_partii"], "regenerate", wystawil,
+            data_json=_json.dumps(generation_data, ensure_ascii=False),
+            target_produkt=persist_target,
+        )
         db.commit()
 
     # Return PDF as download
     nr_only = ebr['nr_partii'].split('/')[0].strip()
     filename = f"{variant_label} {nr_only}.pdf"
-    # Content-Disposition filename must be ASCII-safe (HTTP latin-1 limit)
     import unicodedata
     fn_safe = filename.replace('\u2014', '-').replace('\u2013', '-')
     filename_ascii = unicodedata.normalize('NFKD', fn_safe).encode('ascii', 'ignore').decode('ascii')
