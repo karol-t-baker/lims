@@ -631,3 +631,18 @@ def test_audit_history_for_session(client, db):
     assert "chzt.session.created" in types
     assert "chzt.pomiar.updated" in types
     assert "chzt.session.finalized" in types
+
+
+def test_historia_page_renders(client, db):
+    for d in ["2026-04-17", "2026-04-18"]:
+        db.execute(
+            "INSERT INTO chzt_sesje (data, n_kontenery, created_at, created_by) "
+            "VALUES (?, 0, ?, 1)",
+            (d, d + "T10:00:00"),
+        )
+    db.commit()
+    resp = client.get("/chzt/historia")
+    assert resp.status_code == 200
+    body = resp.get_data(as_text=True)
+    assert "2026-04-18" in body
+    assert "2026-04-17" in body

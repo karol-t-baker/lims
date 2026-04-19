@@ -2,7 +2,7 @@
 
 from datetime import date
 
-from flask import jsonify, request, session
+from flask import jsonify, request, session, render_template
 
 from mbr.chzt import chzt_bp
 from mbr.chzt.models import (
@@ -230,6 +230,24 @@ def api_history():
     with db_session() as db:
         payload = list_sessions_paginated(db, page=page, per_page=10)
     return jsonify(payload)
+
+
+@chzt_bp.route("/chzt/historia", methods=["GET"])
+@role_required(*ROLES_EDIT)
+def historia_page():
+    try:
+        page = int(request.args.get("page", 1))
+    except ValueError:
+        page = 1
+    with db_session() as db:
+        data = list_sessions_paginated(db, page=page, per_page=10)
+    return render_template(
+        "chzt_historia.html",
+        sesje=data["sesje"],
+        total=data["total"],
+        page=data["page"],
+        pages=data["pages"],
+    )
 
 
 @chzt_bp.route("/api/chzt/session/<int:session_id>/audit-history", methods=["GET"])

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Historia ChZT{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('chzt.static', filename='chzt.css') }}?v=1">
+
+<div class="chzt-historia-page">
+  <div class="chzt-historia-head">
+    <h1>ChZT Ścieków — Historia</h1>
+    <div class="chzt-historia-sub">{{ total }} sesji · strona {{ page }}/{{ pages }}</div>
+  </div>
+
+  {% if sesje|length == 0 %}
+  <div class="chzt-historia-empty">
+    Brak zapisanych pomiarów ChZT.
+    <a href="{{ url_for('technolog.narzedzia') }}">Zacznij nową sesję</a>
+  </div>
+  {% else %}
+    {% for s in sesje %}
+    <div class="chzt-card" data-sid="{{ s.id }}" data-data="{{ s.data }}">
+      <div class="chzt-card-head">
+        <div>
+          <span class="chzt-card-date">{{ s.data }}</span>
+          <span class="chzt-card-sub">· {{ s.n_kontenery }} kontenerów</span>
+        </div>
+        <div>
+          {% if s.finalized_at %}
+            <span class="chzt-card-status-ok">✓ Sfinalizowano · {{ s.finalized_by_name or '—' }} · {{ s.finalized_at[11:16] }}</span>
+          {% else %}
+            <span class="chzt-card-status-draft">🟡 Draft{% if s.updated_at_max %} · {{ s.updated_at_max[11:16] }}{% endif %}</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="chzt-card-body" id="chzt-card-body-{{ s.id }}" data-loaded="no" style="display:none;">
+        <div class="chzt-card-loading">wczytywanie…</div>
+      </div>
+      <div class="chzt-card-actions">
+        <button class="chzt-btn chzt-btn-sm" onclick="chztHistoriaTogglePomiary({{ s.id }})">Pokaż pomiary P1–P5</button>
+        <button class="chzt-btn chzt-btn-sm" onclick="chztHistoriaToggleAudit({{ s.id }})">Pokaż audit</button>
+        <button class="chzt-btn chzt-btn-sm" onclick="openChztModal('{{ s.data }}')">Edytuj</button>
+      </div>
+    </div>
+    {% endfor %}
+
+    <div class="chzt-pagination">
+      {% if page > 1 %}
+      <a href="?page={{ page - 1 }}">← Nowsze</a>
+      {% endif %}
+      <span>strona {{ page }}/{{ pages }}</span>
+      {% if page < pages %}
+      <a href="?page={{ page + 1 }}">Starsze →</a>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+
+{% include "chzt_modal.html" %}
+
+<script src="{{ url_for('chzt.static', filename='chzt.js') }}?v=1" defer></script>
+{% endblock %}
