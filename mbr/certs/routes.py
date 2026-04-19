@@ -23,14 +23,23 @@ def api_cert_templates():
     produkt = request.args.get("produkt", "")
     if not produkt:
         return jsonify({"templates": []})
-    variants = get_variants(produkt)
+
+    # Collect own variants + aliased target's variants
+    from mbr.certs.generator import get_cert_aliases
+    variants = list(get_variants(produkt))
+    with db_session() as db:
+        aliases = get_cert_aliases(db, produkt)
+    for target_produkt in aliases:
+        variants.extend(get_variants(target_produkt))
+
     templates = []
     for v in variants:
         templates.append({
             "filename": v["id"],
             "display": v["label"],
             "flags": v["flags"],
-            "required_fields": get_required_fields(produkt, v["id"]),
+            "owner_produkt": v["owner_produkt"],
+            "required_fields": get_required_fields(v["owner_produkt"], v["id"]),
         })
     return jsonify({"templates": templates})
 

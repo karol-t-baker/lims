@@ -139,7 +139,12 @@ def load_config(*, reload: bool = False) -> dict:
 # 2. get_variants
 # ---------------------------------------------------------------------------
 def get_variants(produkt: str) -> list[dict]:
-    """Return list of {id, label, flags} for a product from DB."""
+    """Return list of {id, label, flags, owner_produkt} for a product from DB.
+
+    owner_produkt echoes back the produkt argument — used by callers that
+    union variants across alias boundaries so the client knows which product
+    owns each variant (for the generate-payload target_produkt field).
+    """
     from mbr.db import db_session as _db_session
     key = produkt if "_" in produkt else produkt.replace(" ", "_")
     try:
@@ -155,7 +160,8 @@ def get_variants(produkt: str) -> list[dict]:
                     (produkt.replace(" ", "_"),)
                 ).fetchall()
             return [{"id": r["variant_id"], "label": r["label"],
-                     "flags": json.loads(r["flags"] or "[]")} for r in rows]
+                     "flags": json.loads(r["flags"] or "[]"),
+                     "owner_produkt": key} for r in rows]
     except Exception:
         return []
 
