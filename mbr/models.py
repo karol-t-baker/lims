@@ -19,7 +19,7 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             user_id         INTEGER PRIMARY KEY AUTOINCREMENT,
             login           TEXT UNIQUE NOT NULL,
             password_hash   TEXT NOT NULL,
-            rola            TEXT NOT NULL CHECK(rola IN ('technolog', 'lab', 'cert', 'kj', 'admin')),
+            rola            TEXT NOT NULL CHECK(rola IN ('technolog', 'lab', 'cert', 'kj', 'admin', 'produkcja')),
             imie_nazwisko   TEXT
         );
 
@@ -1011,6 +1011,27 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
                     INSERT INTO mbr_users_new SELECT * FROM mbr_users;
                     DROP TABLE mbr_users;
                     ALTER TABLE mbr_users_new RENAME TO mbr_users;
+                """)
+    except Exception:
+        pass
+
+    # Migration: expand rola CHECK to include 'produkcja'
+    try:
+        row = db.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='mbr_users'").fetchone()
+        if row:
+            ddl = row[0] if isinstance(row, tuple) else row["sql"]
+            if "'produkcja'" not in ddl:
+                db.executescript("""
+                    CREATE TABLE mbr_users_new_prodcheck (
+                        user_id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                        login           TEXT UNIQUE NOT NULL,
+                        password_hash   TEXT NOT NULL,
+                        rola            TEXT NOT NULL CHECK(rola IN ('technolog', 'lab', 'cert', 'kj', 'admin', 'produkcja')),
+                        imie_nazwisko   TEXT
+                    );
+                    INSERT INTO mbr_users_new_prodcheck SELECT * FROM mbr_users;
+                    DROP TABLE mbr_users;
+                    ALTER TABLE mbr_users_new_prodcheck RENAME TO mbr_users;
                 """)
     except Exception:
         pass

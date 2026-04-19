@@ -8,37 +8,94 @@ from datetime import datetime
 
 
 def init_chzt_tables(db):
-    """Create chzt_sesje + chzt_pomiary tables. Idempotent."""
-    db.execute("""
-        CREATE TABLE IF NOT EXISTS chzt_sesje (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            data         TEXT NOT NULL UNIQUE,
-            n_kontenery  INTEGER NOT NULL DEFAULT 8,
-            created_at   TEXT NOT NULL,
-            created_by   INTEGER REFERENCES workers(id),
-            finalized_at TEXT,
-            finalized_by INTEGER REFERENCES workers(id)
-        )
-    """)
-    db.execute("""
-        CREATE TABLE IF NOT EXISTS chzt_pomiary (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            sesja_id     INTEGER NOT NULL REFERENCES chzt_sesje(id) ON DELETE CASCADE,
-            punkt_nazwa  TEXT NOT NULL,
-            kolejnosc    INTEGER NOT NULL,
-            ph           REAL,
-            p1           REAL,
-            p2           REAL,
-            p3           REAL,
-            p4           REAL,
-            p5           REAL,
-            srednia      REAL,
-            updated_at   TEXT NOT NULL,
-            updated_by   INTEGER REFERENCES workers(id),
-            UNIQUE(sesja_id, punkt_nazwa)
-        )
-    """)
-    db.execute("CREATE INDEX IF NOT EXISTS idx_chzt_sesje_data ON chzt_sesje(data DESC)")
+    """Create/migrate chzt_sesje + chzt_pomiary. Idempotent.
+
+    Nowy schemat (v2):
+      chzt_sesje.dt_start (TEXT, zastępuje UNIQUE(data))
+      chzt_pomiary + ext_chzt, ext_ph, waga_kg (nullable)
+
+    Migracja ze starego:
+      - Jeśli chzt_sesje ma kolumnę `data` → rebuild bez UNIQUE
+      - Jeśli chzt_pomiary nie ma ext_chzt → ALTER TABLE ADD COLUMN × 3
+    """
+    sesje_exists = db.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='chzt_sesje'"
+    ).fetchone()
+
+    if not sesje_exists:
+        db.execute("""
+            CREATE TABLE chzt_sesje (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                dt_start     TEXT NOT NULL,
+                n_kontenery  INTEGER NOT NULL DEFAULT 8,
+                created_at   TEXT NOT NULL,
+                created_by   INTEGER REFERENCES workers(id),
+                finalized_at TEXT,
+                finalized_by INTEGER REFERENCES workers(id)
+            )
+        """)
+    else:
+        cols = {r[1] for r in db.execute("PRAGMA table_info(chzt_sesje)").fetchall()}
+        if "dt_start" not in cols and "data" in cols:
+            db.executescript("""
+                PRAGMA foreign_keys=OFF;
+                CREATE TABLE chzt_sesje_v2 (
+                    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                    dt_start     TEXT NOT NULL,
+                    n_kontenery  INTEGER NOT NULL DEFAULT 8,
+                    created_at   TEXT NOT NULL,
+                    created_by   INTEGER,
+                    finalized_at TEXT,
+                    finalized_by INTEGER
+                );
+                INSERT INTO chzt_sesje_v2 (id, dt_start, n_kontenery, created_at, created_by, finalized_at, finalized_by)
+                SELECT id,
+                       CASE WHEN length(data) = 10 THEN data || 'T00:00:00' ELSE data END AS dt_start,
+                       n_kontenery, created_at, created_by, finalized_at, finalized_by
+                FROM chzt_sesje;
+                DROP TABLE chzt_sesje;
+                ALTER TABLE chzt_sesje_v2 RENAME TO chzt_sesje;
+                PRAGMA foreign_keys=ON;
+            """)
+
+    db.execute("DROP INDEX IF EXISTS idx_chzt_sesje_data")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_chzt_sesje_dt_start ON chzt_sesje(dt_start DESC)")
+
+    pomiary_exists = db.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='chzt_pomiary'"
+    ).fetchone()
+
+    if not pomiary_exists:
+        db.execute("""
+            CREATE TABLE chzt_pomiary (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                sesja_id     INTEGER NOT NULL REFERENCES chzt_sesje(id) ON DELETE CASCADE,
+                punkt_nazwa  TEXT NOT NULL,
+                kolejnosc    INTEGER NOT NULL,
+                ph           REAL,
+                p1           REAL,
+                p2           REAL,
+                p3           REAL,
+                p4           REAL,
+                p5           REAL,
+                srednia      REAL,
+                ext_chzt     REAL,
+                ext_ph       REAL,
+                waga_kg      REAL,
+                updated_at   TEXT NOT NULL,
+                updated_by   INTEGER REFERENCES workers(id),
+                UNIQUE(sesja_id, punkt_nazwa)
+            )
+        """)
+    else:
+        pcols = {r[1] for r in db.execute("PRAGMA table_info(chzt_pomiary)").fetchall()}
+        if "ext_chzt" not in pcols:
+            db.execute("ALTER TABLE chzt_pomiary ADD COLUMN ext_chzt REAL")
+        if "ext_ph" not in pcols:
+            db.execute("ALTER TABLE chzt_pomiary ADD COLUMN ext_ph REAL")
+        if "waga_kg" not in pcols:
+            db.execute("ALTER TABLE chzt_pomiary ADD COLUMN waga_kg REAL")
+
     db.execute("CREATE INDEX IF NOT EXISTS idx_chzt_pomiary_sesja ON chzt_pomiary(sesja_id)")
     db.commit()
 

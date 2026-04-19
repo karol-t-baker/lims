@@ -689,3 +689,109 @@ def test_patch_session_n_kontenery_rejects_over_20(client, db):
     sid = r0["session"]["id"]
     resp = client.patch(f"/api/chzt/session/{sid}", json={"n_kontenery": 21})
     assert resp.status_code == 400
+
+
+# ───────────────────────────────────────────────────────────────
+# Migracja: stary schemat → nowy (idempotentna)
+# ───────────────────────────────────────────────────────────────
+
+def test_migration_from_old_schema_preserves_sesje_data():
+    """Old schema (with `data` and UNIQUE(data)) migrates to new (dt_start)."""
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys=ON")
+    init_mbr_tables(conn)
+    conn.execute("""
+        CREATE TABLE chzt_sesje (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            data         TEXT NOT NULL UNIQUE,
+            n_kontenery  INTEGER NOT NULL DEFAULT 8,
+            created_at   TEXT NOT NULL,
+            created_by   INTEGER REFERENCES workers(id),
+            finalized_at TEXT,
+            finalized_by INTEGER REFERENCES workers(id)
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE chzt_pomiary (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            sesja_id     INTEGER NOT NULL REFERENCES chzt_sesje(id) ON DELETE CASCADE,
+            punkt_nazwa  TEXT NOT NULL,
+            kolejnosc    INTEGER NOT NULL,
+            ph           REAL,
+            p1           REAL, p2 REAL, p3 REAL, p4 REAL, p5 REAL,
+            srednia      REAL,
+            updated_at   TEXT NOT NULL,
+            updated_by   INTEGER REFERENCES workers(id),
+            UNIQUE(sesja_id, punkt_nazwa)
+        )
+    """)
+    conn.execute(
+        "INSERT INTO chzt_sesje (data, n_kontenery, created_at) "
+        "VALUES ('2026-04-10', 8, '2026-04-10T10:00:00')"
+    )
+    conn.execute(
+        "INSERT INTO chzt_pomiary (sesja_id, punkt_nazwa, kolejnosc, ph, p1, p2, updated_at) "
+        "VALUES (1, 'hala', 1, 10, 20000, 22000, '2026-04-10T10:30:00')"
+    )
+    conn.commit()
+
+    init_chzt_tables(conn)
+
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(chzt_sesje)").fetchall()}
+    assert "dt_start" in cols
+    assert "data" not in cols
+
+    row = conn.execute("SELECT id, dt_start, n_kontenery FROM chzt_sesje").fetchone()
+    assert row["id"] == 1
+    assert row["dt_start"].startswith("2026-04-10")
+    assert row["n_kontenery"] == 8
+
+    pcols = {r[1] for r in conn.execute("PRAGMA table_info(chzt_pomiary)").fetchall()}
+    assert "ext_chzt" in pcols
+    assert "ext_ph" in pcols
+    assert "waga_kg" in pcols
+
+    prow = conn.execute("SELECT punkt_nazwa, ph FROM chzt_pomiary WHERE id=1").fetchone()
+    assert prow["punkt_nazwa"] == "hala"
+    assert prow["ph"] == 10
+
+    conn.execute(
+        "INSERT INTO chzt_sesje (dt_start, n_kontenery, created_at) "
+        "VALUES ('2026-04-11T08:00:00', 8, '2026-04-11T08:00:00')"
+    )
+    conn.execute(
+        "INSERT INTO chzt_sesje (dt_start, n_kontenery, created_at) "
+        "VALUES ('2026-04-11T14:00:00', 8, '2026-04-11T14:00:00')"
+    )
+    conn.commit()
+    conn.close()
+
+
+def test_migration_idempotent_on_fresh_db():
+    """Running init_chzt_tables twice on a fresh DB is a no-op after first."""
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys=ON")
+    init_mbr_tables(conn)
+    init_chzt_tables(conn)
+    init_chzt_tables(conn)
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(chzt_sesje)").fetchall()}
+    assert "dt_start" in cols
+    assert "data" not in cols
+    conn.close()
+
+
+def test_migration_mbr_users_rola_check_includes_produkcja():
+    """mbr_users.rola CHECK must include 'produkcja' after init_mbr_tables."""
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    init_mbr_tables(conn)
+    conn.execute(
+        "INSERT INTO mbr_users (login, password_hash, rola, imie_nazwisko) "
+        "VALUES ('mag1', 'hash', 'produkcja', 'Jan Magazyn')"
+    )
+    conn.commit()
+    row = conn.execute("SELECT rola FROM mbr_users WHERE login='mag1'").fetchone()
+    assert row["rola"] == "produkcja"
+    conn.close()
