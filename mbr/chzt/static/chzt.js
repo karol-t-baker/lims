@@ -393,52 +393,45 @@
       .then(function(r){ if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
   }
 
-  window.chztHistToggle = function(rowEl, sid) {
-    var expandRow = document.getElementById('chzt-expand-' + sid);
-    var inner = document.getElementById('chzt-expand-inner-' + sid);
-    if (!expandRow || !inner) return;
+  // ══════ Historia — list ↔ detail view swap (jak w Rejestrze ukończonych) ══════
 
-    if (expandRow.style.display !== 'none') {
-      // Closing this expand — flush any pending edits first
-      flushDirtyRows();
-      expandRow.style.display = 'none';
-      rowEl.classList.remove('expanded');
-      return;
-    }
-    // Close all others (flushing their edits) before opening new
+  window.chztShowDetail = function(sid, dataIso) {
     flushDirtyRows();
-    document.querySelectorAll('.chzt-hist-expand').forEach(function(r){ r.style.display = 'none'; });
-    document.querySelectorAll('.chzt-hist-row.expanded').forEach(function(r){ r.classList.remove('expanded'); });
 
-    expandRow.style.display = '';
-    rowEl.classList.add('expanded');
-    inner.innerHTML = '<div class="chzt-card-loading">wczytywanie…</div>';
+    var listView = el('chzt-list-view');
+    var detailView = el('chzt-detail-view');
+    var tbody = el('chzt-detail-tbody');
+    var badge = el('chzt-detail-badge');
+    var dateEl = el('chzt-detail-date');
+    var statusEl = el('chzt-detail-status');
+    if (!listView || !detailView || !tbody) return;
 
-    var dataIso = rowEl.dataset.data;
+    listView.style.display = 'none';
+    detailView.style.display = '';
+    tbody.innerHTML = '<tr><td colspan="8" class="chzt-card-loading">wczytywanie…</td></tr>';
+    if (badge) badge.innerHTML = '';
+    if (statusEl) { statusEl.className = 'chzt-expand-status'; statusEl.textContent = ''; }
+
+    var parts = dataIso.split('-');
+    if (dateEl) dateEl.textContent = parts[2] + '.' + parts[1] + '.' + parts[0];
+
     fetchJson('/api/chzt/session/' + encodeURIComponent(dataIso)).then(function(resp){
       _session = resp.session;
 
-      var finalizedBadge = '';
-      if (_session.finalized_at) {
-        var who = _session.finalized_by_name || '—';
-        finalizedBadge = '<span class="chzt-expand-finalized">✓ Sfinalizowano ' +
-          fmtTime(_session.finalized_at) + ' · ' + escapeHtmlHist(who) + '</span>';
-      } else {
-        finalizedBadge = '<span class="chzt-expand-draft">● Draft</span>';
+      if (badge) {
+        if (_session.finalized_at) {
+          var who = _session.finalized_by_name || '—';
+          badge.innerHTML = '<span class="chzt-expand-finalized">✓ Sfinalizowano ' +
+            fmtTime(_session.finalized_at) + ' · ' + escapeHtmlHist(who) + '</span>';
+        } else {
+          badge.innerHTML = '<span class="chzt-expand-draft">● Draft</span>';
+        }
       }
 
-      var html = '<div class="chzt-expand-title-row">' +
-        '<div class="chzt-expand-title">Pomiary per punkt</div>' +
-        finalizedBadge +
-        '<span class="chzt-expand-status"></span>' +
-        '</div>';
-
-      html += '<div class="registry chzt-expand-registry"><table><thead><tr>' +
-        '<th>Punkt</th><th>pH</th><th>P1</th><th>P2</th><th>P3</th><th>P4</th><th>P5</th><th>\u015arednia</th>' +
-        '</tr></thead><tbody>';
+      var rows = '';
       _session.punkty.forEach(function(p) {
         var warn = p.srednia !== null && p.srednia > 40000;
-        html += '<tr data-pid="' + p.id + '"' + (warn ? ' class="row-warn"' : '') + '>' +
+        rows += '<tr data-pid="' + p.id + '"' + (warn ? ' class="row-warn"' : '') + '>' +
           '<td>' + escapeHtmlHist(p.punkt_nazwa) + '</td>' +
           inputCell(p, 'ph', 'chzt-ph') +
           inputCell(p, 'p1') + inputCell(p, 'p2') + inputCell(p, 'p3') +
@@ -448,21 +441,28 @@
           '</span></td>' +
           '</tr>';
       });
-      html += '</tbody></table></div>';
+      tbody.innerHTML = rows;
 
-      inner.innerHTML = html;
+      wireInputHandlers('#chzt-detail-tbody');
 
-      // Wire input/blur handlers scoped to this expand's inputs
-      wireInputHandlers('#chzt-expand-inner-' + sid);
-
-      // Style avg cells (row-warn + amber color above 40k)
       _session.punkty.forEach(function(p) {
         var avgEl = el('chzt-avg-' + p.id);
         if (avgEl) styleAvgCell(avgEl, p.srednia);
       });
     }).catch(function(){
-      inner.innerHTML = '<div class="chzt-card-loading">błąd wczytywania</div>';
+      tbody.innerHTML = '<tr><td colspan="8" class="chzt-card-loading">błąd wczytywania</td></tr>';
     });
+  };
+
+  window.chztShowList = function() {
+    flushDirtyRows();
+    _session = null;
+    var listView = el('chzt-list-view');
+    var detailView = el('chzt-detail-view');
+    if (listView && detailView) {
+      detailView.style.display = 'none';
+      listView.style.display = '';
+    }
   };
 
   function readCell(v) {
