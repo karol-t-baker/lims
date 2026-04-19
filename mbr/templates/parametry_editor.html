@@ -204,6 +204,7 @@
             <th>Name EN</th>
             <th>Skrót</th>
             <th>Typ</th>
+            <th>Grupa</th>
             <th>Metoda</th>
             <th>Jednostka</th>
             <th>Precyzja</th>
@@ -211,7 +212,7 @@
           </tr>
         </thead>
         <tbody id="pa-body">
-          <tr><td colspan="9" style="text-align:center;color:var(--text-dim);padding:32px;font-size:11px;">Ładowanie...</td></tr>
+          <tr><td colspan="10" style="text-align:center;color:var(--text-dim);padding:32px;font-size:11px;">Ładowanie...</td></tr>
         </tbody>
       </table>
     </div>
@@ -225,6 +226,10 @@
         <option value="bezposredni">bezpośredni</option>
         <option value="titracja">titracja</option>
         <option value="obliczeniowy">obliczeniowy</option>
+      </select>
+      <select id="pa-new-grupa">
+        <option value="lab" selected>Lab (wewnętrzny)</option>
+        <option value="zewn">Zewn. lab</option>
       </select>
       <input id="pa-new-method-code" type="text" placeholder="method_code" style="width:120px;">
       <input id="pa-new-jednostka" type="text" placeholder="jednostka" style="width:70px;">
@@ -510,13 +515,17 @@ function renderDefTable(data) {
         '<option value="titracja"' + (p.typ === 'titracja' ? ' selected' : '') + '>titracja</option>' +
         '<option value="obliczeniowy"' + (p.typ === 'obliczeniowy' ? ' selected' : '') + '>obliczeniowy</option>' +
       '</select></td>' +
+      '<td><select class="pa-select" onchange="saveDefField(' + p.id + ',\'grupa\',this.value)">' +
+        '<option value="lab"' + ((p.grupa || 'lab') === 'lab' ? ' selected' : '') + '>Lab</option>' +
+        '<option value="zewn"' + (p.grupa === 'zewn' ? ' selected' : '') + '>Zewn.</option>' +
+      '</select></td>' +
       '<td><input class="pa-input" type="text" value="' + esc(p.method_code || '') + '" onblur="saveDefField(' + p.id + ',\'method_code\',this.value)"></td>' +
       '<td><input class="pa-input" type="text" value="' + esc(p.jednostka || '') + '" style="width:70px;" onblur="saveDefField(' + p.id + ',\'jednostka\',this.value)"></td>' +
       '<td><input class="pa-input" type="number" value="' + (p.precision != null ? p.precision : 2) + '" style="width:55px;text-align:center;" onblur="saveDefField(' + p.id + ',\'precision\',parseFloat(this.value))"></td>' +
       '<td><button class="pa-toggle ' + isOn + '" onclick="toggleActive(' + p.id + ',' + (p.aktywny ? 1 : 0) + ',this)">' + isOnLabel + '</button></td>' +
     '</tr>';
   });
-  tbody.innerHTML = html || '<tr><td colspan="9" style="text-align:center;color:var(--text-dim);padding:24px;">Brak parametrów</td></tr>';
+  tbody.innerHTML = html || '<tr><td colspan="10" style="text-align:center;color:var(--text-dim);padding:24px;">Brak parametrów</td></tr>';
 }
 
 function saveDefField(id, field, value) {
@@ -551,6 +560,7 @@ function addParametr() {
   var nameEn = document.getElementById('pa-new-name-en').value.trim();
   var skrot = document.getElementById('pa-new-skrot').value.trim();
   var typ = document.getElementById('pa-new-typ').value;
+  var grupa = document.getElementById('pa-new-grupa').value;
   var methodCode = document.getElementById('pa-new-method-code').value.trim();
   var jednostka = document.getElementById('pa-new-jednostka').value.trim();
   var precision = parseInt(document.getElementById('pa-new-precision').value) || 2;
@@ -562,7 +572,7 @@ function addParametr() {
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({
       kod: kod, label: label, name_en: nameEn, skrot: skrot,
-      typ: typ, method_code: methodCode, jednostka: jednostka, precision: precision
+      typ: typ, grupa: grupa, method_code: methodCode, jednostka: jednostka, precision: precision
     })
   }).then(function(r) {
     if (r.status === 409) { alert('Parametr o tym kodzie już istnieje'); return; }
@@ -572,6 +582,7 @@ function addParametr() {
         document.getElementById(id).value = '';
       });
       document.getElementById('pa-new-precision').value = '2';
+      document.getElementById('pa-new-grupa').value = 'lab';
       _paLoaded = false;
       loadDefinicje();
     }
