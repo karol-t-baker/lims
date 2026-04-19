@@ -197,19 +197,25 @@ def api_parametry_sa_bias():
     with db_session() as db:
         # Find binding for this product + kod in analiza_koncowa
         row = db.execute(
-            """SELECT pe.id, pa.formula AS global_formula FROM parametry_etapy pe
+            """SELECT pe.id, pa.formula AS global_formula, pa.id AS parametr_id
+               FROM parametry_etapy pe
                JOIN parametry_analityczne pa ON pe.parametr_id = pa.id
                WHERE pa.kod = ? AND pe.produkt = ? AND pe.kontekst = 'analiza_koncowa'""",
             (kod, produkt),
         ).fetchone()
+        is_global_fallback = False
         if not row:
-            # Try default (NULL produkt)
+            # No per-product binding — fall back to NULL-produkt (global) to
+            # read the formula template, but DO NOT update the global row
+            # (would leak to every other product sharing that binding).
             row = db.execute(
-                """SELECT pe.id, pa.formula AS global_formula FROM parametry_etapy pe
+                """SELECT pe.id, pa.formula AS global_formula, pa.id AS parametr_id
+                   FROM parametry_etapy pe
                    JOIN parametry_analityczne pa ON pe.parametr_id = pa.id
                    WHERE pa.kod = ? AND pe.produkt IS NULL AND pe.kontekst = 'analiza_koncowa'""",
                 (kod,),
             ).fetchone()
+            is_global_fallback = True
         if not row:
             return jsonify({"error": "Binding not found"}), 404
 
@@ -219,15 +225,21 @@ def api_parametry_sa_bias():
         import re as _re
         global_formula = row["global_formula"] or ""
         if "sa_bias" in global_formula:
-            # Placeholder-based: just update sa_bias, no binding formula needed
-            db.execute(
-                "UPDATE parametry_etapy SET sa_bias=?, formula=NULL WHERE id=?",
-                (sa_bias, row["id"]),
-            )
+            new_formula = None  # placeholder-based, no binding override needed
         else:
-            # Hardcoded number: replace trailing number with new bias in binding formula
             base = _re.sub(r'\s*[-+]\s*[\d.]+\s*$', '', global_formula).strip()
             new_formula = f"{base} - {sa_bias}" if base else None
+
+        if is_global_fallback:
+            # Create a per-product binding instead of mutating the NULL-produkt
+            # global row. The per-product row overrides the global in build_parametry_lab
+            # / resolve_limity via produkt_etap_limity + parametry_etapy layering.
+            db.execute(
+                "INSERT INTO parametry_etapy (produkt, kontekst, parametr_id, sa_bias, formula) "
+                "VALUES (?, 'analiza_koncowa', ?, ?, ?)",
+                (produkt, row["parametr_id"], sa_bias, new_formula),
+            )
+        else:
             db.execute(
                 "UPDATE parametry_etapy SET sa_bias=?, formula=? WHERE id=?",
                 (sa_bias, new_formula, row["id"]),
