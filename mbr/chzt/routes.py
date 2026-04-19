@@ -250,34 +250,3 @@ def historia_page():
     )
 
 
-@chzt_bp.route("/api/chzt/session/<int:session_id>/audit-history", methods=["GET"])
-@role_required(*ROLES_EDIT)
-def api_session_audit_history(session_id: int):
-    """Return all audit entries for this session and its pomiary rows, newest-first."""
-    with db_session() as db:
-        pomiar_ids = [
-            r["id"] for r in db.execute(
-                "SELECT id FROM chzt_pomiary WHERE sesja_id=?", (session_id,)
-            ).fetchall()
-        ]
-        rows_session = db.execute(
-            "SELECT id, dt, event_type, entity_type, entity_id, entity_label, "
-            "       diff_json FROM audit_log "
-            "WHERE entity_type='chzt_sesje' AND entity_id=?",
-            (session_id,),
-        ).fetchall()
-        rows_pomiar = []
-        if pomiar_ids:
-            placeholders = ",".join("?" * len(pomiar_ids))
-            rows_pomiar = db.execute(
-                f"SELECT id, dt, event_type, entity_type, entity_id, entity_label, "
-                f"       diff_json FROM audit_log "
-                f"WHERE entity_type='chzt_pomiary' AND entity_id IN ({placeholders})",
-                pomiar_ids,
-            ).fetchall()
-        all_rows = sorted(
-            [dict(r) for r in list(rows_session) + list(rows_pomiar)],
-            key=lambda r: r["dt"],
-            reverse=True,
-        )
-    return jsonify({"entries": all_rows})

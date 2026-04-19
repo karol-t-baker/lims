@@ -19,8 +19,10 @@
 
   function setStatus(kind, text) {
     var pill = el('chzt-status-pill');
-    pill.className = 'chzt-status-pill ' + kind;
-    pill.textContent = text;
+    pill.className = 'chzt-meta-item chzt-status-pill ' + kind;
+    var dot = pill.querySelector('.chzt-dot');
+    var label = pill.querySelector('.chzt-status-text');
+    if (label) label.textContent = text;
   }
 
   function initialStatus() {
@@ -74,20 +76,20 @@
     _session.punkty.forEach(function(p) {
       var inv = (p.ph === null) || countNonNull(p) < 2;
       html += '<tr data-pid="' + p.id + '"' + (inv ? ' class="invalid"' : '') + '>' +
-        '<td class="chzt-punkt">' + escapeHtml(p.punkt_nazwa) + '</td>' +
+        '<td>' + escapeHtml(p.punkt_nazwa) + '</td>' +
         inputCell(p, 'ph', 'chzt-ph') +
         inputCell(p, 'p1') + inputCell(p, 'p2') + inputCell(p, 'p3') +
         inputCell(p, 'p4') + inputCell(p, 'p5') +
-        '<td class="chzt-avg" id="chzt-avg-' + p.id + '">' + fmtAvg(p.srednia) + '</td>' +
+        '<td><span class="chzt-avg" id="chzt-avg-' + p.id + '">' + fmtAvg(p.srednia) + '</span></td>' +
         '</tr>';
     });
     html += '</tbody></table>';
     el('chzt-body').innerHTML = html;
-    wireEnterNavigation();
     _session.punkty.forEach(function(p) {
       var avgEl = el('chzt-avg-' + p.id);
       if (avgEl) styleAvgCell(avgEl, p.srednia);
     });
+    wireEnterNavigation();
   }
 
   function countNonNull(p) {
@@ -110,9 +112,11 @@
 
   function styleAvgCell(el, v) {
     if (v !== null && v !== undefined && v > 40000) {
-      el.style.color = 'var(--red, #c13)';
+      el.style.color = 'var(--amber, #b45309)';
+      el.parentElement && el.parentElement.parentElement && el.parentElement.parentElement.classList.add('row-warn');
     } else {
-      el.style.color = '';  // fall back to CSS default (teal)
+      el.style.color = '';
+      el.parentElement && el.parentElement.parentElement && el.parentElement.parentElement.classList.remove('row-warn');
     }
   }
 
@@ -224,6 +228,9 @@
     }).then(function(resp){
       _session = resp.session;
       el('chzt-n-kontenery').value = _session.n_kontenery;
+      var pct = _session.punkty.length;
+      el('chzt-meta-punkty').textContent = pct + ' punktów';
+      el('chzt-meta-kontenery').textContent = _session.n_kontenery + ' kontenerów';
       renderDate();
       renderTable();
       renderFinalizedBanner();
@@ -315,11 +322,11 @@
         _session = resp.session;
         renderFinalizedBanner();
         initialStatus();
-        btn.textContent = 'Zapisz (finalizuj)';
+        btn.textContent = 'Finalizuj sesję';
         btn.disabled = false;
       })
       .catch(function(){
-        btn.textContent = 'Zapisz (finalizuj)';
+        btn.textContent = 'Finalizuj sesję';
         btn.disabled = false;
       });
   };
@@ -356,7 +363,7 @@
     body.style.display = 'block';
     body.dataset.loaded = 'yes';
     body.innerHTML = '<div class="chzt-card-loading">wczytywanie…</div>';
-    var card = document.querySelector('.chzt-card[data-sid="'+sid+'"]');
+    var card = document.querySelector('.chzt-hist-item[data-sid="'+sid+'"]');
     var dataIso = card.dataset.data;
     fetchJson('/api/chzt/session/' + encodeURIComponent(dataIso)).then(function(resp){
       var s = resp.session;
@@ -388,42 +395,4 @@
     });
   }
 
-  window.chztHistoriaToggleAudit = function(sid) {
-    var body = document.getElementById('chzt-card-body-' + sid);
-    if (!body) return;
-    if (_historiaLoaded[sid] === 'audit' && body.dataset.loaded === 'yes') {
-      body.dataset.loaded = 'no';
-      body.style.display = 'none';
-      _historiaLoaded[sid] = null;
-      return;
-    }
-    body.style.display = 'block';
-    body.dataset.loaded = 'yes';
-    body.innerHTML = '<div class="chzt-card-loading">wczytywanie…</div>';
-    fetchJson('/api/chzt/session/' + sid + '/audit-history').then(function(resp){
-      var entries = resp.entries || [];
-      if (entries.length === 0) {
-        body.innerHTML = '<div class="chzt-card-loading">brak wpisów audit</div>';
-        return;
-      }
-      var html = '<table class="chzt-table"><thead><tr>' +
-        '<th>Kiedy</th><th>Event</th><th>Co</th><th>Zmiana</th>' +
-        '</tr></thead><tbody>';
-      entries.forEach(function(e){
-        var diff = e.diff_json ? JSON.parse(e.diff_json) : null;
-        var diffText = diff ? diff.map(function(d){
-          return d.pole + ': ' + JSON.stringify(d.stara) + ' → ' + JSON.stringify(d.nowa);
-        }).join('; ') : '—';
-        html += '<tr><td>' + e.dt.replace('T', ' ') + '</td>' +
-          '<td>' + e.event_type + '</td>' +
-          '<td>' + (e.entity_label || '') + '</td>' +
-          '<td style="font-size:10px">' + escapeHtmlHist(diffText) + '</td></tr>';
-      });
-      html += '</tbody></table>';
-      body.innerHTML = html;
-      _historiaLoaded[sid] = 'audit';
-    }).catch(function(){
-      body.innerHTML = '<div class="chzt-card-loading">błąd wczytywania</div>';
-    });
-  };
 })();

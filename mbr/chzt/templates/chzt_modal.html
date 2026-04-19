@@ -1,24 +1,29 @@
-{# ChZT Ścieków modal — Stripe Accent style. Include z kart Narzędzi. #}
+{# ChZT Ścieków modal — Minimalist Editorial (V1 adapted to LIMS) #}
 <div class="pal-overlay" id="chzt-overlay" onclick="if(event.target===this)closeChztModal()" style="display:none;">
   <div class="chzt-modal">
-    <div class="chzt-topbar">
-      <span class="chzt-topbar-title">ChZT Ścieków</span>
-      <span class="chzt-topbar-date" id="chzt-date"></span>
-      <span class="chzt-status-pill" id="chzt-status-pill"></span>
-      <button class="chzt-topbar-close" onclick="closeChztModal()">&times;</button>
+    <div class="chzt-head">
+      <div class="chzt-eyebrow">ChZT Ścieków</div>
+      <div class="chzt-title">Sesja pomiarowa — <strong id="chzt-date"></strong></div>
+      <div class="chzt-meta">
+        <span class="chzt-meta-item" id="chzt-status-pill"><span class="chzt-dot"></span><span class="chzt-status-text">Nowa sesja</span></span>
+        <span class="chzt-meta-item" id="chzt-meta-punkty">— punktów</span>
+        <span class="chzt-meta-item" id="chzt-meta-kontenery">— kontenerów</span>
+      </div>
+      <button class="chzt-close" onclick="closeChztModal()" aria-label="Zamknij">&times;</button>
     </div>
     <div class="chzt-finalize-banner" id="chzt-finalize-banner" style="display:none;"></div>
-    <div class="chzt-toolbar">
-      <span class="chzt-toolbar-label">Kontenery:</span>
-      <input type="number" id="chzt-n-kontenery" value="8" min="0" max="20" class="chzt-toolbar-input">
-      <button class="chzt-btn chzt-btn-sm" id="chzt-generuj-btn" onclick="chztApplyKontenery()">Generuj</button>
-      <span class="chzt-toolbar-error" id="chzt-toolbar-error"></span>
+    <div class="chzt-subbar">
+      <span class="chzt-subbar-label">Liczba kontenerów</span>
+      <input type="number" id="chzt-n-kontenery" value="8" min="0" max="20" class="chzt-subbar-input">
+      <button class="chzt-subbar-btn" id="chzt-generuj-btn" onclick="chztApplyKontenery()">Zastosuj</button>
+      <span class="chzt-subbar-error" id="chzt-toolbar-error"></span>
     </div>
     <div id="chzt-body" class="chzt-body"></div>
     <div class="chzt-errors" id="chzt-errors" style="display:none;"></div>
     <div class="chzt-footer">
-      <button class="chzt-btn" id="chzt-save-btn" onclick="chztFinalize()">Zapisz (finalizuj)</button>
-      <span class="chzt-finalized-info" id="chzt-finalized-info" style="display:none;"></span>
+      <span class="chzt-footer-note" id="chzt-finalized-info" style="display:none;"></span>
+      <span class="chzt-footer-note chzt-autosave-note">Autosave co 400ms</span>
+      <button class="chzt-btn-primary" id="chzt-save-btn" onclick="chztFinalize()">Finalizuj sesję</button>
     </div>
   </div>
 </div>

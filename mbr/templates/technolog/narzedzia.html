@@ -8,8 +8,8 @@
 
 {% block content %}
 <div class="narz-page">
-<link rel="stylesheet" href="{{ url_for('chzt.static', filename='chzt.css') }}?v=1">
-<script src="{{ url_for('chzt.static', filename='chzt.js') }}?v=1" defer></script>
+<link rel="stylesheet" href="{{ url_for('chzt.static', filename='chzt.css') }}?v=2">
+<script src="{{ url_for('chzt.static', filename='chzt.js') }}?v=2" defer></script>
 
   <div class="narz-shortcuts-card">
     <div class="nsc-header">
@@ -71,8 +71,8 @@
     <div class="narz-section-label">Ścieki</div>
     <div class="narz-grid">
       <div class="narz-card" onclick="openChztModal()" style="cursor:pointer;">
-        <div class="narz-card-icon" style="background:#fef3c7;color:#b45309;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/></svg>
+        <div class="narz-card-icon" style="background:none;color:var(--text-dim);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4.5 12.75l6 6 9-13.5"/></svg>
         </div>
         <div class="narz-card-body">
           <div class="narz-card-name">ChZT Ścieków</div>
@@ -81,8 +81,8 @@
       </div>
 
       <a href="{{ url_for('chzt.historia_page') }}" class="narz-card" style="cursor:pointer;">
-        <div class="narz-card-icon" style="background:#f3f4f6;color:#6b7280;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        <div class="narz-card-icon" style="background:none;color:var(--text-dim);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
         </div>
         <div class="narz-card-body">
           <div class="narz-card-name">Historia ChZT</div>

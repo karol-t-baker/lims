@@ -3,12 +3,12 @@
 {% block title %}Historia ChZT{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="{{ url_for('chzt.static', filename='chzt.css') }}?v=1">
+<link rel="stylesheet" href="{{ url_for('chzt.static', filename='chzt.css') }}?v=2">
 
 <div class="chzt-historia-page">
   <div class="chzt-historia-head">
-    <h1>ChZT Ścieków — Historia</h1>
-    <div class="chzt-historia-sub">{{ total }} sesji · strona {{ page }}/{{ pages }}</div>
+    <h1>ChZT Ścieków — <strong>Historia</strong></h1>
+    <p>{{ total }} sesji · strona {{ page }} / {{ pages }}</p>
   </div>
 
   {% if sesje|length == 0 %}
@@ -17,45 +17,44 @@
     <a href="{{ url_for('technolog.narzedzia') }}">Zacznij nową sesję</a>
   </div>
   {% else %}
-    {% for s in sesje %}
-    <div class="chzt-card" data-sid="{{ s.id }}" data-data="{{ s.data }}">
-      <div class="chzt-card-head">
-        <div>
-          <span class="chzt-card-date">{{ s.data }}</span>
-          <span class="chzt-card-sub">· {{ s.n_kontenery }} kontenerów</span>
+    <div class="chzt-hist-list">
+      {% for s in sesje %}
+      <div class="chzt-hist-item" data-sid="{{ s.id }}" data-data="{{ s.data }}">
+        <div class="chzt-hist-date-col">
+          <div class="chzt-hist-date">{{ s.data }}</div>
+          <div class="chzt-hist-day">{{ s.n_kontenery }} kontenerów</div>
         </div>
-        <div>
-          {% if s.finalized_at %}
-            <span class="chzt-card-status-ok">✓ Sfinalizowano · {{ s.finalized_by_name or '—' }} · {{ s.finalized_at[11:16] }}</span>
-          {% else %}
-            <span class="chzt-card-status-draft">🟡 Draft{% if s.updated_at_max %} · {{ s.updated_at_max[11:16] }}{% endif %}</span>
-          {% endif %}
+        <div class="chzt-hist-body">
+          <div class="chzt-hist-status">
+            {% if s.finalized_at %}
+              <span class="chzt-dot saved"></span>
+              Sfinalizowano · {{ s.finalized_by_name or '—' }} · {{ s.finalized_at[11:16] }}
+            {% else %}
+              <span class="chzt-dot draft"></span>
+              Draft{% if s.updated_at_max %} · ostatnia edycja {{ s.updated_at_max[11:16] }}{% endif %}
+            {% endif %}
+          </div>
+          <div class="chzt-hist-body-expand" id="chzt-card-body-{{ s.id }}" data-loaded="no" style="display:none;">
+            <div class="chzt-card-loading">wczytywanie…</div>
+          </div>
+          <div class="chzt-hist-actions">
+            <button class="chzt-btn-ghost" onclick="chztHistoriaTogglePomiary({{ s.id }})">Pokaż pomiary</button>
+            <button class="chzt-btn-ghost" onclick="openChztModal('{{ s.data }}')">Edytuj</button>
+          </div>
         </div>
       </div>
-      <div class="chzt-card-body" id="chzt-card-body-{{ s.id }}" data-loaded="no" style="display:none;">
-        <div class="chzt-card-loading">wczytywanie…</div>
-      </div>
-      <div class="chzt-card-actions">
-        <button class="chzt-btn chzt-btn-sm" onclick="chztHistoriaTogglePomiary({{ s.id }})">Pokaż pomiary P1–P5</button>
-        <button class="chzt-btn chzt-btn-sm" onclick="chztHistoriaToggleAudit({{ s.id }})">Pokaż audit</button>
-        <button class="chzt-btn chzt-btn-sm" onclick="openChztModal('{{ s.data }}')">Edytuj</button>
-      </div>
+      {% endfor %}
     </div>
-    {% endfor %}
 
     <div class="chzt-pagination">
-      {% if page > 1 %}
-      <a href="?page={{ page - 1 }}">← Nowsze</a>
-      {% endif %}
-      <span>strona {{ page }}/{{ pages }}</span>
-      {% if page < pages %}
-      <a href="?page={{ page + 1 }}">Starsze →</a>
-      {% endif %}
+      {% if page > 1 %}<a href="?page={{ page - 1 }}">← Nowsze</a>{% else %}<span></span>{% endif %}
+      <span class="chzt-pagination-info">strona {{ page }} / {{ pages }}</span>
+      {% if page < pages %}<a href="?page={{ page + 1 }}">Starsze →</a>{% else %}<span></span>{% endif %}
     </div>
   {% endif %}
 </div>
 
 {% include "chzt_modal.html" %}
 
-<script src="{{ url_for('chzt.static', filename='chzt.js') }}?v=1" defer></script>
+<script src="{{ url_for('chzt.static', filename='chzt.js') }}?v=2" defer></script>
 {% endblock %}

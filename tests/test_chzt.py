@@ -621,17 +621,6 @@ def test_get_history_paginated(client, db):
     assert body["sesje"][0]["data"] == "2026-04-12"
 
 
-def test_audit_history_for_session(client, db):
-    sid = _fill_all_today(client, db)
-    client.post(f"/api/chzt/session/{sid}/finalize")
-    resp = client.get(f"/api/chzt/session/{sid}/audit-history")
-    assert resp.status_code == 200
-    body = resp.get_json()
-    types = [e["event_type"] for e in body["entries"]]
-    assert "chzt.session.created" in types
-    assert "chzt.pomiar.updated" in types
-    assert "chzt.session.finalized" in types
-
 
 def test_historia_page_renders(client, db):
     for d in ["2026-04-17", "2026-04-18"]:
