@@ -1425,7 +1425,7 @@ function renderRegistryTable(columns, batches, append) {
     else if (col.min != null) limitStr = '> ' + String(col.min).replace('.', ',');
     else if (col.max != null) limitStr = '< ' + String(col.max).replace('.', ',');
     else limitStr = '\u2014';
-    html += '<th class="th-param"><div class="th-param-name">' + (col.label || col.kod) + '</div>';
+    html += '<th class="th-param"><div class="th-param-name">' + rtHtml(col.label || col.kod) + '</div>';
     html += '<div class="th-param-limit">' + limitStr + '</div></th>';
   });
   html += '<th class="th-who" style="min-width:80px;">Zatwierdził</th>';

@@ -4430,6 +4430,13 @@ document.addEventListener('wheel', window._wheelHandler, {passive: true});
 if (window._keydownHandler) document.removeEventListener('keydown', window._keydownHandler);
 window._keydownHandler = function(e) {
     if (e.target.matches('input[type="number"], input[inputmode="decimal"]') && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) e.preventDefault();
+    if (e.key === 'Enter' && e.target.classList && e.target.classList.contains('cv-p-input')) {
+        e.preventDefault();
+        var inputs = Array.from(document.querySelectorAll('.cv-p-input:not([readonly]):not([disabled])'));
+        var idx = inputs.indexOf(e.target);
+        if (idx >= 0 && idx < inputs.length - 1) inputs[idx + 1].focus();
+        else e.target.blur();
+    }
 };
 document.addEventListener('keydown', window._keydownHandler);
 
