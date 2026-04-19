@@ -97,19 +97,45 @@ def api_session_create():
     return jsonify({"session": payload_out})
 
 
+def _allowed_fields_for_role(rola: str) -> tuple:
+    """Return the tuple of pomiar field names the given role may write."""
+    if rola in ("admin", "technolog"):
+        return POMIAR_FIELDS
+    if rola in ("lab", "kj", "cert"):
+        return POMIAR_FIELDS_INTERNAL
+    if rola == "produkcja":
+        return POMIAR_FIELDS_EXTERNAL
+    return ()
+
+
 @chzt_bp.route("/api/chzt/pomiar/<int:pomiar_id>", methods=["PUT"])
 @role_required(*ROLES_VIEW)
 def api_pomiar_update(pomiar_id: int):
     payload = request.get_json(force=True) or {}
-    new_values = {k: _coerce_float(payload.get(k)) for k in POMIAR_FIELDS}
+    rola = session.get("user", {}).get("rola") or ""
+    allowed = _allowed_fields_for_role(rola)
+
+    # Filter: keep only allowed keys that are actually present in payload
+    new_values = {}
+    for k in allowed:
+        if k in payload:
+            new_values[k] = _coerce_float(payload[k])
 
     with db_session() as db:
         old = get_pomiar(db, pomiar_id)
         if old is None:
             return jsonify({"error": "pomiar nie istnieje"}), 404
 
-        changes = diff_fields(old, new_values, list(POMIAR_FIELDS))
-        updated = update_pomiar(db, pomiar_id, new_values, updated_by=_current_worker_id())
+        if not new_values:
+            # Nothing writable — return current state without audit
+            return jsonify({"pomiar": old})
+
+        changes = diff_fields(old, new_values, list(new_values.keys()))
+
+        try:
+            updated = update_pomiar(db, pomiar_id, new_values, updated_by=_current_worker_id())
+        except ValueError:
+            return jsonify({"error": "pomiar nie istnieje"}), 404
 
         if changes:
             log_event(

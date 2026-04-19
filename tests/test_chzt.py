@@ -957,3 +957,116 @@ def test_session_new_logs_audit(client, db):
         "SELECT event_type FROM audit_log WHERE event_type='chzt.session.created'"
     ).fetchall()
     assert len(rows) == 1
+
+
+# ───────────────────────────────────────────────────────────────
+# T5: RBAC per-field in PUT /api/chzt/pomiar/<id>
+# ───────────────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def produkcja_client(monkeypatch, db):
+    import mbr.db
+    import mbr.chzt.routes
+
+    @contextmanager
+    def fake_db_session():
+        yield db
+
+    monkeypatch.setattr(mbr.db, "db_session", fake_db_session)
+    monkeypatch.setattr(mbr.chzt.routes, "db_session", fake_db_session)
+
+    from mbr.app import create_app
+    app = create_app()
+    app.config["TESTING"] = True
+    c = app.test_client()
+    with c.session_transaction() as sess:
+        sess["user"] = {"login": "mag", "rola": "produkcja", "imie_nazwisko": "Jan Magazyn"}
+    return c
+
+
+def _bootstrap_session_with_lab(client):
+    """Utility: create open session as lab (helper)."""
+    r = client.post("/api/chzt/session/new", json={"n_kontenery": 0})
+    return r.get_json()["session"]
+
+
+def test_lab_put_pomiar_can_write_internal_fields(client, db):
+    s = _bootstrap_session_with_lab(client)
+    pid = s["punkty"][0]["id"]
+    resp = client.put(f"/api/chzt/pomiar/{pid}", json={
+        "ph": 10, "p1": 100, "p2": 200
+    })
+    assert resp.status_code == 200
+    row = db.execute("SELECT ph, p1, p2, ext_chzt FROM chzt_pomiary WHERE id=?", (pid,)).fetchone()
+    assert row["ph"] == 10
+    assert row["p1"] == 100
+
+
+def test_lab_put_pomiar_cannot_write_ext_fields(client, db):
+    s = _bootstrap_session_with_lab(client)
+    pid = s["punkty"][0]["id"]
+    client.put(f"/api/chzt/pomiar/{pid}", json={
+        "ph": 10, "p1": 100, "p2": 200,
+        "ext_chzt": 99999, "ext_ph": 99, "waga_kg": 99999,
+    })
+    row = db.execute(
+        "SELECT ph, ext_chzt, ext_ph, waga_kg FROM chzt_pomiary WHERE id=?", (pid,)
+    ).fetchone()
+    assert row["ph"] == 10
+    assert row["ext_chzt"] is None
+    assert row["ext_ph"] is None
+    assert row["waga_kg"] is None
+
+
+def test_produkcja_put_pomiar_can_write_ext_fields(produkcja_client, client, db):
+    s = _bootstrap_session_with_lab(client)
+    pid = s["punkty"][-1]["id"]  # szambiarka
+    resp = produkcja_client.put(f"/api/chzt/pomiar/{pid}", json={
+        "ext_chzt": 13250, "ext_ph": 11, "waga_kg": 19060
+    })
+    assert resp.status_code == 200
+    row = db.execute(
+        "SELECT ext_chzt, ext_ph, waga_kg, ph FROM chzt_pomiary WHERE id=?", (pid,)
+    ).fetchone()
+    assert row["ext_chzt"] == 13250
+    assert row["ext_ph"] == 11
+    assert row["waga_kg"] == 19060
+    assert row["ph"] is None
+
+
+def test_produkcja_put_pomiar_cannot_write_internal(produkcja_client, client, db):
+    s = _bootstrap_session_with_lab(client)
+    client.put(f"/api/chzt/pomiar/{s['punkty'][0]['id']}", json={"ph": 10, "p1": 100, "p2": 200})
+    pid = s["punkty"][0]["id"]
+    produkcja_client.put(f"/api/chzt/pomiar/{pid}", json={"ph": 99, "ext_chzt": 5000})
+    row = db.execute("SELECT ph, ext_chzt FROM chzt_pomiary WHERE id=?", (pid,)).fetchone()
+    assert row["ph"] == 10  # NOT overwritten by produkcja
+    assert row["ext_chzt"] == 5000
+
+
+def test_produkcja_cannot_create_session(produkcja_client, db):
+    resp = produkcja_client.post("/api/chzt/session/new", json={"n_kontenery": 8})
+    assert resp.status_code == 403
+
+
+def test_produkcja_can_view_history(produkcja_client, client, db):
+    _bootstrap_session_with_lab(client)
+    resp = produkcja_client.get("/api/chzt/history")
+    assert resp.status_code == 200
+
+
+def test_admin_put_pomiar_can_write_all_fields(admin_client, client, db):
+    s = _bootstrap_session_with_lab(client)
+    pid = s["punkty"][-1]["id"]
+    resp = admin_client.put(f"/api/chzt/pomiar/{pid}", json={
+        "ph": 10, "p1": 100, "p2": 200,
+        "ext_chzt": 5000, "ext_ph": 11, "waga_kg": 1000,
+    })
+    assert resp.status_code == 200
+    row = db.execute(
+        "SELECT ph, p1, ext_chzt, ext_ph, waga_kg FROM chzt_pomiary WHERE id=?", (pid,)
+    ).fetchone()
+    assert row["ph"] == 10
+    assert row["p1"] == 100
+    assert row["ext_chzt"] == 5000
