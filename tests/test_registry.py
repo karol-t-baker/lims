@@ -330,9 +330,11 @@ def test_cancel_non_completed_batch(admin_client, tmp_path):
 # Surowce column (Alkinol A/B uses substrat_produkty config)
 # ---------------------------------------------------------------------------
 
-def _seed_substrat(db, nazwa, produkt):
-    """Create a substrat and link it to a product."""
-    cur = db.execute("INSERT INTO substraty (nazwa) VALUES (?)", (nazwa,))
+def _seed_substrat(db, nazwa, produkt, skrot=None):
+    """Create a substrat (optionally with skrot) and link it to a product."""
+    cur = db.execute(
+        "INSERT INTO substraty (nazwa, skrot) VALUES (?, ?)", (nazwa, skrot)
+    )
     sid = cur.lastrowid
     db.execute(
         "INSERT INTO substrat_produkty (substrat_id, produkt) VALUES (?, ?)",
@@ -340,6 +342,19 @@ def _seed_substrat(db, nazwa, produkt):
     )
     db.commit()
     return sid
+
+
+def test_registry_row_includes_skrot(db):
+    mbr = _insert_mbr(db, "Alkinol")
+    ebr = _insert_ebr(db, mbr, "B-A-003", "3/26")
+    sid = _seed_substrat(db, "Alkohol oxyetylenowany 30/70", "Alkinol", skrot="30/70")
+    _link_batch_substrat(db, ebr, sid, "500/26")
+
+    rows = list_completed_registry(db, produkt="Alkinol")
+    s = rows[0]["surowce"][0]
+    assert s["nazwa"] == "Alkohol oxyetylenowany 30/70"
+    assert s["skrot"] == "30/70"
+    assert s["nr_partii"] == "500/26"
 
 
 def _link_batch_substrat(db, ebr_id, substrat_id, nr_partii):

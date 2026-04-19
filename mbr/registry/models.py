@@ -56,11 +56,12 @@ def list_completed_registry(
             r["zbiorniki"] = zb_map.get(r["ebr_id"], [])
 
     # Attach surowce (raw-material batch numbers) per batch — from platkowanie_substraty.
-    # Empty list for batches without entries; frontend decides whether to render.
+    # Each row = one (substrat, nr_partii) entry; same substrat can appear multiple
+    # times (different partii). Frontend renders one line per row.
     if result:
         placeholders = ",".join("?" * len(ebr_ids))
         sur_rows = db.execute(
-            f"SELECT ps.ebr_id, s.nazwa, ps.nr_partii_substratu AS nr_partii "
+            f"SELECT ps.ebr_id, s.nazwa, s.skrot, ps.nr_partii_substratu AS nr_partii "
             f"FROM platkowanie_substraty ps JOIN substraty s ON s.id = ps.substrat_id "
             f"WHERE ps.ebr_id IN ({placeholders}) "
             f"ORDER BY s.nazwa, ps.id",
@@ -70,6 +71,7 @@ def list_completed_registry(
         for sr in sur_rows:
             sur_map.setdefault(sr["ebr_id"], []).append({
                 "nazwa": sr["nazwa"],
+                "skrot": sr["skrot"],
                 "nr_partii": sr["nr_partii"],
             })
         for r in result:

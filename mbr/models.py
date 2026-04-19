@@ -173,6 +173,7 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS substraty (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nazwa TEXT UNIQUE NOT NULL,
+            skrot TEXT,
             aktywny INTEGER DEFAULT 1
         );
 
@@ -1225,6 +1226,15 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             """)
             db.execute("INSERT INTO swiadectwa SELECT * FROM _swiadectwa_old")
             db.execute("DROP TABLE _swiadectwa_old")
+            db.commit()
+    except Exception:
+        pass
+
+    # Migration: add `skrot` to substraty if missing (for short display in registry)
+    try:
+        subcols = [r[1] for r in db.execute("PRAGMA table_info(substraty)").fetchall()]
+        if "skrot" not in subcols:
+            db.execute("ALTER TABLE substraty ADD COLUMN skrot TEXT")
             db.commit()
     except Exception:
         pass

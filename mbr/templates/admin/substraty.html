@@ -42,6 +42,7 @@
     <thead>
       <tr>
         <th>Nazwa</th>
+        <th style="width:120px;">Skrót</th>
         <th>Powiązane produkty</th>
         <th style="width:90px;">Status</th>
       </tr>
@@ -76,8 +77,10 @@ function renderTable() {
       return '<span class="sub-prod-tag">' + p.replace(/_/g, ' ') + '</span>';
     }).join('');
     if (!prodTags) prodTags = '<span style="font-size:10px;color:var(--text-dim);font-style:italic;">Uniwersalny</span>';
+    var skrot = s.skrot || '';
     html += '<tr data-id="' + s.id + '">' +
       '<td class="sub-nazwa"><input class="sub-input" value="' + s.nazwa + '" onchange="saveField(' + s.id + ', \'nazwa\', this.value)"></td>' +
+      '<td><input class="sub-input" value="' + skrot + '" placeholder="np. 30/70" onchange="saveField(' + s.id + ', \'skrot\', this.value)" style="font-family:var(--mono);"></td>' +
       '<td><div class="sub-produkty">' + prodTags + ' <button class="sub-prod-edit" onclick="editProdukty(' + s.id + ')">edytuj</button></div></td>' +
       '<td><button class="sub-toggle ' + (s.aktywny ? 'on' : 'off') + '" onclick="toggleActive(' + s.id + ', ' + s.aktywny + ')">' + (s.aktywny ? 'Aktywny' : 'Ukryty') + '</button></td>' +
     '</tr>';

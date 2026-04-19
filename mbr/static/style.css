@@ -2273,10 +2273,11 @@ details[open].rh-round > .rh-summary::before { transform: rotate(90deg); }
 .registry tbody td.td-surowce {
   font-family: var(--mono); font-size: 11px;
   color: var(--text-sec);
-  max-width: 240px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   text-align: left;
-  padding-left: 10px;
+  padding: 6px 10px;
+  line-height: 1.55;
+  white-space: nowrap;
+  cursor: help;
 }
 
 .registry-empty {

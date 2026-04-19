@@ -140,11 +140,15 @@ def api_substraty():
 def api_substraty_create():
     data = request.get_json(silent=True) or {}
     nazwa = data.get("nazwa", "").strip()
+    skrot = (data.get("skrot") or "").strip() or None
     if not nazwa:
         return jsonify({"error": "nazwa required"}), 400
     with db_session() as db:
         try:
-            cur = db.execute("INSERT INTO substraty (nazwa) VALUES (?)", (nazwa,))
+            cur = db.execute(
+                "INSERT INTO substraty (nazwa, skrot) VALUES (?, ?)",
+                (nazwa, skrot),
+            )
             db.commit()
         except Exception:
             return jsonify({"error": "Substrat already exists"}), 409
@@ -155,7 +159,7 @@ def api_substraty_create():
 @role_required("admin")
 def api_substraty_update(sid):
     data = request.get_json(silent=True) or {}
-    allowed = {"nazwa", "aktywny"}
+    allowed = {"nazwa", "skrot", "aktywny"}
     updates = {k: v for k, v in data.items() if k in allowed and v is not None}
     if not updates:
         return jsonify({"ok": True})
