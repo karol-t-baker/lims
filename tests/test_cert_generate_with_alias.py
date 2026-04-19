@@ -121,3 +121,59 @@ def test_generate_target_equals_ebr_produkt_is_always_allowed(client, db, monkey
         "wystawil": "tester",
     })
     assert r.status_code == 200, r.data
+
+
+def test_regen_pdf_uses_target_produkt_when_present(client, db, monkeypatch):
+    """/api/cert/<id>/pdf regenerates via target_produkt if the archive has one."""
+    _patch_pdf(monkeypatch)
+    db.execute("INSERT INTO cert_alias VALUES ('K40GLOL', 'GLOL40')")
+    db.commit()
+
+    # Issue an aliased cert so data_json stores target_produkt
+    r = client.post("/api/cert/generate", json={
+        "ebr_id": 1, "variant_id": "base", "target_produkt": "GLOL40",
+        "wystawil": "tester",
+    })
+    assert r.status_code == 200
+    cert_id = int(r.headers["X-Cert-Id"])
+
+    # Now regenerate — spy on generate_certificate_pdf to see which produkt comes in
+    calls = []
+    import mbr.certs.routes as routes_mod
+    monkeypatch.setattr(routes_mod, "generate_certificate_pdf",
+                        lambda produkt, *a, **kw: (calls.append(produkt), b"%PDF-1.4 fake")[1])
+
+    r = client.get(f"/api/cert/{cert_id}/pdf")
+    assert r.status_code == 200
+    assert calls == ["GLOL40"], f"expected target_produkt routing, got {calls}"
+
+
+def test_regen_pdf_falls_back_to_produkt_for_legacy_rows(client, db, monkeypatch):
+    """Archive entries from before target_produkt existed lack the key — must still work."""
+    _patch_pdf(monkeypatch)
+
+    # Issue a non-aliased cert — data_json has target_produkt=K40GLOL but we SIMULATE
+    # a legacy row by manually deleting the key from data_json.
+    r = client.post("/api/cert/generate", json={
+        "ebr_id": 1, "variant_id": "base", "wystawil": "tester",
+    })
+    assert r.status_code == 200
+    cert_id = int(r.headers["X-Cert-Id"])
+
+    # Strip target_produkt from the archived data_json (legacy simulation)
+    import json as _json
+    row = db.execute("SELECT data_json FROM swiadectwa WHERE id=?", (cert_id,)).fetchone()
+    gen = _json.loads(row["data_json"])
+    gen.pop("target_produkt", None)
+    db.execute("UPDATE swiadectwa SET data_json=? WHERE id=?",
+               (_json.dumps(gen), cert_id))
+    db.commit()
+
+    calls = []
+    import mbr.certs.routes as routes_mod
+    monkeypatch.setattr(routes_mod, "generate_certificate_pdf",
+                        lambda produkt, *a, **kw: (calls.append(produkt), b"%PDF-1.4 fake")[1])
+
+    r = client.get(f"/api/cert/{cert_id}/pdf")
+    assert r.status_code == 200
+    assert calls == ["K40GLOL"], f"expected fallback to produkt, got {calls}"

@@ -188,8 +188,11 @@ def api_cert_pdf(cert_id):
         import json as _json
         try:
             gen = _json.loads(row["data_json"])
+            # For aliased certs, gen["target_produkt"] drives the template.
+            # Legacy archive entries may lack it — fall back to produkt.
+            regen_produkt = gen.get("target_produkt") or gen["produkt"]
             pdf_bytes = generate_certificate_pdf(
-                gen["produkt"], gen["variant_id"], gen["nr_partii"],
+                regen_produkt, gen["variant_id"], gen["nr_partii"],
                 gen.get("dt_start"), gen.get("wyniki_flat", {}),
                 gen.get("extra_fields", {}), wystawil=gen.get("wystawil", ""),
             )
