@@ -2,8 +2,10 @@
 
 {% block title %}Historia ChZT{% endblock %}
 
+{% block topbar %}{% endblock %}
+
 {% block content %}
-<link rel="stylesheet" href="{{ url_for('chzt.static', filename='chzt.css') }}?v=3">
+<link rel="stylesheet" href="{{ url_for('chzt.static', filename='chzt.css') }}?v=4">
 
 <div class="chzt-hist-page">
   <div class="completed-header">
@@ -73,5 +75,5 @@
 
 {% include "chzt_modal.html" %}
 
-<script src="{{ url_for('chzt.static', filename='chzt.js') }}?v=3" defer></script>
+<script src="{{ url_for('chzt.static', filename='chzt.js') }}?v=4" defer></script>
 {% endblock %}
