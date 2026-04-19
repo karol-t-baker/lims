@@ -6,9 +6,25 @@ import socket
 from flask import Flask
 
 
+_DEV_SECRET_PLACEHOLDERS = {
+    "dev-secret-change-in-prod",
+    "CHANGE-ME-TO-RANDOM-STRING",
+    "",
+}
+
+
 def create_app():
     app = Flask(__name__)
-    app.secret_key = os.environ.get("MBR_SECRET_KEY", "dev-secret-change-in-prod")
+    secret = os.environ.get("MBR_SECRET_KEY", "")
+    if secret in _DEV_SECRET_PLACEHOLDERS:
+        if os.environ.get("MBR_TESTING") == "1":
+            secret = "dev-secret-change-in-prod"  # test-only fallback
+        else:
+            raise RuntimeError(
+                "MBR_SECRET_KEY is unset or is a known dev placeholder. "
+                "Refusing to start — set a strong random value in /etc/lims.env."
+            )
+    app.secret_key = secret
     app.config["TEMPLATES_AUTO_RELOAD"] = True
 
     @app.after_request

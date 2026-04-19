@@ -7,7 +7,9 @@ Wants=docker.service
 Type=simple
 User=lims
 WorkingDirectory=/opt/lims
-Environment=MBR_SECRET_KEY=CHANGE-ME-TO-RANDOM-STRING
+# Secrets live in /etc/lims.env (chmod 600, root:lims). NOT in git.
+# Required keys: MBR_SECRET_KEY, MBR_SYNC_TOKEN.
+EnvironmentFile=/etc/lims.env
 ExecStart=/opt/lims/venv/bin/gunicorn --bind 127.0.0.1:5001 --workers 2 --timeout 120 mbr.app:app
 Restart=always
 RestartSec=3
