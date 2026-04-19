@@ -1025,25 +1025,53 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     except Exception:
         pass
 
-    # Migration: expand rola CHECK to include 'produkcja'
+    # Migration: expand rola CHECK to include 'produkcja'.
+    # Preserves all existing columns dynamically via PRAGMA table_info so later
+    # ALTERs (e.g. default_grupa) survive the rebuild.
     try:
-        row = db.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='mbr_users'").fetchone()
+        row = db.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='mbr_users'"
+        ).fetchone()
         if row:
             ddl = row[0] if isinstance(row, tuple) else row["sql"]
             if "'produkcja'" not in ddl:
+                info = db.execute("PRAGMA table_info(mbr_users)").fetchall()
+                # Each row: (cid, name, type, notnull, dflt_value, pk)
+                col_defs = []
+                col_names = []
+                for c in info:
+                    name = c[1]
+                    col_names.append(name)
+                    if name == "rola":
+                        col_defs.append(
+                            "rola TEXT NOT NULL CHECK(rola IN "
+                            "('technolog', 'lab', 'cert', 'kj', 'admin', 'produkcja'))"
+                        )
+                        continue
+                    parts = [name, c[2] or "TEXT"]
+                    if c[5]:  # pk
+                        parts.append("PRIMARY KEY AUTOINCREMENT")
+                    if c[3]:  # notnull
+                        parts.append("NOT NULL")
+                    if c[4] is not None:
+                        parts.append(f"DEFAULT {c[4]}")
+                    if name == "login":
+                        parts.append("UNIQUE")
+                    col_defs.append(" ".join(parts))
+                cols_csv = ", ".join(col_names)
+                ddl_new = (
+                    "CREATE TABLE mbr_users_new_prodcheck (\n                "
+                    + ",\n                ".join(col_defs)
+                    + "\n            )"
+                )
                 db.execute("PRAGMA foreign_keys=OFF")
                 try:
                     db.execute("BEGIN")
-                    db.execute("""
-                        CREATE TABLE mbr_users_new_prodcheck (
-                            user_id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                            login           TEXT UNIQUE NOT NULL,
-                            password_hash   TEXT NOT NULL,
-                            rola            TEXT NOT NULL CHECK(rola IN ('technolog', 'lab', 'cert', 'kj', 'admin', 'produkcja')),
-                            imie_nazwisko   TEXT
-                        )
-                    """)
-                    db.execute("INSERT INTO mbr_users_new_prodcheck SELECT * FROM mbr_users")
+                    db.execute(ddl_new)
+                    db.execute(
+                        f"INSERT INTO mbr_users_new_prodcheck ({cols_csv}) "
+                        f"SELECT {cols_csv} FROM mbr_users"
+                    )
                     db.execute("DROP TABLE mbr_users")
                     db.execute("ALTER TABLE mbr_users_new_prodcheck RENAME TO mbr_users")
                     db.execute("COMMIT")
