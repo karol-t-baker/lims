@@ -166,13 +166,15 @@ def compute_srednia(row: dict):
     return sum(vals) / len(vals)
 
 
-POMIAR_FIELDS = ("ph", "p1", "p2", "p3", "p4", "p5")
+POMIAR_FIELDS_INTERNAL = ("ph", "p1", "p2", "p3", "p4", "p5")
+POMIAR_FIELDS_EXTERNAL = ("ext_chzt", "ext_ph", "waga_kg")
+POMIAR_FIELDS = POMIAR_FIELDS_INTERNAL + POMIAR_FIELDS_EXTERNAL
 
 
 def get_pomiar(db, pomiar_id: int) -> dict:
     row = db.execute(
         "SELECT id, sesja_id, punkt_nazwa, kolejnosc, ph, p1, p2, p3, p4, p5, "
-        "       srednia, updated_at, updated_by "
+        "       srednia, ext_chzt, ext_ph, waga_kg, updated_at, updated_by "
         "FROM chzt_pomiary WHERE id=?",
         (pomiar_id,),
     ).fetchone()
@@ -180,32 +182,36 @@ def get_pomiar(db, pomiar_id: int) -> dict:
 
 
 def update_pomiar(db, pomiar_id: int, new_values: dict, *, updated_by: int):
-    """Write new_values to the given pomiar + recompute srednia + timestamp.
+    """Update the subset of fields present in new_values. Recompute srednia
+    from resulting p1..p5 state. Caller owns the transaction.
 
-    Caller owns the transaction (no commit here). Returns the updated row dict.
-    Raises ValueError if pomiar_id does not exist.
+    Returns the updated row dict. Raises ValueError if pomiar_id not found.
     """
-    srednia = compute_srednia(new_values)
+    existing = get_pomiar(db, pomiar_id)
+    if existing is None:
+        raise ValueError(f"pomiar {pomiar_id} not found")
+
+    merged = dict(existing)
+    for k in POMIAR_FIELDS:
+        if k in new_values:
+            merged[k] = new_values[k]
+
+    srednia = compute_srednia(merged)
     now = datetime.now().isoformat(timespec="seconds")
-    cur = db.execute(
+
+    db.execute(
         "UPDATE chzt_pomiary "
-        "SET ph=?, p1=?, p2=?, p3=?, p4=?, p5=?, srednia=?, updated_at=?, updated_by=? "
+        "SET ph=?, p1=?, p2=?, p3=?, p4=?, p5=?, srednia=?, "
+        "    ext_chzt=?, ext_ph=?, waga_kg=?, "
+        "    updated_at=?, updated_by=? "
         "WHERE id=?",
         (
-            new_values.get("ph"),
-            new_values.get("p1"),
-            new_values.get("p2"),
-            new_values.get("p3"),
-            new_values.get("p4"),
-            new_values.get("p5"),
-            srednia,
-            now,
-            updated_by,
-            pomiar_id,
+            merged.get("ph"), merged.get("p1"), merged.get("p2"), merged.get("p3"),
+            merged.get("p4"), merged.get("p5"), srednia,
+            merged.get("ext_chzt"), merged.get("ext_ph"), merged.get("waga_kg"),
+            now, updated_by, pomiar_id,
         ),
     )
-    if cur.rowcount == 0:
-        raise ValueError(f"pomiar {pomiar_id} not found")
     return get_pomiar(db, pomiar_id)
 
 
@@ -300,11 +306,6 @@ def unfinalize_session(db, session_id: int):
 
 
 def list_sessions_paginated(db, *, page: int = 1, per_page: int = 10) -> dict:
-    """Return paginated list of sessions DESC by data.
-
-    Shape: {sesje: [{id, data, n_kontenery, finalized_at, finalized_by_name, updated_at_max}],
-            total, page, pages, per_page}
-    """
     page = max(1, int(page))
     per_page = max(1, min(100, int(per_page)))
     offset = (page - 1) * per_page
@@ -314,7 +315,7 @@ def list_sessions_paginated(db, *, page: int = 1, per_page: int = 10) -> dict:
     pages = max(1, (total + per_page - 1) // per_page)
 
     rows = db.execute(
-        "SELECT s.id, s.data, s.n_kontenery, s.finalized_at, "
+        "SELECT s.id, s.dt_start, s.n_kontenery, s.finalized_at, "
         "       w.imie || ' ' || w.nazwisko AS finalized_by_name, "
         "       (SELECT MAX(updated_at) FROM chzt_pomiary WHERE sesja_id=s.id) AS updated_at_max, "
         "       (SELECT ROUND(AVG(srednia)) FROM chzt_pomiary WHERE sesja_id=s.id AND srednia IS NOT NULL) AS avg_chzt, "
@@ -324,7 +325,7 @@ def list_sessions_paginated(db, *, page: int = 1, per_page: int = 10) -> dict:
         "       (SELECT ROUND(AVG(ph), 1) FROM chzt_pomiary WHERE sesja_id=s.id AND ph IS NOT NULL) AS avg_ph "
         "FROM chzt_sesje s "
         "LEFT JOIN workers w ON w.id = s.finalized_by "
-        "ORDER BY s.data DESC "
+        "ORDER BY s.dt_start DESC "
         "LIMIT ? OFFSET ?",
         (per_page, offset),
     ).fetchall()
@@ -343,7 +344,7 @@ def get_session_with_pomiary(db, session_id: int) -> dict:
     Returns None if session not found.
     """
     srow = db.execute(
-        "SELECT s.id, s.data, s.n_kontenery, s.created_at, s.created_by, "
+        "SELECT s.id, s.dt_start, s.n_kontenery, s.created_at, s.created_by, "
         "       s.finalized_at, s.finalized_by, "
         "       w.imie || ' ' || w.nazwisko AS finalized_by_name "
         "FROM chzt_sesje s "
@@ -355,11 +356,8 @@ def get_session_with_pomiary(db, session_id: int) -> dict:
         return None
     prows = db.execute(
         "SELECT id, punkt_nazwa, kolejnosc, ph, p1, p2, p3, p4, p5, srednia, "
-        "       updated_at, updated_by "
+        "       ext_chzt, ext_ph, waga_kg, updated_at, updated_by "
         "FROM chzt_pomiary WHERE sesja_id=? ORDER BY kolejnosc",
         (session_id,),
     ).fetchall()
-    return {
-        **dict(srow),
-        "punkty": [dict(p) for p in prows],
-    }
+    return {**dict(srow), "punkty": [dict(p) for p in prows]}

@@ -825,3 +825,113 @@ def test_get_active_session_returns_none_when_no_open(db):
     db.execute("UPDATE chzt_sesje SET finalized_at=? WHERE id=?", ("2026-04-18T12:00:00", sid))
     db.commit()
     assert get_active_session(db) is None
+
+
+# ───────────────────────────────────────────────────────────────
+# T3: ext fields in pomiar/session helpers + dt_start sort
+# ───────────────────────────────────────────────────────────────
+
+
+def test_update_pomiar_writes_ext_fields(db):
+    sid = create_session(db, created_by=1, n_kontenery=0)
+    db.commit()
+    pid = db.execute(
+        "SELECT id FROM chzt_pomiary WHERE sesja_id=? AND punkt_nazwa='szambiarka'", (sid,)
+    ).fetchone()["id"]
+    update_pomiar(db, pid, {
+        "ph": 11, "p1": 25000, "p2": 26000, "p3": None, "p4": None, "p5": None,
+        "ext_chzt": 13250, "ext_ph": 11, "waga_kg": 19060,
+    }, updated_by=1)
+    db.commit()
+    row = db.execute(
+        "SELECT ph, ext_chzt, ext_ph, waga_kg, srednia FROM chzt_pomiary WHERE id=?", (pid,)
+    ).fetchone()
+    assert row["ph"] == 11
+    assert row["ext_chzt"] == 13250
+    assert row["ext_ph"] == 11
+    assert row["waga_kg"] == 19060
+    assert row["srednia"] == 25500
+
+
+def test_update_pomiar_partial_keeps_other_fields(db):
+    """Partial-update semantics: keys not in new_values retain their existing value."""
+    sid = create_session(db, created_by=1, n_kontenery=0)
+    db.commit()
+    pid = db.execute(
+        "SELECT id FROM chzt_pomiary WHERE sesja_id=? AND punkt_nazwa='hala'", (sid,)
+    ).fetchone()["id"]
+    # First write ph + p1 + p2
+    update_pomiar(db, pid, {"ph": 10, "p1": 1000, "p2": 2000}, updated_by=1)
+    db.commit()
+    # Second write only ext_chzt — ph/p1/p2 must be preserved
+    update_pomiar(db, pid, {"ext_chzt": 5000}, updated_by=1)
+    db.commit()
+    row = db.execute(
+        "SELECT ph, p1, p2, ext_chzt, srednia FROM chzt_pomiary WHERE id=?", (pid,)
+    ).fetchone()
+    assert row["ph"] == 10
+    assert row["p1"] == 1000
+    assert row["p2"] == 2000
+    assert row["ext_chzt"] == 5000
+    assert row["srednia"] == 1500
+
+
+def test_get_pomiar_includes_ext_fields(db):
+    sid = create_session(db, created_by=1, n_kontenery=0)
+    db.commit()
+    pid = db.execute(
+        "SELECT id FROM chzt_pomiary WHERE sesja_id=? AND punkt_nazwa='szambiarka'", (sid,)
+    ).fetchone()["id"]
+    update_pomiar(db, pid, {"ext_chzt": 13250}, updated_by=1)
+    db.commit()
+    p = get_pomiar(db, pid)
+    assert "ext_chzt" in p
+    assert p["ext_chzt"] == 13250
+    assert p["ext_ph"] is None
+    assert p["waga_kg"] is None
+
+
+def test_get_session_with_pomiary_includes_ext_fields(db):
+    sid = create_session(db, created_by=1, n_kontenery=0)
+    db.commit()
+    s = get_session_with_pomiary(db, sid)
+    for p in s["punkty"]:
+        assert "ext_chzt" in p
+        assert "ext_ph" in p
+        assert "waga_kg" in p
+
+
+def test_get_session_with_pomiary_uses_dt_start_not_data(db):
+    sid = create_session(db, created_by=1, n_kontenery=0)
+    db.commit()
+    s = get_session_with_pomiary(db, sid)
+    assert "dt_start" in s
+    assert "data" not in s
+    assert "T" in s["dt_start"]
+
+
+def test_list_sessions_paginated_sorts_by_dt_start_desc(db):
+    for dt in ["2026-04-10T08:00:00", "2026-04-12T10:00:00", "2026-04-11T14:00:00"]:
+        db.execute(
+            "INSERT INTO chzt_sesje (dt_start, n_kontenery, created_at, created_by) "
+            "VALUES (?, 0, ?, 1)", (dt, dt)
+        )
+    db.commit()
+    page = list_sessions_paginated(db, page=1, per_page=10)
+    dts = [s["dt_start"] for s in page["sesje"]]
+    assert dts[0].startswith("2026-04-12")
+    assert dts[1].startswith("2026-04-11")
+    assert dts[2].startswith("2026-04-10")
+
+
+def test_list_sessions_paginated_returns_dt_start_not_data(db):
+    db.execute(
+        "INSERT INTO chzt_sesje (dt_start, n_kontenery, created_at, created_by) "
+        "VALUES ('2026-04-18T08:00:00', 0, '2026-04-18T08:00:00', 1)"
+    )
+    db.commit()
+    page = list_sessions_paginated(db, page=1, per_page=10)
+    s = page["sesje"][0]
+    assert "dt_start" in s
+    assert s["dt_start"] == "2026-04-18T08:00:00"
+    assert "data" not in s
