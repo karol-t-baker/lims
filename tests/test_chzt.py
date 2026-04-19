@@ -1120,3 +1120,98 @@ def test_day_endpoint_finds_by_dt_start_date_and_returns_ext_fields(client, db):
     # /day/2026-04-19 — 404 (session started the 18th, not the 19th)
     r2 = client.get("/api/chzt/day/2026-04-19")
     assert r2.status_code == 404
+
+
+# ───────────────────────────────────────────────────────────────
+# T10: E2E scenarios
+# ───────────────────────────────────────────────────────────────
+
+
+def test_crossing_midnight_session_lifecycle(client, db):
+    """Night shift: session starts 22:15 day X, finalizes 06:05 day X+1."""
+    r1 = client.post("/api/chzt/session/new", json={"n_kontenery": 2})
+    assert r1.status_code == 200
+    sid = r1.get_json()["session"]["id"]
+
+    # Simulate evening start
+    db.execute(
+        "UPDATE chzt_sesje SET dt_start=? WHERE id=?",
+        ("2026-04-18T22:15:00", sid),
+    )
+    db.commit()
+
+    # Fill all points
+    r_refresh = client.get(f"/api/chzt/session/{sid}").get_json()["session"]
+    for p in r_refresh["punkty"]:
+        client.put(f"/api/chzt/pomiar/{p['id']}", json={
+            "ph": 10, "p1": 15000, "p2": 16000
+        })
+
+    # Finalize + simulate morning completion
+    r_fin = client.post(f"/api/chzt/session/{sid}/finalize")
+    assert r_fin.status_code == 200
+    db.execute(
+        "UPDATE chzt_sesje SET finalized_at=? WHERE id=?",
+        ("2026-04-19T06:05:00", sid),
+    )
+    db.commit()
+
+    # History shows the session with correct boundary
+    r_hist = client.get("/api/chzt/history").get_json()
+    assert r_hist["sesje"][0]["id"] == sid
+    assert r_hist["sesje"][0]["dt_start"].startswith("2026-04-18T22")
+    assert r_hist["sesje"][0]["finalized_at"].startswith("2026-04-19T06")
+
+    # /day/2026-04-18 finds it (DATE(dt_start) matches)
+    r_day = client.get("/api/chzt/day/2026-04-18")
+    assert r_day.status_code == 200
+    assert r_day.get_json()["dt_start"].startswith("2026-04-18T22")
+
+    # /day/2026-04-19 does NOT find it (session started on 18th)
+    r_day_next = client.get("/api/chzt/day/2026-04-19")
+    assert r_day_next.status_code == 404
+
+    # No active session remaining
+    r_active = client.get("/api/chzt/session/active").get_json()
+    assert r_active["session"] is None
+
+    # New session can be created after finalize
+    r_new = client.post("/api/chzt/session/new", json={"n_kontenery": 3})
+    assert r_new.status_code == 200
+    assert r_new.get_json()["session"]["id"] != sid
+
+
+def test_produkcja_fills_ext_after_lab_finalizes(produkcja_client, client, db):
+    """Lab fills pomiary + finalizes. Produkcja then fills ext fields on szambiarka."""
+    # Lab creates + fills all points
+    r = client.post("/api/chzt/session/new", json={"n_kontenery": 0})
+    sid = r.get_json()["session"]["id"]
+    for p in r.get_json()["session"]["punkty"]:
+        client.put(f"/api/chzt/pomiar/{p['id']}", json={"ph": 10, "p1": 100, "p2": 200})
+    client.post(f"/api/chzt/session/{sid}/finalize")
+
+    # Locate szambiarka pomiar id
+    szamb_pid = db.execute(
+        "SELECT id FROM chzt_pomiary WHERE sesja_id=? AND punkt_nazwa='szambiarka'", (sid,)
+    ).fetchone()["id"]
+
+    # Produkcja writes ext fields on finalized session
+    resp = produkcja_client.put(f"/api/chzt/pomiar/{szamb_pid}", json={
+        "ext_chzt": 13250, "ext_ph": 11, "waga_kg": 19060
+    })
+    assert resp.status_code == 200
+
+    row = db.execute(
+        "SELECT ext_chzt, ext_ph, waga_kg, ph FROM chzt_pomiary WHERE id=?", (szamb_pid,)
+    ).fetchone()
+    assert row["ext_chzt"] == 13250
+    assert row["ext_ph"] == 11
+    assert row["waga_kg"] == 19060
+    assert row["ph"] == 10  # lab's value, untouched by produkcja
+
+    # Audit logs both updates (lab + produkcja)
+    pomiar_events = db.execute(
+        "SELECT event_type FROM audit_log WHERE event_type='chzt.pomiar.updated' AND entity_id=?",
+        (szamb_pid,),
+    ).fetchall()
+    assert len(pomiar_events) >= 2
