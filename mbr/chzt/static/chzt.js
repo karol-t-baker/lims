@@ -51,10 +51,10 @@
     var saveBtn = el('chzt-save-btn');
     if (_session.finalized_at) {
       var who = _session.finalized_by_name || ('id=' + _session.finalized_by);
-      banner.textContent = '✓ Sfinalizowano ' + fmtTime(_session.finalized_at) + ' przez ' + who;
+      banner.textContent = '✓ Ukończono ' + fmtTime(_session.finalized_at) + ' przez ' + who;
       banner.style.display = 'block';
       saveBtn.style.display = 'none';
-      footerInfo.textContent = 'Dzień sfinalizowany — nowa sesja rozpocznie się jutro';
+      footerInfo.textContent = 'Dzień ukończony — nowa sesja rozpocznie się jutro';
       footerInfo.style.display = 'inline';
       var autosaveNote = document.querySelector('.chzt-autosave-note');
       if (autosaveNote) autosaveNote.style.display = 'none';
@@ -421,10 +421,10 @@
       if (badge) {
         if (_session.finalized_at) {
           var who = _session.finalized_by_name || '—';
-          badge.innerHTML = '<span class="chzt-expand-finalized">✓ Sfinalizowano ' +
+          badge.innerHTML = '<span class="chzt-expand-finalized">✓ Ukończono ' +
             fmtTime(_session.finalized_at) + ' · ' + escapeHtmlHist(who) + '</span>';
         } else {
-          badge.innerHTML = '<span class="chzt-expand-draft">● Draft</span>';
+          badge.innerHTML = '<span class="chzt-expand-draft">● Otwarta</span>';
         }
       }
 

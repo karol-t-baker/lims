@@ -47,9 +47,9 @@
               <td class="td-max {% if s.max_chzt and s.max_chzt > 40000 %}val-warn{% endif %}">{% if s.max_chzt %}{{ '{:,}'.format(s.max_chzt|int).replace(',', ' ') }}{% else %}—{% endif %}</td>
               <td class="td-status">
                 {% if s.finalized_at %}
-                  <span class="status-ok">Sfinalizowano</span>
+                  <span class="status-ok">Ukończono</span>
                 {% else %}
-                  <span class="status-draft">Draft</span>
+                  <span class="status-draft">Otwarta</span>
                 {% endif %}
               </td>
               <td class="td-who">{{ s.finalized_by_name or '—' }}</td>
