@@ -4449,6 +4449,33 @@ window._keydownHandler = function(e) {
         if (idx >= 0 && idx < inputs.length - 1) inputs[idx + 1].focus();
         else e.target.blur();
     }
+    // Section-scoped Enter/Shift+Enter navigation for hero/entry form inputs.
+    // Cycles through editable input[data-kod] + select[data-field="wartosc_text"]
+    // within the same .section. Loops at ends.
+    if (e.key === 'Enter' && e.target.closest && e.target.closest('.section')) {
+        var isFieldInput = (
+            (e.target.tagName === 'INPUT' && e.target.hasAttribute('data-kod')) ||
+            (e.target.tagName === 'SELECT' && e.target.getAttribute('data-field') === 'wartosc_text')
+        );
+        if (isFieldInput) {
+            e.preventDefault();
+            var section = e.target.closest('.section');
+            var selector = 'input[data-kod]:not([readonly]):not([disabled]), '
+                         + 'select[data-field="wartosc_text"]:not([disabled])';
+            var fields = Array.from(section.querySelectorAll(selector));
+            if (fields.length > 0) {
+                var curIdx = fields.indexOf(e.target);
+                var nextIdx;
+                if (e.shiftKey) {
+                    nextIdx = curIdx <= 0 ? fields.length - 1 : curIdx - 1;
+                } else {
+                    nextIdx = (curIdx >= fields.length - 1) ? 0 : curIdx + 1;
+                }
+                fields[nextIdx].focus();
+                if (fields[nextIdx].select) fields[nextIdx].select();
+            }
+        }
+    }
 };
 document.addEventListener('keydown', window._keydownHandler);
 
