@@ -521,7 +521,9 @@ function renderDefTable(data) {
           '<option value="obliczeniowy"' + (p.typ === 'obliczeniowy' ? ' selected' : '') + '>obliczeniowy</option>' +
           '<option value="jakosciowy"' + (p.typ === 'jakosciowy' ? ' selected' : '') + '>jakościowy</option>' +
         '</select></td>';
-    var initialJson = JSON.stringify(p.opisowe_wartosci || []).replace(/"/g, '&quot;');
+    // p.opisowe_wartosci comes from the API as a JSON string (SELECT * returns the raw column).
+    // No re-stringify — just escape the quotes so the value survives in the HTML attribute.
+    var initialJson = (p.opisowe_wartosci || '[]').replace(/"/g, '&quot;');
     var expandRow = isJakosciowy
       ? '<tr class="pa-opisowe-row" data-param-id="' + p.id + '" style="display:none;">' +
           '<td colspan="10" style="background:var(--teal-bg,#f0fafb);padding:8px 12px;">' +
