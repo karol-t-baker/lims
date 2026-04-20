@@ -416,11 +416,54 @@ var _dirty = false;
 var _unloadHandler = null;
 var _prevDebounce = null;
 var _prevModalOpen = false;
+window.__paramMeta = {}; // indexed by kod; populated on init from /api/parametry/list
 
 /* ═══ Helpers ═══ */
 function _esc(s) {
   if (s == null) return '';
   return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderQualResultInput(p) {
+  var meta = window.__paramMeta && window.__paramMeta[p.data_field];
+  if (meta && meta.typ === 'jakosciowy') {
+    var values = [];
+    try { values = JSON.parse(meta.opisowe_wartosci || '[]'); } catch (e) { values = []; }
+    if (values.length > 0) {
+      var cur = p.qualitative_result || '';
+      var opts = '<option value=""' + (cur === '' ? ' selected' : '') + '>—</option>';
+      values.forEach(function(v) {
+        var sel = (v === cur) ? ' selected' : '';
+        opts += '<option value="' + _esc(v) + '"' + sel + '>' + _esc(v) + '</option>';
+      });
+      if (cur && values.indexOf(cur) === -1) {
+        opts += '<option value="' + _esc(cur) + '" selected>' + _esc(cur) + ' (historyczna)</option>';
+      }
+      return '<select data-field="qualitative_result">' + opts + '</select>';
+    }
+  }
+  return '<input data-field="qualitative_result" value="' + _esc(p.qualitative_result || '') + '" placeholder="—">';
+}
+
+function renderVpQualInput(ap) {
+  var meta = window.__paramMeta && window.__paramMeta[ap.data_field];
+  if (meta && meta.typ === 'jakosciowy') {
+    var values = [];
+    try { values = JSON.parse(meta.opisowe_wartosci || '[]'); } catch (e) { values = []; }
+    if (values.length > 0) {
+      var cur = ap.qualitative_result || '';
+      var opts = '<option value=""' + (cur === '' ? ' selected' : '') + '>—</option>';
+      values.forEach(function(v) {
+        var sel = (v === cur) ? ' selected' : '';
+        opts += '<option value="' + _esc(v) + '"' + sel + '>' + _esc(v) + '</option>';
+      });
+      if (cur && values.indexOf(cur) === -1) {
+        opts += '<option value="' + _esc(cur) + '" selected>' + _esc(cur) + ' (historyczna)</option>';
+      }
+      return '<select data-vp="qualitative_result">' + opts + '</select>';
+    }
+  }
+  return '<input data-vp="qualitative_result" value="' + _esc(ap.qualitative_result || '') + '" placeholder="—">';
 }
 
 function flash(msg, ok) {
@@ -862,7 +905,7 @@ function _paramRow(p, idx) {
     '<td><input data-field="method" value="' + _esc(p.method || '') + '"></td>' +
     '<td><select data-field="data_field" onchange="onCodeSelect(this)">' + _codeOptions(p.data_field) + '</select></td>' +
     '<td><select data-field="format">' + _fmtOptions(p.format) + '</select></td>' +
-    '<td><input data-field="qualitative_result" value="' + _esc(p.qualitative_result || '') + '" placeholder="—"></td>' +
+    '<td>' + renderQualResultInput(p) + '</td>' +
     '<td><button class="wc-del" onclick="removeBaseParam(this)" title="Usuń">&times;</button></td>' +
   '</tr>';
 }
@@ -1048,7 +1091,7 @@ function _varParamRow(ap) {
     '<td><input data-vp="method" value="' + _esc(ap.method || '') + '"></td>' +
     '<td><select data-vp="data_field" onchange="onCodeSelectAp(this)">' + _codeOptions(ap.data_field) + '</select></td>' +
     '<td><select data-vp="format">' + _fmtOptions(ap.format || '1') + '</select></td>' +
-    '<td><input data-vp="qualitative_result" value="' + _esc(ap.qualitative_result || '') + '" placeholder="—"></td>' +
+    '<td>' + renderVpQualInput(ap) + '</td>' +
     '<td><button class="wc-del" onclick="this.closest(\'tr\').remove()" title="Usuń">&times;</button></td></tr>';
 }
 
@@ -1393,6 +1436,12 @@ var _copyInp = document.getElementById('wc-copy-name');
 if (_copyInp) _copyInp.addEventListener('keydown', function(e) {
   if (e.key === 'Enter') doCopyProduct();
 });
+fetch('/api/parametry/list').then(function(r) { return r.json(); }).then(function(list) {
+  if (!Array.isArray(list)) return;
+  var meta = {};
+  list.forEach(function(p) { if (p.kod) meta[p.kod] = {typ: p.typ, opisowe_wartosci: p.opisowe_wartosci}; });
+  window.__paramMeta = meta;
+}).catch(function() { /* non-fatal — selects fall back to inputs */ });
 loadProducts();
 document.getElementById('wc-alias-add-btn').addEventListener('click', wcAliasAdd);
 wcAliasLoad();
