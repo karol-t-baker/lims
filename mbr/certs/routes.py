@@ -513,6 +513,53 @@ def api_cert_config_product_put(key):
 
         warnings = []
 
+        # ── Validate qualitative_result for jakosciowy params ──
+        # For params with typ='jakosciowy' and non-empty opisowe_wartosci,
+        # qualitative_result must be from the allowed list (or empty).
+        def _validate_qr(pid_row_id, qr_text, context_label):
+            qr = (qr_text or "").strip()
+            if not qr:
+                return None
+            meta = db.execute(
+                "SELECT typ, opisowe_wartosci FROM parametry_analityczne WHERE id=?",
+                (pid_row_id,),
+            ).fetchone()
+            if not meta or meta["typ"] != "jakosciowy":
+                return None
+            try:
+                allowed = _json.loads(meta["opisowe_wartosci"] or "[]")
+            except Exception:
+                allowed = []
+            if allowed and qr not in allowed:
+                return (f"{context_label}: wartość '{qr}' jest niedozwolona "
+                        f"(opisowe_wartosci: {allowed})")
+            return None
+
+        if parameters is not None:
+            for p in parameters:
+                df = (p.get("data_field") or p.get("id", "")).strip()
+                pid_row_id = kod_to_id.get(df)
+                if pid_row_id is None:
+                    continue  # already caught by earlier validation
+                err = _validate_qr(pid_row_id, p.get("qualitative_result"), f"Parametr '{df}'")
+                if err:
+                    return jsonify({"error": err}), 400
+
+        if variants is not None:
+            for v in variants:
+                overrides = v.get("overrides") or {}
+                for ap in overrides.get("add_parameters", []) or []:
+                    ap_df = (ap.get("data_field") or ap.get("id") or "").strip()
+                    pid_row_id = kod_to_id.get(ap_df)
+                    if pid_row_id is None:
+                        continue
+                    err = _validate_qr(
+                        pid_row_id, ap.get("qualitative_result"),
+                        f"Wariant '{v.get('id', '?')}': parametr '{ap_df}'",
+                    )
+                    if err:
+                        return jsonify({"error": err}), 400
+
         # ── PHASE 1: validate EVERYTHING before we touch any row ────────────
         if parameters is not None:
             param_ids = set()
