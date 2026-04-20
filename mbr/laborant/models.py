@@ -658,17 +658,21 @@ def save_wyniki(
 
     for kod, entry in values.items():
         pole = pola_map.get(kod)
-        has_explicit_text = entry.get("wartosc_text") is not None
+        has_explicit_text = isinstance(entry, dict) and entry.get("wartosc_text") is not None
         if pole is None and kod not in _EXTRA_FIELDS and not has_explicit_text:
             continue
         if pole is None:
             pole = {"kod": kod, "tag": "", "precision": 1}
-        wartosc_raw = entry.get("wartosc", "")
-        komentarz = entry.get("komentarz", "")
+        if isinstance(entry, dict):
+            wartosc_raw = entry.get("wartosc", "")
+            komentarz = entry.get("komentarz", "")
+        else:
+            wartosc_raw = entry
+            komentarz = ""
 
         # PR3: explicit wartosc_text from client (e.g. jakosciowy dropdown).
         # Takes precedence over numeric parsing; computes w_limicie from opisowe_wartosci.
-        explicit_text = entry.get("wartosc_text")
+        explicit_text = entry.get("wartosc_text") if isinstance(entry, dict) else None
         if explicit_text is not None:
             text_val = str(explicit_text).strip()
             if not text_val:
