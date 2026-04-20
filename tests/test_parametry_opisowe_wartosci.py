@@ -187,3 +187,15 @@ def test_list_exposes_opisowe_wartosci(client, db):
     assert row is not None
     assert "opisowe_wartosci" in row
     assert _json.loads(row["opisowe_wartosci"]) == ["a", "b"]
+
+
+def test_existing_params_unaffected_by_new_column(client, db):
+    """A bezposredni param without opisowe_wartosci continues to work: PUT updates label, no errors."""
+    pid = _mk_param(db, kod="gestosc2", typ="bezposredni")
+    r = client.put(f"/api/parametry/{pid}", json={"label": "Gęstość v2"})
+    assert r.status_code == 200
+    row = db.execute(
+        "SELECT label, opisowe_wartosci FROM parametry_analityczne WHERE id=?", (pid,)
+    ).fetchone()
+    assert row["label"] == "Gęstość v2"
+    assert row["opisowe_wartosci"] is None
