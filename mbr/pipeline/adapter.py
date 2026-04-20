@@ -367,3 +367,34 @@ def pipeline_dual_write(db, ebr_id, sekcja, values, wpisal, odziedziczony_map=No
     gate["sesja_id"] = sesja["id"]
     gate["etap_id"] = etap_id
     return gate
+
+
+# ---------------------------------------------------------------------------
+# Entry-form filtering
+# ---------------------------------------------------------------------------
+
+def filter_parametry_lab_for_entry(parametry_lab: dict) -> dict:
+    """Filter a parametry_lab dict down to fields visible in the laborant entry form.
+
+    Entry form shows only internal-lab numeric params:
+      grupa == 'lab' (or missing, treated as 'lab')  AND
+      typ_analityczny != 'jakosciowy'
+
+    Sections that end up with no visible pola are dropped entirely so the UI
+    doesn't render empty groups.
+
+    The full parametry_lab snapshot is preserved in ebr_batches; this filter
+    only affects what's *rendered* in the entry form. Hero view uses the
+    unfiltered snapshot.
+    """
+    result: dict = {}
+    for sekcja_key, sekcja in parametry_lab.items():
+        pola = sekcja.get("pola", [])
+        visible = [
+            p for p in pola
+            if (p.get("grupa") or "lab") == "lab"
+            and p.get("typ_analityczny") != "jakosciowy"
+        ]
+        if visible:
+            result[sekcja_key] = {**sekcja, "pola": visible}
+    return result

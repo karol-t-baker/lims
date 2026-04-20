@@ -72,3 +72,52 @@ def test_build_pole_typ_analityczny_for_bezposredni(db):
     for sekcja in ctx["parametry_lab"].values():
         pola.extend(sekcja["pola"])
     assert pola[0]["typ_analityczny"] == "bezposredni"
+
+
+def test_filter_hides_jakosciowy_and_zewn():
+    """filter_parametry_lab_for_entry keeps only grupa='lab' AND typ != 'jakosciowy'."""
+    from mbr.pipeline.adapter import filter_parametry_lab_for_entry
+    parametry_lab = {
+        "analiza": {"label": "Analiza", "pola": [
+            {"kod": "gestosc", "grupa": "lab", "typ_analityczny": "bezposredni"},
+            {"kod": "zapach", "grupa": "lab", "typ_analityczny": "jakosciowy"},
+            {"kod": "siarka", "grupa": "zewn", "typ_analityczny": "bezposredni"},
+            {"kod": "ph", "grupa": "lab", "typ_analityczny": "titracja"},
+        ]},
+        "standaryzacja": {"label": "Std", "pola": [
+            {"kod": "x_zewn", "grupa": "zewn", "typ_analityczny": "bezposredni"},
+        ]},
+    }
+    filtered = filter_parametry_lab_for_entry(parametry_lab)
+    analiza_kody = [p["kod"] for p in filtered["analiza"]["pola"]]
+    assert analiza_kody == ["gestosc", "ph"]
+    assert "standaryzacja" not in filtered
+
+
+def test_filter_preserves_empty_input():
+    from mbr.pipeline.adapter import filter_parametry_lab_for_entry
+    assert filter_parametry_lab_for_entry({}) == {}
+
+
+def test_filter_treats_missing_grupa_as_lab():
+    """Legacy fields without explicit grupa should be treated as lab."""
+    from mbr.pipeline.adapter import filter_parametry_lab_for_entry
+    parametry_lab = {
+        "analiza": {"label": "Analiza", "pola": [
+            {"kod": "gestosc", "typ_analityczny": "bezposredni"},
+        ]},
+    }
+    filtered = filter_parametry_lab_for_entry(parametry_lab)
+    assert len(filtered["analiza"]["pola"]) == 1
+
+
+def test_filter_treats_missing_typ_analityczny_as_non_jakosciowy():
+    """Fields without typ_analityczny (pre-PR2 snapshots) default to visible."""
+    from mbr.pipeline.adapter import filter_parametry_lab_for_entry
+    parametry_lab = {
+        "analiza": {"label": "Analiza", "pola": [
+            {"kod": "legacy", "grupa": "lab"},
+        ]},
+    }
+    filtered = filter_parametry_lab_for_entry(parametry_lab)
+    assert len(filtered["analiza"]["pola"]) == 1
