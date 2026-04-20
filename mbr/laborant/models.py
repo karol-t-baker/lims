@@ -640,9 +640,21 @@ def save_wyniki(
     diffs = []
     has_inserts = False
     has_updates = False
+    # Cache parametry metadata per-call to avoid redundant lookups
+    _meta_cache = {}
 
     # Extra fields that bypass parametry_lab validation (informational inputs)
     _EXTRA_FIELDS = {"na2so3_recept_kg"}
+
+    def _get_param_meta(kod: str) -> dict | None:
+        """Fetch typ and grupa for a kod, with per-call caching."""
+        if kod not in _meta_cache:
+            row = db.execute(
+                "SELECT typ, grupa FROM parametry_analityczne WHERE kod = ?",
+                (kod,),
+            ).fetchone()
+            _meta_cache[kod] = dict(row) if row else None
+        return _meta_cache[kod]
 
     for kod, entry in values.items():
         pole = pola_map.get(kod)
@@ -690,10 +702,30 @@ def save_wyniki(
                 has_updates = True
                 old_val = old_row["wartosc"] if old_row["wartosc"] is not None else old_row["wartosc_text"]
                 if old_val != text_val:
-                    diffs.append({"pole": kod, "stara": old_val, "nowa": text_val})
+                    # Enrich diff with param metadata
+                    meta = _get_param_meta(kod)
+                    diff_entry = {
+                        "pole": kod,
+                        "stara": old_val,
+                        "nowa": text_val,
+                        "field": "wartosc_text",
+                        "typ": meta["typ"] if meta else None,
+                        "grupa": meta["grupa"] if meta else None,
+                    }
+                    diffs.append(diff_entry)
             else:
                 has_inserts = True
-                diffs.append({"pole": kod, "stara": None, "nowa": text_val})
+                # Enrich diff with param metadata
+                meta = _get_param_meta(kod)
+                diff_entry = {
+                    "pole": kod,
+                    "stara": None,
+                    "nowa": text_val,
+                    "field": "wartosc_text",
+                    "typ": meta["typ"] if meta else None,
+                    "grupa": meta["grupa"] if meta else None,
+                }
+                diffs.append(diff_entry)
 
             db.execute("""
                 INSERT INTO ebr_wyniki (ebr_id, sekcja, kod_parametru, tag, wartosc, wartosc_text,
@@ -790,11 +822,31 @@ def save_wyniki(
             old_val = old_row["wartosc"] if old_row["wartosc"] is not None else old_row["wartosc_text"]
             new_val = wartosc if wartosc is not None else wartosc_text
             if old_val != new_val:
-                diffs.append({"pole": kod, "stara": old_val, "nowa": new_val})
+                # Enrich diff with param metadata
+                meta = _get_param_meta(kod)
+                diff_entry = {
+                    "pole": kod,
+                    "stara": old_val,
+                    "nowa": new_val,
+                    "field": "wartosc_text" if wartosc_text is not None else "wartosc",
+                    "typ": meta["typ"] if meta else None,
+                    "grupa": meta["grupa"] if meta else None,
+                }
+                diffs.append(diff_entry)
         else:
             has_inserts = True
             new_val = wartosc if wartosc is not None else wartosc_text
-            diffs.append({"pole": kod, "stara": None, "nowa": new_val})
+            # Enrich diff with param metadata
+            meta = _get_param_meta(kod)
+            diff_entry = {
+                "pole": kod,
+                "stara": None,
+                "nowa": new_val,
+                "field": "wartosc_text" if wartosc_text is not None else "wartosc",
+                "typ": meta["typ"] if meta else None,
+                "grupa": meta["grupa"] if meta else None,
+            }
+            diffs.append(diff_entry)
 
         # Compute w_limicie — only for numeric values
         if wartosc_text is not None:

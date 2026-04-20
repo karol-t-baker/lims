@@ -86,3 +86,18 @@ def test_save_wyniki_empty_wartosc_text_does_not_write(db):
             (ebr_id,),
         ).fetchone()
         assert (row["wartosc_text"] or "") == ""
+
+
+def test_save_wyniki_returns_diff_with_field_metadata(db):
+    """Diff entries for jakosciowy include 'field': 'wartosc_text', plus typ and grupa."""
+    from mbr.laborant.models import save_wyniki
+    ebr_id, _ = _seed(db)
+    result = save_wyniki(db, ebr_id, "analiza",
+                         {"zapach": {"wartosc_text": "obcy"}}, "op")
+    diffs = result.get("diffs", [])
+    assert len(diffs) == 1
+    d = diffs[0]
+    assert d.get("field") == "wartosc_text"
+    assert d.get("typ") == "jakosciowy"
+    assert d.get("grupa") == "lab"
+    assert d.get("nowa") == "obcy"
