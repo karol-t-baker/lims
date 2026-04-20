@@ -213,7 +213,13 @@ def fast_entry_partial(ebr_id):
         if pipeline_ctx_typ:
             ebr = dict(ebr)  # make mutable copy (sqlite3.Row is read-only)
             ebr["etapy_json"] = _json.dumps(pipeline_ctx_typ["etapy_json"])
-            ebr["parametry_lab"] = _json.dumps(pipeline_ctx_typ["parametry_lab"])
+            from mbr.pipeline.adapter import filter_parametry_lab_for_entry
+            plab = pipeline_ctx_typ["parametry_lab"]
+            # Hide grupa='zewn' and typ_analityczny='jakosciowy' while batch is open.
+            # Completed batches fall through to hero mode — show everything for edit.
+            if (ebr.get("status") or "").lower() != "completed":
+                plab = filter_parametry_lab_for_entry(plab)
+            ebr["parametry_lab"] = _json.dumps(plab)
             from mbr.pipeline.models import list_sesje
             for s in list_sesje(db, ebr_id):
                 pipeline_sesja_map[s["etap_id"]] = {
@@ -239,6 +245,10 @@ def fast_entry_partial(ebr_id):
             """, (ebr_id,)).fetchone()
             zatwierdzil_short = row["who_short"] if row and row["who_short"] else ""
             zatwierdzil_full = row["who_full"] if row and row["who_full"] else ""
+    plab_all = pipeline_ctx_all["parametry_lab"] if pipeline_ctx_all else {}
+    if (ebr.get("status") or "").lower() != "completed":
+        from mbr.pipeline.adapter import filter_parametry_lab_for_entry
+        plab_all = filter_parametry_lab_for_entry(plab_all)
     return render_template("laborant/_fast_entry_content.html",
                            ebr=ebr, wyniki=wyniki, round_state=round_state,
                            etapy_status=etapy_status,
@@ -248,7 +258,7 @@ def fast_entry_partial(ebr_id):
                            zatwierdzil_short=zatwierdzil_short,
                            zatwierdzil_full=zatwierdzil_full,
                            pipeline_sesja_map=pipeline_sesja_map,
-                           parametry_lab_all=(pipeline_ctx_all["parametry_lab"] if pipeline_ctx_all else {}))
+                           parametry_lab_all=plab_all)
 
 
 @laborant_bp.route("/laborant/ebr/<int:ebr_id>/save", methods=["POST"])
