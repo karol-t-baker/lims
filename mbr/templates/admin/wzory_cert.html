@@ -175,6 +175,24 @@
       <button class="wc-btn wc-btn-p" onclick="showNewForm()">+ Nowy produkt</button>
     </div>
     <div class="wc-grid-cards" id="wc-cards"></div>
+
+    <!-- Cert alias panel -->
+    <div class="wc-alias-panel" style="margin-top:28px;border-top:1px solid var(--border);padding-top:20px;">
+      <div class="wc-title" style="margin-bottom:12px;">Aliasy cert</div>
+      <div style="color:var(--text-sec);font-size:12px;margin-bottom:10px;">
+        Gdy produkt „źródłowy" ma wpisany alias do produktu „docelowego",
+        jego szarże mogą wystawiać świadectwa z wariantami produktu docelowego.
+      </div>
+
+      <div class="wc-alias-add" style="display:flex;gap:8px;align-items:center;margin-bottom:14px;">
+        <select id="wc-alias-src" style="padding:6px 10px;border:1px solid var(--border);border-radius:5px;min-width:200px;"></select>
+        <span style="color:var(--text-sec);">→</span>
+        <select id="wc-alias-tgt" style="padding:6px 10px;border:1px solid var(--border);border-radius:5px;min-width:200px;"></select>
+        <button id="wc-alias-add-btn" style="padding:6px 14px;background:var(--teal);color:#fff;border:none;border-radius:5px;cursor:pointer;">Dodaj</button>
+      </div>
+
+      <div id="wc-alias-list" style="border:1px solid var(--border);border-radius:6px;background:var(--surface);"></div>
+    </div>
   </div>
 
   <!-- ═══ New Product Form ═══ -->
@@ -1300,11 +1318,83 @@ function refreshPreview() {
   }).catch(function(e) { ph.textContent = 'Błąd podglądu: ' + e.message; ph.style.display = ''; iframe.style.display = 'none'; });
 }
 
+/* ═══ Cert Aliases ═══ */
+async function wcAliasLoad() {
+    var [aliasResp, prodResp] = await Promise.all([
+        fetch('/api/cert/aliases'),
+        fetch('/api/cert/config/products'),
+    ]);
+    var aliasData = await aliasResp.json();
+    var prodData = await prodResp.json();
+
+    // Populate dropdowns from the product list
+    var prods = prodData.products || [];
+    var optsHtml = '<option value="">—</option>' +
+        prods.map(function(p) {
+            return '<option value="' + p.key + '">' +
+                (p.display_name || p.key).replace(/&/g, '&amp;').replace(/</g, '&lt;') +
+                '</option>';
+        }).join('');
+    document.getElementById('wc-alias-src').innerHTML = optsHtml;
+    document.getElementById('wc-alias-tgt').innerHTML = optsHtml;
+
+    // Render alias list
+    var list = aliasData.aliases || [];
+    var listEl = document.getElementById('wc-alias-list');
+    if (!list.length) {
+        listEl.innerHTML = '<div style="padding:14px;color:var(--text-dim);font-size:12px;">Brak aliasów.</div>';
+        return;
+    }
+    var rowsHtml = list.map(function(a) {
+        return '<div style="display:flex;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border);font-size:12px;">' +
+            '<span style="flex:1;"><b>' + (a.source_produkt || '').replace(/</g, '&lt;') + '</b>' +
+            ' <span style="color:var(--text-sec);">→</span> ' +
+            '<b>' + (a.target_produkt || '').replace(/</g, '&lt;') + '</b></span>' +
+            '<button class="wc-alias-del" data-src="' + (a.source_produkt || '').replace(/"/g, '&quot;') +
+            '" data-tgt="' + (a.target_produkt || '').replace(/"/g, '&quot;') +
+            '" style="padding:4px 10px;background:var(--red);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;">Usuń</button>' +
+            '</div>';
+    }).join('');
+    listEl.innerHTML = rowsHtml;
+    // Attach delete handlers
+    listEl.querySelectorAll('.wc-alias-del').forEach(function(btn) {
+        btn.addEventListener('click', async function() {
+            var src = btn.dataset.src;
+            var tgt = btn.dataset.tgt;
+            if (!confirm('Usunąć alias ' + src + ' → ' + tgt + '?')) return;
+            await fetch('/api/cert/aliases/' + encodeURIComponent(src) + '/' + encodeURIComponent(tgt), {method: 'DELETE'});
+            wcAliasLoad();
+        });
+    });
+}
+
+async function wcAliasAdd() {
+    var src = document.getElementById('wc-alias-src').value;
+    var tgt = document.getElementById('wc-alias-tgt').value;
+    if (!src || !tgt) { alert('Wybierz oba produkty'); return; }
+    if (src === tgt) { alert('Source i target muszą być różne'); return; }
+    var resp = await fetch('/api/cert/aliases', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({source_produkt: src, target_produkt: tgt}),
+    });
+    if (!resp.ok) {
+        var body = await resp.json().catch(function() { return {}; });
+        alert('Błąd: ' + (body.error || resp.status));
+        return;
+    }
+    document.getElementById('wc-alias-src').value = '';
+    document.getElementById('wc-alias-tgt').value = '';
+    wcAliasLoad();
+}
+
 /* ═══ Init ═══ */
 var _copyInp = document.getElementById('wc-copy-name');
 if (_copyInp) _copyInp.addEventListener('keydown', function(e) {
   if (e.key === 'Enter') doCopyProduct();
 });
 loadProducts();
+document.getElementById('wc-alias-add-btn').addEventListener('click', wcAliasAdd);
+wcAliasLoad();
 </script>
 {% endblock %}

@@ -27,6 +27,20 @@ _CERT_FONT = "Bookman Old Style"
 _CERT_SIZE = 22  # 11pt in half-points (docxtpl w:sz unit)
 
 
+def get_cert_aliases(db, source_produkt: str) -> list[str]:
+    """Return list of target_produkt strings that source_produkt can alias into.
+
+    An alias `(source_produkt, target_produkt)` means: batches of source_produkt
+    can issue cert variants owned by target_produkt. Used by api_cert_templates
+    to union variant lists and by api_cert_generate to validate the alias.
+    """
+    rows = db.execute(
+        "SELECT target_produkt FROM cert_alias WHERE source_produkt = ? ORDER BY target_produkt",
+        (source_produkt,),
+    ).fetchall()
+    return [r["target_produkt"] for r in rows]
+
+
 def _md_to_richtext(text: str, *, font: str = None, size: int = None) -> RichText:
     """Convert a string with `^{sup}` / `_{sub}` / `|` markers into a docxtpl RichText.
 
@@ -125,7 +139,12 @@ def load_config(*, reload: bool = False) -> dict:
 # 2. get_variants
 # ---------------------------------------------------------------------------
 def get_variants(produkt: str) -> list[dict]:
-    """Return list of {id, label, flags} for a product from DB."""
+    """Return list of {id, label, flags, owner_produkt} for a product from DB.
+
+    owner_produkt echoes back the produkt argument — used by callers that
+    union variants across alias boundaries so the client knows which product
+    owns each variant (for the generate-payload target_produkt field).
+    """
     from mbr.db import db_session as _db_session
     key = produkt if "_" in produkt else produkt.replace(" ", "_")
     try:
@@ -141,7 +160,8 @@ def get_variants(produkt: str) -> list[dict]:
                     (produkt.replace(" ", "_"),)
                 ).fetchall()
             return [{"id": r["variant_id"], "label": r["label"],
-                     "flags": json.loads(r["flags"] or "[]")} for r in rows]
+                     "flags": json.loads(r["flags"] or "[]"),
+                     "owner_produkt": key} for r in rows]
     except Exception:
         return []
 

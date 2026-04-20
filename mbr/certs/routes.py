@@ -23,14 +23,23 @@ def api_cert_templates():
     produkt = request.args.get("produkt", "")
     if not produkt:
         return jsonify({"templates": []})
-    variants = get_variants(produkt)
+
+    # Collect own variants + aliased target's variants
+    from mbr.certs.generator import get_cert_aliases
+    variants = list(get_variants(produkt))
+    with db_session() as db:
+        aliases = get_cert_aliases(db, produkt)
+    for target_produkt in aliases:
+        variants.extend(get_variants(target_produkt))
+
     templates = []
     for v in variants:
         templates.append({
             "filename": v["id"],
             "display": v["label"],
             "flags": v["flags"],
-            "required_fields": get_required_fields(produkt, v["id"]),
+            "owner_produkt": v["owner_produkt"],
+            "required_fields": get_required_fields(v["owner_produkt"], v["id"]),
         })
     return jsonify({"templates": templates})
 
@@ -53,6 +62,16 @@ def api_cert_generate():
         if ebr.get("typ") not in ("zbiornik", "platkowanie"):
             return jsonify({"ok": False, "error": "Świadectwa tylko dla zbiorników i płatkowania"}), 400
 
+        # Resolve target_produkt (defaults to ebr.produkt for backward compat)
+        requested_target = data.get("target_produkt") or ebr["produkt"]
+        if requested_target != ebr["produkt"]:
+            from mbr.certs.generator import get_cert_aliases
+            if requested_target not in get_cert_aliases(db, ebr["produkt"]):
+                return jsonify({"ok": False,
+                                "error": f"no cert alias configured: "
+                                         f"{ebr['produkt']}→{requested_target}"}), 400
+        target_produkt = requested_target
+
         wyniki = get_ebr_wyniki(db, ebr_id)
         wyniki_flat = {}
         for sekcja_data in wyniki.values():
@@ -73,8 +92,8 @@ def api_cert_generate():
             else:
                 wystawil = session["user"]["login"]
 
-        # Find variant label for filename
-        variants = get_variants(ebr["produkt"])
+        # Find variant label for filename — look up in target_produkt's variants
+        variants = get_variants(target_produkt)
         variant_label = variant_id
         for v in variants:
             if v["id"] == variant_id:
@@ -83,7 +102,7 @@ def api_cert_generate():
 
         try:
             pdf_bytes = generate_certificate_pdf(
-                ebr["produkt"], variant_id, ebr["nr_partii"],
+                target_produkt, variant_id, ebr["nr_partii"],
                 ebr.get("dt_start"), wyniki_flat, extra_fields,
                 wystawil=wystawil,
             )
@@ -94,6 +113,7 @@ def api_cert_generate():
         import json as _json
         generation_data = {
             "produkt": ebr["produkt"],
+            "target_produkt": target_produkt,
             "variant_id": variant_id,
             "variant_label": variant_label,
             "nr_partii": ebr["nr_partii"],
@@ -102,15 +122,20 @@ def api_cert_generate():
             "extra_fields": extra_fields,
             "wystawil": wystawil,
         }
-        save_certificate_data(ebr["produkt"], variant_label, ebr["nr_partii"], generation_data)
+        save_certificate_data(target_produkt, variant_label, ebr["nr_partii"], generation_data)
 
-        cert_id = create_swiadectwo(db, ebr_id, variant_label, ebr["nr_partii"], "regenerate", wystawil, data_json=_json.dumps(generation_data, ensure_ascii=False))
+        # Persist target_produkt ONLY when it differs from ebr.produkt — NULL otherwise
+        persist_target = target_produkt if target_produkt != ebr["produkt"] else None
+        cert_id = create_swiadectwo(
+            db, ebr_id, variant_label, ebr["nr_partii"], "regenerate", wystawil,
+            data_json=_json.dumps(generation_data, ensure_ascii=False),
+            target_produkt=persist_target,
+        )
         db.commit()
 
     # Return PDF as download
     nr_only = ebr['nr_partii'].split('/')[0].strip()
     filename = f"{variant_label} {nr_only}.pdf"
-    # Content-Disposition filename must be ASCII-safe (HTTP latin-1 limit)
     import unicodedata
     fn_safe = filename.replace('\u2014', '-').replace('\u2013', '-')
     filename_ascii = unicodedata.normalize('NFKD', fn_safe).encode('ascii', 'ignore').decode('ascii')
@@ -163,8 +188,11 @@ def api_cert_pdf(cert_id):
         import json as _json
         try:
             gen = _json.loads(row["data_json"])
+            # For aliased certs, gen["target_produkt"] drives the template.
+            # Legacy archive entries may lack it — fall back to produkt.
+            regen_produkt = gen.get("target_produkt") or gen["produkt"]
             pdf_bytes = generate_certificate_pdf(
-                gen["produkt"], gen["variant_id"], gen["nr_partii"],
+                regen_produkt, gen["variant_id"], gen["nr_partii"],
                 gen.get("dt_start"), gen.get("wyniki_flat", {}),
                 gen.get("extra_fields", {}), wystawil=gen.get("wystawil", ""),
             )
@@ -224,6 +252,61 @@ def api_cert_config_products():
             ORDER BY p.display_name
         """).fetchall()
     return jsonify({"ok": True, "products": [dict(r) for r in rows]})
+
+
+# ---------------------------------------------------------------------------
+# Cert alias CRUD (admin only)
+# ---------------------------------------------------------------------------
+
+
+@certs_bp.route("/api/cert/aliases", methods=["GET"])
+@role_required("admin")
+def api_cert_aliases_list():
+    """List all cert-alias pairs."""
+    with db_session() as db:
+        rows = db.execute(
+            "SELECT source_produkt, target_produkt FROM cert_alias "
+            "ORDER BY source_produkt, target_produkt"
+        ).fetchall()
+    return jsonify({"aliases": [dict(r) for r in rows]})
+
+
+@certs_bp.route("/api/cert/aliases", methods=["POST"])
+@role_required("admin")
+def api_cert_aliases_create():
+    """Create a cert alias. Idempotent (INSERT OR IGNORE)."""
+    data = request.get_json(silent=True) or {}
+    source = (data.get("source_produkt") or "").strip()
+    target = (data.get("target_produkt") or "").strip()
+    if not source or not target:
+        return jsonify({"error": "source_produkt and target_produkt required"}), 400
+    if source == target:
+        return jsonify({"error": "self-alias not allowed"}), 400
+    with db_session() as db:
+        target_row = db.execute(
+            "SELECT 1 FROM produkty WHERE nazwa=?", (target,)
+        ).fetchone()
+        if not target_row:
+            return jsonify({"error": f"target produkt not found: {target}"}), 404
+        db.execute(
+            "INSERT OR IGNORE INTO cert_alias (source_produkt, target_produkt) VALUES (?, ?)",
+            (source, target),
+        )
+        db.commit()
+    return jsonify({"ok": True})
+
+
+@certs_bp.route("/api/cert/aliases/<source_produkt>/<target_produkt>", methods=["DELETE"])
+@role_required("admin")
+def api_cert_aliases_delete(source_produkt, target_produkt):
+    """Delete a cert alias. Idempotent (no error if the row didn't exist)."""
+    with db_session() as db:
+        db.execute(
+            "DELETE FROM cert_alias WHERE source_produkt=? AND target_produkt=?",
+            (source_produkt, target_produkt),
+        )
+        db.commit()
+    return jsonify({"ok": True})
 
 
 @certs_bp.route("/api/cert/config/product/<key>")

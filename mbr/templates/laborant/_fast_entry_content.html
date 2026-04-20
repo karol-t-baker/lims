@@ -1990,10 +1990,11 @@ async function loadCompletedCerts() {
         '</div>';
         tmplData.templates.forEach(function(t) {
             var rf = JSON.stringify(t.required_fields || []);
+            var ownerEsc = (t.owner_produkt || '').replace(/"/g, '\\"');
             html += '<div class="cv-row cv-row-tmpl">' +
                 '<div class="cv-row-dot tmpl"></div>' +
                 '<span class="cv-row-name">' + t.display + '</span>' +
-                '<button class="cv-row-btn-issue" onclick=\'issueCert(this,"' + t.filename.replace(/"/g, '\\"') + '",' + rf + ')\'>+ Wystaw</button>' +
+                '<button class="cv-row-btn-issue" onclick=\'issueCert(this,"' + t.filename.replace(/"/g, '\\"') + '","' + ownerEsc + '",' + rf + ')\'>+ Wystaw</button>' +
             '</div>';
         });
     }
@@ -2057,14 +2058,14 @@ function deleteCert(certId, btn) {
     }
 }
 
-var _pendingCert = {btn: null, variantId: null};
+var _pendingCert = {btn: null, variantId: null, targetProdukt: null};
 
-function issueCert(btn, variantId, requiredFields) {
+function issueCert(btn, variantId, targetProdukt, requiredFields) {
     if (!requiredFields || requiredFields.length === 0) {
-        doGenerateCert(btn, variantId, {});
+        doGenerateCert(btn, variantId, targetProdukt, {});
         return;
     }
-    _pendingCert = {btn: btn, variantId: variantId};
+    _pendingCert = {btn: btn, variantId: variantId, targetProdukt: targetProdukt};
     var fieldsHtml = '';
     var fieldDefs = {
         'has_order_number': {label: 'Numer zamówienia / Order No.', key: 'order_number'},
@@ -2089,7 +2090,7 @@ function issueCert(btn, variantId, requiredFields) {
 
 function closeCertPopup() {
     document.getElementById('cv-popup-overlay').classList.remove('active');
-    _pendingCert = {btn: null, variantId: null};
+    _pendingCert = {btn: null, variantId: null, targetProdukt: null};
 }
 
 function confirmCertPopup() {
@@ -2106,12 +2107,13 @@ function confirmCertPopup() {
     // Save refs before closing (closeCertPopup resets _pendingCert)
     var btn = _pendingCert.btn;
     var variantId = _pendingCert.variantId;
+    var targetProdukt = _pendingCert.targetProdukt;
     closeCertPopup();
-    doGenerateCert(btn, variantId, extra);
+    doGenerateCert(btn, variantId, targetProdukt, extra);
 }
 
 var _certGenerating = false;
-async function doGenerateCert(btn, variantId, extraFields) {
+async function doGenerateCert(btn, variantId, targetProdukt, extraFields) {
     if (_certGenerating) return;
     _certGenerating = true;
     btn.disabled = true;
@@ -2121,7 +2123,13 @@ async function doGenerateCert(btn, variantId, extraFields) {
         var resp = await fetch('/api/cert/generate', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ebr_id: ebrId, variant_id: variantId, extra_fields: extraFields, wystawil: (document.getElementById('cv-issuer-select') || {}).value || ''})
+            body: JSON.stringify({
+                ebr_id: ebrId,
+                variant_id: variantId,
+                target_produkt: targetProdukt || null,
+                extra_fields: extraFields,
+                wystawil: (document.getElementById('cv-issuer-select') || {}).value || ''
+            })
         });
         console.log('[cert] status:', resp.status, 'ok:', resp.ok);
         console.log('[cert] content-type:', resp.headers.get('Content-Type'));
