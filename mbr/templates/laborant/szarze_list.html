@@ -1494,6 +1494,8 @@ function _buildRegistryRow(columns, b) {
     if (w && w.wartosc != null) {
       var cls = w.w_limicie ? 'val-ok' : 'val-err';
       html += '<td class="' + cls + '">' + String(w.wartosc).replace('.', ',') + '</td>';
+    } else if (w && w.wartosc_text) {
+      html += '<td>' + _htmlEsc(String(w.wartosc_text)) + '</td>';
     } else {
       html += '<td style="color:var(--text-dim)">\u2014</td>';
     }

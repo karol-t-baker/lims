@@ -1792,6 +1792,7 @@ function renderCompletedView() {
         s.pola.forEach(function(pole) {
             var r = s.wyniki[pole.kod];
             var val = r ? r.wartosc : '';
+            var valText = r ? r.wartosc_text : null;
             var ok = r ? r.w_limicie === 1 : true;
             var normText = '';
             if (pole.min != null && pole.max != null) normText = fmtDec(pole.min) + ' – ' + fmtDec(pole.max);
@@ -1803,7 +1804,14 @@ function renderCompletedView() {
             var grupaBadge = (pole.grupa && pole.grupa !== 'lab') ? '<span class="cv-p-grupa cv-p-grupa-' + esc(pole.grupa) + '">' + esc(pole.grupa.toUpperCase()) + '</span>' : '';
             var prec = pole.precision != null ? pole.precision : 2;
             var numVal = parseFloat(val);
-            var valFmt = (val === null || val === '') ? '' : (isFinite(numVal) ? numVal.toFixed(prec).replace('.', ',') : String(val).replace('.', ','));
+            var valFmt;
+            if (val === null || val === '') {
+                valFmt = valText ? String(valText) : '';
+            } else if (isFinite(numVal)) {
+                valFmt = numVal.toFixed(prec).replace('.', ',');
+            } else {
+                valFmt = String(val).replace('.', ',');
+            }
             paramsHtml += '<div class="cv-param ' + rowCls + '">' +
                 dotHtml +
                 '<span class="cv-p-label">' + rtHtml(pole.skrot || pole.label) + grupaBadge + '</span>';

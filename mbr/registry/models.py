@@ -32,7 +32,7 @@ def list_completed_registry(
     for r in rows:
         d = dict(r)
         wyniki = db.execute(
-            "SELECT kod_parametru, sekcja, tag, wartosc, w_limicie FROM ebr_wyniki WHERE ebr_id = ? ORDER BY sekcja",
+            "SELECT kod_parametru, sekcja, tag, wartosc, wartosc_text, w_limicie FROM ebr_wyniki WHERE ebr_id = ? ORDER BY sekcja",
             (d["ebr_id"],)
         ).fetchall()
         # For pipeline products: prefer 'analiza' (standaryzacja) results over earlier stages
@@ -198,6 +198,7 @@ def export_wyniki_csv(
             ew.kod_parametru,
             ew.tag,
             ew.wartosc,
+            ew.wartosc_text,
             ew.min_limit,
             ew.max_limit,
             ew.w_limicie,

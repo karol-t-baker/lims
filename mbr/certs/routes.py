@@ -118,7 +118,7 @@ def api_cert_generate():
             "variant_label": variant_label,
             "nr_partii": ebr["nr_partii"],
             "dt_start": ebr.get("dt_start"),
-            "wyniki_flat": {k: {"wartosc": v.get("wartosc"), "w_limicie": v.get("w_limicie")} for k, v in wyniki_flat.items()},
+            "wyniki_flat": {k: {"wartosc": v.get("wartosc"), "wartosc_text": v.get("wartosc_text"), "w_limicie": v.get("w_limicie")} for k, v in wyniki_flat.items()},
             "extra_fields": extra_fields,
             "wystawil": wystawil,
         }
