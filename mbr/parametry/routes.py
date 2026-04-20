@@ -160,14 +160,26 @@ def api_parametry_create():
         return jsonify({"error": "kod and label required"}), 400
     if grupa not in ALLOWED_GRUPY:
         return jsonify({"error": f"grupa must be one of: {', '.join(sorted(ALLOWED_GRUPY))}"}), 400
+
+    # Validate opisowe_wartosci for jakosciowy
+    opisowe_json = None
+    if typ == "jakosciowy":
+        raw = data.get("opisowe_wartosci")
+        if not isinstance(raw, list) or len(raw) == 0:
+            return jsonify({"error": "opisowe_wartosci must be a non-empty list for typ='jakosciowy'"}), 400
+        if not all(isinstance(v, str) and v.strip() for v in raw):
+            return jsonify({"error": "opisowe_wartosci must be a list of non-empty strings"}), 400
+        opisowe_json = _json.dumps(raw, ensure_ascii=False)
+    # For non-jakosciowy: opisowe_json stays None regardless of body.
+
     with db_session() as db:
         try:
             cur = db.execute(
-                "INSERT INTO parametry_analityczne (kod, label, skrot, typ, jednostka, precision, name_en, method_code, grupa) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO parametry_analityczne (kod, label, skrot, typ, jednostka, precision, name_en, method_code, grupa, opisowe_wartosci) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (kod, label, data.get("skrot", ""), typ, data.get("jednostka", ""),
                  data.get("precision", 2), data.get("name_en", ""), data.get("method_code", ""),
-                 grupa),
+                 grupa, opisowe_json),
             )
             db.commit()
         except Exception:

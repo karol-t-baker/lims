@@ -129,3 +129,44 @@ def test_put_typ_guard_rejects_change_with_historical_results(client, db):
         json={"typ": "jakosciowy", "opisowe_wartosci": ["a", "b"]},
     )
     assert r.status_code == 409
+
+
+def test_post_creates_jakosciowy_param_with_wartosci(client, db):
+    payload = {
+        "kod": "zapach",
+        "label": "Zapach",
+        "typ": "jakosciowy",
+        "grupa": "lab",
+        "opisowe_wartosci": ["charakterystyczny", "obcy", "brak"],
+    }
+    r = client.post("/api/parametry", json=payload)
+    assert r.status_code == 200, r.get_json()
+    new_id = r.get_json()["id"]
+    row = db.execute(
+        "SELECT typ, opisowe_wartosci FROM parametry_analityczne WHERE id=?", (new_id,)
+    ).fetchone()
+    assert row["typ"] == "jakosciowy"
+    assert _json.loads(row["opisowe_wartosci"]) == ["charakterystyczny", "obcy", "brak"]
+
+
+def test_post_rejects_jakosciowy_without_wartosci(client, db):
+    payload = {"kod": "barwa", "label": "Barwa", "typ": "jakosciowy", "grupa": "lab"}
+    r = client.post("/api/parametry", json=payload)
+    assert r.status_code == 400
+
+
+def test_post_ignores_opisowe_wartosci_for_non_jakosciowy(client, db):
+    payload = {
+        "kod": "gestosc",
+        "label": "Gęstość",
+        "typ": "bezposredni",
+        "grupa": "lab",
+        "opisowe_wartosci": ["a", "b"],
+    }
+    r = client.post("/api/parametry", json=payload)
+    assert r.status_code == 200
+    new_id = r.get_json()["id"]
+    row = db.execute(
+        "SELECT opisowe_wartosci FROM parametry_analityczne WHERE id=?", (new_id,)
+    ).fetchone()
+    assert row["opisowe_wartosci"] is None
