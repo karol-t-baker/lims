@@ -35,8 +35,8 @@ def move_certificate(filepath: Path, dest_dir: Path):
     if not product:
         return
 
-    # Rename: "Chegina K7 4.pdf" → "Świadectwo_certificate-Chegina K7 4.pdf"
-    new_name = f"Świadectwo_certificate-{filepath.name}"
+    # Rename: "Chegina K7 4.pdf" → "CoA-Chegina K7 4.pdf"
+    new_name = f"CoA-{filepath.name}"
 
     year = str(datetime.now().year)
     target_dir = dest_dir / year / product
