@@ -646,12 +646,72 @@ def save_wyniki(
 
     for kod, entry in values.items():
         pole = pola_map.get(kod)
-        if pole is None and kod not in _EXTRA_FIELDS:
+        has_explicit_text = entry.get("wartosc_text") is not None
+        if pole is None and kod not in _EXTRA_FIELDS and not has_explicit_text:
             continue
         if pole is None:
             pole = {"kod": kod, "tag": "", "precision": 1}
         wartosc_raw = entry.get("wartosc", "")
         komentarz = entry.get("komentarz", "")
+
+        # PR3: explicit wartosc_text from client (e.g. jakosciowy dropdown).
+        # Takes precedence over numeric parsing; computes w_limicie from opisowe_wartosci.
+        explicit_text = entry.get("wartosc_text")
+        if explicit_text is not None:
+            text_val = str(explicit_text).strip()
+            if not text_val:
+                # Empty — skip write (consistent with empty numeric behavior).
+                continue
+
+            # Look up opisowe_wartosci for w_limicie calc.
+            meta = db.execute(
+                "SELECT opisowe_wartosci FROM parametry_analityczne WHERE kod = ?",
+                (kod,),
+            ).fetchone()
+            allowed = []
+            if meta and meta["opisowe_wartosci"]:
+                try:
+                    allowed = json.loads(meta["opisowe_wartosci"])
+                except Exception:
+                    allowed = []
+            w_limicie_val = 1 if text_val in allowed else 0
+
+            tag = pole.get("tag", "")
+            min_limit = pole.get("min")
+            max_limit = pole.get("max")
+
+            # Diff tracking
+            old_row = db.execute(
+                "SELECT wynik_id, wartosc, wartosc_text FROM ebr_wyniki "
+                "WHERE ebr_id=? AND sekcja=? AND kod_parametru=?",
+                (ebr_id, sekcja, kod),
+            ).fetchone()
+            if old_row:
+                has_updates = True
+                old_val = old_row["wartosc"] if old_row["wartosc"] is not None else old_row["wartosc_text"]
+                if old_val != text_val:
+                    diffs.append({"pole": kod, "stara": old_val, "nowa": text_val})
+            else:
+                has_inserts = True
+                diffs.append({"pole": kod, "stara": None, "nowa": text_val})
+
+            db.execute("""
+                INSERT INTO ebr_wyniki (ebr_id, sekcja, kod_parametru, tag, wartosc, wartosc_text,
+                    min_limit, max_limit, w_limicie, komentarz, is_manual, dt_wpisu, wpisal)
+                VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, 1, ?, ?)
+                ON CONFLICT(ebr_id, sekcja, kod_parametru) DO UPDATE SET
+                    wartosc = NULL,
+                    wartosc_text = excluded.wartosc_text,
+                    min_limit = excluded.min_limit,
+                    max_limit = excluded.max_limit,
+                    w_limicie = excluded.w_limicie,
+                    komentarz = excluded.komentarz,
+                    dt_wpisu = excluded.dt_wpisu,
+                    wpisal = excluded.wpisal
+            """, (ebr_id, sekcja, kod, tag, text_val, min_limit, max_limit,
+                  w_limicie_val, komentarz, now, user))
+            continue
+
         # Qualitative prefix (<1, >50, ≤1, ≥50) — below/above detection
         # limit. Stored as wartosc_text, wartosc=NULL, w_limicie=NULL
         # (neutral — not numerically evaluated). Used for FAU <1 and
