@@ -102,6 +102,6 @@ def test_build_context_empty_value_for_zewn_param(monkeypatch, db):
     rows = ctx.get("rows") or []
     tpc_rows = [r for r in rows if "Total plate count" in str(r.get("name_pl", ""))]
     assert tpc_rows, "tpc row must still appear on cert even without value"
-    assert str(tpc_rows[0].get("result", "")) == "", (
-        f"Expected empty result, got: {tpc_rows[0].get('result')!r}"
+    assert tpc_rows[0].get("result") == "\u2212", (
+        f"Expected '−' (U+2212) for empty zewn, got: {tpc_rows[0].get('result')!r}"
     )

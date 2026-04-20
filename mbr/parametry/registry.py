@@ -239,6 +239,7 @@ def get_cert_params(db: sqlite3.Connection, produkt: str) -> list[dict]:
     rows = db.execute("""
         SELECT
             pa.kod, pa.label, pa.name_en, pa.method_code,
+            pa.typ, pa.grupa,
             pc.requirement, pc.format, pc.qualitative_result,
             pc.kolejnosc, pc.parametr_id,
             pc.name_pl AS cert_name_pl, pc.name_en AS cert_name_en, pc.method AS cert_method
@@ -252,6 +253,8 @@ def get_cert_params(db: sqlite3.Connection, produkt: str) -> list[dict]:
         {
             "kod": r["kod"],
             "parametr_id": r["parametr_id"],
+            "typ": r["typ"],
+            "grupa": r["grupa"],
             "name_pl": r["cert_name_pl"] or r["label"] or "",
             "name_en": r["cert_name_en"] if r["cert_name_en"] is not None else (r["name_en"] or ""),
             "method": r["cert_method"] or r["method_code"] or "",
@@ -268,6 +271,7 @@ def get_cert_variant_params(db: sqlite3.Connection, cert_variant_db_id: int) -> 
     rows = db.execute("""
         SELECT
             pa.kod, pa.label, pa.name_en, pa.method_code,
+            pa.typ, pa.grupa,
             pc.requirement, pc.format, pc.qualitative_result,
             pc.kolejnosc, pc.parametr_id,
             pc.name_pl AS cert_name_pl, pc.name_en AS cert_name_en, pc.method AS cert_method
@@ -281,6 +285,8 @@ def get_cert_variant_params(db: sqlite3.Connection, cert_variant_db_id: int) -> 
         {
             "kod": r["kod"],
             "parametr_id": r["parametr_id"],
+            "typ": r["typ"],
+            "grupa": r["grupa"],
             "name_pl": r["cert_name_pl"] or r["label"] or "",
             "name_en": r["cert_name_en"] if r["cert_name_en"] is not None else (r["name_en"] or ""),
             "method": r["cert_method"] or r["method_code"] or "",

@@ -342,23 +342,38 @@ def build_context(
             name_pl = r["name_pl"]
             name_en = r["name_en"]
             method = r["method"]
+            kod = r["kod"]
+            param_typ = r.get("typ")
+            param_grupa = r.get("grupa")
 
-            result = ""
-            if r["qualitative_result"]:
+            per_batch = wyniki_flat.get(kod) if (wyniki_flat and kod) else None
+            if isinstance(per_batch, dict):
+                batch_wartosc = per_batch.get("wartosc", per_batch.get("value", ""))
+                batch_text = per_batch.get("wartosc_text")
+            else:
+                batch_wartosc = per_batch
+                batch_text = None
+
+            if param_typ == "jakosciowy":
+                # Per-batch wartosc_text first; fall back to cert-level qualitative_result.
+                result = (batch_text or "").strip() or (r["qualitative_result"] or "")
+            elif param_grupa == "zewn" and batch_wartosc in (None, ""):
+                # Empty external-lab value → visible placeholder (U+2212 minus sign).
+                result = "\u2212"
+            elif r["qualitative_result"]:
                 result = r["qualitative_result"]
-            elif r["kod"] and r["kod"] in wyniki_flat:
-                raw = wyniki_flat[r["kod"]]
-                if isinstance(raw, dict):
-                    val = raw.get("wartosc", raw.get("value", ""))
-                else:
-                    val = raw
-                if val is not None and val != "":
+            else:
+                # Numeric path — format with Polish decimal comma.
+                if batch_wartosc is not None and batch_wartosc != "":
                     try:
-                        result = _format_value(float(val), r["format"])
+                        result = _format_value(float(batch_wartosc), r["format"])
                     except (ValueError, TypeError):
-                        result = str(val).replace(".", ",")
+                        result = str(batch_wartosc).replace(".", ",")
+                else:
+                    result = ""
 
             rows.append({
+                "kod": kod,
                 "name_pl": _md_to_richtext(name_pl, font=_settings["body_font_family"]),
                 "name_en": _md_to_richtext(f"/{name_en}", font=_settings["body_font_family"]) if name_en else None,
                 "requirement": r["requirement"],
