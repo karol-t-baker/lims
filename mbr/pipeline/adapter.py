@@ -121,6 +121,7 @@ def _build_pole(param: dict, db: sqlite3.Connection) -> dict:
         "skrot":            param["skrot"] or param["kod"],
         "tag":              param["kod"],
         "typ":              _pole_typ(typ),
+        "typ_analityczny":  typ,        # <-- raw parametry_analityczne.typ
         "measurement_type": measurement_type,
         "min":              param["min_limit"],
         "max":              param["max_limit"],

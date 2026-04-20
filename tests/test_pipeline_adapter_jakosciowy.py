@@ -1,0 +1,74 @@
+"""PR2: propagate parametry_analityczne.typ into pole dict as typ_analityczny."""
+
+import sqlite3
+import pytest
+
+from mbr.models import init_mbr_tables
+
+
+@pytest.fixture
+def db():
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    init_mbr_tables(conn)
+    yield conn
+    conn.close()
+
+
+def _seed_product_with_param(db, produkt="TESTPROD", kod="zapach", typ="jakosciowy",
+                              grupa="lab", opisowe_wartosci=None):
+    """Seed minimal pipeline so build_pipeline_context returns at least one pole."""
+    import json as _json
+    pid = db.execute(
+        "INSERT INTO parametry_analityczne (kod, label, typ, grupa, precision, opisowe_wartosci) "
+        "VALUES (?, ?, ?, ?, 0, ?)",
+        (kod, kod.capitalize(), typ, grupa,
+         _json.dumps(opisowe_wartosci) if opisowe_wartosci else None),
+    ).lastrowid
+    db.execute("INSERT INTO produkty (nazwa, display_name) VALUES (?, ?)", (produkt, produkt))
+    eid = db.execute(
+        "INSERT INTO etapy_analityczne (kod, nazwa, typ_cyklu) VALUES ('e1', 'Etap 1', 'jednorazowy')"
+    ).lastrowid
+    db.execute(
+        "INSERT INTO produkt_pipeline (produkt, etap_id, kolejnosc) "
+        "VALUES (?, ?, 1)",
+        (produkt, eid),
+    )
+    db.execute(
+        "INSERT INTO etap_parametry (etap_id, parametr_id, kolejnosc, grupa) "
+        "VALUES (?, ?, 1, ?)",
+        (eid, pid, grupa),
+    )
+    db.execute(
+        "INSERT INTO produkt_etap_limity (produkt, etap_id, parametr_id, "
+        "dla_szarzy, dla_zbiornika, dla_platkowania, grupa) "
+        "VALUES (?, ?, ?, 1, 0, 0, ?)",
+        (produkt, eid, pid, grupa),
+    )
+    db.commit()
+    return pid, eid
+
+
+def test_build_pole_includes_typ_analityczny(db):
+    """_build_pole exposes the raw parametry_analityczne.typ value as 'typ_analityczny'."""
+    from mbr.pipeline.adapter import build_pipeline_context
+    _seed_product_with_param(db, typ="jakosciowy",
+                             opisowe_wartosci=["charakterystyczny", "obcy"])
+    ctx = build_pipeline_context(db, "TESTPROD", typ="szarza")
+    assert ctx is not None
+    pola = []
+    for sekcja in ctx["parametry_lab"].values():
+        pola.extend(sekcja["pola"])
+    assert len(pola) == 1
+    assert pola[0]["typ_analityczny"] == "jakosciowy"
+
+
+def test_build_pole_typ_analityczny_for_bezposredni(db):
+    _seed_product_with_param(db, kod="gestosc", typ="bezposredni")
+    from mbr.pipeline.adapter import build_pipeline_context
+    ctx = build_pipeline_context(db, "TESTPROD", typ="szarza")
+    assert ctx is not None
+    pola = []
+    for sekcja in ctx["parametry_lab"].values():
+        pola.extend(sekcja["pola"])
+    assert pola[0]["typ_analityczny"] == "bezposredni"
