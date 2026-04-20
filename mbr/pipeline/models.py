@@ -913,6 +913,7 @@ def resolve_limity(db: sqlite3.Connection, produkt: str, etap_id: int) -> list[d
             ep.sa_bias  AS cat_sa_bias,
             ep.krok,
             pa.kod, pa.label, pa.typ, pa.skrot, pa.jednostka,
+            pa.precision AS global_precision,
             pel.min_limit  AS ovr_min, pel.max_limit  AS ovr_max,
             pel.nawazka_g  AS ovr_nawazka, pel.precision AS ovr_precision,
             pel.spec_value AS ovr_spec_value,
@@ -946,7 +947,12 @@ def resolve_limity(db: sqlite3.Connection, produkt: str, etap_id: int) -> list[d
             "min_limit": _resolve_ovr(r["ovr_min"], r["cat_min"]),
             "max_limit": _resolve_ovr(r["ovr_max"], r["cat_max"]),
             "nawazka_g": r["ovr_nawazka"] if r["ovr_nawazka"] is not None else r["cat_nawazka"],
-            "precision": r["ovr_precision"] if r["ovr_precision"] is not None else r["cat_precision"],
+            "precision": (
+                r["ovr_precision"] if r["ovr_precision"] is not None
+                else r["cat_precision"] if r["cat_precision"] is not None
+                else r["global_precision"] if r["global_precision"] is not None
+                else 2
+            ),
             "spec_value": r["ovr_spec_value"] if r["ovr_spec_value"] is not None else r["cat_spec_value"],
             "wymagany": r["wymagany"],
             "grupa": r["ovr_grupa"] if r["ovr_grupa"] is not None else r["cat_grupa"],
