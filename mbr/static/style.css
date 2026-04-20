@@ -761,6 +761,12 @@ body {
   font-size: 9px; color: var(--text-dim); align-items: center;
 }
 .ff-leg-item { display: inline-flex; align-items: center; gap: 4px; }
+.ff-leg-kbd {
+  margin-left: auto;
+  padding-left: 14px;
+  border-left: 1px solid var(--border-subtle, #f0ece4);
+  opacity: 0.8;
+}
 .ff-kbd {
   display: inline-block;
   padding: 1px 5px;
