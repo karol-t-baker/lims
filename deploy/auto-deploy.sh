@@ -44,6 +44,7 @@ git pull origin main --quiet
 /opt/lims/venv/bin/python scripts/backfill_audit_legacy_to_ebr.py --db data/batch_db.sqlite
 /opt/lims/venv/bin/python scripts/migrate_uwagi_to_audit.py --db data/batch_db.sqlite
 /opt/lims/venv/bin/python scripts/backfill_cert_name_en.py --db data/batch_db.sqlite
+/opt/lims/venv/bin/python -m scripts.backfill_jakosciowe_values --db data/batch_db.sqlite
 /opt/lims/venv/bin/python scripts/migrate_cert_to_etapy.py
 
 # Rebuild Gotenberg image if Dockerfile or bundled fonts changed.
