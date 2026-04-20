@@ -75,16 +75,60 @@ def api_parametry_update(param_id):
     rola = session.get("user", {}).get("rola", "")
     allowed = {"label", "skrot", "formula", "metoda_nazwa", "metoda_formula", "metoda_factor", "precision"}
     if rola == "admin":
-        allowed |= {"typ", "jednostka", "aktywny", "name_en", "method_code", "grupa"}
+        allowed |= {"typ", "jednostka", "aktywny", "name_en", "method_code", "grupa", "opisowe_wartosci"}
     if "grupa" in data and data["grupa"] not in ALLOWED_GRUPY:
         return jsonify({"error": f"grupa must be one of: {', '.join(sorted(ALLOWED_GRUPY))}"}), 400
-    updates = {k: v for k, v in data.items() if k in allowed}
-    if not updates:
-        return jsonify({"error": "No valid fields"}), 400
-    sets = ", ".join(f"{k}=?" for k in updates)
-    vals = list(updates.values()) + [param_id]
+
     with db_session() as db:
+        existing = db.execute(
+            "SELECT typ, kod, opisowe_wartosci FROM parametry_analityczne WHERE id=?",
+            (param_id,),
+        ).fetchone()
+        if not existing:
+            return jsonify({"error": "Parametr not found"}), 404
+
+        if rola == "admin":
+            # Determine effective typ after this update
+            new_typ = data["typ"] if "typ" in data else existing["typ"]
+
+            # Guard: block typ change if there are historical ebr_wyniki rows for this param.
+            if "typ" in data and data["typ"] != existing["typ"]:
+                historical = db.execute(
+                    "SELECT 1 FROM ebr_wyniki WHERE kod_parametru=? LIMIT 1", (existing["kod"],)
+                ).fetchone()
+                if historical:
+                    return jsonify({
+                        "error": "Nie można zmienić typ parametru — istnieją historyczne wyniki. Admin musi je usunąć ręcznie."
+                    }), 409
+
+            # Validate opisowe_wartosci: JSON array of non-empty strings.
+            opisowe_raw = data.get("opisowe_wartosci", "__UNSET__")
+            if new_typ == "jakosciowy":
+                if opisowe_raw == "__UNSET__":
+                    if "typ" in data and data["typ"] == "jakosciowy" and existing["typ"] != "jakosciowy":
+                        return jsonify({"error": "opisowe_wartosci is required when typ='jakosciowy'"}), 400
+                else:
+                    if not isinstance(opisowe_raw, list) or len(opisowe_raw) == 0:
+                        return jsonify({"error": "opisowe_wartosci must be a non-empty list"}), 400
+                    if not all(isinstance(v, str) and v.strip() for v in opisowe_raw):
+                        return jsonify({"error": "opisowe_wartosci must be a list of non-empty strings"}), 400
+            else:
+                if opisowe_raw != "__UNSET__":
+                    data.pop("opisowe_wartosci", None)
+                    data["opisowe_wartosci"] = None
+                if existing["typ"] == "jakosciowy" and new_typ != "jakosciowy":
+                    data["opisowe_wartosci"] = None
+
+            if "opisowe_wartosci" in data and isinstance(data["opisowe_wartosci"], list):
+                data["opisowe_wartosci"] = _json.dumps(data["opisowe_wartosci"], ensure_ascii=False)
+
+        updates = {k: v for k, v in data.items() if k in allowed}
+        if not updates:
+            return jsonify({"error": "No valid fields"}), 400
+        sets = ", ".join(f"{k}=?" for k in updates)
+        vals = list(updates.values()) + [param_id]
         db.execute(f"UPDATE parametry_analityczne SET {sets} WHERE id=?", vals)
+
         # Rebuild parametry_lab for all active templates that use this parameter
         affected = db.execute(
             """SELECT DISTINCT mt.produkt
