@@ -1493,6 +1493,14 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     except Exception:
         pass
 
+    # Migration: add opisowe_wartosci (JSON array) to parametry_analityczne
+    # Used for typ='jakosciowy' params — allowed values for dropdown in hero/cert editor.
+    try:
+        db.execute("ALTER TABLE parametry_analityczne ADD COLUMN opisowe_wartosci TEXT DEFAULT NULL")
+        db.commit()
+    except Exception:
+        pass
+
     # Migration: add default_grupa to mbr_users (default parameter group filter)
     try:
         db.execute("ALTER TABLE mbr_users ADD COLUMN default_grupa TEXT DEFAULT 'lab'")
