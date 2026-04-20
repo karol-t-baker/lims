@@ -170,3 +170,20 @@ def test_post_ignores_opisowe_wartosci_for_non_jakosciowy(client, db):
         "SELECT opisowe_wartosci FROM parametry_analityczne WHERE id=?", (new_id,)
     ).fetchone()
     assert row["opisowe_wartosci"] is None
+
+
+def test_list_exposes_opisowe_wartosci(client, db):
+    """GET /api/parametry/list returns opisowe_wartosci as JSON string."""
+    pid = _mk_param(db, kod="zapach_list", typ="jakosciowy")
+    db.execute(
+        "UPDATE parametry_analityczne SET opisowe_wartosci=? WHERE id=?",
+        (_json.dumps(["a", "b"]), pid),
+    )
+    db.commit()
+    r = client.get("/api/parametry/list")
+    assert r.status_code == 200
+    rows = r.get_json()
+    row = next((x for x in rows if x["id"] == pid), None)
+    assert row is not None
+    assert "opisowe_wartosci" in row
+    assert _json.loads(row["opisowe_wartosci"]) == ["a", "b"]
