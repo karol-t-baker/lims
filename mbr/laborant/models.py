@@ -384,6 +384,58 @@ def list_ebr_recent(db: sqlite3.Connection, days: int = 7) -> list[dict]:
 # EBR CRUD
 # ---------------------------------------------------------------------------
 
+def _autofill_jakosciowe_wyniki(
+    db: sqlite3.Connection,
+    ebr_id: int,
+    produkt: str,
+    parametry_lab_json: str | None,
+    operator: str,
+) -> int:
+    """After EBR creation, seed ebr_wyniki.wartosc_text for typ='jakosciowy'
+    params using parametry_etapy.cert_qualitative_result as the default.
+
+    Skips params where cert_qualitative_result is NULL/empty (laborant/KJ
+    will fill them later in hero view).
+
+    Returns the number of rows inserted.
+    """
+    if not parametry_lab_json:
+        return 0
+    try:
+        parametry_lab = json.loads(parametry_lab_json)
+    except Exception:
+        return 0
+    now = datetime.now().isoformat(timespec="seconds")
+    inserted = 0
+    for sekcja_key, sekcja in parametry_lab.items():
+        for pole in sekcja.get("pola", []):
+            if pole.get("typ_analityczny") != "jakosciowy":
+                continue
+            kod = pole.get("kod")
+            if not kod:
+                continue
+            row = db.execute(
+                """SELECT pe.cert_qualitative_result
+                   FROM parametry_analityczne pa
+                   JOIN parametry_etapy pe ON pe.parametr_id = pa.id
+                   WHERE pa.kod = ? AND pe.produkt = ?
+                   LIMIT 1""",
+                (kod, produkt),
+            ).fetchone()
+            default = row["cert_qualitative_result"] if row else None
+            if not default:
+                continue
+            db.execute(
+                "INSERT OR IGNORE INTO ebr_wyniki "
+                "(ebr_id, sekcja, kod_parametru, tag, wartosc, wartosc_text, "
+                " is_manual, dt_wpisu, wpisal) "
+                "VALUES (?, ?, ?, ?, NULL, ?, 0, ?, ?)",
+                (ebr_id, sekcja_key, kod, pole.get("tag") or kod, default, now, operator),
+            )
+            inserted += 1
+    return inserted
+
+
 def create_ebr(
     db: sqlite3.Connection,
     produkt: str,
@@ -410,7 +462,16 @@ def create_ebr(
         (mbr["mbr_id"], batch_id, nr_partii, nr_amidatora,
          nr_mieszalnika, wielkosc_kg, now, operator, typ, nastaw, nr_zbiornika),
     )
-    return cur.lastrowid
+    ebr_id = cur.lastrowid
+    # Seed jakosciowy params with their cert_qualitative_result default.
+    # Rebuild parametry_lab fresh from DB so typ_analityczny is present even
+    # when the MBR's stored snapshot predates PR2.
+    from mbr.parametry.registry import build_parametry_lab
+    fresh_plab = build_parametry_lab(db, produkt)
+    plab_json = json.dumps(fresh_plab, ensure_ascii=False) if fresh_plab else None
+    if plab_json:
+        _autofill_jakosciowe_wyniki(db, ebr_id, produkt, plab_json, operator)
+    return ebr_id
 
 
 def get_ebr(db: sqlite3.Connection, ebr_id: int) -> dict | None:
