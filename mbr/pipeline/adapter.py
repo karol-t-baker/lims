@@ -5,6 +5,7 @@ etapy_json + parametry_lab format consumed by _fast_entry_content.html.
 This is a pure server-side adapter; the template does not need to change.
 """
 
+import json
 import sqlite3
 from mbr.pipeline.models import (
     get_produkt_pipeline,
@@ -132,6 +133,20 @@ def _build_pole(param: dict, db: sqlite3.Connection) -> dict:
         "grupa":            param["grupa"] or "lab",
         "pe_id":            param.get("pe_id"),
     }
+
+    if typ == "jakosciowy":
+        parametr_id = param.get("parametr_id")
+        raw = None
+        if parametr_id:
+            row = db.execute(
+                "SELECT opisowe_wartosci FROM parametry_analityczne WHERE id = ?",
+                (parametr_id,),
+            ).fetchone()
+            raw = row["opisowe_wartosci"] if row else None
+        try:
+            pole["opisowe_wartosci"] = json.loads(raw) if raw else []
+        except Exception:
+            pole["opisowe_wartosci"] = []
 
     if measurement_type == "titracja":
         # Pull calc_method from parametry_analityczne
