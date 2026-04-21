@@ -1220,16 +1220,37 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     """)
     db.commit()
 
-    # Seed defaults (INSERT OR IGNORE — idempotent, preserves existing overrides)
+    # Detect PRE-EXISTING legacy value BEFORE we seed the default.
+    legacy_row = db.execute(
+        "SELECT value FROM cert_settings WHERE key='header_font_size_pt'"
+    ).fetchone()
+    preexisting_legacy = legacy_row["value"] if legacy_row else None
+
+    # Seed hardcoded defaults (INSERT OR IGNORE — idempotent).
+    # Legacy header_font_size_pt kept for backward compatibility; new code uses
+    # title_font_size_pt + product_name_font_size_pt + body_font_size_pt.
     _cert_settings_defaults = [
         ("body_font_family", "Bookman Old Style"),
         ("header_font_size_pt", "14"),
+        ("body_font_size_pt", "11"),
     ]
     for k, v in _cert_settings_defaults:
         db.execute(
             "INSERT OR IGNORE INTO cert_settings (key, value) VALUES (?, ?)",
             (k, v),
         )
+
+    # Title + product-name sizes — use pre-existing legacy value if the admin
+    # had one (preserves visual rendering across the deploy); otherwise use
+    # the per-key defaults 12 / 16.
+    db.execute(
+        "INSERT OR IGNORE INTO cert_settings (key, value) VALUES (?, ?)",
+        ("title_font_size_pt", preexisting_legacy if preexisting_legacy else "12"),
+    )
+    db.execute(
+        "INSERT OR IGNORE INTO cert_settings (key, value) VALUES (?, ?)",
+        ("product_name_font_size_pt", preexisting_legacy if preexisting_legacy else "16"),
+    )
     db.commit()
 
     # Migration: fix swiadectwa FK reference (may point to _ebr_batches_old after ebr_batches rebuild)
