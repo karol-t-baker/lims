@@ -457,8 +457,11 @@ def build_context(
         "avon_code": avon_code,
         "avon_name": avon_name,
         "wystawil": wystawil,
-        "body_font_family": _settings["body_font_family"],
-        "header_font_size_pt": _settings["header_font_size_pt"],
+        "body_font_family":          _settings["body_font_family"],
+        "header_font_size_pt":       _settings["header_font_size_pt"],       # legacy
+        "title_font_size_pt":        _settings["title_font_size_pt"],
+        "product_name_font_size_pt": _settings["product_name_font_size_pt"],
+        "body_font_size_pt":         _settings["body_font_size_pt"],
     }
 
 
@@ -585,8 +588,11 @@ def build_preview_context(product_json: dict, variant_id: str) -> dict:
         "avon_code": avon_code,
         "avon_name": avon_name,
         "wystawil": "Podgląd",
-        "body_font_family": _settings["body_font_family"],
-        "header_font_size_pt": _settings["header_font_size_pt"],
+        "body_font_family":          _settings["body_font_family"],
+        "header_font_size_pt":       _settings["header_font_size_pt"],       # legacy
+        "title_font_size_pt":        _settings["title_font_size_pt"],
+        "product_name_font_size_pt": _settings["product_name_font_size_pt"],
+        "body_font_size_pt":         _settings["body_font_size_pt"],
     }
 
 
