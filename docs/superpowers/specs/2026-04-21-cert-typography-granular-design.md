@@ -48,7 +48,7 @@ Add three new keys (TEXT values; integer point size):
 
 | Key                         | Default | Purpose                                 |
 |-----------------------------|---------|-----------------------------------------|
-| `title_font_size_pt`        | 18      | "ŚWIADECTWO JAKOŚCI / CERTIFICATE …"    |
+| `title_font_size_pt`        | 12      | "ŚWIADECTWO JAKOŚCI / CERTIFICATE …"    |
 | `product_name_font_size_pt` | 16      | `{{display_name}}` run                  |
 | `body_font_size_pt`         | 11      | All body text — table + paragraphs      |
 
@@ -119,15 +119,18 @@ called from `create_app`) runs once:
 INSERT OR IGNORE INTO cert_settings (key, value)
 VALUES
   ('title_font_size_pt',
-   COALESCE((SELECT value FROM cert_settings WHERE key='header_font_size_pt'), '18')),
+   COALESCE((SELECT value FROM cert_settings WHERE key='header_font_size_pt'), '12')),
   ('product_name_font_size_pt',
    COALESCE((SELECT value FROM cert_settings WHERE key='header_font_size_pt'), '16')),
   ('body_font_size_pt', '11');
 ```
 
-Idempotent. Running on fresh DB uses defaults (18/16/11). Running on prod
-where `header_font_size_pt=12` copies 12 into both title + product (so
-certs generated immediately after deploy look identical to pre-deploy).
+Idempotent. Running on fresh DB uses defaults (12/16/11). Running on prod
+where `header_font_size_pt=12` copies 12 into both `title_font_size_pt`
+and `product_name_font_size_pt` — legacy certs rendered immediately after
+deploy look identical to pre-deploy (title 12pt, product 12pt, body 11pt
+unchanged). Operator can then bump product name to 16pt (or any value)
+without touching title.
 
 ### Admin UI — `/admin/wzory-cert` "Ustawienia globalne" modal
 
@@ -209,7 +212,10 @@ None at draft time. All three user-facing decisions confirmed:
 
 - Typography model: 3 controls (title / product name / body).
 - Logo: SVG → 1200×1172 PNG, template asset replaced.
-- Defaults: 18 / 16 / 11 pt (confirmed "dobrze" in chat).
+- Defaults: 12 / 16 / 11 pt (confirmed in chat 2026-04-21).
+- Legacy `header_font_size_pt` on PUT: silently ignored (not 400).
+- Bilingual title PL/EN split: out of scope — single shared
+  `title_font_size_pt` covers both lines.
 
 ## Rollout
 
