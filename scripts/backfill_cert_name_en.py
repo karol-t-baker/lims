@@ -1,6 +1,10 @@
 """Backfill name_en + method for parametry_cert from extraction report + cross-fill.
 
-Idempotent — only updates rows where name_en IS NULL or empty.
+Idempotent — only updates rows where name_en IS NULL (truly unset).
+
+Empty string in parametry_cert.name_en is an explicit user choice meaning
+"no English name on this cert" (see mbr/certs/routes.py load path). Backfill
+MUST NOT treat '' as a gap, or it will overwrite that choice on every deploy.
 """
 import json
 import sqlite3
@@ -39,12 +43,12 @@ def backfill(db_path=None):
         if k not in kod_lookup:
             kod_lookup[k] = {"name_en": row["name_en"], "method": row["method"] or ""}
 
-    # 3. Update parametry_cert gaps
+    # 3. Update parametry_cert gaps (NULL only — '' means user explicitly hid EN name)
     gaps = db.execute("""
         SELECT pc.rowid as rid, pa.kod as kod
         FROM parametry_cert pc
         JOIN parametry_analityczne pa ON pa.id = pc.parametr_id
-        WHERE (pc.name_en IS NULL OR pc.name_en = '')
+        WHERE pc.name_en IS NULL
     """).fetchall()
 
     updated = 0
@@ -55,10 +59,10 @@ def backfill(db_path=None):
                        (info["name_en"], info["method"], row["rid"]))
             updated += 1
 
-    # 4. Update parametry_analityczne gaps
+    # 4. Update parametry_analityczne gaps (NULL only, same rationale as above)
     pa_gaps = db.execute("""
         SELECT id, kod FROM parametry_analityczne
-        WHERE (name_en IS NULL OR name_en = '')
+        WHERE name_en IS NULL
     """).fetchall()
 
     pa_updated = 0
