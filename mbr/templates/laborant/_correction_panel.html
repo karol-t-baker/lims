@@ -420,14 +420,24 @@ function recomputeStandV2(sekcja) {
             var masaKg = ebrNastaw || Meff;
             var kwas = _acidModelPredict(ph, tPh, masaKg, masaEffKg);
             if (kwas !== null) {
-                var kFmt = kwas.toFixed(1).replace('.', ',');
-                kwasCalcEl.textContent = kFmt + ' kg';
-                if (kwasManEl) {
-                    kwasManEl.dataset.suggested = kwas.toFixed(1);
-                    if (!kwasManEl.value) kwasManEl.value = kFmt;
+                var range = _bagFractionRange(kwas);
+                if (range) {
+                    var modelFmt = Math.round(range.model).toString();
+                    var underFmt = _fmtKg(range.under);
+                    var overFmt  = _fmtKg(range.over);
+                    var rangeStr = (range.under === range.over)
+                        ? overFmt
+                        : underFmt + '–' + overFmt;  // en-dash
+                    kwasCalcEl.textContent = modelFmt + ' (' + rangeStr + ') kg';
+                    if (kwasManEl) {
+                        kwasManEl.dataset.suggested = range.over.toFixed(2);
+                        if (!kwasManEl.value) kwasManEl.value = overFmt;
+                    }
+                } else {
+                    kwasCalcEl.textContent = '— kg';
                 }
             } else {
-                kwasCalcEl.textContent = '\u2014 kg';
+                kwasCalcEl.textContent = '— kg';
             }
         } else {
             kwasCalcEl.textContent = '\u2014 kg';
@@ -435,6 +445,28 @@ function recomputeStandV2(sekcja) {
     }
 
     recomputeStandTotal(sekcja);
+}
+
+// Citric acid bag-fraction constants. Production dispenses from 25 kg
+// bags subdivided into quarters (6.25 kg each) — the suggested dose
+// display aligns the model's raw output to the nearest achievable
+// quarter boundary so the operator sees a realistically-dispensable
+// number instead of a value they'd have to round mentally.
+var BAG_KG = 25;
+var BAG_DIVISIONS = 4;
+var BAG_UNIT = BAG_KG / BAG_DIVISIONS;  // 6.25 kg
+
+function _bagFractionRange(kwas) {
+    if (!isFinite(kwas) || kwas <= 0) return null;
+    var under = Math.floor(kwas / BAG_UNIT) * BAG_UNIT;
+    var over  = Math.ceil(kwas / BAG_UNIT) * BAG_UNIT;
+    return {under: under, over: over, model: kwas};
+}
+
+function _fmtKg(n) {
+    // 81.25 → "81,25", 87.5 → "87,5", 100 → "100".
+    // parseFloat drops trailing zeros; toFixed(2) caps at 2 decimals.
+    return parseFloat(n.toFixed(2)).toString().replace('.', ',');
 }
 
 // Acid estimation model — DIRECT regression
