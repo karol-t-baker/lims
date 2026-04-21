@@ -80,7 +80,7 @@ def _template_bytes() -> bytes:
     """Return the raw on-disk DOCX template bytes (sentinels still present).
 
     _apply_typography_overrides tests must operate on the raw template so the
-    sentinel value 999 is still present.  _docxtpl_render already calls
+    sentinel values 996/997 are still present.  _docxtpl_render already calls
     _apply_typography_overrides internally, so rendered bytes have sentinels
     replaced and cannot be used to test non-default overrides.
     """
@@ -100,7 +100,8 @@ def test_docx_typography_reflects_settings():
     """body_font_family setting flows into both document.xml and header1.xml."""
     from mbr.certs.generator import _apply_typography_overrides
     raw = _template_bytes()
-    result = _apply_typography_overrides(raw, "EB Garamond", 14)
+    sizes = {"title_pt": 12, "product_name_pt": 16, "body_pt": 11}
+    result = _apply_typography_overrides(raw, "EB Garamond", sizes=sizes)
     doc_xml = _read_xml(result, "word/document.xml")
     hdr_xml = _read_xml(result, "word/header1.xml")
     assert "EB Garamond" in doc_xml, "custom font not in document.xml"
@@ -110,41 +111,53 @@ def test_docx_typography_reflects_settings():
 
 
 def test_docx_header_size_reflects_settings():
-    """header_font_size_pt flows into header w:sz / w:szCs and Nagwek8 style."""
-    from mbr.certs.generator import _apply_typography_overrides
-    raw = _template_bytes()
-    # 20pt → 40 half-points
-    result = _apply_typography_overrides(raw, "TeX Gyre Bonum", 20)
-    hdr_xml = _read_xml(result, "word/header1.xml")
-    sty_xml = _read_xml(result, "word/styles.xml")
-    assert '<w:sz w:val="40"/>' in hdr_xml, "header sz=40 not found for 20pt"
-    assert '<w:szCs w:val="40"/>' in hdr_xml, "header szCs=40 not found for 20pt"
-    assert '<w:sz w:val="999"/>' not in hdr_xml, "sentinel sz still present in header"
-    assert '<w:szCs w:val="999"/>' not in hdr_xml, "sentinel szCs still present in header"
-    assert '<w:sz w:val="999"/>' not in sty_xml, "sentinel sz still present in styles"
-    assert '<w:sz w:val="40"/>' in sty_xml, "Nagwek8 sz=40 not in styles for 20pt"
+    """title_font_size_pt and product_name_font_size_pt flow into header w:sz / w:szCs and Nagwek styles.
 
-
-def test_docx_default_settings_produce_substituted_output():
-    """Default settings (Bookman Old Style, 14pt) use Bookman everywhere.
-
-    Body font literal 'TeX Gyre Bonum' is replaced with default 'Bookman Old Style';
-    header literal stays as 'Bookman Old Style' (default == literal, no-op).
+    With title_pt=20 sentinel 996 → 40 half-points (Nagwek4 / title runs).
+    With product_name_pt=20 sentinel 997 → 40 half-points (Nagwek8 / product name runs).
     """
     from mbr.certs.generator import _apply_typography_overrides
     raw = _template_bytes()
-    result = _apply_typography_overrides(raw, "Bookman Old Style", 14)
+    # 20pt → 40 half-points for both title (996) and product name (997)
+    sizes = {"title_pt": 20, "product_name_pt": 20, "body_pt": 11}
+    result = _apply_typography_overrides(raw, "TeX Gyre Bonum", sizes=sizes)
+    hdr_xml = _read_xml(result, "word/header1.xml")
+    sty_xml = _read_xml(result, "word/styles.xml")
+    assert 'w:val="40"' in hdr_xml, "sz/szCs=40 not found in header for 20pt"
+    assert '996' not in hdr_xml, "sentinel 996 still present in header"
+    assert '997' not in hdr_xml, "sentinel 997 still present in header"
+    assert '996' not in sty_xml, "sentinel 996 still present in styles"
+    assert '997' not in sty_xml, "sentinel 997 still present in styles"
+    assert 'w:val="40"' in sty_xml, "Nagwek sz=40 not in styles for 20pt"
+
+
+def test_docx_default_settings_produce_substituted_output():
+    """Default settings (Bookman Old Style, title=12pt, product=16pt, body=11pt) produce clean output.
+
+    Body font literal 'TeX Gyre Bonum' is replaced with default 'Bookman Old Style';
+    header literal stays as 'Bookman Old Style' (default == literal, no-op).
+    Sentinels 996 and 997 are replaced with their respective half-point values.
+    """
+    from mbr.certs.generator import _apply_typography_overrides
+    raw = _template_bytes()
+    # Default sizes: title=12pt (→24 half-pts), product=16pt (→32 half-pts), body=11pt (→22 half-pts)
+    sizes = {"title_pt": 12, "product_name_pt": 16, "body_pt": 11}
+    result = _apply_typography_overrides(raw, "Bookman Old Style", sizes=sizes)
     hdr_xml = _read_xml(result, "word/header1.xml")
     sty_xml = _read_xml(result, "word/styles.xml")
     doc_xml = _read_xml(result, "word/document.xml")
     # Sentinels gone
-    assert '<w:sz w:val="999"/>' not in hdr_xml, "sentinel sz leaked to header"
-    assert '<w:szCs w:val="999"/>' not in hdr_xml, "sentinel szCs leaked to header"
-    assert '<w:sz w:val="999"/>' not in sty_xml, "sentinel sz leaked to styles"
-    # 14pt → 28 half-points
-    assert '<w:sz w:val="28"/>' in hdr_xml, "header sz=28 (14pt default) not in header"
-    assert '<w:szCs w:val="28"/>' in hdr_xml, "header szCs=28 not in header"
-    assert '<w:sz w:val="28"/>' in sty_xml, "Nagwek8 sz=28 not in styles"
+    assert '996' not in hdr_xml, "sentinel 996 leaked to header"
+    assert '997' not in hdr_xml, "sentinel 997 leaked to header"
+    assert '996' not in sty_xml, "sentinel 996 leaked to styles"
+    assert '997' not in sty_xml, "sentinel 997 leaked to styles"
+    # title=12pt → 24 half-points in header (Nagwek4 / 996 runs)
+    assert 'w:val="24"' in hdr_xml, "title sz=24 (12pt default) not in header"
+    # product=16pt → 32 half-points in header (Nagwek8 / 997 runs)
+    assert 'w:val="32"' in hdr_xml, "product sz=32 (16pt default) not in header"
+    # Nagwek4 style: 24, Nagwek8 style: 32
+    assert 'w:val="24"' in sty_xml, "Nagwek4 sz=24 not in styles"
+    assert 'w:val="32"' in sty_xml, "Nagwek8 sz=32 not in styles"
     # Bookman Old Style appears (both body-substituted and header-native).
     assert "Bookman Old Style" in doc_xml, "Bookman Old Style not in document.xml"
     # Body literal was substituted — no stale "TeX Gyre Bonum" in output.
@@ -152,9 +165,9 @@ def test_docx_default_settings_produce_substituted_output():
 
 
 def test_docxtpl_render_respects_settings():
-    """_docxtpl_render applies custom font from context."""
+    """_docxtpl_render applies custom font and size from context."""
     from mbr.certs.generator import _docxtpl_render
-    # Build a minimal context with non-default font
+    # Build a minimal context with non-default font and sizes
     ctx = {
         "display_name": "Test",
         "spec_number": "S1",
@@ -180,7 +193,9 @@ def test_docxtpl_render_respects_settings():
         "lab_approver_name": "",
         "tech_approver_name": "",
         "body_font_family": "EB Garamond",
-        "header_font_size_pt": 18,
+        "title_font_size_pt": 18,
+        "product_name_font_size_pt": 18,
+        "body_font_size_pt": 11,
     }
     docx_bytes = _docxtpl_render(ctx)
     # Extract XML from DOCX to verify font substitutions
@@ -190,9 +205,10 @@ def test_docxtpl_render_respects_settings():
     assert "EB Garamond" in doc_xml
     assert "EB Garamond" in hdr_xml
     # No sentinel leakage
-    assert 'w:val="999"' not in doc_xml and 'w:val="999"' not in hdr_xml
-    # Header size 18pt → 36 half-points (18 * 2)
-    assert '<w:sz w:val="36"/>' in hdr_xml
+    assert '996' not in hdr_xml, "sentinel 996 leaked to header"
+    assert '997' not in hdr_xml, "sentinel 997 leaked to header"
+    # title_font_size_pt=18 → 36 half-points (sentinel 996); product_name_font_size_pt=18 → 36 (sentinel 997)
+    assert 'w:val="36"' in hdr_xml, "sz=36 (18pt) not found in header"
 
 
 def test_user_content_with_font_literal_survives_substitution():
@@ -210,7 +226,8 @@ def test_user_content_with_font_literal_survives_substitution():
     # Create a synthetic DOCX-like XML fragment with both w:rFonts attributes
     # and text nodes containing the font literals
     raw_docx = _template_bytes()
-    result = _apply_typography_overrides(raw_docx, "EB Garamond", 14)
+    sizes = {"title_pt": 12, "product_name_pt": 16, "body_pt": 11}
+    result = _apply_typography_overrides(raw_docx, "EB Garamond", sizes=sizes)
     doc_xml = _read_xml(result, "word/document.xml")
 
     # The key test: if a user's parameter name, product name, or opinion text
@@ -238,5 +255,6 @@ def test_user_content_with_font_literal_survives_substitution():
 
     # Also verify that in the actual rendered output, fonts were substituted correctly
     assert "EB Garamond" in doc_xml
-    # And no sentinel leakage
-    assert 'w:val="999"' not in doc_xml
+    # And no sentinel leakage (document.xml has no 996/997 sentinels, only body sz=22)
+    assert '996' not in doc_xml
+    assert '997' not in doc_xml

@@ -855,16 +855,26 @@ def api_cert_settings_get():
     """Return current cert_settings (typography globals)."""
     with db_session() as db:
         rows = db.execute("SELECT key, value FROM cert_settings").fetchall()
-    out = {"body_font_family": "Bookman Old Style", "header_font_size_pt": 14}
+    # Defaults mirror _cert_settings_defaults in mbr/models.py. Four size keys
+    # are typed as int; body_font_family is str.
+    out = {
+        "body_font_family":          "Bookman Old Style",
+        "header_font_size_pt":       14,
+        "title_font_size_pt":        12,
+        "product_name_font_size_pt": 16,
+        "body_font_size_pt":         11,
+    }
+    int_keys = {"header_font_size_pt", "title_font_size_pt",
+                "product_name_font_size_pt", "body_font_size_pt"}
     for r in rows:
         k = r["key"]
         v = r["value"]
-        if k == "header_font_size_pt":
+        if k in int_keys:
             try:
                 out[k] = int(v)
             except (ValueError, TypeError):
                 pass
-        else:
+        elif k in out:
             out[k] = v
     return jsonify(out)
 
@@ -872,7 +882,11 @@ def api_cert_settings_get():
 @certs_bp.route("/api/cert/settings", methods=["PUT"])
 @role_required("admin", "kj")
 def api_cert_settings_put():
-    """Update cert_settings keys (font family, header font size)."""
+    """Update cert_settings keys (font family + 3 granular font sizes).
+
+    Legacy `header_font_size_pt` is silently dropped from the payload — the
+    new `title_font_size_pt` and `product_name_font_size_pt` replace it.
+    """
     data = request.get_json(silent=True) or {}
     updated = {}
 
@@ -888,14 +902,23 @@ def api_cert_settings_put():
             return jsonify({"error": "body_font_family: niedozwolone znaki (dozwolone: litery, cyfry, spacje, - . ')"}), 400
         updated["body_font_family"] = val
 
-    if "header_font_size_pt" in data:
+    # Numeric size keys — range 6–36 pt. Legacy header_font_size_pt is not in
+    # this list, so any value passed there is silently ignored.
+    _size_keys = (
+        ("title_font_size_pt",        "Tytuł"),
+        ("product_name_font_size_pt", "Nazwa produktu"),
+        ("body_font_size_pt",         "Body"),
+    )
+    for key, label in _size_keys:
+        if key not in data:
+            continue
         try:
-            n = int(data["header_font_size_pt"])
+            n = int(data[key])
         except (ValueError, TypeError):
-            return jsonify({"error": "header_font_size_pt: nieprawidłowa liczba"}), 400
-        if n < 2 or n > 50:
-            return jsonify({"error": "header_font_size_pt: zakres 2–50"}), 400
-        updated["header_font_size_pt"] = str(n)
+            return jsonify({"error": f"{label}: nieprawidłowa liczba"}), 400
+        if n < 6 or n > 36:
+            return jsonify({"error": f"{label}: zakres 6–36 pt"}), 400
+        updated[key] = str(n)
 
     if not updated:
         return jsonify({"error": "brak pól do aktualizacji"}), 400
@@ -914,13 +937,13 @@ def api_cert_settings_put():
                     audit.EVENT_CERT_SETTINGS_UPDATED,
                     entity_type="cert",
                     entity_label="_settings",
-                    payload={"updated": updated},
+                    payload={"updated_keys": list(updated.keys())},
                     db=db,
                 )
         except Exception as e:
             return jsonify({"error": f"zapis nie powiódł się: {e}"}), 500
 
-    return jsonify({"ok": True})
+    return jsonify({"ok": True, "updated": list(updated.keys())})
 
 
 @certs_bp.route("/api/cert/config/product/<key>/issued-count", methods=["GET"])

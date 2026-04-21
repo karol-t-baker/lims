@@ -194,11 +194,20 @@ def test_build_preview_context_includes_typography():
     }
     import unittest.mock as mock
     with mock.patch("mbr.certs.generator._load_cert_settings",
-                    return_value={"body_font_family": "EB Garamond", "header_font_size_pt": 18}):
+                    return_value={
+                        "body_font_family":          "EB Garamond",
+                        "header_font_size_pt":       18,
+                        "title_font_size_pt":        12,
+                        "product_name_font_size_pt": 16,
+                        "body_font_size_pt":         11,
+                    }):
         from mbr.certs.generator import build_preview_context
         ctx = build_preview_context(product, "base")
     assert ctx["body_font_family"] == "EB Garamond"
     assert ctx["header_font_size_pt"] == 18
+    assert ctx["title_font_size_pt"] == 12
+    assert ctx["product_name_font_size_pt"] == 16
+    assert ctx["body_font_size_pt"] == 11
 
 
 def test_md_to_richtext_pipe_becomes_line_break():
