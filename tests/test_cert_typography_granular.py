@@ -66,3 +66,12 @@ def test_migration_is_idempotent():
     ).fetchone()
     assert row["value"] == "22"
     conn.close()
+
+
+def test_load_cert_settings_returns_three_new_size_keys(db):
+    from mbr.certs.generator import _load_cert_settings
+    settings = _load_cert_settings(db)
+    assert settings["title_font_size_pt"] == 12
+    assert settings["product_name_font_size_pt"] == 16
+    assert settings["body_font_size_pt"] == 11
+    assert settings["body_font_family"] == "Bookman Old Style"

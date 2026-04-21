@@ -90,25 +90,40 @@ def _md_to_richtext(text: str, *, font: str = None, size: int = None) -> RichTex
 def _load_cert_settings(db) -> dict:
     """Load typography settings from cert_settings table.
 
-    Returns dict with typed values:
+    Returns dict with:
       - body_font_family: str
-      - header_font_size_pt: int
-
-    Missing keys fall back to defaults (same as seed in init_mbr_tables).
+      - title_font_size_pt: int        — "ŚWIADECTWO / CERTIFICATE" heading
+      - product_name_font_size_pt: int — {{display_name}}
+      - body_font_size_pt: int         — table + body paragraphs
+      - header_font_size_pt: int       — legacy, kept for backcompat only
+    Missing rows fall back to hardcoded defaults.
     """
-    defaults = {"body_font_family": "Bookman Old Style", "header_font_size_pt": 14}
+    defaults = {
+        "body_font_family":          "Bookman Old Style",
+        "header_font_size_pt":       14,   # legacy default
+        "title_font_size_pt":        12,
+        "product_name_font_size_pt": 16,
+        "body_font_size_pt":         11,
+    }
+    int_keys = {
+        "header_font_size_pt",
+        "title_font_size_pt",
+        "product_name_font_size_pt",
+        "body_font_size_pt",
+    }
     rows = db.execute("SELECT key, value FROM cert_settings").fetchall()
     out = dict(defaults)
     for r in rows:
         k = r["key"]
         v = r["value"]
-        if k == "header_font_size_pt":
+        if k in int_keys:
             try:
                 out[k] = int(v)
             except (ValueError, TypeError):
-                out[k] = defaults[k]
-        else:
+                out[k] = defaults.get(k, 11)
+        elif k in defaults:
             out[k] = v
+        # Unknown keys ignored — no need to surface them.
     return out
 
 
