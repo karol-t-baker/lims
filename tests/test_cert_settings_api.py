@@ -74,15 +74,16 @@ def test_cert_settings_put_writes_audit_event(client, db_path):
     assert "body_font_family" in row[1] or "title_font_size_pt" in row[1]
 
 
-def test_cert_settings_put_rejects_header_size_out_of_range(client):
-    r = client.put("/api/cert/settings", json={"header_font_size_pt": 500})
+def test_cert_settings_put_rejects_title_size_out_of_range(client):
+    r = client.put("/api/cert/settings", json={"title_font_size_pt": 500})
     assert r.status_code == 400
     data = r.get_json()
     assert "error" in data
+    assert "6" in data["error"] or "36" in data["error"]  # range in error msg
 
 
-def test_cert_settings_put_rejects_header_size_negative(client):
-    r = client.put("/api/cert/settings", json={"header_font_size_pt": -5})
+def test_cert_settings_put_rejects_body_size_negative(client):
+    r = client.put("/api/cert/settings", json={"body_font_size_pt": -5})
     assert r.status_code == 400
 
 

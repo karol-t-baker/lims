@@ -14,6 +14,9 @@ things inside the DOCX:
      w:sz and w:szCs w:val="999" rewritten per containing pStyle.
 
 Run:  python scripts/rebuild_cert_template_assets.py
+
+Requires (build-time only — not needed at runtime by the Flask app):
+  pip install cairosvg
 """
 
 from __future__ import annotations
