@@ -92,14 +92,20 @@ def api_parametry_update(param_id):
             new_typ = data["typ"] if "typ" in data else existing["typ"]
 
             # Guard: block typ change if there are historical ebr_wyniki rows for this param.
+            # Exception: bezposredni ↔ srednia is safe — both store a single REAL in
+            # ebr_wyniki.wartosc; only the entry UI (calc panel vs. plain input) differs.
+            # Historical rows remain valid under either typ.
+            _safe_typ_swaps = {("bezposredni", "srednia"), ("srednia", "bezposredni")}
             if "typ" in data and data["typ"] != existing["typ"]:
-                historical = db.execute(
-                    "SELECT 1 FROM ebr_wyniki WHERE kod_parametru=? LIMIT 1", (existing["kod"],)
-                ).fetchone()
-                if historical:
-                    return jsonify({
-                        "error": "Nie można zmienić typ parametru — istnieją historyczne wyniki. Admin musi je usunąć ręcznie."
-                    }), 409
+                swap = (existing["typ"], data["typ"])
+                if swap not in _safe_typ_swaps:
+                    historical = db.execute(
+                        "SELECT 1 FROM ebr_wyniki WHERE kod_parametru=? LIMIT 1", (existing["kod"],)
+                    ).fetchone()
+                    if historical:
+                        return jsonify({
+                            "error": "Nie można zmienić typ parametru — istnieją historyczne wyniki. Admin musi je usunąć ręcznie."
+                        }), 409
 
             # Validate opisowe_wartosci: JSON array of non-empty strings.
             opisowe_raw = data.get("opisowe_wartosci", "__UNSET__")

@@ -8,6 +8,8 @@ the only adapter-level concern is that the `typ` propagates as
 """
 
 import sqlite3
+from contextlib import contextmanager
+
 import pytest
 
 from mbr.models import init_mbr_tables
@@ -20,6 +22,25 @@ def db():
     init_mbr_tables(conn)
     yield conn
     conn.close()
+
+
+@pytest.fixture
+def client(monkeypatch, db):
+    import mbr.db
+    import mbr.parametry.routes
+    from mbr.app import app
+
+    @contextmanager
+    def fake_db_session():
+        yield db
+
+    monkeypatch.setattr(mbr.db, "db_session", fake_db_session)
+    monkeypatch.setattr(mbr.parametry.routes, "db_session", fake_db_session)
+    app.config["TESTING"] = True
+    with app.test_client() as c:
+        with c.session_transaction() as s:
+            s["user"] = {"username": "admin_test", "rola": "admin", "id": 1}
+        yield c
 
 
 def _seed_prod_with_srednia(db):
@@ -80,3 +101,50 @@ def test_srednia_has_no_calc_method_or_formula(db):
     sm = next((p for p in pola if p["kod"] == "sm"), None)
     assert "calc_method" not in sm
     assert "formula" not in sm
+
+
+def test_put_typ_bezposredni_to_srednia_allowed_with_historical_results(client, db):
+    """The bezposredni ↔ srednia swap must be allowed even when ebr_wyniki rows exist —
+    both types store the same REAL in wartosc; only the entry UI differs.
+    Without this, users can't migrate a live param (like SM) to the new calc mode."""
+    cur = db.execute(
+        "INSERT INTO parametry_analityczne (kod, label, typ, grupa, precision) "
+        "VALUES ('sm_demo', 'Sucha masa', 'bezposredni', 'lab', 1)"
+    )
+    pid = cur.lastrowid
+    db.execute(
+        "INSERT INTO ebr_wyniki (ebr_id, sekcja, tag, kod_parametru, wartosc, w_limicie, dt_wpisu, wpisal) "
+        "VALUES (1, 'lab', 'sm_demo', 'sm_demo', 46.5, 1, '2024-01-01', 'test')"
+    )
+    db.commit()
+
+    r = client.put(f"/api/parametry/{pid}", json={"typ": "srednia"})
+    assert r.status_code == 200, r.get_json()
+
+    row = db.execute(
+        "SELECT typ FROM parametry_analityczne WHERE id=?", (pid,)
+    ).fetchone()
+    assert row["typ"] == "srednia"
+
+    # And back again
+    r2 = client.put(f"/api/parametry/{pid}", json={"typ": "bezposredni"})
+    assert r2.status_code == 200
+
+
+def test_put_typ_bezposredni_to_jakosciowy_still_blocked_with_historical(client, db):
+    """Unsafe swaps (different data shape) stay blocked."""
+    cur = db.execute(
+        "INSERT INTO parametry_analityczne (kod, label, typ, grupa, precision) "
+        "VALUES ('bl_demo', 'X', 'bezposredni', 'lab', 1)"
+    )
+    pid = cur.lastrowid
+    db.execute(
+        "INSERT INTO ebr_wyniki (ebr_id, sekcja, tag, kod_parametru, wartosc, w_limicie, dt_wpisu, wpisal) "
+        "VALUES (1, 'lab', 'bl_demo', 'bl_demo', 1.5, 1, '2024-01-01', 'test')"
+    )
+    db.commit()
+    r = client.put(
+        f"/api/parametry/{pid}",
+        json={"typ": "jakosciowy", "opisowe_wartosci": ["a", "b"]},
+    )
+    assert r.status_code == 409
