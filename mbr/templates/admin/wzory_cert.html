@@ -392,8 +392,19 @@
       <input class="wc-inp" type="text" id="wc-s-font" placeholder="np. TeX Gyre Bonum, EB Garamond">
       <div style="font-size:10px;color:var(--text-dim);margin-top:3px;">Nazwa z Google Fonts lub zainstalowanego fontu. Domyślnie: TeX Gyre Bonum.</div>
 
-      <label class="wc-lbl" style="margin-top:14px;">Rozmiar czcionki nagłówka (nazwa produktu, pt)</label>
-      <input class="wc-inp" type="number" id="wc-s-hdr" min="2" max="50" style="width:100px;">
+      <div style="display:grid;grid-template-columns:1fr 100px;gap:8px 14px;align-items:center;margin-top:14px;">
+        <label class="wc-lbl" style="margin:0;">Tytuł (pt)</label>
+        <input class="wc-inp" type="number" id="wc-s-title" min="6" max="36" style="width:100px;">
+
+        <label class="wc-lbl" style="margin:0;">Nazwa produktu (pt)</label>
+        <input class="wc-inp" type="number" id="wc-s-product" min="6" max="36" style="width:100px;">
+
+        <label class="wc-lbl" style="margin:0;">Body — tabela + tekst (pt)</label>
+        <input class="wc-inp" type="number" id="wc-s-body" min="6" max="36" style="width:100px;">
+      </div>
+      <div style="font-size:10px;color:var(--text-dim);margin-top:6px;">
+        Tytuł = "ŚWIADECTWO JAKOŚCI / CERTIFICATE OF ANALYSIS". Body obejmuje tabelę parametrów i resztę tekstu na świadectwie.
+      </div>
 
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;">
         <button class="wc-btn wc-btn-o" onclick="closeCertSettings()">Anuluj</button>
@@ -797,7 +808,9 @@ function doCopyProduct() {
 function openCertSettings() {
   fetch('/api/cert/settings').then(function(r) { return r.json(); }).then(function(s) {
     document.getElementById('wc-s-font').value = s.body_font_family || '';
-    document.getElementById('wc-s-hdr').value = s.header_font_size_pt || 14;
+    document.getElementById('wc-s-title').value = s.title_font_size_pt || 12;
+    document.getElementById('wc-s-product').value = s.product_name_font_size_pt || 16;
+    document.getElementById('wc-s-body').value = s.body_font_size_pt || 11;
     document.getElementById('wc-settings-modal').classList.add('show');
   });
 }
@@ -808,12 +821,25 @@ function closeCertSettings() {
 
 function saveCertSettings() {
   var font = document.getElementById('wc-s-font').value.trim();
-  var hdr = parseInt(document.getElementById('wc-s-hdr').value);
+  var title = parseInt(document.getElementById('wc-s-title').value);
+  var product = parseInt(document.getElementById('wc-s-product').value);
+  var body = parseInt(document.getElementById('wc-s-body').value);
   if (!font) { flash('Nazwa fontu jest wymagana', false); return; }
-  if (!hdr || hdr < 2 || hdr > 50) { flash('Rozmiar nagłówka 2–50 pt', false); return; }
+  var checks = [[title, 'Tytuł'], [product, 'Nazwa produktu'], [body, 'Body']];
+  for (var i = 0; i < checks.length; i++) {
+    if (!checks[i][0] || checks[i][0] < 6 || checks[i][0] > 36) {
+      flash(checks[i][1] + ': zakres 6–36 pt', false);
+      return;
+    }
+  }
   fetch('/api/cert/settings', {
     method: 'PUT', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ body_font_family: font, header_font_size_pt: hdr }),
+    body: JSON.stringify({
+      body_font_family: font,
+      title_font_size_pt: title,
+      product_name_font_size_pt: product,
+      body_font_size_pt: body,
+    }),
   }).then(function(r) { return r.json().then(function(d) { return { status: r.status, data: d }; }); })
     .then(function(res) {
       if (res.data.ok) {
