@@ -823,7 +823,6 @@ def _fix_single_line_valign(doc) -> None:
         new_t.text = ' '
 
 
-_SENTINEL_SZ = "999"
 _BODY_FONT_LITERAL = "TeX Gyre Bonum"   # 298× in word/document.xml
 _HEADER_FONT_LITERAL = "Bookman Old Style"  # 12× in word/header1.xml
 
@@ -843,37 +842,39 @@ def _docxtpl_render(context: dict) -> bytes:
     tpl.save(buf)
     docx_bytes = buf.getvalue()
     font = context.get("body_font_family", _CERT_FONT)
-    header_size_pt = context.get("header_font_size_pt", 14)
-    return _apply_typography_overrides(docx_bytes, font, header_size_pt)
+    sizes = {
+        "title_pt":        context.get("title_font_size_pt", 12),
+        "product_name_pt": context.get("product_name_font_size_pt", 16),
+        "body_pt":         context.get("body_font_size_pt", 11),
+    }
+    return _apply_typography_overrides(docx_bytes, font, sizes)
 
 
-def _apply_typography_overrides(docx_bytes: bytes, font: str, header_size_pt: int) -> bytes:
+def _apply_typography_overrides(docx_bytes: bytes, font: str, sizes: dict) -> bytes:
     """Post-render byte-level substitution for typography settings.
 
-    The template encodes two sentinels that cannot be handled by docxtpl:
+    Args:
+        docx_bytes: rendered docx zip bytes.
+        font: body font family name (applied to body rFonts + header rFonts).
+        sizes: dict with keys:
+            title_pt         — applied to sentinel 996 (Nagwek4 / title runs)
+            product_name_pt  — applied to sentinel 997 (Nagwek8 / product name)
+            body_pt          — applied to body w:sz/w:szCs w:val="22"
 
-    * word/document.xml  — body font: 298 occurrences of "TeX Gyre Bonum" in
-      w:rFonts attributes.  Replaced globally with ``font``.
-
-    * word/header1.xml   — header font: 12 occurrences of "Bookman Old Style".
-      Replaced globally with ``font``.  Also contains sentinel
-      ``<w:sz w:val="999"/>`` (1×) and ``<w:szCs w:val="999"/>`` (11×) which
-      are replaced with ``header_size_pt * 2`` (half-points).
-
-    * word/styles.xml    — Nagwek8 paragraph style carries
-      ``<w:sz w:val="999"/>`` (1×).  Replaced with ``header_size_pt * 2``.
-
-    The sentinel value 999 is chosen because it does not appear elsewhere in
-    the template and is far outside any usable font size range.
+    Sentinel scheme in the template:
+      * word/header1.xml — rFonts font literal replaced globally. Inline
+        w:szCs (and w:sz) w:val="996" (title runs) → title_pt*2, "997"
+        (product name run) → product_name_pt*2.
+      * word/styles.xml — Nagwek4 w:sz="996", Nagwek8 w:sz="997".
+      * word/document.xml — body runs use w:sz/w:szCs="22" (11pt) plus
+        "2" (1pt spacers). Only "22" is rewritten (exact value match).
     """
     import zipfile
     from io import BytesIO
 
-    new_sz = str(int(header_size_pt) * 2)
-    sentinel_sz = f'<w:sz w:val="{_SENTINEL_SZ}"/>'
-    sentinel_szcs = f'<w:szCs w:val="{_SENTINEL_SZ}"/>'
-    target_sz = f'<w:sz w:val="{new_sz}"/>'
-    target_szcs = f'<w:szCs w:val="{new_sz}"/>'
+    t2 = str(int(sizes["title_pt"]) * 2)
+    p2 = str(int(sizes["product_name_pt"]) * 2)
+    b2 = str(int(sizes["body_pt"]) * 2)
 
     in_buf = BytesIO(docx_bytes)
     out_buf = BytesIO()
@@ -889,6 +890,9 @@ def _apply_typography_overrides(docx_bytes: bytes, font: str, header_size_pt: in
                         lambda m: f'{m.group(1)}="{font}"',
                         txt,
                     )
+                # Body size — only w:val="22" (exact); w:val="2" (1pt spacer) is left alone.
+                txt = txt.replace('w:sz w:val="22"', f'w:sz w:val="{b2}"')
+                txt = txt.replace('w:szCs w:val="22"', f'w:szCs w:val="{b2}"')
                 data = txt.encode("utf-8")
             elif item == "word/header1.xml":
                 txt = data.decode("utf-8")
@@ -898,16 +902,15 @@ def _apply_typography_overrides(docx_bytes: bytes, font: str, header_size_pt: in
                         lambda m: f'{m.group(1)}="{font}"',
                         txt,
                     )
-                txt = txt.replace(sentinel_sz, target_sz)
-                txt = txt.replace(sentinel_szcs, target_szcs)
+                txt = txt.replace('w:sz w:val="996"', f'w:sz w:val="{t2}"')
+                txt = txt.replace('w:szCs w:val="996"', f'w:szCs w:val="{t2}"')
+                txt = txt.replace('w:sz w:val="997"', f'w:sz w:val="{p2}"')
+                txt = txt.replace('w:szCs w:val="997"', f'w:szCs w:val="{p2}"')
                 data = txt.encode("utf-8")
             elif item == "word/styles.xml":
                 txt = data.decode("utf-8")
-                # styles.xml: only header size is parameterized here. The body font
-                # is declared per-run in document.xml; styles.xml has no rFonts
-                # referencing the body font literal. If a future refactor moves font
-                # to styles.xml, add a font substitution pass to this block.
-                txt = txt.replace(sentinel_sz, target_sz)
+                txt = txt.replace('w:sz w:val="996"', f'w:sz w:val="{t2}"')
+                txt = txt.replace('w:sz w:val="997"', f'w:sz w:val="{p2}"')
                 data = txt.encode("utf-8")
             zout.writestr(item, data)
     return out_buf.getvalue()
