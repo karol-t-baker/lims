@@ -4411,9 +4411,22 @@ function recomputeField(computedInput) {
         if (allPresent) {
             var result = Function('"use strict"; return (' + expr + ')')();
             if (!isNaN(result)) {
-                computedInput.value = result.toFixed(2).replace('.', ',');
+                // Precyzja z param-config (nie hardkodowane 2) — zgodna z tym co
+                // doSaveField robi fromBlur=true, żeby value bezpośrednio po
+                // recompute miało tę samą postać co po manualnym focus+blur.
+                var prec = parseInt(computedInput.dataset.precision || '2', 10);
+                var newVal = result.toFixed(prec).replace('.', ',');
                 computedInput.readOnly = true;
-                validateField(computedInput);
+                if (computedInput.value !== newVal) {
+                    computedInput.value = newVal;
+                    validateField(computedInput);
+                    // Programmatic .value set nie fireuje input eventu — bez tego
+                    // autoSaveField() nie trafia do _saveTimers, a flushPendingSaves()
+                    // przed /complete nie ma co wymusić. Skutek: zakończenie karty
+                    // przed manualnym focus+blur na SA → ebr_wyniki bez SA → pusto
+                    // w hero i rejestrze ukończonych.
+                    computedInput.dispatchEvent(new Event('input', { bubbles: true }));
+                }
             }
         }
     } catch (e) {}
