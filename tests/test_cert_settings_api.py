@@ -48,19 +48,22 @@ def test_cert_settings_get_returns_defaults(client):
 def test_cert_settings_put_updates_both_keys(client, db_path):
     r = client.put("/api/cert/settings", json={
         "body_font_family": "EB Garamond",
-        "header_font_size_pt": 18,
+        "title_font_size_pt": 18,
     })
     assert r.status_code == 200
-    assert r.get_json() == {"ok": True}
+    resp = r.get_json()
+    assert resp["ok"] is True
+    assert "body_font_family" in resp["updated"]
+    assert "title_font_size_pt" in resp["updated"]
     # Verify GET reflects the change
     r2 = client.get("/api/cert/settings")
     data = r2.get_json()
     assert data["body_font_family"] == "EB Garamond"
-    assert data["header_font_size_pt"] == 18
+    assert data["title_font_size_pt"] == 18
 
 
 def test_cert_settings_put_writes_audit_event(client, db_path):
-    client.put("/api/cert/settings", json={"body_font_family": "Bitter", "header_font_size_pt": 16})
+    client.put("/api/cert/settings", json={"body_font_family": "Bitter", "title_font_size_pt": 16})
     conn = sqlite3.connect(str(db_path))
     row = conn.execute(
         "SELECT event_type, payload_json FROM audit_log WHERE event_type=? ORDER BY dt DESC LIMIT 1",
@@ -68,7 +71,7 @@ def test_cert_settings_put_writes_audit_event(client, db_path):
     ).fetchone()
     conn.close()
     assert row is not None
-    assert "Bitter" in row[1] or "16" in row[1]
+    assert "body_font_family" in row[1] or "title_font_size_pt" in row[1]
 
 
 def test_cert_settings_put_rejects_header_size_out_of_range(client):

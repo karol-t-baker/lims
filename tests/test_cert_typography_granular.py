@@ -159,3 +159,69 @@ def test_overrides_do_not_touch_body_when_body_pt_equals_11():
     sizes = {"title_pt": 12, "product_name_pt": 16, "body_pt": 11}
     out = _apply_typography_overrides(src, font="Bookman Old Style", sizes=sizes)
     assert _read_docx_part(out, "word/document.xml") == doc
+
+
+from contextlib import contextmanager
+
+
+@pytest.fixture
+def client(monkeypatch, db):
+    import mbr.db
+    import mbr.certs.routes
+    from mbr.app import app
+
+    @contextmanager
+    def fake_db_session():
+        yield db
+
+    monkeypatch.setattr(mbr.db, "db_session", fake_db_session)
+    monkeypatch.setattr(mbr.certs.routes, "db_session", fake_db_session)
+    app.config["TESTING"] = True
+    with app.test_client() as c:
+        with c.session_transaction() as s:
+            s["user"] = {"username": "admin_test", "login": "admin_test", "rola": "admin", "id": 1}
+        yield c
+
+
+def test_get_cert_settings_returns_three_new_keys(client):
+    r = client.get("/api/cert/settings")
+    assert r.status_code == 200
+    d = r.get_json()
+    assert d["title_font_size_pt"] == 12
+    assert d["product_name_font_size_pt"] == 16
+    assert d["body_font_size_pt"] == 11
+
+
+def test_put_cert_settings_accepts_three_new_keys(client, db):
+    r = client.put("/api/cert/settings", json={
+        "title_font_size_pt": 14,
+        "product_name_font_size_pt": 18,
+        "body_font_size_pt": 10,
+    })
+    assert r.status_code == 200, r.get_json()
+    assert _get_setting(db, "title_font_size_pt") == "14"
+    assert _get_setting(db, "product_name_font_size_pt") == "18"
+    assert _get_setting(db, "body_font_size_pt") == "10"
+
+
+def test_put_cert_settings_validates_range(client):
+    r = client.put("/api/cert/settings", json={"title_font_size_pt": 100})
+    assert r.status_code == 400
+    r = client.put("/api/cert/settings", json={"body_font_size_pt": 0})
+    assert r.status_code == 400
+
+
+def test_put_cert_settings_silently_ignores_legacy_header_font_size_pt(client, db):
+    """Legacy key must NOT 400; it's dropped from the whitelist. At least one
+    valid key must be present for the request to succeed overall."""
+    r = client.put("/api/cert/settings", json={
+        "header_font_size_pt": 14,  # legacy — ignored
+        "title_font_size_pt": 13,   # valid — applied
+    })
+    assert r.status_code == 200
+    assert _get_setting(db, "title_font_size_pt") == "13"
+    # Legacy value is NOT written by this endpoint — it remains at its prior
+    # (migration-seeded) value.
+    # Default seed is "14" (from _cert_settings_defaults); the put should not
+    # overwrite it with the ignored request body.
+    assert _get_setting(db, "header_font_size_pt") == "14"
