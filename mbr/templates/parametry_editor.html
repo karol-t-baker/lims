@@ -227,6 +227,7 @@
         <option value="titracja">titracja</option>
         <option value="obliczeniowy">obliczeniowy</option>
         <option value="jakosciowy">jakościowy (opisowy)</option>
+        <option value="srednia">średnia (z 2 pomiarów)</option>
       </select>
       <select id="pa-new-grupa">
         <option value="lab" selected>Lab (wewnętrzny)</option>
@@ -520,6 +521,7 @@ function renderDefTable(data) {
           '<option value="titracja"' + (p.typ === 'titracja' ? ' selected' : '') + '>titracja</option>' +
           '<option value="obliczeniowy"' + (p.typ === 'obliczeniowy' ? ' selected' : '') + '>obliczeniowy</option>' +
           '<option value="jakosciowy"' + (p.typ === 'jakosciowy' ? ' selected' : '') + '>jakościowy</option>' +
+          '<option value="srednia"' + (p.typ === 'srednia' ? ' selected' : '') + '>średnia (2 pom.)</option>' +
         '</select></td>';
     // p.opisowe_wartosci comes from the API as a JSON string (SELECT * returns the raw column).
     // No re-stringify — just escape the quotes so the value survives in the HTML attribute.

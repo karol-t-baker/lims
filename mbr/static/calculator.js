@@ -553,6 +553,7 @@ function addSampleFull() {
 }
 
 function renderCalculator() {
+    if (_calcState.sredniaMode) { renderCalculatorSrednia(); return; }
     if (_calcState.fullMethod) { renderCalculatorFull(); return; }
     const container = document.getElementById('calc-container');
     const method = _calcState.method;
@@ -661,7 +662,9 @@ async function acceptCalc() {
     const method = _calcState.method;
     if (!method) return;
 
-    const calcFn = _calcState.fullMethod ? calcSampleFull : calcSample;
+    const calcFn = _calcState.sredniaMode ? (s) => calcSampleSrednia(s)
+                 : _calcState.fullMethod ? calcSampleFull
+                 : calcSample;
     const results = _calcState.samples
         .map(s => calcFn(s, method))
         .filter(r => r !== null);
@@ -723,14 +726,135 @@ function onTitrantChange(titrantId, value) {
     }, 800);
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// "Średnia z 2 pomiarów" — lightweight calculator mode
+//
+// Use case: SM (sucha masa) and similar bezpośredni params where lab always
+// performs 2 measurements and the accepted value is their arithmetic mean.
+// Same persistence path as titracja (ebr_wyniki.samples_json via
+// POST /api/ebr/<id>/samples), only the UI + calcSample shape differ.
+// ═══════════════════════════════════════════════════════════════════════════
+
+function calcSampleSrednia(sample) {
+    var v = parseFloat(String(sample.v || '').replace(',', '.'));
+    if (isNaN(v)) return null;
+    return v;
+}
+
+async function openCalculatorSrednia(kod, sekcja) {
+    if (_calcState.sredniaMode && _calcState.kod === kod
+        && _calcState.sekcja === sekcja && _calcState.ebrId === window.ebrId) {
+        return;
+    }
+    _calcState = {
+        tag: kod,
+        kod: kod,
+        sekcja: sekcja,
+        ebrId: window.ebrId,
+        method: { name: (kod || '').toUpperCase() || 'Parametr', method: 'Średnia z 2 pomiarów' },
+        samples: [{v: ''}, {v: ''}],
+        loading: true,
+        sredniaMode: true,
+    };
+
+    document.querySelectorAll('.ff.srednia').forEach(function(f) { f.classList.remove('active-calc'); });
+    var activeField = document.querySelector('.ff.srednia input[data-kod="' + kod + '"][data-sekcja="' + sekcja + '"]');
+    if (activeField) {
+        var ff = activeField.closest('.ff.srednia');
+        if (ff) ff.classList.add('active-calc');
+    }
+
+    renderCalculator();
+
+    try {
+        var resp = await fetch('/api/ebr/' + _calcState.ebrId + '/samples/' + sekcja + '/' + kod);
+        var data = await resp.json();
+        if (data.samples && data.samples.length > 0) {
+            _calcState.samples = data.samples.slice(0, 2).map(function(s) {
+                return { v: s.v ? String(s.v).replace(',', '.') : '' };
+            });
+            while (_calcState.samples.length < 2) _calcState.samples.push({v: ''});
+        }
+    } catch(e) {}
+
+    _calcState.loading = false;
+    renderCalculator();
+}
+
+function renderCalculatorSrednia() {
+    var container = document.getElementById('calc-container');
+    if (!container) return;
+    var method = _calcState.method;
+
+    if (_calcState.loading) {
+        container.innerHTML = '<div style="color:var(--text-dim);font-size:12px;">Ładowanie...</div>';
+        return;
+    }
+
+    var html = '<div class="calc-header">' +
+        '<div class="calc-param">' + method.name + '</div>' +
+        '<div class="calc-method">' + method.method + '</div>' +
+        '<div class="calc-formula">(p1 + p2) / 2</div>' +
+    '</div>';
+
+    var results = [];
+    _calcState.samples.forEach(function(s, i) {
+        var r = calcSampleSrednia(s);
+        if (r !== null) results.push(r);
+        html += '<div class="calc-sample">' +
+            '<div class="cs-head">' +
+                '<div class="cs-num">' + (i + 1) + '</div>' +
+                '<span class="cs-label">Pomiar</span>' +
+                '<span class="cs-result-tag" id="cs-result-' + i + '">' + (r !== null ? r.toFixed(4).replace('.', ',') : '---') + '</span>' +
+            '</div>' +
+            '<div class="cs-fields">' +
+                '<div class="cs-field" style="grid-column:1/-1;">' +
+                    '<label>Wartość</label>' +
+                    '<input type="text" inputmode="decimal" value="' + (s.v || '') +
+                        '" oninput="onSampleInputSrednia(' + i + ', _normalizeDecimal(this.value))" placeholder="---">' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+    });
+
+    html += '<div id="calc-summary-area">' + buildStatsHtml(results) + '</div>';
+
+    var hasResult = results.length >= 1;
+    html += '<button class="calc-accept" id="calc-accept-btn" style="display:' + (hasResult ? 'block' : 'none') + ';margin-top:10px;" onclick="acceptCalc()">Zatwierdź wynik →</button>';
+    html += '<div id="calc-save-status" class="calc-save-status"></div>';
+
+    container.innerHTML = html;
+}
+
+function onSampleInputSrednia(i, value) {
+    _calcState.samples[i].v = value;
+    updateResultsSrednia();
+    scheduleSave();
+}
+
+function updateResultsSrednia() {
+    _calcState.samples.forEach(function(s, i) {
+        var r = calcSampleSrednia(s);
+        var tag = document.getElementById('cs-result-' + i);
+        if (tag) tag.textContent = r !== null ? r.toFixed(4).replace('.', ',') : '---';
+    });
+    var results = _calcState.samples.map(calcSampleSrednia).filter(function(r) { return r !== null; });
+    var summaryEl = document.getElementById('calc-summary-area');
+    if (summaryEl) summaryEl.innerHTML = buildStatsHtml(results);
+    var acceptBtn = document.getElementById('calc-accept-btn');
+    if (acceptBtn) acceptBtn.style.display = results.length >= 1 ? 'block' : 'none';
+}
+
 // Export
 window.openCalculator = openCalculator;
 window.openCalculatorFull = openCalculatorFull;
+window.openCalculatorSrednia = openCalculatorSrednia;
 window.acceptCalc = acceptCalc;
 window.addSample = addSample;
 window.addSampleFull = addSampleFull;
 window.onSampleInput = onSampleInput;
 window.onSampleInputFull = onSampleInputFull;
+window.onSampleInputSrednia = onSampleInputSrednia;
 window.updateResultsFull = updateResultsFull;
 window.onTitrantChange = onTitrantChange;
 

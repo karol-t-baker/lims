@@ -2567,6 +2567,7 @@ function renderOneSection(container, opts) {
         var isTitr = pole.measurement_type === 'titracja' || TITR_TAGS_LEGACY.includes(pole.kod);
         var isBinary = pole.measurement_type === 'binarny';
         var isObl = pole.measurement_type === 'obliczeniowy';
+        var isSrednia = pole.measurement_type === 'srednia';
         var isHighlighted = prevOutOfLimit.indexOf(pole.kod) !== -1;
 
         var inputClass = '';
@@ -2588,6 +2589,7 @@ function renderOneSection(container, opts) {
         var typeTag = '';
         if (isTitr) typeTag = '<span class="type-tag t-titr">M</span>';
         else if (isObl) typeTag = '<span class="type-tag t-calc">O</span>';
+        else if (isSrednia) typeTag = '<span class="type-tag t-sred">Ś</span>';
 
         var calcMethodAttr = '';
         if (isTitr && !isReadonly && pole.calc_method) {
@@ -2649,8 +2651,8 @@ function renderOneSection(container, opts) {
         }
 
         fieldsHtml +=
-            '<div class="ff' + (isTitr ? ' titr' : '') + (isObl ? ' computed' : '') + highlightCls + '" ' +
-                (isTitr && !isReadonly ? 'data-kod="' + esc(pole.kod) + '" data-tag="' + esc(pole.tag) + '" data-sekcja="' + esc(sekcja) + '"' : '') + ' ' + calcMethodAttr + '>' +
+            '<div class="ff' + (isTitr ? ' titr' : '') + (isSrednia ? ' srednia' : '') + (isObl ? ' computed' : '') + highlightCls + '" ' +
+                ((isTitr || isSrednia) && !isReadonly ? 'data-kod="' + esc(pole.kod) + '" data-tag="' + esc(pole.tag) + '" data-sekcja="' + esc(sekcja) + '"' : '') + ' ' + calcMethodAttr + '>' +
                 '<div class="status-dot"></div>' +
                 '<label>' + labelHtml + '</label>' +
                 '<input type="text" inputmode="decimal"' +
@@ -2687,6 +2689,7 @@ function renderOneSection(container, opts) {
             '<span class="ff-leg-item"><span class="status-dot" style="background:var(--red);width:5px;height:5px;display:inline-block;border-radius:50%;"></span> poza</span>' +
             '<span class="ff-leg-item"><span class="type-tag t-titr">M</span> miareczkowanie</span>' +
             '<span class="ff-leg-item"><span class="type-tag t-calc">O</span> obliczeniowy</span>' +
+            '<span class="ff-leg-item"><span class="type-tag t-sred">Ś</span> średnia (2 pom.)</span>' +
             '<span class="ff-leg-item ff-leg-kbd"><kbd class="ff-kbd">Enter</kbd>&nbsp;↓ · <kbd class="ff-kbd">Shift+Enter</kbd>&nbsp;↑ nawigacja w sekcji</span>' +
         '</div>';
     }
@@ -4279,26 +4282,32 @@ window._panelFocusBridge = function(e) {
     if (input.closest('.col-right')) return;
 
     var ff = input.closest('.ff.titr');
-    if (ff) {
-        var kod = input.dataset.kod || (ff.querySelector('input[data-kod]') ? ff.querySelector('input[data-kod]').dataset.kod : '');
+    var ffSr = input.closest('.ff.srednia');
+    if (ff || ffSr) {
+        var anchor = ff || ffSr;
+        var kod = input.dataset.kod || (anchor.querySelector('input[data-kod]') ? anchor.querySelector('input[data-kod]').dataset.kod : '');
         var sekcja = input.dataset.sekcja;
         if (!sekcja && input.dataset.etap) {
             sekcja = 'etap__' + input.dataset.etap + '__' + input.dataset.runda;
         }
         sekcja = sekcja || '';
-        var metodaId = input.dataset.metodaId;
-        var nawazka = input.dataset.nawazka ? parseFloat(input.dataset.nawazka) : null;
         showRightPanel('calc');
-        if (metodaId) {
-            window.openCalculatorFull(parseInt(metodaId), kod, sekcja, nawazka);
+        if (ffSr) {
+            window.openCalculatorSrednia(kod, sekcja);
         } else {
-            var tag = input.dataset.tag || kod;
-            var calcMethod = null;
-            try {
-                var raw = ff.dataset.calcMethod || input.dataset.calcMethod;
-                if (raw) calcMethod = JSON.parse(raw);
-            } catch(ex) {}
-            window.openCalculator(tag, kod, sekcja, calcMethod);
+            var metodaId = input.dataset.metodaId;
+            var nawazka = input.dataset.nawazka ? parseFloat(input.dataset.nawazka) : null;
+            if (metodaId) {
+                window.openCalculatorFull(parseInt(metodaId), kod, sekcja, nawazka);
+            } else {
+                var tag = input.dataset.tag || kod;
+                var calcMethod = null;
+                try {
+                    var raw = ff.dataset.calcMethod || input.dataset.calcMethod;
+                    if (raw) calcMethod = JSON.parse(raw);
+                } catch(ex) {}
+                window.openCalculator(tag, kod, sekcja, calcMethod);
+            }
         }
         return;
     }
@@ -4993,6 +5002,7 @@ window.showProcessStage = function(etapKey) {
     '<span class="ff-leg-item"><span class="status-dot" style="background:var(--red);width:5px;height:5px;display:inline-block;border-radius:50%;"></span> poza</span>' +
     '<span class="ff-leg-item"><span class="type-tag t-titr">M</span> miareczkowanie</span>' +
     '<span class="ff-leg-item"><span class="type-tag t-calc">O</span> obliczeniowy</span>' +
+    '<span class="ff-leg-item"><span class="type-tag t-sred">Ś</span> średnia</span>' +
     '<span class="ff-leg-item" style="color:var(--text-dim);"><kbd class="ff-kbd">Enter</kbd>&nbsp;↓ · <kbd class="ff-kbd">Shift+Enter</kbd>&nbsp;↑ nawigacja w sekcji</span>' +
   '</div>';
   html += '</div>';
@@ -5443,8 +5453,14 @@ function renderParamEditor() {
   allSorted.forEach(function(p, visualIdx) {
     var b = _peBindingMap[p.id];
     var checked = !!(b && b[flagKey] === 1);
-    var typCls = p.typ === 'titracja' ? 'ped-typ-t' : p.typ === 'obliczeniowy' ? 'ped-typ-o' : 'ped-typ-b';
-    var typLabel = p.typ === 'titracja' ? 'miarecz.' : p.typ === 'obliczeniowy' ? 'oblicz.' : 'bezpośr.';
+    var typCls = p.typ === 'titracja' ? 'ped-typ-t'
+               : p.typ === 'obliczeniowy' ? 'ped-typ-o'
+               : p.typ === 'srednia' ? 'ped-typ-s'
+               : 'ped-typ-b';
+    var typLabel = p.typ === 'titracja' ? 'miarecz.'
+                 : p.typ === 'obliczeniowy' ? 'oblicz.'
+                 : p.typ === 'srednia' ? 'średnia'
+                 : 'bezpośr.';
     var disabledCls = checked ? '' : ' ped-row-disabled';
     var precVal = b && b.precision != null ? b.precision : '';
     var precPlaceholder = p.precision != null ? p.precision : 2;

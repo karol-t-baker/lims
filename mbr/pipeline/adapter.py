@@ -28,10 +28,14 @@ _TYP_MAP: dict[str, str] = {
     "obliczeniowy": "obliczeniowy",
     "binarny":     "binarny",
     "jakosciowy":  "bezp",
+    # "srednia" — laborant enters 2 raw numbers in a mini-calc panel,
+    # confirm writes their arithmetic mean to the main field. Samples
+    # persist in ebr_wyniki.samples_json (same path as titracja).
+    "srednia":     "srednia",
 }
 
 # Types that need a numeric float input in the UI
-_FLOAT_TYPY = {"bezposredni", "titracja", "obliczeniowy", "jakosciowy"}
+_FLOAT_TYPY = {"bezposredni", "titracja", "obliczeniowy", "jakosciowy", "srednia"}
 
 
 def _measurement_type(typ: str) -> str:

@@ -752,6 +752,7 @@ body {
 }
 .ff .type-tag.t-titr { background: var(--teal-bg); color: var(--teal); }
 .ff .type-tag.t-calc { background: var(--amber-bg); color: var(--amber); }
+.ff .type-tag.t-sred { background: #ecfdf5; color: #0891b2; }
 .ff .type-tag.t-suggest { background: #ede9fe; color: #7c3aed; }
 
 /* Legend */
