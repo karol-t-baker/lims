@@ -8,10 +8,10 @@ things inside the DOCX:
      the current render area (864000:843428 EMU) exactly, so no layout
      shift; only sharpness improves.
 
-  2. Sentinels — word/styles.xml: Nagwek4 w:sz w:val="999" → "996";
-     Nagwek8 w:sz w:val="999" → "997". word/header1.xml: inline
-     w:szCs w:val="999" rewritten based on the containing pStyle:
-     paragraphs using pStyle="Nagwek4" → 996; pStyle="Nagwek8" → 997.
+  2. Sentinels — word/styles.xml: Nagwek4 and Nagwek8 style blocks —
+     both `w:sz` and `w:szCs` variants rewritten based on the containing
+     pStyle: Nagwek4 → 996; Nagwek8 → 997. word/header1.xml: inline
+     w:sz and w:szCs w:val="999" rewritten per containing pStyle.
 
 Run:  python scripts/rebuild_cert_template_assets.py
 """
@@ -61,6 +61,7 @@ def patch_styles_xml(xml: str) -> str:
             raise RuntimeError(f"style {style_id!r} not found in styles.xml")
         block = m.group(1)
         new_block = block.replace('w:sz w:val="999"', f'w:sz w:val="{new_val}"')
+        new_block = new_block.replace('w:szCs w:val="999"', f'w:szCs w:val="{new_val}"')
         if block == new_block:
             # Already patched (idempotent) or sentinel missing — log.
             print(f"  {style_id}: no sentinel 999 found (already patched or missing)")
@@ -108,12 +109,15 @@ def rebuild_docx() -> None:
     in_buf = io.BytesIO(DOCX_PATH.read_bytes())
     out_buf = io.BytesIO()
 
+    image_replaced = False
+
     with zipfile.ZipFile(in_buf, "r") as zin, \
          zipfile.ZipFile(out_buf, "w", zipfile.ZIP_DEFLATED) as zout:
         for item in zin.namelist():
             data = zin.read(item)
             if item == "word/media/image2.png":
                 data = png_bytes
+                image_replaced = True
                 print(f"  replaced {item} ({len(png_bytes)} bytes)")
             elif item == "word/styles.xml":
                 txt = data.decode("utf-8")
@@ -125,9 +129,12 @@ def rebuild_docx() -> None:
                 txt = data.decode("utf-8")
                 new_txt = patch_header_xml(txt)
                 if new_txt != txt:
-                    print(f"  patched {item} (inline szCs 999 → 996/997)")
+                    print(f"  patched {item} (inline sz/szCs 999 → 996/997)")
                 data = new_txt.encode("utf-8")
             zout.writestr(item, data)
+
+    if not image_replaced:
+        sys.exit("word/media/image2.png not found in DOCX — logo not replaced")
 
     shutil.move(DOCX_PATH, DOCX_PATH.with_suffix(".docx.bak"))
     DOCX_PATH.write_bytes(out_buf.getvalue())
