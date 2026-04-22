@@ -684,6 +684,51 @@ def test_put_session_not_found(client):
     assert resp.status_code == 404
 
 
+# ─── Task 14: PUT measurement ─────────────────────────────────────────────────
+
+def test_put_measurement_pomiar(client, db):
+    # ebr_pomiar id=1 is ph_10proc=11.89 from seed
+    row = db.execute("SELECT id FROM ebr_pomiar LIMIT 1").fetchone()
+    meas_id = row[0]
+    resp = client.put(f"/api/ml-export/measurement/pomiar/{meas_id}",
+                      json={"wartosc": 12.5},
+                      content_type="application/json")
+    assert resp.status_code == 200
+    assert resp.get_json()["ok"] is True
+    updated = db.execute("SELECT wartosc FROM ebr_pomiar WHERE id=?", (meas_id,)).fetchone()
+    assert updated[0] == 12.5
+
+
+def test_put_measurement_wyniki_wartosc_text(client, db):
+    db.execute(
+        "INSERT INTO ebr_wyniki (wynik_id, ebr_id, sekcja, kod_parametru, tag, wartosc_text, dt_wpisu, wpisal) "
+        "VALUES (99, 1, 'analiza_koncowa', 'barwa_I2', 'barwa', '<1', '2026-04-16', 'JK')"
+    )
+    db.commit()
+    resp = client.put("/api/ml-export/measurement/wyniki/99",
+                      json={"wartosc_text": "<0.5"},
+                      content_type="application/json")
+    assert resp.status_code == 200
+    updated = db.execute("SELECT wartosc_text FROM ebr_wyniki WHERE wynik_id=99").fetchone()
+    assert updated[0] == "<0.5"
+
+
+def test_put_measurement_invalid_source(client):
+    resp = client.put("/api/ml-export/measurement/INVALID/1",
+                      json={"wartosc": 1.0},
+                      content_type="application/json")
+    assert resp.status_code == 400
+
+
+def test_put_measurement_rejected_field(client, db):
+    row = db.execute("SELECT id FROM ebr_pomiar LIMIT 1").fetchone()
+    resp = client.put(f"/api/ml-export/measurement/pomiar/{row[0]}",
+                      json={"wartosc_text": "x"},
+                      content_type="application/json")
+    # wartosc_text is not editable for source=pomiar
+    assert resp.status_code == 400
+
+
 def test_export_pandas_pivot_roundtrip(db):
     """Smoke test: round-trip long format through pandas pivot to wide.
     Skipped if pandas not installed (dev env).

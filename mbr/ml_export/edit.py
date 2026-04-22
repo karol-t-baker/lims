@@ -25,6 +25,19 @@ _SESSION_EDITABLE: dict[str, str] = {
     "laborant":  "laborant",
 }
 
+# ebr_pomiar — has wartosc (REAL) and w_limicie (INTEGER); no wartosc_text column
+_POMIAR_EDITABLE: dict[str, str] = {
+    "wartosc":   "wartosc",
+    "w_limicie": "w_limicie",
+}
+
+# ebr_wyniki — additionally has wartosc_text (TEXT)
+_WYNIKI_EDITABLE: dict[str, str] = {
+    "wartosc":       "wartosc",
+    "wartosc_text":  "wartosc_text",
+    "w_limicie":     "w_limicie",
+}
+
 
 def _audit(db: sqlite3.Connection, table: str, row_id: Any,
            field: str, old_value: Any, new_value: Any, batch_ebr_id: int) -> None:
@@ -82,6 +95,47 @@ def update_session(db: sqlite3.Connection, sesja_id: int,
         old_value = row[col]
         db.execute(f"UPDATE ebr_etap_sesja SET {col}=? WHERE id=?", (value, sesja_id))
         _audit(db, "ebr_etap_sesja", sesja_id, field, old_value, value, batch_ebr_id)
+    db.commit()
+    return True, None
+
+
+def update_measurement(db: sqlite3.Connection, source: str, row_id: int,
+                       fields: dict[str, Any]) -> tuple[bool, str | None]:
+    """Update editable measurement fields in ebr_pomiar (source='pomiar') or
+    ebr_wyniki (source='wyniki'). Returns (True, None) on success or (False, error_msg)."""
+    if source == "pomiar":
+        editable = _POMIAR_EDITABLE
+        table = "ebr_pomiar"
+        pk_col = "id"
+    elif source == "wyniki":
+        editable = _WYNIKI_EDITABLE
+        table = "ebr_wyniki"
+        pk_col = "wynik_id"
+    else:
+        return False, f"Unknown source '{source}'; must be 'pomiar' or 'wyniki'"
+
+    for field in fields:
+        if field not in editable:
+            return False, f"Field '{field}' is not editable for source '{source}'"
+
+    row = db.execute(f"SELECT * FROM {table} WHERE {pk_col}=?", (row_id,)).fetchone()
+    if not row:
+        return False, "NOT_FOUND"
+
+    # Resolve ebr_id for audit: pomiar → via sesja; wyniki → direct column
+    if source == "pomiar":
+        sesja = db.execute(
+            "SELECT ebr_id FROM ebr_etap_sesja WHERE id=?", (row["sesja_id"],)
+        ).fetchone()
+        batch_ebr_id = sesja["ebr_id"] if sesja else row_id
+    else:
+        batch_ebr_id = row["ebr_id"]
+
+    for field, value in fields.items():
+        col = editable[field]
+        old_value = row[col]
+        db.execute(f"UPDATE {table} SET {col}=? WHERE {pk_col}=?", (value, row_id))
+        _audit(db, table, row_id, field, old_value, value, batch_ebr_id)
     db.commit()
     return True, None
 
