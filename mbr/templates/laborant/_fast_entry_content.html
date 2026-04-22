@@ -1093,6 +1093,19 @@
 .ff-select:focus { border-color: var(--teal); outline: none; box-shadow: 0 0 0 2px var(--teal-bg); }
 .ff-select:disabled { background: var(--surface-alt, #f7f7f7); cursor: not-allowed; color: var(--text-dim); }
 
+.reedit-banner {
+    margin: 8px 12px; padding: 10px 14px;
+    border-left: 4px solid #c69a00;
+    background: #fff8e1;
+    color: #3a2f00;
+    font-size: 12px; line-height: 1.4;
+    border-radius: 4px;
+}
+.reedit-banner-warn {
+    border-left-color: #c24a00;
+    background: #fff1e0;
+    color: #5a1d00;
+}
 </style>
 
 <div class="cv-popup-overlay" id="cv-popup-overlay">
@@ -1290,6 +1303,38 @@ function _isPipelineStageEditable(sekcja) {
 }
 window._isPipelineStageEditable = _isPipelineStageEditable;
 
+function _renderReeditBanner(container, activeEtap, isReadonly) {
+    if (isReadonly) return;
+    if (!activeEtap || !activeEtap.pipeline_etap_id) return;
+    var psm = typeof pipelineSesjaMap !== 'undefined' ? pipelineSesjaMap : {};
+    var info = psm[String(activeEtap.pipeline_etap_id)] || psm[activeEtap.pipeline_etap_id] || null;
+    if (!info || info.status !== 'zamkniety') return;
+
+    var banner = document.createElement('div');
+    banner.className = 'reedit-banner';
+    banner.textContent = 'Edytujesz zakończony etap. Sprawdzanie kolejnych etapów…';
+    container.insertBefore(banner, container.firstChild);
+
+    fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + activeEtap.pipeline_etap_id + '/downstream-summary')
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+            if (!data) { banner.textContent = 'Edytujesz zakończony etap.'; return; }
+            if (!data.has_downstream) {
+                banner.textContent = 'Edytujesz zakończony etap — zmiany zostaną zapisane i odnotowane w audycie.';
+                return;
+            }
+            var parts = data.stages.map(function(s) {
+                var bits = [];
+                if (s.pomiary) bits.push(s.pomiary + ' pomiar.');
+                if (s.korekty) bits.push(s.korekty + ' korekt.');
+                return s.nazwa + ' (' + bits.join(', ') + ')';
+            });
+            banner.textContent = 'Edytujesz zakończony etap. Kolejne etapy już zawierają dane: '
+                + parts.join('; ') + '. Nie zostaną automatycznie przeliczone.';
+            banner.classList.add('reedit-banner-warn');
+        });
+}
+
 function renderPipelineSections() {
     var container = document.getElementById('sections-container');
     container.innerHTML = '';
@@ -1329,6 +1374,8 @@ function renderPipelineSections() {
 
     // Compute isReadonly now that the active sekcja is known (policy-based).
     var isReadonly = !_isPipelineStageEditable(activeSekcja);
+
+    _renderReeditBanner(container, activeEtap, isReadonly);
 
     // All cyclic pipeline stages (sulfonowanie, utlenianie, standaryzacja)
     // use unified rendering — gate banner + correction panels from V2.
