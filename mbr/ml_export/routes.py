@@ -5,6 +5,7 @@ from flask import abort, jsonify, request, Response, render_template
 
 from mbr.db import get_db
 from mbr.ml_export import ml_export_bp
+from mbr.ml_export.acid_diag import generate_chart_response
 from mbr.ml_export.edit import get_batch_detail, update_batch, update_session, update_measurement, update_correction
 from mbr.ml_export.query import export_ml_package, build_batches, build_sessions, \
     build_measurements, build_corrections
@@ -124,6 +125,18 @@ def ml_put_measurement(source: str, row_id: int):
             abort(404)
         abort(400, description=err)
     return jsonify({"ok": True, "new_value": list(fields.values())[0] if len(fields) == 1 else fields})
+
+
+@ml_export_bp.route("/api/ml-export/buffer-cap-chart", methods=["GET"])
+@role_required("admin")
+def ml_buffer_cap_chart():
+    produkt = request.args.get("produkt", "Chegina_K7")
+    db = get_db()
+    try:
+        payload = generate_chart_response(db, produkt)
+    finally:
+        db.close()
+    return jsonify(payload)
 
 
 @ml_export_bp.route("/api/ml-export/correction/<int:korekta_id>", methods=["PUT"])

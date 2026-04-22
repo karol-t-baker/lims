@@ -796,3 +796,73 @@ def test_export_pandas_pivot_roundtrip(db):
         index="ebr_id", columns=["etap", "runda"], values="wartosc"
     )
     assert wide.loc[1, ("sulfonowanie", 1)] == 11.89
+
+
+# ─── Task 17: buffer-cap-chart endpoint ───────────────────────────────────────
+
+def _seed_k7_acid_batch(db, ebr_id, nr_partii, masa_kg,
+                        ph_before, ph_after, acid_kg, status="completed"):
+    """Seed a minimal K7 batch with pH and acid dose data for buffer-cap diagnostics."""
+    db.execute(
+        """INSERT INTO ebr_batches (ebr_id, mbr_id, batch_id, nr_partii, wielkosc_szarzy_kg,
+                                    nastaw, dt_start, status, typ)
+           VALUES (?,1,?,?,?,?,?,?,'szarza')""",
+        (ebr_id, f"K7__{ebr_id}", nr_partii, masa_kg, masa_kg,
+         f"2026-04-{10+ebr_id:02d}T08:00:00", status),
+    )
+    # Seed standaryzacja session with ph measurements + acid correction
+    sess_id = ebr_id * 10
+    db.execute(
+        "INSERT INTO ebr_etap_sesja (id, ebr_id, etap_id, runda, status, laborant) "
+        "VALUES (?,?,9,1,'zamkniety','JK')",
+        (sess_id, ebr_id),
+    )
+    # ph_10proc pomiar: ph_before and ph_after
+    db.execute(
+        "INSERT INTO ebr_pomiar (sesja_id, parametr_id, wartosc, w_limicie, dt_wpisu, wpisal) "
+        "VALUES (?,1,?,1,'2026-04-16','JK')",
+        (sess_id, ph_before),
+    )
+    # Acid correction (Kwas cytrynowy = korekta_typ_id 5 from fixture)
+    db.execute(
+        "INSERT INTO ebr_korekta_v2 (sesja_id, korekta_typ_id, ilosc, status) "
+        "VALUES (?,5,?,'wykonana')",
+        (sess_id, acid_kg),
+    )
+    db.commit()
+
+
+def test_buffer_cap_chart_stats(db):
+    from mbr.ml_export.acid_diag import compute_buffer_cap_stats
+    # Seed 3 additional batches with K7 acid data (ebr_id 10,11,12)
+    _seed_k7_acid_batch(db, 10, '10/2026', 13300, ph_before=10.2, ph_after=6.3, acid_kg=150.0)
+    _seed_k7_acid_batch(db, 11, '11/2026', 13300, ph_before=10.5, ph_after=6.2, acid_kg=160.0)
+    _seed_k7_acid_batch(db, 12, '12/2026', 13300, ph_before=10.0, ph_after=6.4, acid_kg=140.0)
+    stats = compute_buffer_cap_stats(db, produkt="Chegina_K7")
+    assert stats["n"] >= 3
+    assert "mae" in stats
+    assert "mape" in stats
+    assert "mean_bias" in stats
+    assert "stdev" in stats
+    assert isinstance(stats["mae"], float)
+
+
+def test_buffer_cap_chart_endpoint(client, db):
+    _seed_k7_acid_batch(db, 10, '10/2026', 13300, ph_before=10.2, ph_after=6.3, acid_kg=150.0)
+    resp = client.get("/api/ml-export/buffer-cap-chart?produkt=Chegina_K7")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert "stats" in data
+    assert "chart_png_b64" in data
+    # chart_png_b64 is non-empty base64 string
+    import base64
+    png_bytes = base64.b64decode(data["chart_png_b64"])
+    assert png_bytes[:4] == b'\x89PNG'
+
+
+def test_buffer_cap_chart_empty(client):
+    # No acid batches → empty stats, still returns 200
+    resp = client.get("/api/ml-export/buffer-cap-chart?produkt=Chegina_K7")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["stats"]["n"] == 0
