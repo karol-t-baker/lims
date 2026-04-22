@@ -274,3 +274,40 @@ def test_build_batches_open_excluded(db):
     db.commit()
     rows = build_batches(db, produkty=["Chegina_K7"], statuses=("completed","cancelled"))
     assert all(r["status"] in ("completed","cancelled") for r in rows)
+
+
+# ─── build_sessions ───────────────────────────────────────────────────────────
+
+def test_build_sessions_from_seed(db):
+    from mbr.ml_export.query import build_sessions
+    rows = build_sessions(db, ebr_ids=[1])
+    assert len(rows) == 1
+    s = rows[0]
+    assert set(s.keys()) == {"ebr_id", "etap", "runda", "dt_start", "laborant"}
+    assert s == {
+        "ebr_id": 1,
+        "etap": "sulfonowanie",
+        "runda": 1,
+        "dt_start": "2026-04-16T09:05:00",
+        "laborant": "JK",
+    }
+
+
+def test_build_sessions_multiple_stages_ordered(db):
+    """Sessions ordered by (ebr_id, etap pipeline order, runda)."""
+    from mbr.ml_export.query import build_sessions
+    # Add utlenienie R1 and R2
+    db.execute("INSERT INTO ebr_etap_sesja (id, ebr_id, etap_id, runda, status, dt_start, laborant) "
+               "VALUES (2,1,5,1,'zamkniety','2026-04-16T10:00:00','JK')")
+    db.execute("INSERT INTO ebr_etap_sesja (id, ebr_id, etap_id, runda, status, dt_start, laborant) "
+               "VALUES (3,1,5,2,'zamkniety','2026-04-16T10:30:00','JK')")
+    db.commit()
+    rows = build_sessions(db, ebr_ids=[1])
+    assert [(r["etap"], r["runda"]) for r in rows] == [
+        ("sulfonowanie", 1), ("utlenienie", 1), ("utlenienie", 2),
+    ]
+
+
+def test_build_sessions_empty_when_no_ids(db):
+    from mbr.ml_export.query import build_sessions
+    assert build_sessions(db, ebr_ids=[]) == []

@@ -99,6 +99,35 @@ def build_batches(db: sqlite3.Connection, produkty: list[str],
     return out
 
 
+def build_sessions(db: sqlite3.Connection, ebr_ids: list[int]) -> list[dict]:
+    if not ebr_ids:
+        return []
+    ids_q = ",".join("?" for _ in ebr_ids)
+    rows = db.execute(
+        f"""SELECT s.ebr_id, ea.kod AS etap, s.runda, s.dt_start, s.laborant,
+                   pp.kolejnosc AS pipeline_order
+              FROM ebr_etap_sesja s
+              JOIN etapy_analityczne ea ON ea.id = s.etap_id
+              JOIN ebr_batches e        ON e.ebr_id = s.ebr_id
+              JOIN mbr_templates m      ON m.mbr_id = e.mbr_id
+              LEFT JOIN produkt_pipeline pp
+                     ON pp.produkt = m.produkt AND pp.etap_id = s.etap_id
+             WHERE s.ebr_id IN ({ids_q})
+          ORDER BY s.ebr_id, pp.kolejnosc, s.runda""",
+        ebr_ids,
+    ).fetchall()
+    return [
+        {
+            "ebr_id":   r["ebr_id"],
+            "etap":     r["etap"],
+            "runda":    r["runda"],
+            "dt_start": r["dt_start"],
+            "laborant": r["laborant"],
+        }
+        for r in rows
+    ]
+
+
 # ── Legacy wide-CSV shims (used by routes.py until Task 8 replaces the route) ─
 
 def export_k7_batches(db: sqlite3.Connection, after_id: int = 0,
