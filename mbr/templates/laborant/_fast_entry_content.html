@@ -1490,7 +1490,7 @@ function _renderUwagiBlock(canEdit) {
         html += '<div class="cv-notes-history">';
         html += '<div class="cv-notes-history-title">Historia (' + _uwagiState.historia.length + ')</div>';
         _uwagiState.historia.forEach(function(h) {
-            var dt = h.dt ? h.dt.substring(0, 16).replace('T', ' ') : '';
+            var dt = fmtDt(h.dt, {long: true});
             var label = h.action === 'create' ? '[pierwszy wpis]' :
                        (h.action === 'delete' ? '[usunięto]' : '');
             var preview = h.tekst ? esc(h.tekst.length > 60 ? h.tekst.slice(0, 57) + '…' : h.tekst) : '';
@@ -3397,7 +3397,7 @@ function _roundMeasurementsTable(rWyniki, pola, isLegacy) {
     var html = '<table class="rh-table">';
     measurements.forEach(function(m) {
         html += '<tr>' +
-            '<td class="rh-td-label">' + m.label + '</td>' +
+            '<td class="rh-td-label">' + rtHtml(m.label) + '</td>' +
             '<td class="rh-td-val ' + (m.ok ? 'rh-val-ok' : 'rh-val-err') + '">' +
                 m.wartosc.toFixed(m.precision).replace('.', ',') + '</td>' +
         '</tr>';
@@ -5664,6 +5664,15 @@ function peSaveLimits() {
 // ═══ DZIENNIK ZDARZEŃ VIEW ═══
 
 async function showDziennikView() {
+    // Flush pending autosaves before replacing the DOM — otherwise entries typed
+    // seconds before clicking "Dziennik" are lost (the debounce timer is cancelled
+    // when the field DOM gets thrown away by the innerHTML replace below).
+    if (typeof flushPendingSaves === 'function') {
+        await flushPendingSaves();
+    }
+    // Remember which stage was active so hideDziennikView can return the user there.
+    window._preDziennikStage = window._activePipelineStage;
+
     var container = document.getElementById('sections-container');
     container.innerHTML = '<div class="dz-wrap"><div class="dz-empty">\u0141adowanie dziennika...</div></div>';
 
@@ -5701,7 +5710,12 @@ async function showDziennikView() {
                 pola.forEach(function(pole) {
                     var pm = pomiary.find(function(p) { return p.kod === pole.kod; });
                     if (pm && pm.wartosc != null) {
-                        valsArr.push((pole.skrot || pole.kod) + ': ' + pm.wartosc.toFixed(pole.precision || 2).replace('.', ','));
+                        // rtHtml emits safe HTML (sup/sub tags) — concat with
+                        // esc'd number; the cell renderer below treats row.vals
+                        // as HTML, not plain text.
+                        var labelHtml = rtHtml(pole.skrot || pole.kod);
+                        var valStr = pm.wartosc.toFixed(pole.precision || 2).replace('.', ',');
+                        valsArr.push(labelHtml + ': ' + esc(valStr));
                     }
                 });
 
@@ -5712,7 +5726,7 @@ async function showDziennikView() {
                     okCnt: okCnt,
                     errCnt: errCnt,
                     wpisal: s.wpisal || '',
-                    dt: s.dt_start ? s.dt_start.substring(5, 16).replace('T', ' ') : ''
+                    dt: fmtDt(s.dt_start)
                 });
 
                 korekty.forEach(function(k) {
@@ -5750,7 +5764,7 @@ async function showDziennikView() {
             else if (row.okCnt > 0) statusHtml = '<span class="rh-badge rh-badge-ok">' + row.okCnt + ' OK</span>';
             html += '<tr class="dz-data-row">' +
                 '<td><span class="dz-runda-nr">R' + row.runda + '</span></td>' +
-                '<td class="dz-mono">' + esc(row.vals) + '</td>' +
+                '<td class="dz-mono">' + row.vals + '</td>' +
                 '<td>' + statusHtml + '</td>' +
                 '<td class="dz-actor">' + esc(row.wpisal) + (row.dt ? ' \u00b7 ' + row.dt : '') + '</td>' +
             '</tr>';
@@ -5768,7 +5782,11 @@ async function showDziennikView() {
 }
 
 function hideDziennikView() {
-    window._activePipelineStage = null;
+    // Restore the stage the user was on before opening the journal.
+    // Nulling it (previous behaviour) dropped users on the auto-resolved default
+    // stage, which could differ from where they came from.
+    window._activePipelineStage = window._preDziennikStage || null;
+    window._preDziennikStage = null;
     renderSections();
 }
 
