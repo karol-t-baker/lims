@@ -203,6 +203,38 @@ def build_measurements(db: sqlite3.Connection, ebr_ids: list[int]) -> list[dict]
     return out
 
 
+def build_corrections(db: sqlite3.Connection, ebr_ids: list[int]) -> list[dict]:
+    if not ebr_ids:
+        return []
+    ids_q = ",".join("?" for _ in ebr_ids)
+    rows = db.execute(
+        f"""SELECT s.ebr_id, ea.kod AS etap, s.runda,
+                   ek.substancja, k.ilosc, k.ilosc_wyliczona,
+                   k.status, k.zalecil, k.dt_wykonania
+              FROM ebr_korekta_v2 k
+              JOIN ebr_etap_sesja s          ON s.id = k.sesja_id
+              JOIN etapy_analityczne ea      ON ea.id = s.etap_id
+              JOIN etap_korekty_katalog ek   ON ek.id = k.korekta_typ_id
+             WHERE s.ebr_id IN ({ids_q})
+          ORDER BY s.ebr_id, s.etap_id, s.runda, ek.kolejnosc""",
+        ebr_ids,
+    ).fetchall()
+    return [
+        {
+            "ebr_id":        r["ebr_id"],
+            "etap":          r["etap"],
+            "runda":         r["runda"],
+            "substancja":    r["substancja"],
+            "kg":            r["ilosc"],
+            "sugest_kg":     r["ilosc_wyliczona"],
+            "status":        r["status"],
+            "zalecil":       r["zalecil"],
+            "dt_wykonania":  r["dt_wykonania"],
+        }
+        for r in rows
+    ]
+
+
 # ── Legacy wide-CSV shims (used by routes.py until Task 8 replaces the route) ─
 
 def export_k7_batches(db: sqlite3.Connection, after_id: int = 0,

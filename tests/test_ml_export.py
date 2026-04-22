@@ -405,3 +405,58 @@ def test_build_measurements_wartosc_text(db):
     assert below[0]["wartosc"] is None
     assert below[0]["wartosc_text"] == "<1"
     assert below[0]["is_legacy"] == 1
+
+
+# ─── build_corrections ────────────────────────────────────────────────────────
+
+CORR_COLS = {
+    "ebr_id", "etap", "runda", "substancja",
+    "kg", "sugest_kg", "status", "zalecil", "dt_wykonania",
+}
+
+
+def test_build_corrections_basic(db):
+    from mbr.ml_export.query import build_corrections
+    rows = build_corrections(db, ebr_ids=[1])
+    # Fixture has 1 Siarczyn sodu correction on sulfonowanie R1
+    assert len(rows) == 1
+    r = rows[0]
+    assert set(r.keys()) == CORR_COLS
+    assert r["ebr_id"] == 1
+    assert r["etap"] == "sulfonowanie"
+    assert r["runda"] == 1
+    assert r["substancja"] == "Siarczyn sodu"
+    assert r["kg"] == 15.0
+    assert r["status"] == "wykonana"
+    assert r["sugest_kg"] is None
+
+
+def test_build_corrections_with_suggestion(db):
+    """ilosc_wyliczona flows into sugest_kg."""
+    from mbr.ml_export.query import build_corrections
+    # Utlenienie R1 session + Kwas cytrynowy correction with suggestion
+    db.execute("INSERT INTO ebr_etap_sesja (id, ebr_id, etap_id, runda, status, laborant) "
+               "VALUES (7,1,5,1,'zamkniety','JK')")
+    db.execute("INSERT INTO ebr_korekta_v2 (sesja_id, korekta_typ_id, ilosc, ilosc_wyliczona, status, zalecil, dt_wykonania) "
+               "VALUES (7, 5, 100.0, 110.5, 'wykonana', 'MM', '2026-04-16T10:15:00')")
+    db.commit()
+    rows = build_corrections(db, ebr_ids=[1])
+    kwas = [r for r in rows if r["substancja"] == "Kwas cytrynowy"][0]
+    assert kwas["kg"] == 100.0
+    assert kwas["sugest_kg"] == 110.5
+    assert kwas["zalecil"] == "MM"
+    assert kwas["dt_wykonania"] == "2026-04-16T10:15:00"
+
+
+def test_build_corrections_all_statuses_emitted(db):
+    """Anulowana and zalecona are also emitted — client filters."""
+    from mbr.ml_export.query import build_corrections
+    db.execute("INSERT INTO ebr_etap_sesja (id, ebr_id, etap_id, runda, status, laborant) "
+               "VALUES (8,1,5,2,'zamkniety','JK')")
+    db.execute("INSERT INTO ebr_korekta_v2 (sesja_id, korekta_typ_id, ilosc, status) "
+               "VALUES (8, 3, 7.0, 'anulowana')")
+    db.commit()
+    rows = build_corrections(db, ebr_ids=[1])
+    statuses = {r["status"] for r in rows}
+    assert "anulowana" in statuses
+    assert "wykonana" in statuses
