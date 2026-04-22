@@ -586,11 +586,11 @@ def test_ml_export_page_renders(client):
     resp = client.get("/ml-export")
     assert resp.status_code == 200
     body = resp.data.decode("utf-8")
-    # Four panels, one per table
+    # Four panels, one per table (rendered in raw-preview accordion)
     for name in ("batches.csv", "sessions.csv", "measurements.csv", "corrections.csv"):
         assert name in body
-    # Download button
-    assert "Pobierz paczkę" in body
+    # Download action present
+    assert "Pobierz" in body
     # Row counts are rendered (fixture: 1 / 1 / 5 / 1)
     assert "1 wiersz" in body or "1 wierszy" in body  # batches
 
@@ -773,8 +773,9 @@ def test_ml_export_page_has_search_input(client):
     resp = client.get("/ml-export")
     assert resp.status_code == 200
     body = resp.data.decode("utf-8")
-    assert "nr_partii" in body
-    assert "Szukaj" in body
+    assert "nr_partii" in body           # search input placeholder
+    assert "ml-search-input" in body      # search input element id
+    assert "mlLoadDetail" in body         # search button handler
 
 
 def test_ml_export_page_has_edit_section(client):
@@ -810,24 +811,37 @@ def _seed_k7_acid_batch(db, ebr_id, nr_partii, masa_kg,
         (ebr_id, f"K7__{ebr_id}", nr_partii, masa_kg, masa_kg,
          f"2026-04-{10+ebr_id:02d}T08:00:00", status),
     )
-    # Seed standaryzacja session with ph measurements + acid correction
-    sess_id = ebr_id * 10
+    # Seed utlenienie session with the ph_before measurement (pH pre-acid-dosing).
+    # _load_acid_rows reads ph_before from utlenienie, not standaryzacja.
+    utl_sess = ebr_id * 10
     db.execute(
         "INSERT INTO ebr_etap_sesja (id, ebr_id, etap_id, runda, status, laborant) "
-        "VALUES (?,?,9,1,'zamkniety','JK')",
-        (sess_id, ebr_id),
+        "VALUES (?,?,5,1,'zamkniety','JK')",
+        (utl_sess, ebr_id),
     )
-    # ph_10proc pomiar: ph_before and ph_after
     db.execute(
         "INSERT INTO ebr_pomiar (sesja_id, parametr_id, wartosc, w_limicie, dt_wpisu, wpisal) "
         "VALUES (?,1,?,1,'2026-04-16','JK')",
-        (sess_id, ph_before),
+        (utl_sess, ph_before),
     )
-    # Acid correction (Kwas cytrynowy = korekta_typ_id 5 from fixture)
+    # Acid correction (Kwas cytrynowy = korekta_typ_id 5 from fixture) on utlenienie.
     db.execute(
         "INSERT INTO ebr_korekta_v2 (sesja_id, korekta_typ_id, ilosc, status) "
         "VALUES (?,5,?,'wykonana')",
-        (sess_id, acid_kg),
+        (utl_sess, acid_kg),
+    )
+    # Standaryzacja session with post-dose pH (for completeness — query doesn't
+    # read it, but real batches have it and it helps keep the fixture realistic).
+    std_sess = ebr_id * 10 + 1
+    db.execute(
+        "INSERT INTO ebr_etap_sesja (id, ebr_id, etap_id, runda, status, laborant) "
+        "VALUES (?,?,9,1,'zamkniety','JK')",
+        (std_sess, ebr_id),
+    )
+    db.execute(
+        "INSERT INTO ebr_pomiar (sesja_id, parametr_id, wartosc, w_limicie, dt_wpisu, wpisal) "
+        "VALUES (?,1,?,1,'2026-04-16','JK')",
+        (std_sess, ph_after),
     )
     db.commit()
 

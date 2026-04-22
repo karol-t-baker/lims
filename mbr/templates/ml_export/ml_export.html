@@ -4,85 +4,315 @@
 
 {% block content %}
 <style>
-  .ml-wrap { padding: 20px 24px; max-width: 1200px; }
-  .ml-header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
-  .ml-title { font-size: 18px; font-weight: 700; color: var(--text); }
-  .ml-dl {
-    font-size: 13px; padding: 7px 18px; border: 1.5px solid var(--teal);
-    border-radius: 6px; color: var(--teal); font-weight: 600;
-    text-decoration: none; background: none; cursor: pointer;
+  /* ── Page frame ─────────────────────────────────────────────────────────── */
+  .ml-wrap { max-width: 1280px; padding-bottom: 48px; }
+
+  .ml-head { margin-bottom: 28px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
+  .ml-head .eyebrow {
+    font-size: 10px; letter-spacing: 1.8px; text-transform: uppercase;
+    color: var(--teal); font-weight: 700; margin-bottom: 4px;
   }
-  .ml-dl:hover { background: var(--teal-bg); }
-  .ml-toggle { font-size: 12px; color: var(--text-dim); display: inline-flex; align-items: center; gap: 6px; }
-  .ml-panel { margin-bottom: 26px; }
-  .ml-panel h3 { font-size: 14px; font-weight: 600; margin: 0 0 6px; color: var(--text); }
-  .ml-panel .count { font-size: 11px; color: var(--text-dim); }
-  .ml-table { width: 100%; border-collapse: collapse; font-size: 11px; font-family: var(--mono, monospace); margin-top: 6px; }
-  .ml-table th { background: var(--surface-alt); padding: 5px 8px; text-align: left; font-weight: 600; font-size: 10px; color: var(--text-dim); border-bottom: 2px solid var(--border); white-space: nowrap; }
-  .ml-table td { padding: 4px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; color: var(--text); }
+  .ml-head h1 {
+    font-size: 28px; font-weight: 700; color: var(--text);
+    margin: 0 0 4px; line-height: 1.1; letter-spacing: -0.5px;
+  }
+  .ml-head .sub { font-size: 12px; color: var(--text-dim); font-family: var(--mono, monospace); }
+
+  /* ── Stats grid ─────────────────────────────────────────────────────────── */
+  .ml-stats {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+    margin-bottom: 22px;
+  }
+  .ml-stat {
+    background: var(--surface-alt); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column;
+  }
+  .ml-stat .label {
+    font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--text-dim); font-weight: 600;
+  }
+  .ml-stat .value {
+    font-size: 28px; font-weight: 700; color: var(--text);
+    font-family: var(--mono, monospace); line-height: 1.1; margin-top: 4px;
+  }
+  .ml-stat .unit { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+  /* ── Action bar ─────────────────────────────────────────────────────────── */
+  .ml-actions {
+    display: grid; grid-template-columns: 1fr; gap: 12px;
+    margin-bottom: 28px; padding: 16px 18px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  }
+  .ml-action-row {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  .ml-action-row .ico {
+    width: 28px; height: 28px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; color: var(--teal); background: var(--teal-bg);
+    border-radius: 6px;
+  }
+  .ml-action-row .lbl {
+    font-size: 12px; color: var(--text-dim); min-width: 140px; font-weight: 500;
+  }
+  .ml-btn {
+    font-size: 12px; padding: 7px 16px; border: 1.5px solid var(--teal);
+    border-radius: 6px; background: var(--teal); color: #fff;
+    font-weight: 600; cursor: pointer; text-decoration: none;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .ml-btn:hover { filter: brightness(1.08); }
+  .ml-btn.ghost { background: none; color: var(--teal); }
+  .ml-btn.ghost:hover { background: var(--teal-bg); }
+  .ml-input {
+    font-size: 13px; padding: 7px 12px; border: 1px solid var(--border);
+    border-radius: 6px; background: var(--surface); width: 220px;
+    font-family: var(--mono, monospace); color: var(--text);
+  }
+  .ml-input:focus { outline: none; border-color: var(--teal); }
+  .ml-toggle {
+    font-size: 12px; color: var(--text-dim); display: inline-flex;
+    align-items: center; gap: 6px; margin-left: auto;
+  }
+  .ml-diag-inline {
+    font-size: 11px; color: var(--text-dim); font-family: var(--mono, monospace);
+    margin-left: 6px;
+  }
+  .ml-diag-inline strong { color: var(--text); }
+
+  /* ── Edit detail ────────────────────────────────────────────────────────── */
+  .ml-detail-wrap {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden; margin-bottom: 24px;
+  }
+  .ml-detail-head {
+    padding: 14px 18px; border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .ml-detail-head h3 { font-size: 14px; font-weight: 600; margin: 0; color: var(--text); }
+  .ml-detail-head .hint { font-size: 11px; color: var(--text-dim); }
+  .ml-tabs {
+    display: flex; gap: 0; background: var(--surface-alt);
+    border-bottom: 1px solid var(--border);
+  }
+  .ml-tab {
+    flex: 1; padding: 10px 14px; font-size: 12px; font-weight: 600;
+    border: none; background: none; cursor: pointer; color: var(--text-dim);
+    border-bottom: 2px solid transparent; transition: all 0.12s;
+    font-family: inherit;
+  }
+  .ml-tab:hover { color: var(--text); background: var(--surface); }
+  .ml-tab.active {
+    color: var(--teal); background: var(--surface);
+    border-bottom-color: var(--teal);
+  }
+  .ml-tab .badge {
+    font-size: 10px; font-weight: 600; padding: 1px 6px; margin-left: 6px;
+    background: var(--border); color: var(--text-dim); border-radius: 10px;
+    font-family: var(--mono, monospace);
+  }
+  .ml-tab.active .badge { background: var(--teal-bg); color: var(--teal); }
+  .ml-tab-body { padding: 14px 18px; overflow-x: auto; }
+
+  /* ── Tables ─────────────────────────────────────────────────────────────── */
+  .ml-table { width: 100%; border-collapse: collapse; font-size: 11px; font-family: var(--mono, monospace); }
+  .ml-table th {
+    background: var(--surface-alt); padding: 6px 10px; text-align: left;
+    font-weight: 700; font-size: 10px; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.5px;
+    border-bottom: 2px solid var(--border); white-space: nowrap;
+  }
+  .ml-table td { padding: 5px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; color: var(--text); }
+  .ml-table tr:hover td { background: var(--surface-alt); }
   .ml-null { color: var(--text-dim); opacity: 0.4; }
-  .ml-empty { padding: 14px; text-align: center; color: var(--text-dim); font-size: 12px; }
+  .ml-empty { padding: 20px; text-align: center; color: var(--text-dim); font-size: 12px; }
+  .ml-editable {
+    display: inline-block; min-width: 30px; min-height: 14px;
+    padding: 1px 4px; border-radius: 3px; outline: 1px dashed transparent;
+    transition: outline-color 0.12s, background 0.2s;
+  }
+  .ml-editable:hover { outline-color: var(--teal); }
+  .ml-editable:focus {
+    outline: 1.5px solid var(--teal); background: var(--teal-bg);
+  }
+
+  /* ── Collapsible raw preview ────────────────────────────────────────────── */
+  .ml-preview-accord {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden;
+  }
+  .ml-preview-accord > summary {
+    padding: 14px 18px; cursor: pointer; list-style: none;
+    font-size: 13px; font-weight: 600; color: var(--text);
+    display: flex; align-items: center; gap: 10px; user-select: none;
+  }
+  .ml-preview-accord > summary::-webkit-details-marker { display: none; }
+  .ml-preview-accord > summary::before {
+    content: '▸'; color: var(--text-dim); font-size: 10px;
+    transition: transform 0.18s;
+  }
+  .ml-preview-accord[open] > summary::before { transform: rotate(90deg); }
+  .ml-preview-accord > summary .meta {
+    margin-left: auto; font-size: 11px; color: var(--text-dim);
+    font-family: var(--mono, monospace); font-weight: 400;
+  }
+  .ml-preview-body { padding: 0 18px 16px; }
+  .ml-preview-block { margin-top: 18px; }
+  .ml-preview-block:first-child { margin-top: 0; }
+  .ml-preview-block h4 {
+    font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--text-dim); font-weight: 700; margin: 0 0 6px;
+    display: flex; justify-content: space-between;
+  }
+  .ml-preview-block h4 .count {
+    font-family: var(--mono, monospace); font-weight: 600; letter-spacing: 0;
+    text-transform: none; color: var(--text);
+  }
+
+  /* ── Modal ──────────────────────────────────────────────────────────────── */
+  .ml-modal {
+    display: none; position: fixed; inset: 0; z-index: 9999;
+    background: rgba(15, 23, 28, 0.94); backdrop-filter: blur(3px);
+    align-items: center; justify-content: center; cursor: zoom-out;
+  }
+  .ml-modal.open { display: flex; }
+  .ml-modal .close {
+    position: absolute; top: 18px; right: 22px; width: 40px; height: 40px;
+    font-size: 20px; font-weight: 700; border: none; border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12); color: #fff; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .ml-modal .close:hover { background: rgba(255, 255, 255, 0.22); }
+  .ml-modal img {
+    max-width: 96vw; max-height: 94vh;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5); border-radius: 4px;
+    cursor: default;
+  }
 </style>
 
-<div class="ml-wrap">
-  <div class="ml-header">
-    <div class="ml-title">ML Export — K7 Pipeline (long format)</div>
-    <a class="ml-dl" href="{{ url_for('ml_export.export_k7_zip') }}{% if include_failed %}?include_failed=1{% endif %}">
-      &#11015; Pobierz paczkę (.zip)
-    </a>
-    <label class="ml-toggle">
-      <input type="checkbox" onchange="location = this.checked ? '?include_failed=1' : '?'"
-             {% if include_failed %}checked{% endif %}>
-      Włącz szarże anulowane
-    </label>
+<div class="col-main ml-wrap">
+
+  {# ─── Header ────────────────────────────────────────────────────────────── #}
+  <header class="ml-head">
+    <div class="eyebrow">Dataset · Chegina K7</div>
+    <h1>ML Export</h1>
+    <div class="sub">Long format · 4 tidy tables + schema.json</div>
+  </header>
+
+  {# ─── Stats grid ────────────────────────────────────────────────────────── #}
+  <div class="ml-stats">
+    {% for name, key in [
+      ('Batches', 'batches'),
+      ('Sessions', 'sessions'),
+      ('Measurements', 'measurements'),
+      ('Corrections', 'corrections'),
+    ] %}
+      {% set p = preview[key] %}
+      <div class="ml-stat">
+        <span class="label">{{ name }}</span>
+        <span class="value">{{ p.total }}</span>
+        <span class="unit">{{ 'wiersz' if p.total == 1 else 'wierszy' }}</span>
+      </div>
+    {% endfor %}
   </div>
 
-  {% for name, key in [
-    ('batches.csv', 'batches'),
-    ('sessions.csv', 'sessions'),
-    ('measurements.csv', 'measurements'),
-    ('corrections.csv', 'corrections'),
-  ] %}
-    {% set p = preview[key] %}
-    <div class="ml-panel">
-      <h3>{{ name }} <span class="count">— {{ p.total }} {{ 'wiersz' if p.total == 1 else 'wierszy' }}</span></h3>
-      {% if p.rows %}
-        <table class="ml-table">
-          <thead><tr>{% for k in p.rows[0].keys() %}<th>{{ k }}</th>{% endfor %}</tr></thead>
-          <tbody>
-            {% for row in p.rows %}
-              <tr>{% for v in row.values() %}
-                <td{% if v is none %} class="ml-null"{% endif %}>{{ '—' if v is none else v }}</td>
-              {% endfor %}</tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      {% else %}
-        <div class="ml-empty">Brak danych.</div>
-      {% endif %}
+  {# ─── Action bar ────────────────────────────────────────────────────────── #}
+  <div class="ml-actions">
+    <div class="ml-action-row">
+      <div class="ico">⬇</div>
+      <div class="lbl">Pobierz dataset</div>
+      <a class="ml-btn" href="{{ url_for('ml_export.export_k7_zip') }}{% if include_failed %}?include_failed=1{% endif %}">
+        k7_ml_export.zip
+      </a>
+      <label class="ml-toggle">
+        <input type="checkbox" onchange="location = this.checked ? '?include_failed=1' : '?'"
+               {% if include_failed %}checked{% endif %}>
+        Dołącz szarże anulowane
+      </label>
     </div>
-  {% endfor %}
 
-  {# ─── Inline edit: search + detail ─────────────────────────────────────── #}
-  <div class="ml-panel" id="ml-edit" style="margin-top: 32px;">
-    <h3>Edycja rekordu szarży</h3>
-    <div style="display:flex; gap:8px; margin-bottom:12px;">
-      <input id="ml-search-input" type="text" placeholder="nr_partii (np. 1/2026)"
-             style="font-size:13px; padding:6px 10px; border:1px solid var(--border);
-                    border-radius:4px; width:220px; background:var(--surface);">
-      <button id="ml-search-btn" onclick="mlLoadDetail()"
-              style="font-size:12px; padding:6px 14px; border:1.5px solid var(--teal);
-                     border-radius:4px; background:none; color:var(--teal); cursor:pointer;">
-        Szukaj
-      </button>
+    <div class="ml-action-row">
+      <div class="ico">🔍</div>
+      <div class="lbl">Edytuj szarżę</div>
+      <input id="ml-search-input" class="ml-input" type="text" placeholder="nr_partii (np. 1/2026)"
+             onkeydown="if(event.key==='Enter') mlLoadDetail()">
+      <button class="ml-btn ghost" onclick="mlLoadDetail()">Wczytaj</button>
+      <span id="ml-detail-error" style="color:var(--red); font-size:11px; display:none; margin-left:8px;"></span>
     </div>
-    <div id="ml-detail-area" style="display:none;">
-      <div id="ml-detail-content"></div>
+
+    <div class="ml-action-row">
+      <div class="ico">📊</div>
+      <div class="lbl">Diagnostyka modelu kwasu</div>
+      <button class="ml-btn" onclick="mlLoadDiagnostics()">Wykres buffer capacity</button>
+      <span id="ml-diag-stats" class="ml-diag-inline">— klik aby wczytać —</span>
     </div>
-    <div id="ml-detail-error" style="display:none; color:var(--red); font-size:12px;"></div>
+  </div>
+
+  {# ─── Edit detail (shown after search) ──────────────────────────────────── #}
+  <div class="ml-detail-wrap" id="ml-detail-area" style="display:none;">
+    <div class="ml-detail-head">
+      <h3>Edycja szarży <span id="ml-detail-nr" style="color:var(--teal); font-family:var(--mono,monospace);"></span></h3>
+      <span class="hint">Klik w komórkę aby edytować · zapis on-blur</span>
+    </div>
+    <div class="ml-tabs" id="ml-tabs"></div>
+    <div class="ml-tab-body" id="ml-tab-body"></div>
+  </div>
+
+  {# ─── Collapsible raw preview ───────────────────────────────────────────── #}
+  <details class="ml-preview-accord">
+    <summary>
+      Podgląd surowych danych
+      <span class="meta">pierwsze 5 wierszy każdej tabeli</span>
+    </summary>
+    <div class="ml-preview-body">
+      {% for name, key in [
+        ('batches.csv', 'batches'),
+        ('sessions.csv', 'sessions'),
+        ('measurements.csv', 'measurements'),
+        ('corrections.csv', 'corrections'),
+      ] %}
+        {% set p = preview[key] %}
+        <div class="ml-preview-block">
+          <h4>{{ name }} <span class="count">{{ p.total }} {{ 'wiersz' if p.total == 1 else 'wierszy' }}</span></h4>
+          {% if p.rows %}
+            <div style="overflow-x:auto;">
+              <table class="ml-table">
+                <thead><tr>{% for k in p.rows[0].keys() %}<th>{{ k }}</th>{% endfor %}</tr></thead>
+                <tbody>
+                  {% for row in p.rows %}
+                    <tr>{% for v in row.values() %}
+                      <td{% if v is none %} class="ml-null"{% endif %}>{{ '—' if v is none else v }}</td>
+                    {% endfor %}</tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="ml-empty">Brak danych.</div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </details>
+
+  {# ─── Fullscreen chart modal ───────────────────────────────────────────── #}
+  <div id="ml-chart-modal" class="ml-modal" onclick="mlCloseChartModal(event)">
+    <button type="button" class="close" onclick="mlCloseChartModal()" title="Zamknij (ESC)">×</button>
+    <img id="ml-chart-modal-img" src="" alt="Diagnostic chart (fullscreen)">
   </div>
 
 <script>
+/* ═══ Edit detail ═══════════════════════════════════════════════════════════ */
+
+var _ML_BATCH_EDITABLE  = ['masa_kg','dt_start','dt_end','status','pakowanie_bezposrednie','nastaw'];
+var _ML_SESS_EDITABLE   = ['dt_start','laborant'];
+var _ML_MEAS_P_EDITABLE = ['wartosc','w_limicie'];
+var _ML_MEAS_W_EDITABLE = ['wartosc','wartosc_text','w_limicie'];
+var _ML_CORR_EDITABLE   = ['kg','status','dt_wykonania'];
+
+var _MLDetail = null;      // last loaded batch-detail payload
+var _MLActiveTab = 'batches';
+
 function mlLoadDetail() {
   var nr = document.getElementById('ml-search-input').value.trim();
   if (!nr) return;
@@ -94,60 +324,84 @@ function mlLoadDetail() {
     })
     .then(function(data) {
       document.getElementById('ml-detail-error').style.display = 'none';
+      _MLDetail = data;
+      _MLActiveTab = 'batches';
       document.getElementById('ml-detail-area').style.display = 'block';
-      document.getElementById('ml-detail-content').innerHTML = mlRenderDetail(data);
+      document.getElementById('ml-detail-nr').textContent = nr;
+      mlRenderTabs();
+      mlRenderActive();
     })
     .catch(function(err) {
       document.getElementById('ml-detail-area').style.display = 'none';
       var el = document.getElementById('ml-detail-error');
       el.textContent = err.message;
-      el.style.display = 'block';
+      el.style.display = 'inline';
     });
 }
 
-var _ML_BATCH_EDITABLE = ['masa_kg','dt_start','dt_end','status','pakowanie_bezposrednie','nastaw'];
-var _ML_SESS_EDITABLE  = ['dt_start','laborant'];
-var _ML_MEAS_P_EDITABLE = ['wartosc','w_limicie'];
-var _ML_MEAS_W_EDITABLE = ['wartosc','wartosc_text','w_limicie'];
-var _ML_CORR_EDITABLE  = ['kg','status','dt_wykonania'];
-
-function mlRenderDetail(data) {
-  var html = '';
-  html += mlRenderTable('batches', [data.batch], _ML_BATCH_EDITABLE,
-    function(row, field, val) { return mlSaveField('batch', row.ebr_id, field, val); });
-  html += mlRenderTable('sessions', data.sessions, _ML_SESS_EDITABLE,
-    function(row, field, val) { return mlSaveField('session', row.id, field, val); });
-  html += mlRenderTable('measurements', data.measurements,
-    null /* source-dependent */,
-    function(row, field, val) {
-      var editable = row.source === 'pomiar' ? _ML_MEAS_P_EDITABLE : _ML_MEAS_W_EDITABLE;
-      return mlSaveMeasurement(row.source, row.id, field, val, editable);
-    }, data.measurements.map(function(r) {
-      return r.source === 'pomiar' ? _ML_MEAS_P_EDITABLE : _ML_MEAS_W_EDITABLE;
-    }));
-  html += mlRenderTable('corrections', data.corrections, _ML_CORR_EDITABLE,
-    function(row, field, val) { return mlSaveField('correction', row.id, field, val); });
-  return html;
+function mlRenderTabs() {
+  var tabs = [
+    {key: 'batches',      label: 'Batches',      n: 1},
+    {key: 'sessions',     label: 'Sessions',     n: (_MLDetail.sessions || []).length},
+    {key: 'measurements', label: 'Measurements', n: (_MLDetail.measurements || []).length},
+    {key: 'corrections',  label: 'Corrections',  n: (_MLDetail.corrections || []).length},
+  ];
+  var html = tabs.map(function(t) {
+    return '<button class="ml-tab' + (t.key === _MLActiveTab ? ' active' : '') + '"'
+         + ' onclick="mlSwitchTab(\'' + t.key + '\')">'
+         + t.label + '<span class="badge">' + t.n + '</span></button>';
+  }).join('');
+  document.getElementById('ml-tabs').innerHTML = html;
 }
 
-function mlRenderTable(name, rows, editableCols, saveCallback, editableColsPerRow) {
-  if (!rows || !rows.length) return '<p style="font-size:12px;color:var(--text-dim);">' + name + ': brak danych.</p>';
+function mlSwitchTab(key) {
+  _MLActiveTab = key;
+  mlRenderTabs();
+  mlRenderActive();
+}
+
+function mlRenderActive() {
+  var body = document.getElementById('ml-tab-body');
+  if (!_MLDetail) { body.innerHTML = ''; return; }
+  var rows, editable, saveFn, editablePerRow = null;
+  if (_MLActiveTab === 'batches') {
+    rows = [_MLDetail.batch]; editable = _ML_BATCH_EDITABLE;
+    saveFn = function(row, f, v) { return mlPut('/api/ml-export/batch/' + row.ebr_id, f, v); };
+  } else if (_MLActiveTab === 'sessions') {
+    rows = _MLDetail.sessions || []; editable = _ML_SESS_EDITABLE;
+    saveFn = function(row, f, v) { return mlPut('/api/ml-export/session/' + row.id, f, v); };
+  } else if (_MLActiveTab === 'measurements') {
+    rows = _MLDetail.measurements || []; editable = null;
+    editablePerRow = rows.map(function(r) {
+      return r.source === 'pomiar' ? _ML_MEAS_P_EDITABLE : _ML_MEAS_W_EDITABLE;
+    });
+    saveFn = function(row, f, v) {
+      return mlPut('/api/ml-export/measurement/' + row.source + '/' + row.id, f, v);
+    };
+  } else if (_MLActiveTab === 'corrections') {
+    rows = _MLDetail.corrections || []; editable = _ML_CORR_EDITABLE;
+    saveFn = function(row, f, v) { return mlPut('/api/ml-export/correction/' + row.id, f, v); };
+  }
+  body.innerHTML = mlRenderTable(rows, editable, editablePerRow, saveFn);
+}
+
+function mlRenderTable(rows, editableCols, editablePerRow, saveFn) {
+  if (!rows || !rows.length) return '<div class="ml-empty">Brak danych.</div>';
   var keys = Object.keys(rows[0]);
-  var html = '<h4 style="font-size:13px;margin:14px 0 4px;">' + name + '</h4>';
-  html += '<table class="ml-table"><thead><tr>';
+  var html = '<table class="ml-table"><thead><tr>';
   keys.forEach(function(k) { html += '<th>' + k + '</th>'; });
   html += '</tr></thead><tbody>';
   rows.forEach(function(row, ri) {
-    var rowEditable = editableColsPerRow ? editableColsPerRow[ri] : editableCols;
+    var rowEditable = editablePerRow ? editablePerRow[ri] : editableCols;
     html += '<tr>';
     keys.forEach(function(k) {
-      var isEditable = rowEditable && rowEditable.indexOf(k) !== -1;
       var v = row[k];
+      var isEditable = rowEditable && rowEditable.indexOf(k) !== -1;
       if (isEditable) {
+        var text = v === null ? '' : v;
         html += '<td><span class="ml-editable" contenteditable="true" '
-             + 'data-field="' + k + '" data-orig="' + (v === null ? '' : v) + '" '
-             + 'onblur="mlOnBlur(this, ' + JSON.stringify(row) + ', \'' + name + '\')"'
-             + '>' + (v === null ? '' : v) + '</span></td>';
+             + 'data-field="' + k + '" data-orig="' + text + '" '
+             + 'onblur="mlOnBlur(this, ' + ri + ')">' + text + '</span></td>';
       } else {
         html += '<td' + (v === null ? ' class="ml-null"' : '') + '>' + (v === null ? '—' : v) + '</td>';
       }
@@ -158,32 +412,25 @@ function mlRenderTable(name, rows, editableCols, saveCallback, editableColsPerRo
   return html;
 }
 
-function mlOnBlur(el, row, tableName) {
+function mlOnBlur(el, rowIdx) {
   var field = el.dataset.field;
   var newVal = el.textContent.trim();
   if (newVal === el.dataset.orig) return;
-  el.style.background = 'var(--yellow-bg, #fffbe6)';
-  var url, body;
-  if (tableName === 'batches') {
-    url = '/api/ml-export/batch/' + row.ebr_id;
-    body = {}; body[field] = newVal;
-    doSaveMlField(el, url, body);
-  } else if (tableName === 'sessions') {
-    url = '/api/ml-export/session/' + row.id;
-    body = {}; body[field] = newVal;
-    doSaveMlField(el, url, body);
-  } else if (tableName === 'measurements') {
-    url = '/api/ml-export/measurement/' + row.source + '/' + row.id;
-    body = {}; body[field] = newVal;
-    doSaveMlField(el, url, body);
-  } else if (tableName === 'corrections') {
-    url = '/api/ml-export/correction/' + row.id;
-    body = {}; body[field] = newVal;
-    doSaveMlField(el, url, body);
-  }
-}
 
-function doSaveMlField(el, url, body) {
+  var row, url;
+  if (_MLActiveTab === 'batches') {
+    row = _MLDetail.batch; url = '/api/ml-export/batch/' + row.ebr_id;
+  } else if (_MLActiveTab === 'sessions') {
+    row = _MLDetail.sessions[rowIdx]; url = '/api/ml-export/session/' + row.id;
+  } else if (_MLActiveTab === 'measurements') {
+    row = _MLDetail.measurements[rowIdx];
+    url = '/api/ml-export/measurement/' + row.source + '/' + row.id;
+  } else if (_MLActiveTab === 'corrections') {
+    row = _MLDetail.corrections[rowIdx]; url = '/api/ml-export/correction/' + row.id;
+  }
+  var body = {}; body[field] = newVal;
+
+  el.style.background = 'var(--yellow-bg, #fffbe6)';
   fetch(url, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)})
     .then(function(r) { return r.json().then(function(d) { return {ok: r.ok, data: d}; }); })
     .then(function(res) {
@@ -193,39 +440,20 @@ function doSaveMlField(el, url, body) {
         setTimeout(function() { el.style.background = ''; }, 1200);
       } else {
         el.style.background = 'var(--red-bg, #fff5f5)';
-        el.title = res.data.description || 'Błąd zapisu';
+        el.title = (res.data && (res.data.description || res.data.error)) || 'Błąd zapisu';
       }
     })
     .catch(function() {
       el.style.background = 'var(--red-bg, #fff5f5)';
     });
 }
-</script>
-  </div>{# /ml-edit #}
 
-  {# ─── Diagnostics: buffer capacity ──────────────────────────────────────── #}
-  <div class="ml-panel" id="ml-diagnostics" style="margin-top: 32px;">
-    <h3>Diagnostyka modelu kwasu — K7</h3>
-    <p style="font-size:12px; color:var(--text-dim); margin:0 0 10px;">
-      Porównanie rzeczywistej i prognozowanej pojemności buforowej (kg/t/ΔpH)
-      dla ukończonych szarż K7. Filtr: delta_pH &gt; 0.5, acid_kg &gt; 0, pH&gt;=9.
-    </p>
-    <div id="ml-diag-stats" style="font-size:12px; color:var(--text-dim); margin-bottom:8px;">
-      — kliknij Odśwież aby wczytać —
-    </div>
-    <div id="ml-diag-chart" style="min-height:40px;"></div>
-    <button id="ml-diag-refresh" onclick="mlLoadDiagnostics()"
-            style="margin-top:10px; font-size:12px; padding:5px 14px;
-                   border:1.5px solid var(--teal); border-radius:4px;
-                   background:none; color:var(--teal); cursor:pointer;">
-      Odśwież
-    </button>
-  </div>
+function mlPut() { /* stub retained for any external callers */ }
 
-<script>
+/* ═══ Diagnostics + modal ═══════════════════════════════════════════════════ */
+
 function mlLoadDiagnostics() {
   document.getElementById('ml-diag-stats').textContent = 'Ładowanie…';
-  document.getElementById('ml-diag-chart').innerHTML = '';
   fetch('/api/ml-export/buffer-cap-chart?produkt=Chegina_K7')
     .then(function(r) { return r.json(); })
     .then(function(data) {
@@ -237,17 +465,33 @@ function mlLoadDiagnostics() {
         + '  bias=' + (s.mean_bias >= 0 ? '+' : '') + s.mean_bias
         + '  σ=' + s.stdev;
       if (data.chart_png_b64) {
-        var img = document.createElement('img');
-        img.src = 'data:image/png;base64,' + data.chart_png_b64;
-        img.style.maxWidth = '100%';
-        img.alt = 'Buffer capacity diagnostic chart';
-        document.getElementById('ml-diag-chart').appendChild(img);
+        mlOpenChartModal('data:image/png;base64,' + data.chart_png_b64);
       }
     })
     .catch(function(err) {
       document.getElementById('ml-diag-stats').textContent = 'Błąd: ' + err.message;
     });
 }
+
+function mlOpenChartModal(src) {
+  document.getElementById('ml-chart-modal-img').src = src;
+  document.getElementById('ml-chart-modal').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function mlCloseChartModal(ev) {
+  if (ev && ev.target && ev.target.tagName === 'IMG') return;
+  document.getElementById('ml-chart-modal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    var m = document.getElementById('ml-chart-modal');
+    if (m && m.classList.contains('open')) mlCloseChartModal();
+  }
+});
 </script>
+
 </div>{# /ml-wrap #}
 {% endblock %}

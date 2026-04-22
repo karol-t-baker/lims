@@ -38,6 +38,12 @@
       <span class="en-badge b-ok">zakończona</span>
       {% if zatwierdzil_short %}<span style="font-size:11px;color:var(--text-sec);margin-left:8px;" title="{{ zatwierdzil_full }}">Zatwierdził: {{ zatwierdzil_short }}</span>{% endif %}
     {% endif %}
+    <button type="button" class="tp-dziennik" title="Dziennik zdarzeń szarży"
+            onclick="showDziennikView()"
+            style="margin-left:8px;padding:3px 10px;font-size:11px;border:1px solid var(--border);border-radius:5px;background:var(--surface);cursor:pointer;color:var(--text-sec);display:inline-flex;align-items:center;gap:5px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:12px;height:12px;"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg>
+      Dziennik
+    </button>
     {% if session.get('user', {}).get('rola') == 'admin' %}
       <button type="button" class="tp-admin-edit" title="Edytuj metadane szarży (admin)"
               onclick="openAdminBatchMeta()" style="margin-left:8px;padding:3px 10px;font-size:11px;border:1px solid var(--border);border-radius:5px;background:var(--surface);cursor:pointer;color:var(--text-sec);">
@@ -1199,14 +1205,10 @@ function renderNonMainCyclicSection(container, activeSekcja, activeEtap, isReado
     var sekWyniki = wyniki[activeSekcja] || {};
     var hasSomeResults = Object.keys(sekWyniki).length > 0;
 
-    // 1. DZIENNIK ZDARZEŃ — at the top, loaded async from pipeline API
-    if (activeEtap.pipeline_etap_id) {
-        var journalDiv = document.createElement('div');
-        journalDiv.id = 'round-history-' + activeSekcja.split('__')[0];
-        journalDiv.style.minHeight = '0';
-        container.appendChild(journalDiv);
-        _loadPipelineRoundHistory(activeSekcja.split('__')[0], activeEtap.pipeline_etap_id);
-    }
+    // Inline "Dziennik zdarzeń" section was removed in favor of a single
+    // topbar button that opens the fullscreen dziennik view
+    // (showDziennikView). The previous inline block cluttered the hero
+    // and duplicated information already available in the fullscreen view.
 
     // 1b. Recipe Na2SO3 field for sulfonowanie
     if (activeSekcja === 'sulfonowanie') {

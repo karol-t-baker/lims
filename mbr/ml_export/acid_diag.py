@@ -37,25 +37,42 @@ def _meff(masa_kg: float) -> float:
 def _load_acid_rows(db: sqlite3.Connection, produkt: str) -> list[dict[str, Any]]:
     """Return rows suitable for buffer-cap computation from completed K7 batches.
 
-    Joins ebr_batches → standaryzacja sessions → ph measurements + Kwas cytrynowy corrections.
-    Returns list of dicts with keys: dt_start, masa_kg, ph_before, ph_after, acid_kg.
+    For each completed batch:
+      * ph_before := last ph_10proc measurement on the utlenienie session
+        (this is pH AFTER oxidation, BEFORE acid dosing — the input to the
+        buffer-capacity model).
+      * acid_kg := SUM of ebr_korekta_v2.ilosc for substancja='Kwas cytrynowy'
+        across ALL sessions of the batch. The acid can be dispensed either
+        during utlenienie (gate-fail correction) or standaryzacja; both count.
+        Status filter is intentionally relaxed — production data to date has
+        all rows at status='zalecona' (operator-entered doses that end up
+        dispensed; the dedicated 'wykonana' status is rarely used).
+
+    Batches with no ph_utl measurement or no Kwas cytrynowy correction are
+    dropped here (no dict emitted), so the caller can trust every returned
+    row has the raw inputs for the buffer-cap formula.
     """
     rows = db.execute(
         """
         SELECT b.ebr_id, b.dt_start, b.wielkosc_szarzy_kg AS masa_kg,
-               ph_meas.wartosc AS ph_before,
-               acid.ilosc      AS acid_kg
+               (SELECT p.wartosc
+                  FROM ebr_etap_sesja s
+                  JOIN etapy_analityczne ea ON ea.id = s.etap_id
+                                           AND ea.kod = 'utlenienie'
+                  JOIN ebr_pomiar p ON p.sesja_id = s.id
+                  JOIN parametry_analityczne pa ON pa.id = p.parametr_id
+                                               AND pa.kod = 'ph_10proc'
+                 WHERE s.ebr_id = b.ebr_id
+                 ORDER BY s.runda DESC, p.dt_wpisu DESC
+                 LIMIT 1) AS ph_before,
+               (SELECT COALESCE(SUM(k.ilosc), 0)
+                  FROM ebr_korekta_v2 k
+                  JOIN ebr_etap_sesja s ON s.id = k.sesja_id
+                  JOIN etap_korekty_katalog ek ON ek.id = k.korekta_typ_id
+                                             AND ek.substancja = 'Kwas cytrynowy'
+                 WHERE s.ebr_id = b.ebr_id) AS acid_kg
           FROM ebr_batches b
           JOIN mbr_templates mt ON mt.mbr_id = b.mbr_id
-          JOIN ebr_etap_sesja s ON s.ebr_id = b.ebr_id
-          JOIN etapy_analityczne ea ON ea.id = s.etap_id AND ea.kod = 'standaryzacja'
-          -- ph measurement (parametr_id=1 = ph_10proc)
-          JOIN ebr_pomiar ph_meas ON ph_meas.sesja_id = s.id
-          JOIN parametry_analityczne pa ON pa.id = ph_meas.parametr_id AND pa.kod = 'ph_10proc'
-          -- Kwas cytrynowy correction on the same session
-          JOIN ebr_korekta_v2 acid ON acid.sesja_id = s.id
-          JOIN etap_korekty_katalog ek ON ek.id = acid.korekta_typ_id
-                                      AND ek.substancja = 'Kwas cytrynowy'
          WHERE mt.produkt = ?
            AND b.status = 'completed'
            AND b.typ = 'szarza'
@@ -63,7 +80,7 @@ def _load_acid_rows(db: sqlite3.Connection, produkt: str) -> list[dict[str, Any]
         """,
         (produkt,),
     ).fetchall()
-    return [dict(r) for r in rows]
+    return [dict(r) for r in rows if r["ph_before"] is not None and r["acid_kg"] > 0]
 
 
 # ── Stats computation ─────────────────────────────────────────────────────────
@@ -71,8 +88,13 @@ def _load_acid_rows(db: sqlite3.Connection, produkt: str) -> list[dict[str, Any]
 def _compute_rows(raw: list[dict], target_ph: float = 6.25) -> list[dict]:
     """Convert raw DB rows to (actual, predicted, dt_start) triples.
 
+    The JS `_acidModelPredict` returns a DOSE in kg, not a buffer_cap. We
+    normalize both actual dose (kg) and predicted dose (kg) to buffer_cap
+    (kg / ton / ΔpH) so the Y axis on the chart is comparable across batches
+    of different sizes and different pH targets.
+
     Filters: delta_ph > 0.5, acid_kg > 0, ph_before >= 9.
-    delta_ph is approximated as ph_before - target_ph (we use the global target).
+    delta_ph is approximated as ph_before - target_ph (global target).
     """
     out = []
     for r in raw:
@@ -85,13 +107,17 @@ def _compute_rows(raw: list[dict], target_ph: float = 6.25) -> list[dict]:
         if delta_ph <= 0.5 or ph_before < 9.0:
             continue
         tons = masa_kg / 1000.0
-        actual = acid_kg / tons / delta_ph
-        predicted = _acid_model_predict(_meff(masa_kg), delta_ph, ph_before, masa_kg)
+        denom = tons * delta_ph
+        predicted_dose_kg = _acid_model_predict(_meff(masa_kg), delta_ph, ph_before, masa_kg)
+        actual = acid_kg / denom
+        predicted = predicted_dose_kg / denom
         out.append({
             "dt_start": r.get("dt_start", ""),
-            "actual": actual,
-            "predicted": predicted,
+            "actual": actual,              # buffer_cap, kg/t/ΔpH
+            "predicted": predicted,        # buffer_cap, kg/t/ΔpH
             "residual": predicted - actual,
+            "actual_kg": acid_kg,          # dose, kg — for tooltip/debug
+            "predicted_kg": predicted_dose_kg,
         })
     return out
 
@@ -182,13 +208,15 @@ def generate_chart_png(db: sqlite3.Connection,
         ax.set_ylabel("predicted buffer cap")
         ax.legend(fontsize=8)
 
-        # 3. Histogram of residuals
+        # 3. Residuals vs predicted — classic regression diagnostic.
+        # Random cloud around y=0 → good model; patterns (trend, funnel) → bias.
         ax = axes[2]
-        ax.hist(residuals, bins=max(5, len(rows) // 3), edgecolor="white")
-        ax.axvline(0, color="k", linewidth=1, linestyle="--")
-        ax.set_title("Residuals (predicted − actual)")
-        ax.set_xlabel("residual (kg/t/ΔpH)")
-        ax.set_ylabel("count")
+        ax.scatter(predicted, residuals, alpha=0.75, edgecolors="none",
+                   color="#d97706")  # amber — different hue from subplot 2
+        ax.axhline(0, color="k", linewidth=1, linestyle="--")
+        ax.set_title("Residuals vs Predicted")
+        ax.set_xlabel("predicted buffer cap")
+        ax.set_ylabel("residual (predicted − actual)")
     else:
         for ax in axes:
             ax.text(0.5, 0.5, "Brak danych", ha="center", va="center",
