@@ -866,3 +866,13 @@ def test_buffer_cap_chart_empty(client):
     assert resp.status_code == 200
     data = resp.get_json()
     assert data["stats"]["n"] == 0
+
+
+# ─── Task 18: diagnostics section ─────────────────────────────────────────────
+
+def test_ml_export_page_has_diagnostics_section(client):
+    resp = client.get("/ml-export")
+    assert resp.status_code == 200
+    body = resp.data.decode("utf-8")
+    assert "Diagnostyka" in body
+    assert "buffer" in body.lower() or "kwasu" in body.lower()

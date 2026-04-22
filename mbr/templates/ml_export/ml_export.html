@@ -202,5 +202,52 @@ function doSaveMlField(el, url, body) {
 }
 </script>
   </div>{# /ml-edit #}
+
+  {# ─── Diagnostics: buffer capacity ──────────────────────────────────────── #}
+  <div class="ml-panel" id="ml-diagnostics" style="margin-top: 32px;">
+    <h3>Diagnostyka modelu kwasu — K7</h3>
+    <p style="font-size:12px; color:var(--text-dim); margin:0 0 10px;">
+      Porównanie rzeczywistej i prognozowanej pojemności buforowej (kg/t/ΔpH)
+      dla ukończonych szarż K7. Filtr: delta_pH &gt; 0.5, acid_kg &gt; 0, pH&gt;=9.
+    </p>
+    <div id="ml-diag-stats" style="font-size:12px; color:var(--text-dim); margin-bottom:8px;">
+      — kliknij Odśwież aby wczytać —
+    </div>
+    <div id="ml-diag-chart" style="min-height:40px;"></div>
+    <button id="ml-diag-refresh" onclick="mlLoadDiagnostics()"
+            style="margin-top:10px; font-size:12px; padding:5px 14px;
+                   border:1.5px solid var(--teal); border-radius:4px;
+                   background:none; color:var(--teal); cursor:pointer;">
+      Odśwież
+    </button>
+  </div>
+
+<script>
+function mlLoadDiagnostics() {
+  document.getElementById('ml-diag-stats').textContent = 'Ładowanie…';
+  document.getElementById('ml-diag-chart').innerHTML = '';
+  fetch('/api/ml-export/buffer-cap-chart?produkt=Chegina_K7')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var s = data.stats;
+      document.getElementById('ml-diag-stats').innerHTML =
+        '<strong>n=' + s.n + '</strong>'
+        + '  MAE=' + s.mae + ' kg/t/ΔpH'
+        + '  MAPE=' + s.mape + '%'
+        + '  bias=' + (s.mean_bias >= 0 ? '+' : '') + s.mean_bias
+        + '  σ=' + s.stdev;
+      if (data.chart_png_b64) {
+        var img = document.createElement('img');
+        img.src = 'data:image/png;base64,' + data.chart_png_b64;
+        img.style.maxWidth = '100%';
+        img.alt = 'Buffer capacity diagnostic chart';
+        document.getElementById('ml-diag-chart').appendChild(img);
+      }
+    })
+    .catch(function(err) {
+      document.getElementById('ml-diag-stats').textContent = 'Błąd: ' + err.message;
+    });
+}
+</script>
 </div>{# /ml-wrap #}
 {% endblock %}
