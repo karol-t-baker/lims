@@ -206,7 +206,7 @@ Zawieramy **wszystkie** statusy — `status` jest kolumną, klient filtruje. `an
 - `parametry` — z `parametry_analityczne` + `produkt_etap_limity` (per-stage specs) + `mbr_templates.parametry_lab` (dla `typ_pomiaru` i `formula`).
 - `is_target_candidate` — `true` gdy parametr pojawia się w etapie `analiza_koncowa` w `mbr_templates.parametry_lab` z ustawionym `min_limit` lub `max_limit` (niezależnie od `is_calculated`, więc `sa` też wchodzi).
 - `kategoria` — `"recipe"` dla zamkniętej whitelisty `{"na2so3_recept_kg"}` zdefiniowanej stałą w `schema.py`; `"measurement"` dla reszty. Whitelistę rozszerzamy gdy dojdą kolejne pola receptury. `parametry_analityczne.grupa` nie jest używana jako źródło (dziś wartości tam to głównie `"lab"` — niedostatecznie rozdzielająca).
-- `substancje_korekcji.is_formula_driven` — `true` gdy dla tej substancji istnieje rekord w `korekta_cele` z niepustym `formula` **lub** gdy jakikolwiek `ebr_korekta_v2` ma dla niej niepuste `ilosc_wyliczona`.
+- `substancje_korekcji.is_formula_driven` — `true` gdy w `etap_korekty_katalog.formula_ilosc` dla tej `substancja` istnieje niepusty/non-null string **lub** gdy jakikolwiek `ebr_korekta_v2` ma dla niej niepuste `ilosc_wyliczona`.
 
 ### `README.md` w zipie
 
@@ -239,6 +239,47 @@ Obecna strona pokazuje przewijaną tabelę z szeroką strukturą. Po zmianie nie
 - Link „Schemat danych (JSON)" otwiera `schema.json` inline (pretty-printed, collapsible).
 
 Preview: prosta tabela HTML z nagłówkami z CSV. Bez grupowania kolumn (żadnej logiki per-etap), bez paginacji wewnątrz panelu (tylko pierwsze 5 wierszy).
+
+### Inline edit (admin)
+
+Admin może edytować wartości w widoku podglądu/szczegółów dla wszystkich 4 tabel: batches, sessions, measurements, corrections.
+
+**Wzorzec wyszukiwania P3:** Admin wpisuje `nr_partii` w polu tekstowym; backend zwraca pełny edytowalny szczegół tej jednej szarży (wszystkie powiązane sessions, measurements, corrections). Admin edytuje wartości inline; zapis po utracie fokusu (save-on-blur) przez endpoint PUT.
+
+**Pola edytowalne per tabela:**
+- **batches**: `masa_kg` (= `wielkosc_szarzy_kg`), `dt_start`, `dt_end`, `status`, `pakowanie_bezposrednie`, `nastaw`. Nieedytowalne: `ebr_id`, `batch_id`, `nr_partii`, `mbr_id` (klucze złożone / identyfikatory).
+- **sessions**: `dt_start`, `laborant`. Nieedytowalne: `ebr_id`, `etap_id`, `runda`, `id`.
+- **measurements**: `wartosc`, `wartosc_text`, `w_limicie`. Nieedytowalne: `ebr_id`, `kod_parametru`, `sekcja`/`etap`, `runda`, source ID.
+- **corrections**: `kg`, `status`, `dt_wykonania`. Nieedytowalne: `ebr_id`, `etap`, `runda`, `substancja`, id.
+
+**Endpointy (rola=admin):**
+- `GET /api/ml-export/batch-detail?nr_partii=<str>` — zwraca `{batch: {...}, sessions: [...], measurements: [...], corrections: [...]}` dla jednej szarży.
+- `PUT /api/ml-export/batch/<ebr_id>` — body: `{field: value, ...}` (tylko edytowalne pola). 400 dla nieedytowalnego pola.
+- `PUT /api/ml-export/session/<sesja_id>` — body: analogiczny wzorzec.
+- `PUT /api/ml-export/measurement/<source>/<id>` — `source: "pomiar" | "wyniki"`, `id: ebr_pomiar.id | ebr_wyniki.wynik_id`. Body: `{wartosc?, wartosc_text?, w_limicie?}`.
+- `PUT /api/ml-export/correction/<korekta_id>` — body: `{kg?, status?, dt_wykonania?}`.
+
+Każdy PUT emituje zdarzenie audytu `ml_export.value_edited` z payloadem `{table, id, field, old_value, new_value, batch_ebr_id}` przez istniejący `audit.log_event`.
+
+Wszystkie endpointy zwracają `{ok: true, new_value: <updated>}` przy sukcesie; `400` przy błędzie walidacji (nieznane pole, poza zakresem, niezgodność typów); `404` gdy wiersz nie istnieje; `403` gdy nie admin.
+
+### Diagnostyka — buffer capacity
+
+Nowa sekcja na stronie `/ml-export` (osobna, poniżej podglądu i poniżej sekcji inline edit): „Diagnostyka modelu kwasu — K7".
+
+Pokazuje trzy widoki diagnostyczne oraz statystyki podsumowujące w jednym zwartym panelu:
+
+1. **Szereg czasowy**: X = `dt_start` per szarża (posortowane), Y = buffer_cap (kg/t/ΔpH). Dwie linie: `actual` (z `acid_kg / tons / delta_ph` dla ukończonych szarż) oraz `predicted` (wsteczne: ponowne uruchomienie formuły `_acidModelPredict` z `mbr/templates/laborant/_correction_panel.html:446` w Pythonie na historycznych danych wejściowych szarży).
+2. **Scatter**: X = actual buffer_cap, Y = predicted. Linia diagonalna y=x dla odniesienia.
+3. **Histogram residuałów**: `predicted - actual`. Pokazuje bias i rozrzut.
+
+**Karta statystyk podsumowujących:** `n=<count>`, `MAE=<kg/t/ΔpH>`, `MAPE=<%>`, `mean_bias=<+/->`, `stdev=<>`.
+
+**Endpoint:** `GET /api/ml-export/buffer-cap-chart?produkt=Chegina_K7` — zwraca `{stats: {...}, chart_png_b64: "<base64>"}`. Chart to jeden PNG z 3 subplotami + statystyki jako tekst przez matplotlib (wzorzec zgodny z istniejącym `acid_model.py` make_plots).
+
+**Rola:** admin.
+
+**Wyłącza** szarże gdzie `delta_ph <= 0.5`, `acid_kg <= 0`, lub `ph_before < 9` (ten sam filtr co acid_model.py).
 
 ## Implementacja
 
