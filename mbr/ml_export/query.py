@@ -235,6 +235,95 @@ def build_corrections(db: sqlite3.Connection, ebr_ids: list[int]) -> list[dict]:
     ]
 
 
+_README = """# K7 ML Export — Long Format
+
+Cztery pliki CSV w formacie tidy + `schema.json` z metadanymi.
+
+## Pliki
+
+| Plik | Ziarnistość | Użycie |
+|---|---|---|
+| `batches.csv`      | 1 wiersz / szarża | metadata, target, mass |
+| `sessions.csv`     | 1 / (szarża, etap, runda) | kiedy / kto przeprowadził etap |
+| `measurements.csv` | 1 / (szarża, etap, runda, parametr) | pomiary (sesje + legacy) |
+| `corrections.csv`  | 1 / (szarża, etap, runda, substancja) | dozowanie |
+| `schema.json`      | słownik | jednostki, specs, formuły, target candidates |
+
+## Uwaga o legacy
+
+Pomiary z `ebr_wyniki` (przed wprowadzeniem sesji) mają `runda=0` i `is_legacy=1`.
+Jeśli ten sam `(batch, etap, parametr)` ma wpis w obu źródłach, emitowany jest
+tylko nowy (session-based). Wyjątek: `na2so3_recept_kg` (recepta) — zawsze legacy.
+
+## Przykład użycia w pandas
+
+```python
+import pandas as pd
+import zipfile
+
+zf = zipfile.ZipFile("k7_ml_export_2026-04-20.zip")
+b = pd.read_csv(zf.open("batches.csv"))
+m = pd.read_csv(zf.open("measurements.csv"))
+df = m.merge(b, on="ebr_id")
+
+# wide per (batch, stage, round) dla pojedynczego parametru:
+wide = df[df.param_kod == "barwa_I2"].pivot_table(
+    index="ebr_id", columns=["etap", "runda"], values="wartosc"
+)
+```
+"""
+
+
+def _csv_bytes(rows: list[dict], columns: list[str]) -> bytes:
+    buf = io.StringIO()
+    writer = csv.DictWriter(buf, fieldnames=columns, extrasaction="ignore", lineterminator="\n")
+    writer.writeheader()
+    for row in rows:
+        writer.writerow(row)
+    return buf.getvalue().encode("utf-8")
+
+
+_BATCH_COLS = ["ebr_id", "batch_id", "nr_partii", "produkt", "status",
+               "masa_kg", "meff_kg", "dt_start", "dt_end", "pakowanie",
+               "target_ph", "target_nd20"]
+_SESS_COLS  = ["ebr_id", "etap", "runda", "dt_start", "laborant"]
+_MEAS_COLS  = ["ebr_id", "etap", "runda", "param_kod",
+               "wartosc", "wartosc_text", "w_limicie",
+               "dt_wpisu", "wpisal", "is_legacy"]
+_CORR_COLS  = ["ebr_id", "etap", "runda", "substancja",
+               "kg", "sugest_kg", "status", "zalecil", "dt_wykonania"]
+
+
+def export_ml_package(db: sqlite3.Connection,
+                      produkty: list[str] | None = None,
+                      statuses: tuple[str, ...] = ("completed",)) -> bytes:
+    """Build the full zip bytes: 4 CSVs + schema.json + README.md."""
+    produkty = produkty or list(DEFAULT_PRODUKTY)
+    batches = build_batches(db, produkty, statuses)
+    ebr_ids = [b["ebr_id"] for b in batches]
+    sessions     = build_sessions(db, ebr_ids)
+    measurements = build_measurements(db, ebr_ids)
+    corrections  = build_corrections(db, ebr_ids)
+
+    counts = {
+        "batches":      len(batches),
+        "sessions":     len(sessions),
+        "measurements": len(measurements),
+        "corrections":  len(corrections),
+    }
+    schema = build_schema(db, produkty, counts=counts)
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("batches.csv",      _csv_bytes(batches,      _BATCH_COLS))
+        zf.writestr("sessions.csv",     _csv_bytes(sessions,     _SESS_COLS))
+        zf.writestr("measurements.csv", _csv_bytes(measurements, _MEAS_COLS))
+        zf.writestr("corrections.csv",  _csv_bytes(corrections,  _CORR_COLS))
+        zf.writestr("schema.json",      json.dumps(schema, ensure_ascii=False, indent=2).encode("utf-8"))
+        zf.writestr("README.md",        _README.encode("utf-8"))
+    return buf.getvalue()
+
+
 # ── Legacy wide-CSV shims (used by routes.py until Task 8 replaces the route) ─
 
 def export_k7_batches(db: sqlite3.Connection, after_id: int = 0,

@@ -460,3 +460,77 @@ def test_build_corrections_all_statuses_emitted(db):
     statuses = {r["status"] for r in rows}
     assert "anulowana" in statuses
     assert "wykonana" in statuses
+
+
+# ─── export_ml_package ────────────────────────────────────────────────────────
+
+def _read_zip(blob: bytes) -> dict:
+    zf = zipfile.ZipFile(io.BytesIO(blob))
+    return {name: zf.read(name).decode("utf-8") for name in zf.namelist()}
+
+
+def test_export_ml_package_contents(db):
+    from mbr.ml_export.query import export_ml_package
+    blob = export_ml_package(db)
+    files = _read_zip(blob)
+    assert set(files.keys()) == {
+        "batches.csv", "sessions.csv", "measurements.csv",
+        "corrections.csv", "schema.json", "README.md",
+    }
+    # Schema is valid JSON
+    schema = json.loads(files["schema.json"])
+    assert schema["counts"]["batches"] == 1
+    assert schema["counts"]["sessions"] == 1  # only sulfonowanie R1 in seed
+    # Measurements count = 4 new + 1 legacy recipe = 5
+    assert schema["counts"]["measurements"] == 5
+    # CSV headers present
+    assert files["batches.csv"].startswith("ebr_id,batch_id,")
+    assert "ebr_id,etap,runda,param_kod" in files["measurements.csv"]
+
+
+def test_export_ml_package_empty_db(db):
+    """Empty K7 — still returns valid zip with 6 files, headers only."""
+    from mbr.ml_export.query import export_ml_package
+    db.execute("DELETE FROM ebr_korekta_v2")
+    db.execute("DELETE FROM ebr_pomiar")
+    db.execute("DELETE FROM ebr_wyniki")
+    db.execute("DELETE FROM ebr_etap_sesja")
+    db.execute("DELETE FROM ebr_batches")
+    db.commit()
+    blob = export_ml_package(db)
+    files = _read_zip(blob)
+    assert set(files.keys()) == {
+        "batches.csv", "sessions.csv", "measurements.csv",
+        "corrections.csv", "schema.json", "README.md",
+    }
+    # Headers only — each CSV has exactly one line
+    assert files["batches.csv"].count("\n") == 1
+    assert files["sessions.csv"].count("\n") == 1
+
+
+def test_export_ml_package_status_filter(db):
+    from mbr.ml_export.query import export_ml_package
+    db.execute("""INSERT INTO ebr_batches (ebr_id, mbr_id, batch_id, nr_partii,
+                  wielkosc_szarzy_kg, nastaw, dt_start, status, typ)
+                  VALUES (2,1,'K7__2','2/2026',13300,13300,'2026-04-17','cancelled','szarza')""")
+    db.commit()
+    # Default: only completed
+    schema_default = json.loads(_read_zip(export_ml_package(db))["schema.json"])
+    assert schema_default["counts"]["batches"] == 1
+    # With cancelled
+    schema_inc = json.loads(_read_zip(export_ml_package(db, statuses=("completed", "cancelled")))["schema.json"])
+    assert schema_inc["counts"]["batches"] == 2
+
+
+def test_export_pandas_pivot_roundtrip(db):
+    """Smoke test: round-trip long format through pandas pivot to wide.
+    Skipped if pandas not installed (dev env).
+    """
+    pd = pytest.importorskip("pandas")
+    from mbr.ml_export.query import export_ml_package
+    files = _read_zip(export_ml_package(db))
+    m = pd.read_csv(io.StringIO(files["measurements.csv"]))
+    wide = m[m.param_kod == "ph_10proc"].pivot_table(
+        index="ebr_id", columns=["etap", "runda"], values="wartosc"
+    )
+    assert wide.loc[1, ("sulfonowanie", 1)] == 11.89
