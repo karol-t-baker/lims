@@ -1,66 +1,61 @@
-"""CSV export endpoint + browser view for ML-ready K7 batch data."""
-import csv
-import io
-import math
+"""HTTP endpoints + admin page for the ML export package."""
+from datetime import date
 
-from flask import request, Response, render_template
+from flask import abort, request, Response, render_template
 
-from mbr.ml_export import ml_export_bp
-from mbr.ml_export.query import export_k7_batches, get_csv_columns
 from mbr.db import get_db
+from mbr.ml_export import ml_export_bp
+from mbr.ml_export.query import export_ml_package, build_batches, build_sessions, \
+    build_measurements, build_corrections
 from mbr.shared.decorators import role_required
 
-PER_PAGE = 25
+
+def _statuses(include_failed: bool) -> tuple[str, ...]:
+    return ("completed", "cancelled") if include_failed else ("completed",)
+
+
+def _include_failed_param() -> bool:
+    return request.args.get("include_failed", "0") in ("1", "true", "yes")
 
 
 @ml_export_bp.route("/api/export/ml/k7.csv", methods=["GET"])
+def export_k7_csv_gone():
+    abort(404)
+
+
+@ml_export_bp.route("/api/export/ml/k7.zip", methods=["GET"])
 @role_required("admin")
-def export_k7_csv():
-    after_id = request.args.get("after_id", 0, type=int)
-    include_failed = request.args.get("include_failed", "0") in ("1", "true", "yes")
-    statuses = ("completed", "cancelled") if include_failed else ("completed",)
+def export_k7_zip():
     db = get_db()
     try:
-        rows = export_k7_batches(db, after_id=after_id, statuses=statuses)
-        columns = get_csv_columns(db)
+        blob = export_ml_package(db, produkty=["Chegina_K7"], statuses=_statuses(_include_failed_param()))
     finally:
         db.close()
-
-    output = io.StringIO()
-    writer = csv.DictWriter(output, fieldnames=columns, extrasaction="ignore")
-    writer.writeheader()
-    for row in rows:
-        writer.writerow(row)
-
-    last_id = max((r["ebr_id"] for r in rows), default=after_id)
-    resp = Response(output.getvalue(), mimetype="text/csv; charset=utf-8")
-    resp.headers["Content-Disposition"] = "attachment; filename=k7_ml_export.csv"
-    resp.headers["X-Last-Id"] = str(last_id)
+    fname = f"k7_ml_export_{date.today().isoformat()}.zip"
+    resp = Response(blob, mimetype="application/zip")
+    resp.headers["Content-Disposition"] = f'attachment; filename="{fname}"'
     return resp
 
 
 @ml_export_bp.route("/ml-export", methods=["GET"])
 @role_required("admin")
 def ml_export_page():
-    page = request.args.get("page", 1, type=int)
-    if page < 1:
-        page = 1
-    include_failed = request.args.get("include_failed", "0") in ("1", "true", "yes")
-    statuses = ("completed", "cancelled") if include_failed else ("completed",)
+    include_failed = _include_failed_param()
     db = get_db()
     try:
-        all_rows = export_k7_batches(db, statuses=statuses)
-        columns = get_csv_columns(db)
+        batches      = build_batches(db, produkty=["Chegina_K7"], statuses=_statuses(include_failed))
+        ebr_ids      = [b["ebr_id"] for b in batches]
+        sessions     = build_sessions(db, ebr_ids)
+        measurements = build_measurements(db, ebr_ids)
+        corrections  = build_corrections(db, ebr_ids)
     finally:
         db.close()
 
-    total = len(all_rows)
-    total_pages = max(1, math.ceil(total / PER_PAGE))
-    if page > total_pages:
-        page = total_pages
-    start = (page - 1) * PER_PAGE
-    rows = all_rows[start:start + PER_PAGE]
-
+    preview = {
+        "batches":      {"total": len(batches),      "rows": batches[:5]},
+        "sessions":     {"total": len(sessions),     "rows": sessions[:5]},
+        "measurements": {"total": len(measurements), "rows": measurements[:5]},
+        "corrections":  {"total": len(corrections),  "rows": corrections[:5]},
+    }
     return render_template("ml_export/ml_export.html",
-                           rows=rows, columns=columns,
-                           page=page, total_pages=total_pages, total=total)
+                           preview=preview, include_failed=include_failed)

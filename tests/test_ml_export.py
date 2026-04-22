@@ -522,6 +522,64 @@ def test_export_ml_package_status_filter(db):
     assert schema_inc["counts"]["batches"] == 2
 
 
+# ─── routes ───────────────────────────────────────────────────────────────────
+
+class _NoCloseDB:
+    """Proxy that delegates everything to the real connection but ignores close().
+
+    Needed because routes call db.close() in their finally blocks; the in-memory
+    fixture connection must stay alive across multiple requests in one test.
+    """
+    def __init__(self, conn):
+        self._conn = conn
+
+    def close(self):
+        pass
+
+    def __getattr__(self, name):
+        return getattr(self._conn, name)
+
+
+@pytest.fixture
+def client(monkeypatch, db):
+    """Flask test client with monkey-patched get_db returning the in-memory fixture."""
+    from mbr.app import app
+    wrapped = _NoCloseDB(db)
+    monkeypatch.setattr("mbr.ml_export.routes.get_db", lambda: wrapped)
+    with app.test_client() as c:
+        with c.session_transaction() as sess:
+            sess["user"] = {"login": "admin", "rola": "admin"}
+        yield c
+
+
+def test_zip_endpoint_returns_zip(client):
+    resp = client.get("/api/export/ml/k7.zip")
+    assert resp.status_code == 200
+    assert resp.headers["Content-Type"] == "application/zip"
+    assert "k7_ml_export_" in resp.headers["Content-Disposition"]
+    assert resp.headers["Content-Disposition"].endswith('.zip"')
+    zf = zipfile.ZipFile(io.BytesIO(resp.data))
+    assert "batches.csv" in zf.namelist()
+
+
+def test_zip_endpoint_include_failed_flag(client, db):
+    db.execute("""INSERT INTO ebr_batches (ebr_id, mbr_id, batch_id, nr_partii,
+                  wielkosc_szarzy_kg, nastaw, dt_start, status, typ)
+                  VALUES (2,1,'K7__2','2/2026',13300,13300,'2026-04-17','cancelled','szarza')""")
+    db.commit()
+    resp = client.get("/api/export/ml/k7.zip")
+    schema = json.loads(zipfile.ZipFile(io.BytesIO(resp.data)).read("schema.json").decode("utf-8"))
+    assert schema["counts"]["batches"] == 1
+    resp2 = client.get("/api/export/ml/k7.zip?include_failed=1")
+    schema2 = json.loads(zipfile.ZipFile(io.BytesIO(resp2.data)).read("schema.json").decode("utf-8"))
+    assert schema2["counts"]["batches"] == 2
+
+
+def test_old_csv_endpoint_gone(client):
+    resp = client.get("/api/export/ml/k7.csv")
+    assert resp.status_code == 404
+
+
 def test_export_pandas_pivot_roundtrip(db):
     """Smoke test: round-trip long format through pandas pivot to wide.
     Skipped if pandas not installed (dev env).

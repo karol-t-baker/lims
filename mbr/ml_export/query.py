@@ -323,22 +323,3 @@ def export_ml_package(db: sqlite3.Connection,
         zf.writestr("README.md",        _README.encode("utf-8"))
     return buf.getvalue()
 
-
-# ── Legacy wide-CSV shims (used by routes.py until Task 8 replaces the route) ─
-
-def export_k7_batches(db: sqlite3.Connection, after_id: int = 0,
-                      statuses: tuple = ("completed",)) -> list[dict]:
-    """Thin wrapper kept for backward compat with routes.py until Task 8."""
-    return build_batches(db, produkty=DEFAULT_PRODUKTY, statuses=tuple(statuses))
-
-
-def get_csv_columns(db: sqlite3.Connection) -> list[str]:
-    """Thin wrapper kept for backward compat with routes.py until Task 8."""
-    rows = build_batches(db, produkty=DEFAULT_PRODUKTY, statuses=("completed",))
-    if rows:
-        return list(rows[0].keys())
-    return list({
-        "ebr_id", "batch_id", "nr_partii", "produkt", "status",
-        "masa_kg", "meff_kg", "dt_start", "dt_end", "pakowanie",
-        "target_ph", "target_nd20",
-    })
