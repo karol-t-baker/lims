@@ -20,6 +20,11 @@ _BATCH_EDITABLE: dict[str, str] = {
     "nastaw":                 "nastaw",
 }
 
+_SESSION_EDITABLE: dict[str, str] = {
+    "dt_start": "dt_start",
+    "laborant":  "laborant",
+}
+
 
 def _audit(db: sqlite3.Connection, table: str, row_id: Any,
            field: str, old_value: Any, new_value: Any, batch_ebr_id: int) -> None:
@@ -58,6 +63,25 @@ def update_batch(db: sqlite3.Connection, ebr_id: int,
         old_value = row[col]
         db.execute(f"UPDATE ebr_batches SET {col}=? WHERE ebr_id=?", (value, ebr_id))
         _audit(db, "ebr_batches", ebr_id, field, old_value, value, ebr_id)
+    db.commit()
+    return True, None
+
+
+def update_session(db: sqlite3.Connection, sesja_id: int,
+                   fields: dict[str, Any]) -> tuple[bool, str | None]:
+    """Update editable session fields. Returns (True, None) on success or (False, error_msg)."""
+    for field in fields:
+        if field not in _SESSION_EDITABLE:
+            return False, f"Field '{field}' is not editable"
+    row = db.execute("SELECT * FROM ebr_etap_sesja WHERE id=?", (sesja_id,)).fetchone()
+    if not row:
+        return False, "NOT_FOUND"
+    batch_ebr_id = row["ebr_id"]
+    for field, value in fields.items():
+        col = _SESSION_EDITABLE[field]
+        old_value = row[col]
+        db.execute(f"UPDATE ebr_etap_sesja SET {col}=? WHERE id=?", (value, sesja_id))
+        _audit(db, "ebr_etap_sesja", sesja_id, field, old_value, value, batch_ebr_id)
     db.commit()
     return True, None
 

@@ -656,6 +656,34 @@ def test_put_batch_not_found(client):
     assert resp.status_code == 404
 
 
+# ─── Task 13: PUT session ──────────────────────────────────────────────────────
+
+def test_put_session_editable_field(client, db):
+    resp = client.put("/api/ml-export/session/1",
+                      json={"laborant": "MK"},
+                      content_type="application/json")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["ok"] is True
+    assert data["new_value"] == "MK"
+    row = db.execute("SELECT laborant FROM ebr_etap_sesja WHERE id=1").fetchone()
+    assert row[0] == "MK"
+
+
+def test_put_session_rejected_field(client):
+    resp = client.put("/api/ml-export/session/1",
+                      json={"runda": 99},
+                      content_type="application/json")
+    assert resp.status_code == 400
+
+
+def test_put_session_not_found(client):
+    resp = client.put("/api/ml-export/session/9999",
+                      json={"laborant": "X"},
+                      content_type="application/json")
+    assert resp.status_code == 404
+
+
 def test_export_pandas_pivot_roundtrip(db):
     """Smoke test: round-trip long format through pandas pivot to wide.
     Skipped if pandas not installed (dev env).
