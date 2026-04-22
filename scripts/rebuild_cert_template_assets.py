@@ -81,6 +81,10 @@ def patch_header_xml(xml: str) -> str:
     Each <w:p> ... </w:p> block is inspected: if it contains
     <w:pStyle w:val="Nagwek4"/> → child 999 becomes 996; Nagwek8 → 997.
     Both w:sz and w:szCs attributes are rewritten.
+
+    Also tightens vertical spacing: line-height 360 (1.5×) → 240 (single)
+    in all header paragraphs, so the header doesn't waste ~6 mm of
+    vertical space between title lines and product name.
     """
     paragraph_re = re.compile(r'<w:p(?:\s[^>]*)?>.*?</w:p>', re.DOTALL)
 
@@ -96,7 +100,28 @@ def patch_header_xml(xml: str) -> str:
             return p
         return p
 
-    return paragraph_re.sub(rewrite_paragraph, xml)
+    xml = paragraph_re.sub(rewrite_paragraph, xml)
+    # Global: collapse 1.5× line-height to single. Applies to every header
+    # paragraph uniformly; no need for per-paragraph scoping here since no
+    # header paragraph legitimately needs 360.
+    xml = xml.replace('w:line="360"', 'w:line="240"')
+    return xml
+
+
+def patch_document_xml(xml: str) -> str:
+    """Tighten page header margin in document.xml sectPr.
+
+    Reduces:
+      - pgMar w:top  964 → 567 (≈10 mm — matches left/right symmetry)
+      - pgMar w:header 624 → 284 (≈5 mm from page edge to header content)
+
+    Effect: body text starts closer to the header, and the header itself
+    begins closer to the page edge. Word auto-pushes body down if header
+    content exceeds (top - header), so this cannot overflow into content.
+    """
+    xml = re.sub(r'w:top="964"', 'w:top="567"', xml, count=1)
+    xml = re.sub(r'w:header="624"', 'w:header="284"', xml, count=1)
+    return xml
 
 
 def rebuild_docx() -> None:
@@ -132,7 +157,13 @@ def rebuild_docx() -> None:
                 txt = data.decode("utf-8")
                 new_txt = patch_header_xml(txt)
                 if new_txt != txt:
-                    print(f"  patched {item} (inline sz/szCs 999 → 996/997)")
+                    print(f"  patched {item} (inline sz/szCs 999 → 996/997, line-height 360 → 240)")
+                data = new_txt.encode("utf-8")
+            elif item == "word/document.xml":
+                txt = data.decode("utf-8")
+                new_txt = patch_document_xml(txt)
+                if new_txt != txt:
+                    print(f"  patched {item} (pgMar top 964 → 567, header 624 → 284)")
                 data = new_txt.encode("utf-8")
             zout.writestr(item, data)
 
