@@ -5,15 +5,15 @@ ETAPY_ANALIZY = {
         "amidowanie":        {"label": "Amidowanie",        "korekty": ["DMAPA", "Wydłużenie czasu"], "korekta_po_fakcie": True},
         "namca":             {"label": "NaMCA",             "korekty": ["NaOH", "MCA"], "korekta_po_fakcie": True},
         "czwartorzedowanie": {"label": "Czwartorzędowanie", "korekty": ["NaOH", "MCA", "HCl"]},
-        "sulfonowanie":      {"label": "Sulfonowanie",      "korekty": ["Na2SO3"]},
-        "utlenienie":        {"label": "Utlenienie",        "korekty": ["Perhydrol"]},
+        "sulfonowanie":      {"label": "Analiza po sulfonowaniu", "korekty": ["Na2SO3"]},
+        "utlenienie":        {"label": "Analiza po utlenianiu",   "korekty": ["Perhydrol"]},
     },
     "Chegina_K40GLOL": {
         "amidowanie":        {"label": "Amidowanie",        "korekty": ["DMAPA", "Wydłużenie czasu"], "korekta_po_fakcie": True},
         "namca":             {"label": "NaMCA",             "korekty": ["NaOH", "MCA"], "korekta_po_fakcie": True},
         "czwartorzedowanie": {"label": "Czwartorzędowanie", "korekty": ["NaOH", "MCA", "HCl"]},
-        "sulfonowanie":      {"label": "Sulfonowanie",      "korekty": ["Na2SO3"]},
-        "utlenienie":        {"label": "Utlenienie",        "korekty": ["Kw. cytrynowy", "Perhydrol"]},
+        "sulfonowanie":      {"label": "Analiza po sulfonowaniu", "korekty": ["Na2SO3"]},
+        "utlenienie":        {"label": "Analiza po utlenianiu",   "korekty": ["Kw. cytrynowy", "Perhydrol"]},
         "rozjasnianie":      {"label": "Rozjaśnianie",      "korekty": ["Perhydrol"]},
     },
     "Chegina_K40GLO": {
@@ -35,9 +35,9 @@ ETAPY_ANALIZY = {
                 {"nr": 2, "label": "Po 2. porcji ługu", "parametry": ["ph_10proc", "nd20", "aa", "barwa_I2", "barwa_hz", "metnosc_fau"]},
             ],
         },
-        "sulfonowanie": {"label": "Sulfonowanie", "korekty": ["Na2SO3"]},
+        "sulfonowanie": {"label": "Analiza po sulfonowaniu", "korekty": ["Na2SO3"]},
         "utlenienie": {
-            "label": "Utlenienie",
+            "label": "Analiza po utlenianiu",
             "korekty": ["Kw. cytrynowy", "Perhydrol"],
             "kroki": [
                 {"nr": 1, "label": "Obniżenie pH", "parametry": ["ph_10proc", "nd20", "barwa_I2", "barwa_hz", "metnosc_fau", "so3"]},
