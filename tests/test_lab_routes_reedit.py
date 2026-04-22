@@ -177,3 +177,18 @@ def test_downstream_summary_endpoint(client, db):
     data = resp.get_json()
     assert data["has_downstream"] is True
     assert any(s["etap_id"] == 11 and s["pomiary"] >= 1 for s in data["stages"])
+
+
+def test_put_korekta_on_closed_sesja_emits_reedit_audit(client, db):
+    """Writes that land on a zamkniety sesja must audit-log reedit=1."""
+    resp = client.put("/api/pipeline/lab/ebr/100/korekta",
+                      json={"etap_id": 10, "substancja": "Kwas cytrynowy", "ilosc": 7.5})
+    assert resp.status_code == 200, resp.get_json()
+    row = db.execute(
+        "SELECT payload_json FROM audit_log "
+        "WHERE event_type = 'ebr.wynik.updated' ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    assert row is not None, "no audit row emitted"
+    import json as _j
+    payload = _j.loads(row["payload_json"])
+    assert payload.get("reedit") == 1

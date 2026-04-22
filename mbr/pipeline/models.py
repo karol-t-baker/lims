@@ -16,6 +16,7 @@ import sqlite3
 from datetime import datetime
 
 from mbr.shared.timezone import app_now_iso
+from mbr.shared import audit as _audit
 
 
 # ---------------------------------------------------------------------------
@@ -586,6 +587,17 @@ def save_pomiar(
         (sesja_id, parametr_id, wartosc, min_limit, max_limit,
          w_limicie, is_manual, odziedziczony, now, wpisal),
     )
+    _s = db.execute("SELECT ebr_id, status FROM ebr_etap_sesja WHERE id=?", (sesja_id,)).fetchone()
+    if _s and _s["status"] == "zamkniety":
+        _audit.log_event(
+            _audit.EVENT_EBR_WYNIK_UPDATED,
+            entity_type="ebr",
+            entity_id=_s["ebr_id"],
+            payload={"reedit": 1, "sesja_id": sesja_id,
+                     "parametr_id": parametr_id, "wartosc": wartosc,
+                     "source": "pipeline.save_pomiar"},
+            db=db,
+        )
     return cur.lastrowid
 
 
@@ -747,14 +759,27 @@ def upsert_ebr_korekta(
             "WHERE id=?",
             (ilosc, ilosc_wyliczona, zalecil, now, existing["id"]),
         )
-        return existing["id"]
-    cur = db.execute(
-        """INSERT INTO ebr_korekta_v2
-               (sesja_id, korekta_typ_id, ilosc, ilosc_wyliczona, zalecil, dt_zalecenia)
-           VALUES (?, ?, ?, ?, ?, ?)""",
-        (sesja_id, korekta_typ_id, ilosc, ilosc_wyliczona, zalecil, now),
-    )
-    return cur.lastrowid
+        result_id = existing["id"]
+    else:
+        cur = db.execute(
+            """INSERT INTO ebr_korekta_v2
+                   (sesja_id, korekta_typ_id, ilosc, ilosc_wyliczona, zalecil, dt_zalecenia)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (sesja_id, korekta_typ_id, ilosc, ilosc_wyliczona, zalecil, now),
+        )
+        result_id = cur.lastrowid
+    _s = db.execute("SELECT ebr_id, status FROM ebr_etap_sesja WHERE id=?", (sesja_id,)).fetchone()
+    if _s and _s["status"] == "zamkniety":
+        _audit.log_event(
+            _audit.EVENT_EBR_WYNIK_UPDATED,
+            entity_type="ebr",
+            entity_id=_s["ebr_id"],
+            payload={"reedit": 1, "sesja_id": sesja_id,
+                     "korekta_typ_id": korekta_typ_id, "ilosc": ilosc,
+                     "source": "pipeline.upsert_ebr_korekta"},
+            db=db,
+        )
+    return result_id
 
 
 def list_ebr_korekty(db: sqlite3.Connection, sesja_id: int) -> list[dict]:
