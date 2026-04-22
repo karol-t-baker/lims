@@ -946,6 +946,7 @@ function renderPipelineFlowchart(container) {
 
   // Render using existing CSS classes
   var html = '<div class="se-list">';
+  var lastIdx = stageStatuses.length - 1;
   stageStatuses.forEach(function(ss, idx) {
     var e = ss.etap;
     var status = ss.status;
@@ -954,7 +955,12 @@ function renderPipelineFlowchart(container) {
 
     // numCls matches status — uniform colors for pipeline stages
 
-    var clickAttr = ' onclick="showPipelineStage(\'' + ss.sekcja + '\', ' + (status === 'done' ? 'true' : 'false') + ')"';
+    // Edit policy (mirrors mbr/pipeline/edit_policy.py):
+    // - batch open   → every stage opens editable (laborant can reedit closed ones)
+    // - batch closed → only the last pipeline stage stays editable
+    var readonlyFlag = (ebrStatus === 'open') ? false
+                     : (idx === lastIdx ? false : true);
+    var clickAttr = ' onclick="showPipelineStage(\'' + ss.sekcja + '\', ' + readonlyFlag + ')"';
     var cursorStyle = '';
     var selCls = (selectedSekcja === ss.sekcja) ? ' se-selected' : '';
 

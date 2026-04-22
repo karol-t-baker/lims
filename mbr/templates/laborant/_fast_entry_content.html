@@ -1280,10 +1280,19 @@ async function _evaluateGateOnLoad(sekcja, etapId) {
     } catch(e) {}
 }
 
+// Edit policy (mirrors mbr/pipeline/edit_policy.py): batch open → any stage editable,
+// batch closed → only the last pipeline stage. Used to gate hero readonly state.
+function _isPipelineStageEditable(sekcja) {
+    if (ebrStatus === 'open') return true;
+    var pipe = etapy.filter(function(e) { return !!e.pipeline_etap_id; });
+    if (pipe.length === 0 || !sekcja) return false;
+    return sekcja === pipe[pipe.length - 1].sekcja_lab;
+}
+window._isPipelineStageEditable = _isPipelineStageEditable;
+
 function renderPipelineSections() {
     var container = document.getElementById('sections-container');
     container.innerHTML = '';
-    var isReadonly = ebrStatus !== 'open';
     var rs = typeof roundState !== 'undefined' ? roundState : null;
     var entryGrupa = (ebrStatus === 'open' && userGrupa) ? userGrupa : null;
 
@@ -1317,6 +1326,9 @@ function renderPipelineSections() {
     // Find the etap for active sekcja
     var activeEtap = etapy.find(function(e) { return e.sekcja_lab === activeSekcja; });
     if (!activeEtap) return;
+
+    // Compute isReadonly now that the active sekcja is known (policy-based).
+    var isReadonly = !_isPipelineStageEditable(activeSekcja);
 
     // All cyclic pipeline stages (sulfonowanie, utlenianie, standaryzacja)
     // use unified rendering — gate banner + correction panels from V2.
