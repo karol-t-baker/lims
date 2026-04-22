@@ -38,6 +38,13 @@ _WYNIKI_EDITABLE: dict[str, str] = {
     "w_limicie":     "w_limicie",
 }
 
+# ebr_korekta_v2 — ilosc stored as 'kg' in API surface
+_KOREKTA_EDITABLE: dict[str, str] = {
+    "kg":            "ilosc",
+    "status":        "status",
+    "dt_wykonania":  "dt_wykonania",
+}
+
 
 def _audit(db: sqlite3.Connection, table: str, row_id: Any,
            field: str, old_value: Any, new_value: Any, batch_ebr_id: int) -> None:
@@ -136,6 +143,36 @@ def update_measurement(db: sqlite3.Connection, source: str, row_id: int,
         old_value = row[col]
         db.execute(f"UPDATE {table} SET {col}=? WHERE {pk_col}=?", (value, row_id))
         _audit(db, table, row_id, field, old_value, value, batch_ebr_id)
+    db.commit()
+    return True, None
+
+
+def update_correction(db: sqlite3.Connection, korekta_id: int,
+                      fields: dict[str, Any]) -> tuple[bool, str | None]:
+    """Update editable correction fields in ebr_korekta_v2.
+
+    API field 'kg' maps to DB column 'ilosc'.
+    Returns (True, None) on success or (False, error_msg).
+    """
+    for field in fields:
+        if field not in _KOREKTA_EDITABLE:
+            return False, f"Field '{field}' is not editable"
+
+    row = db.execute("SELECT * FROM ebr_korekta_v2 WHERE id=?", (korekta_id,)).fetchone()
+    if not row:
+        return False, "NOT_FOUND"
+
+    # Resolve batch_ebr_id: ebr_korekta_v2 → ebr_etap_sesja → ebr_batches
+    sesja = db.execute(
+        "SELECT ebr_id FROM ebr_etap_sesja WHERE id=?", (row["sesja_id"],)
+    ).fetchone()
+    batch_ebr_id = sesja["ebr_id"] if sesja else korekta_id
+
+    for field, value in fields.items():
+        col = _KOREKTA_EDITABLE[field]
+        old_value = row[col]
+        db.execute(f"UPDATE ebr_korekta_v2 SET {col}=? WHERE id=?", (value, korekta_id))
+        _audit(db, "ebr_korekta_v2", korekta_id, field, old_value, value, batch_ebr_id)
     db.commit()
     return True, None
 

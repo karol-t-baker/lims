@@ -729,6 +729,44 @@ def test_put_measurement_rejected_field(client, db):
     assert resp.status_code == 400
 
 
+# ─── Task 15: PUT correction ──────────────────────────────────────────────────
+
+def test_put_correction_kg(client, db):
+    # Fixture: ebr_korekta_v2 id=1, ilosc=15.0
+    row = db.execute("SELECT id FROM ebr_korekta_v2 LIMIT 1").fetchone()
+    korekta_id = row[0]
+    resp = client.put(f"/api/ml-export/correction/{korekta_id}",
+                      json={"kg": 18.5},
+                      content_type="application/json")
+    assert resp.status_code == 200
+    assert resp.get_json()["ok"] is True
+    updated = db.execute("SELECT ilosc FROM ebr_korekta_v2 WHERE id=?", (korekta_id,)).fetchone()
+    assert updated[0] == 18.5
+
+
+def test_put_correction_status(client, db):
+    row = db.execute("SELECT id FROM ebr_korekta_v2 LIMIT 1").fetchone()
+    resp = client.put(f"/api/ml-export/correction/{row[0]}",
+                      json={"status": "anulowana"},
+                      content_type="application/json")
+    assert resp.status_code == 200
+
+
+def test_put_correction_rejected_field(client, db):
+    row = db.execute("SELECT id FROM ebr_korekta_v2 LIMIT 1").fetchone()
+    resp = client.put(f"/api/ml-export/correction/{row[0]}",
+                      json={"substancja": "Woda"},
+                      content_type="application/json")
+    assert resp.status_code == 400
+
+
+def test_put_correction_not_found(client):
+    resp = client.put("/api/ml-export/correction/9999",
+                      json={"kg": 1.0},
+                      content_type="application/json")
+    assert resp.status_code == 404
+
+
 def test_export_pandas_pivot_roundtrip(db):
     """Smoke test: round-trip long format through pandas pivot to wide.
     Skipped if pandas not installed (dev env).
