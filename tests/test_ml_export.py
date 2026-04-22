@@ -130,3 +130,147 @@ def db():
 def test_fixture_smoke(db):
     row = db.execute("SELECT COUNT(*) FROM ebr_batches").fetchone()
     assert row[0] == 1
+
+
+# ─── schema.py ────────────────────────────────────────────────────────────────
+
+def test_build_schema_structure(db):
+    from mbr.ml_export.schema import build_schema
+    s = build_schema(db, produkty=["Chegina_K7"], counts={"batches": 1, "sessions": 1, "measurements": 4, "corrections": 1})
+    assert s["export_version"] == "1.0"
+    assert s["produkt_filter"] == ["Chegina_K7"]
+    assert s["counts"]["batches"] == 1
+    # generated_at is ISO-ish
+    assert "T" in s["generated_at"]
+    # etapy in pipeline order
+    kody = [e["kod"] for e in s["etapy"]]
+    assert kody == ["sulfonowanie", "utlenienie", "standaryzacja", "analiza_koncowa"]
+
+
+def test_build_schema_parametry_dict(db):
+    from mbr.ml_export.schema import build_schema
+    s = build_schema(db, produkty=["Chegina_K7"])
+    # sa is calculated with a formula
+    sa = s["parametry"]["sa"]
+    assert sa["is_calculated"] is True
+    assert sa["formula"] == "sm - nacl - 0.6"
+    assert sa["jednostka"] == "%"
+    # sa appears in analiza_koncowa.parametry_lab with min/max → target candidate
+    assert sa["is_target_candidate"] is True
+    # nd20 is not a target candidate (not in analiza_koncowa parametry_lab)
+    assert s["parametry"]["nd20"]["is_target_candidate"] is False
+
+
+def test_build_schema_recipe_kategoria(db):
+    from mbr.ml_export.schema import build_schema
+    s = build_schema(db, produkty=["Chegina_K7"])
+    assert s["parametry"]["na2so3_recept_kg"]["kategoria"] == "recipe"
+    assert s["parametry"]["sm"]["kategoria"] == "measurement"
+
+
+def test_build_schema_per_stage_specs(db):
+    from mbr.ml_export.schema import build_schema
+    s = build_schema(db, produkty=["Chegina_K7"])
+    barwa = s["parametry"]["barwa_I2"]
+    assert barwa["specs_per_etap"]["analiza_koncowa"] == {"min": 0.0, "max": 200.0}
+
+
+def test_build_schema_substancje(db):
+    from mbr.ml_export.schema import build_schema
+    s = build_schema(db, produkty=["Chegina_K7"])
+    subs = s["substancje_korekcji"]
+    assert "Perhydrol 34%" in subs
+    assert "Woda łącznie" in subs
+    # Formula-driven via etap_korekty_katalog.formula_ilosc OR ilosc_wyliczona — none seeded here,
+    # so all default to False. (test_build_schema_substancje_formula verifies is_formula_driven=True path.)
+    assert subs["Perhydrol 34%"]["is_formula_driven"] is False
+
+
+def test_build_schema_substancje_formula(db):
+    """is_formula_driven=True when etap_korekty_katalog.formula_ilosc is non-empty."""
+    from mbr.ml_export.schema import build_schema
+    # Seed Kwas cytrynowy (id=5 already exists in fixture, katalog id=5) with formula_ilosc
+    db.execute(
+        "UPDATE etap_korekty_katalog SET formula_ilosc=? WHERE substancja=?",
+        ("100 * (ph - target) / masa", "Kwas cytrynowy"),
+    )
+    # Siarczyn sodu (id=1) keeps formula_ilosc=NULL
+    db.commit()
+    s = build_schema(db, produkty=["Chegina_K7"])
+    subs = s["substancje_korekcji"]
+    assert subs["Kwas cytrynowy"]["is_formula_driven"] is True
+    assert subs["Siarczyn sodu"]["is_formula_driven"] is False
+
+
+# ─── build_batches ────────────────────────────────────────────────────────────
+
+BATCH_COLS = {
+    "ebr_id", "batch_id", "nr_partii", "produkt", "status",
+    "masa_kg", "meff_kg", "dt_start", "dt_end", "pakowanie",
+    "target_ph", "target_nd20",
+}
+
+
+def test_build_batches_one_row(db):
+    from mbr.ml_export.query import build_batches
+    rows = build_batches(db, produkty=["Chegina_K7"], statuses=("completed",))
+    assert len(rows) == 1
+    r = rows[0]
+    assert set(r.keys()) == BATCH_COLS
+    assert r["ebr_id"] == 1
+    assert r["batch_id"] == "Chegina_K7__1_2026"
+    assert r["produkt"] == "Chegina_K7"
+    assert r["status"] == "completed"
+    assert r["masa_kg"] == 13300.0
+    assert r["meff_kg"] == 12300.0  # masa > 6600 → masa - 1000
+    assert r["pakowanie"] == "zbiornik"  # default when NULL in DB
+    assert r["target_ph"] == 6.25
+    assert r["target_nd20"] == 1.3922
+
+
+def test_build_batches_meff_below_threshold(db):
+    from mbr.ml_export.query import build_batches
+    db.execute("UPDATE ebr_batches SET wielkosc_szarzy_kg=5000, nastaw=5000 WHERE ebr_id=1")
+    db.commit()
+    r = build_batches(db, produkty=["Chegina_K7"], statuses=("completed",))[0]
+    assert r["masa_kg"] == 5000.0
+    assert r["meff_kg"] == 4500.0  # masa <= 6600 → masa - 500
+
+
+def test_build_batches_status_filter(db):
+    from mbr.ml_export.query import build_batches
+    db.execute(
+        """INSERT INTO ebr_batches (ebr_id, mbr_id, batch_id, nr_partii, wielkosc_szarzy_kg,
+                                     nastaw, dt_start, status, typ)
+           VALUES (2,1,'K7__2','2/2026',13300,13300,'2026-04-17','cancelled','szarza')"""
+    )
+    db.commit()
+    assert len(build_batches(db, produkty=["Chegina_K7"], statuses=("completed",))) == 1
+    rows = build_batches(db, produkty=["Chegina_K7"], statuses=("completed","cancelled"))
+    assert {r["ebr_id"] for r in rows} == {1, 2}
+
+
+def test_build_batches_target_from_snapshot(db):
+    """cele_json on any standaryzacja session overrides globals."""
+    from mbr.ml_export.query import build_batches
+    db.execute(
+        "INSERT INTO ebr_etap_sesja (id, ebr_id, etap_id, runda, status, cele_json) "
+        "VALUES (99, 1, 9, 1, 'zamkniety', ?)",
+        ('{"target_ph": 5.80, "target_nd20": 1.3899}',),
+    )
+    db.commit()
+    r = build_batches(db, produkty=["Chegina_K7"], statuses=("completed",))[0]
+    assert r["target_ph"] == 5.80
+    assert r["target_nd20"] == 1.3899
+
+
+def test_build_batches_open_excluded(db):
+    from mbr.ml_export.query import build_batches
+    db.execute(
+        """INSERT INTO ebr_batches (ebr_id, mbr_id, batch_id, nr_partii, wielkosc_szarzy_kg,
+                                     nastaw, dt_start, status, typ)
+           VALUES (5,1,'K7__5','5/2026',13300,13300,'2026-04-17','open','szarza')"""
+    )
+    db.commit()
+    rows = build_batches(db, produkty=["Chegina_K7"], statuses=("completed","cancelled"))
+    assert all(r["status"] in ("completed","cancelled") for r in rows)
