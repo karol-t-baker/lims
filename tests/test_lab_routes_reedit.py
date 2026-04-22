@@ -128,3 +128,29 @@ def test_put_korekta_returns_400_when_no_sesja_exists(client, db):
     )
     assert resp.status_code == 400
     assert "no session" in resp.get_json()["error"]
+
+
+def test_post_pomiary_rejected_closed_batch_earlier_stage(client, db):
+    db.execute("UPDATE ebr_batches SET status='completed' WHERE ebr_id=100")
+    db.execute("INSERT INTO parametry_analityczne (id, kod, label, typ) VALUES (777, 'pX', 'X', 'bezposredni')")
+    db.commit()
+    resp = client.post("/api/pipeline/lab/ebr/100/etap/10/pomiary",
+                       json={"sesja_id": 1000, "pomiary": [{"parametr_id": 777, "wartosc": 5}]})
+    assert resp.status_code == 403, resp.get_json()
+
+
+def test_post_pomiary_accepted_open_batch_on_closed_sesja(client, db):
+    """Open batch + closed sesja → 200 (edit policy permits)."""
+    db.execute("INSERT INTO parametry_analityczne (id, kod, label, typ) VALUES (778, 'pY', 'Y', 'bezposredni')")
+    db.commit()
+    resp = client.post("/api/pipeline/lab/ebr/100/etap/10/pomiary",
+                       json={"sesja_id": 1000, "pomiary": [{"parametr_id": 778, "wartosc": 3}]})
+    assert resp.status_code == 200, resp.get_json()
+
+
+def test_post_korekta_rejected_closed_batch_earlier_stage(client, db):
+    db.execute("UPDATE ebr_batches SET status='completed' WHERE ebr_id=100")
+    db.commit()
+    resp = client.post("/api/pipeline/lab/ebr/100/korekta",
+                       json={"sesja_id": 1000, "korekta_typ_id": 5, "ilosc": 10})
+    assert resp.status_code == 403

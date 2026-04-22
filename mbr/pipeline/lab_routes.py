@@ -192,6 +192,10 @@ def lab_save_pomiary(ebr_id, etap_id):
         if ebr is None:
             return jsonify({"error": "not found"}), 404
 
+        from mbr.pipeline.edit_policy import is_sesja_editable
+        if not is_sesja_editable(db, ebr_id=ebr_id, sesja_id=sesja_id):
+            return jsonify({"error": "sesja is locked — batch closed and this is not the last stage"}), 403
+
         produkt = ebr["produkt"]
         resolved = pm.resolve_limity(db, produkt, etap_id)
         limits_by_pid = {r["parametr_id"]: r for r in resolved}
@@ -336,6 +340,11 @@ def lab_create_korekta(ebr_id):
                 ilosc_wyliczona = float(ilosc_wyliczona)
             except (ValueError, TypeError):
                 ilosc_wyliczona = None
+
+        from mbr.pipeline.edit_policy import is_sesja_editable
+        if sesja_id and not is_sesja_editable(db, ebr_id=ebr_id, sesja_id=sesja_id):
+            return jsonify({"error": "sesja is locked — batch closed and this is not the last stage"}), 403
+
         kid = pm.create_ebr_korekta(db, sesja_id, korekta_typ_id, ilosc, zalecil,
                                      ilosc_wyliczona=ilosc_wyliczona)
         db.commit()
