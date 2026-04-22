@@ -375,15 +375,22 @@ def lab_upsert_ebr_korekta(ebr_id):
     except Exception:
         zalecil = session.get("user", {}).get("login")
     try:
+        from mbr.pipeline.edit_policy import is_sesja_editable
+
+        # Pick the latest sesja for this etap (active first, else the most recent closed one).
         sesja_row = db.execute(
             "SELECT id FROM ebr_etap_sesja "
             "WHERE ebr_id=? AND etap_id=? "
-            "  AND status IN ('nierozpoczety', 'w_trakcie') "
-            "ORDER BY runda DESC, id DESC LIMIT 1",
+            "ORDER BY CASE status WHEN 'w_trakcie' THEN 0 "
+            "                    WHEN 'nierozpoczety' THEN 1 "
+            "                    ELSE 2 END, "
+            "         runda DESC, id DESC LIMIT 1",
             (ebr_id, etap_id),
         ).fetchone()
         if not sesja_row:
-            return jsonify({"error": "no active session for this etap"}), 400
+            return jsonify({"error": "no session for this etap"}), 400
+        if not is_sesja_editable(db, ebr_id=ebr_id, sesja_id=sesja_row["id"]):
+            return jsonify({"error": "sesja is locked — batch closed and this is not the last stage"}), 403
 
         katalog_row = db.execute(
             "SELECT id FROM etap_korekty_katalog "
