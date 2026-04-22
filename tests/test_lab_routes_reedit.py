@@ -154,3 +154,26 @@ def test_post_korekta_rejected_closed_batch_earlier_stage(client, db):
     resp = client.post("/api/pipeline/lab/ebr/100/korekta",
                        json={"sesja_id": 1000, "korekta_typ_id": 5, "ilosc": 10})
     assert resp.status_code == 403
+
+
+def test_downstream_summary_endpoint(client, db):
+    # Seed a sesja on analiza_koncowa (etap 11) + a pomiar so it counts as downstream activity.
+    db.execute(
+        "INSERT INTO ebr_etap_sesja (id, ebr_id, etap_id, runda, status, dt_start) "
+        "VALUES (1001, 100, 11, 1, 'zamkniety', '2026-04-22T13:00:00')"
+    )
+    db.execute(
+        "INSERT INTO parametry_analityczne (id, kod, label, typ) "
+        "VALUES (779, 'pZ', 'Z', 'bezposredni')"
+    )
+    db.execute(
+        "INSERT INTO ebr_pomiar (sesja_id, parametr_id, wartosc, wpisal, dt_wpisu) "
+        "VALUES (1001, 779, 9.0, 'lab1', '2026-04-22T13:00:00')"
+    )
+    db.commit()
+
+    resp = client.get("/api/pipeline/lab/ebr/100/etap/10/downstream-summary")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["has_downstream"] is True
+    assert any(s["etap_id"] == 11 and s["pomiary"] >= 1 for s in data["stages"])

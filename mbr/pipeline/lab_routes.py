@@ -604,6 +604,25 @@ def lab_get_correction_targets(etap_id, produkt):
     return jsonify({r["kod"]: r["wartosc"] for r in rows})
 
 
+# ---------------------------------------------------------------------------
+# GET /api/pipeline/lab/ebr/<ebr_id>/etap/<etap_id>/downstream-summary
+# Warning-banner data for reedit UX.
+# ---------------------------------------------------------------------------
+
+@pipeline_bp.route(
+    "/api/pipeline/lab/ebr/<int:ebr_id>/etap/<int:etap_id>/downstream-summary",
+    methods=["GET"],
+)
+@login_required
+def lab_downstream_summary(ebr_id, etap_id):
+    from mbr.pipeline.edit_policy import has_downstream_activity
+    db = get_db()
+    try:
+        return jsonify(has_downstream_activity(db, ebr_id=ebr_id, etap_id=etap_id))
+    finally:
+        db.close()
+
+
 @pipeline_bp.route(
     "/api/pipeline/lab/correction-targets/<int:etap_id>/<produkt>",
     methods=["PATCH"],
