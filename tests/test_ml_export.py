@@ -580,6 +580,27 @@ def test_old_csv_endpoint_gone(client):
     assert resp.status_code == 404
 
 
+# ─── preview page ─────────────────────────────────────────────────────────────
+
+def test_ml_export_page_renders(client):
+    resp = client.get("/ml-export")
+    assert resp.status_code == 200
+    body = resp.data.decode("utf-8")
+    # Four panels, one per table
+    for name in ("batches.csv", "sessions.csv", "measurements.csv", "corrections.csv"):
+        assert name in body
+    # Download button
+    assert "Pobierz paczkę" in body
+    # Row counts are rendered (fixture: 1 / 1 / 5 / 1)
+    assert "1 wiersz" in body or "1 wierszy" in body  # batches
+
+
+def test_ml_export_page_include_failed_toggle(client):
+    resp = client.get("/ml-export?include_failed=1")
+    assert resp.status_code == 200
+    assert 'checked' in resp.data.decode("utf-8").lower()
+
+
 def test_export_pandas_pivot_roundtrip(db):
     """Smoke test: round-trip long format through pandas pivot to wide.
     Skipped if pandas not installed (dev env).
