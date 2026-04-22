@@ -2,7 +2,7 @@ import sqlite3
 import pytest
 
 from mbr.models import init_mbr_tables
-from mbr.pipeline.edit_policy import is_sesja_editable
+from mbr.pipeline.edit_policy import is_sesja_editable, has_downstream_activity
 
 
 def _seed(db):
@@ -63,3 +63,22 @@ def test_closed_batch_earlier_stage_not_editable(db):
 
 def test_missing_sesja_not_editable(db):
     assert is_sesja_editable(db, ebr_id=100, sesja_id=9999) is False
+
+
+def test_downstream_detects_later_pomiar(db):
+    # id=777 to avoid collision with auto-seeded parametry (e.g. nadtlenki at id=1).
+    db.execute("INSERT INTO parametry_analityczne (id, kod, label, typ) VALUES (777, 'x', 'X', 'bezposredni')")
+    db.execute("INSERT INTO ebr_pomiar (sesja_id, parametr_id, wartosc, wpisal, dt_wpisu) "
+               "VALUES (1001, 777, 5.0, 'u', '2026-04-22T12:00:00')")
+    db.commit()
+    # Editing sulfonowanie (etap 10) while analiza_koncowa (etap 11) has a pomiar → downstream exists.
+    info = has_downstream_activity(db, ebr_id=100, etap_id=10)
+    assert info["has_downstream"] is True
+    assert any(s["etap_id"] == 11 and s["pomiary"] >= 1 for s in info["stages"])
+
+
+def test_downstream_none_for_last_stage(db):
+    """Last stage never has downstream."""
+    info = has_downstream_activity(db, ebr_id=100, etap_id=11)
+    assert info["has_downstream"] is False
+    assert info["stages"] == []
