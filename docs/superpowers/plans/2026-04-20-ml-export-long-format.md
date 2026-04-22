@@ -420,16 +420,25 @@ def _build_substancje(db: sqlite3.Connection) -> dict[str, dict]:
 
     for r in db.execute(
         """
-        SELECT DISTINCT substancja
-        FROM ebr_korekta_v2
-        WHERE ilosc_wyliczona IS NOT NULL
+        SELECT DISTINCT ekk.substancja
+        FROM ebr_korekta_v2 ekv
+        JOIN etap_korekty_katalog ekk ON ekk.id = ekv.korekta_typ_id
+        WHERE ekv.ilosc_wyliczona IS NOT NULL
+          AND ekk.substancja IS NOT NULL
         """
     ).fetchall():
         with_formula.add(r["substancja"])
 
     # Also pick up substancje that appear in ebr_korekta_v2 but not katalog.
+    # (Theoretical only — ebr_korekta_v2 FKs through katalog, so this is a no-op
+    # unless someone inserts a v2 row with NULL korekta_typ_id. Kept for safety.)
     for r in db.execute(
-        "SELECT DISTINCT substancja FROM ebr_korekta_v2 WHERE substancja IS NOT NULL"
+        """
+        SELECT DISTINCT ekk.substancja
+        FROM ebr_korekta_v2 ekv
+        JOIN etap_korekty_katalog ekk ON ekk.id = ekv.korekta_typ_id
+        WHERE ekk.substancja IS NOT NULL
+        """
     ).fetchall():
         from_katalog.add(r["substancja"])
 
