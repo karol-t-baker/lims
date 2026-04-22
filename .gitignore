@@ -41,4 +41,7 @@ data/old_server/
 coa_app/build/
 coa_app/dist/
 data/*.bak-*
+data/*.sqlite-wal
+data/*.sqlite-shm
 mbr/templates/*.docx.bak
+mbr/templates/*.docx.bak-*
