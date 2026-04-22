@@ -7,6 +7,61 @@ import sqlite3
 from typing import Any
 
 
+# ---------------------------------------------------------------------------
+# Whitelist of editable fields per table — field name → DB column
+# ---------------------------------------------------------------------------
+
+_BATCH_EDITABLE: dict[str, str] = {
+    "masa_kg":                "wielkosc_szarzy_kg",
+    "dt_start":               "dt_start",
+    "dt_end":                 "dt_end",
+    "status":                 "status",
+    "pakowanie_bezposrednie": "pakowanie_bezposrednie",
+    "nastaw":                 "nastaw",
+}
+
+
+def _audit(db: sqlite3.Connection, table: str, row_id: Any,
+           field: str, old_value: Any, new_value: Any, batch_ebr_id: int) -> None:
+    """Emit ml_export.value_edited audit event. Best-effort — never raises."""
+    try:
+        from mbr.shared import audit
+        audit.log_event(
+            "ml_export.value_edited",
+            entity_type="ebr",
+            entity_id=batch_ebr_id,
+            payload={
+                "table": table,
+                "id": row_id,
+                "field": field,
+                "old_value": old_value,
+                "new_value": new_value,
+                "batch_ebr_id": batch_ebr_id,
+            },
+            db=db,
+        )
+    except Exception:
+        pass
+
+
+def update_batch(db: sqlite3.Connection, ebr_id: int,
+                 fields: dict[str, Any]) -> tuple[bool, str | None]:
+    """Update editable batch fields. Returns (True, None) on success or (False, error_msg)."""
+    for field in fields:
+        if field not in _BATCH_EDITABLE:
+            return False, f"Field '{field}' is not editable"
+    row = db.execute("SELECT * FROM ebr_batches WHERE ebr_id=?", (ebr_id,)).fetchone()
+    if not row:
+        return False, "NOT_FOUND"
+    for field, value in fields.items():
+        col = _BATCH_EDITABLE[field]
+        old_value = row[col]
+        db.execute(f"UPDATE ebr_batches SET {col}=? WHERE ebr_id=?", (value, ebr_id))
+        _audit(db, "ebr_batches", ebr_id, field, old_value, value, ebr_id)
+    db.commit()
+    return True, None
+
+
 def get_batch_detail(db: sqlite3.Connection, nr_partii: str) -> dict | None:
     """Return full editable detail for a single batch identified by nr_partii.
 

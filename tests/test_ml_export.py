@@ -627,6 +627,35 @@ def test_batch_detail_missing_param(client):
     assert resp.status_code == 400
 
 
+# ─── Task 12: PUT batch ────────────────────────────────────────────────────────
+
+def test_put_batch_editable_field(client, db):
+    resp = client.put("/api/ml-export/batch/1",
+                      json={"masa_kg": 14000.0},
+                      content_type="application/json")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["ok"] is True
+    assert data["new_value"] == 14000.0
+    # Verify DB updated
+    row = db.execute("SELECT wielkosc_szarzy_kg FROM ebr_batches WHERE ebr_id=1").fetchone()
+    assert row[0] == 14000.0
+
+
+def test_put_batch_rejected_field(client):
+    resp = client.put("/api/ml-export/batch/1",
+                      json={"ebr_id": 99},
+                      content_type="application/json")
+    assert resp.status_code == 400
+
+
+def test_put_batch_not_found(client):
+    resp = client.put("/api/ml-export/batch/9999",
+                      json={"masa_kg": 1000.0},
+                      content_type="application/json")
+    assert resp.status_code == 404
+
+
 def test_export_pandas_pivot_roundtrip(db):
     """Smoke test: round-trip long format through pandas pivot to wide.
     Skipped if pandas not installed (dev env).

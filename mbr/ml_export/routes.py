@@ -5,7 +5,7 @@ from flask import abort, jsonify, request, Response, render_template
 
 from mbr.db import get_db
 from mbr.ml_export import ml_export_bp
-from mbr.ml_export.edit import get_batch_detail
+from mbr.ml_export.edit import get_batch_detail, update_batch
 from mbr.ml_export.query import export_ml_package, build_batches, build_sessions, \
     build_measurements, build_corrections
 from mbr.shared.decorators import role_required
@@ -76,3 +76,19 @@ def ml_batch_detail():
     if detail is None:
         abort(404)
     return jsonify(detail)
+
+
+@ml_export_bp.route("/api/ml-export/batch/<int:ebr_id>", methods=["PUT"])
+@role_required("admin")
+def ml_put_batch(ebr_id: int):
+    fields = request.get_json(force=True) or {}
+    db = get_db()
+    try:
+        ok, err = update_batch(db, ebr_id, fields)
+    finally:
+        db.close()
+    if not ok:
+        if err == "NOT_FOUND":
+            abort(404)
+        abort(400, description=err)
+    return jsonify({"ok": True, "new_value": list(fields.values())[0] if len(fields) == 1 else fields})
