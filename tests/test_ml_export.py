@@ -311,3 +311,97 @@ def test_build_sessions_multiple_stages_ordered(db):
 def test_build_sessions_empty_when_no_ids(db):
     from mbr.ml_export.query import build_sessions
     assert build_sessions(db, ebr_ids=[]) == []
+
+
+# ─── build_measurements ───────────────────────────────────────────────────────
+
+MEAS_COLS = {
+    "ebr_id", "etap", "runda", "param_kod",
+    "wartosc", "wartosc_text", "w_limicie",
+    "dt_wpisu", "wpisal", "is_legacy",
+}
+
+
+def test_build_measurements_new_only(db):
+    """Fixture: sulfonowanie R1 has 4 pomiary in ebr_pomiar, no ebr_wyniki for them."""
+    from mbr.ml_export.query import build_measurements
+    rows = build_measurements(db, ebr_ids=[1])
+    # 4 pomiary + 1 legacy na2so3_recept_kg (always exempt) = 5
+    assert len(rows) == 5
+    new = [r for r in rows if r["is_legacy"] == 0]
+    assert len(new) == 4
+    for r in new:
+        assert set(r.keys()) == MEAS_COLS
+        assert r["ebr_id"] == 1
+        assert r["etap"] == "sulfonowanie"
+        assert r["runda"] == 1
+        assert r["wartosc"] is not None
+        assert r["w_limicie"] == 1
+        assert r["wpisal"] == "JK"
+    by_param = {r["param_kod"]: r["wartosc"] for r in new}
+    assert by_param["ph_10proc"] == 11.89
+    assert by_param["so3"] == 0.12
+
+
+def test_build_measurements_recipe_always_legacy(db):
+    """na2so3_recept_kg is always emitted from ebr_wyniki with runda=0, is_legacy=1,
+    even when ebr_pomiar has the same param."""
+    from mbr.ml_export.query import build_measurements
+    rows = build_measurements(db, ebr_ids=[1])
+    legacy = [r for r in rows if r["is_legacy"] == 1]
+    recipe = [r for r in legacy if r["param_kod"] == "na2so3_recept_kg"]
+    assert len(recipe) == 1
+    r = recipe[0]
+    assert r["runda"] == 0
+    assert r["etap"] == "sulfonowanie"
+    assert r["wartosc"] == 15.0
+
+
+def test_build_measurements_legacy_only_emitted(db):
+    """Legacy value for (etap, param) with no corresponding pomiar → emit with runda=0."""
+    from mbr.ml_export.query import build_measurements
+    # Insert legacy SM in analiza_koncowa — no session, no pomiar
+    db.execute(
+        "INSERT INTO ebr_wyniki (ebr_id, sekcja, kod_parametru, tag, wartosc, w_limicie, dt_wpisu, wpisal) "
+        "VALUES (1,'analiza_koncowa','sm','sm',43.5,1,'2026-04-16','JK')"
+    )
+    db.commit()
+    rows = build_measurements(db, ebr_ids=[1])
+    leg_sm = [r for r in rows if r["param_kod"] == "sm" and r["is_legacy"] == 1]
+    assert len(leg_sm) == 1
+    assert leg_sm[0]["runda"] == 0
+    assert leg_sm[0]["etap"] == "analiza_koncowa"
+    assert leg_sm[0]["wartosc"] == 43.5
+
+
+def test_build_measurements_legacy_suppressed_when_new_exists(db):
+    """Legacy value for same (ebr_id, etap, param) as a new pomiar → NOT emitted."""
+    from mbr.ml_export.query import build_measurements
+    # Fixture: sulfonowanie/ph_10proc exists in ebr_pomiar (sesja_id=1, parametr_id=1)
+    # Add legacy entry for the same (ebr_id, etap, param) — should be suppressed
+    db.execute(
+        "INSERT INTO ebr_wyniki (ebr_id, sekcja, kod_parametru, tag, wartosc, dt_wpisu, wpisal) "
+        "VALUES (1,'sulfonowanie','ph_10proc','ph',99.9,'2026-04-16','X')"
+    )
+    db.commit()
+    rows = build_measurements(db, ebr_ids=[1])
+    ph = [r for r in rows if r["param_kod"] == "ph_10proc"]
+    assert len(ph) == 1
+    assert ph[0]["is_legacy"] == 0
+    assert ph[0]["wartosc"] == 11.89  # new value wins
+
+
+def test_build_measurements_wartosc_text(db):
+    """ebr_wyniki.wartosc_text (e.g. FAU '<1') must propagate."""
+    from mbr.ml_export.query import build_measurements
+    db.execute(
+        "INSERT INTO ebr_wyniki (ebr_id, sekcja, kod_parametru, tag, wartosc, wartosc_text, dt_wpisu, wpisal) "
+        "VALUES (1,'analiza_koncowa','barwa_I2','barwa',NULL,'<1','2026-04-16','JK')"
+    )
+    db.commit()
+    rows = build_measurements(db, ebr_ids=[1])
+    below = [r for r in rows if r["param_kod"] == "barwa_I2" and r["etap"] == "analiza_koncowa"]
+    assert len(below) == 1
+    assert below[0]["wartosc"] is None
+    assert below[0]["wartosc_text"] == "<1"
+    assert below[0]["is_legacy"] == 1

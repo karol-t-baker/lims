@@ -128,6 +128,81 @@ def build_sessions(db: sqlite3.Connection, ebr_ids: list[int]) -> list[dict]:
     ]
 
 
+_RECIPE_PARAMS = {"na2so3_recept_kg"}
+
+
+def build_measurements(db: sqlite3.Connection, ebr_ids: list[int]) -> list[dict]:
+    """Merge ebr_pomiar (per-session, is_legacy=0) with ebr_wyniki (per-batch, is_legacy=1).
+
+    Rules:
+    1. New (ebr_pomiar) is authoritative — emit all.
+    2. For each legacy (ebr_id, etap, param) in ebr_wyniki: emit only if no matching
+       new row exists for the same triple. Round = 0 for legacy.
+    3. Recipe params (_RECIPE_PARAMS) are exempt from rule 2 — always emitted from
+       legacy with runda=0. They aren't measurements, they're dosage history.
+    """
+    if not ebr_ids:
+        return []
+    ids_q = ",".join("?" for _ in ebr_ids)
+
+    new_rows = db.execute(
+        f"""SELECT s.ebr_id, ea.kod AS etap, s.runda,
+                   pa.kod AS param_kod, p.wartosc, p.w_limicie,
+                   p.dt_wpisu, p.wpisal
+              FROM ebr_pomiar p
+              JOIN ebr_etap_sesja s       ON s.id = p.sesja_id
+              JOIN etapy_analityczne ea   ON ea.id = s.etap_id
+              JOIN parametry_analityczne pa ON pa.id = p.parametr_id
+             WHERE s.ebr_id IN ({ids_q})
+          ORDER BY s.ebr_id, s.etap_id, s.runda, pa.id""",
+        ebr_ids,
+    ).fetchall()
+
+    out: list[dict] = []
+    new_triples: set[tuple[int, str, str]] = set()
+    for r in new_rows:
+        out.append({
+            "ebr_id":       r["ebr_id"],
+            "etap":         r["etap"],
+            "runda":        r["runda"],
+            "param_kod":    r["param_kod"],
+            "wartosc":      r["wartosc"],
+            "wartosc_text": None,
+            "w_limicie":    r["w_limicie"],
+            "dt_wpisu":     r["dt_wpisu"],
+            "wpisal":       r["wpisal"],
+            "is_legacy":    0,
+        })
+        new_triples.add((r["ebr_id"], r["etap"], r["param_kod"]))
+
+    legacy_rows = db.execute(
+        f"""SELECT ebr_id, sekcja AS etap, kod_parametru AS param_kod,
+                   wartosc, wartosc_text, w_limicie, dt_wpisu, wpisal
+              FROM ebr_wyniki
+             WHERE ebr_id IN ({ids_q})
+          ORDER BY ebr_id, sekcja, kod_parametru""",
+        ebr_ids,
+    ).fetchall()
+
+    for r in legacy_rows:
+        triple = (r["ebr_id"], r["etap"], r["param_kod"])
+        if r["param_kod"] not in _RECIPE_PARAMS and triple in new_triples:
+            continue  # new value authoritative, legacy suppressed
+        out.append({
+            "ebr_id":       r["ebr_id"],
+            "etap":         r["etap"],
+            "runda":        0,
+            "param_kod":    r["param_kod"],
+            "wartosc":      r["wartosc"],
+            "wartosc_text": r["wartosc_text"],
+            "w_limicie":    r["w_limicie"],
+            "dt_wpisu":     r["dt_wpisu"],
+            "wpisal":       r["wpisal"],
+            "is_legacy":    1,
+        })
+    return out
+
+
 # ── Legacy wide-CSV shims (used by routes.py until Task 8 replaces the route) ─
 
 def export_k7_batches(db: sqlite3.Connection, after_id: int = 0,
