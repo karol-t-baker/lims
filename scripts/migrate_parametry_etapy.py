@@ -23,9 +23,10 @@ KONTEKST_META = {
     "amidowanie":        {"nazwa": "Po amidowaniu",            "typ_cyklu": "jednorazowy", "kol": 1},
     "namca":             {"nazwa": "NAMCA (SMCA)",             "typ_cyklu": "jednorazowy", "kol": 2},
     "czwartorzedowanie": {"nazwa": "Czwartorzędowanie",        "typ_cyklu": "jednorazowy", "kol": 3},
-    "sulfonowanie":      {"nazwa": "Sulfonowanie",             "typ_cyklu": "cykliczny",   "kol": 4},
-    "utlenienie":        {"nazwa": "Utlenienie",               "typ_cyklu": "cykliczny",   "kol": 5},
+    "sulfonowanie":      {"nazwa": "Analiza po sulfonowaniu",  "typ_cyklu": "cykliczny",   "kol": 4},
+    "utlenienie":        {"nazwa": "Analiza po utlenianiu",    "typ_cyklu": "cykliczny",   "kol": 5},
     "rozjasnianie":      {"nazwa": "Rozjaśnianie",             "typ_cyklu": "cykliczny",   "kol": 6},
+    "standaryzacja":     {"nazwa": "Analiza po standaryzacji", "typ_cyklu": "cykliczny",   "kol": 7},
     "dodatki":           {"nazwa": "Dodatki standaryzacyjne",  "typ_cyklu": "cykliczny",   "kol": 7},
     "analiza_koncowa":   {"nazwa": "Analiza końcowa",          "typ_cyklu": "jednorazowy", "kol": 8},
 }
