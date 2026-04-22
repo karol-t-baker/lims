@@ -362,9 +362,9 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     # Seed etapy_procesowe
     _ETAPY_SEED = [
         ("amidowanie", "Amidowanie"), ("namca", "NaMCA"),
-        ("czwartorzedowanie", "Czwartorzędowanie"), ("sulfonowanie", "Sulfonowanie"),
-        ("utlenienie", "Utlenienie"), ("rozjasnianie", "Rozjaśnianie"),
-        ("standaryzacja", "Standaryzacja"), ("analiza_koncowa", "Analiza końcowa"),
+        ("czwartorzedowanie", "Czwartorzędowanie"), ("sulfonowanie", "Analiza po sulfonowaniu"),
+        ("utlenienie", "Analiza po utlenianiu"), ("rozjasnianie", "Rozjaśnianie"),
+        ("standaryzacja", "Analiza po standaryzacji"), ("analiza_koncowa", "Analiza końcowa"),
         ("dodatki", "Dodatki standaryzacyjne"),
     ]
     for kod, label in _ETAPY_SEED:
