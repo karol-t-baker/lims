@@ -601,6 +601,189 @@ def test_ml_export_page_include_failed_toggle(client):
     assert 'checked' in resp.data.decode("utf-8").lower()
 
 
+# ─── Task 11: batch-detail endpoint ───────────────────────────────────────────
+
+def test_batch_detail_returns_shape(client, db):
+    resp = client.get("/api/ml-export/batch-detail?nr_partii=1/2026")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert "batch" in data
+    assert "sessions" in data
+    assert "measurements" in data
+    assert "corrections" in data
+    assert data["batch"]["nr_partii"] == "1/2026"
+    assert isinstance(data["sessions"], list)
+    assert isinstance(data["measurements"], list)
+    assert isinstance(data["corrections"], list)
+
+
+def test_batch_detail_404_on_unknown(client):
+    resp = client.get("/api/ml-export/batch-detail?nr_partii=NOTEXIST")
+    assert resp.status_code == 404
+
+
+def test_batch_detail_missing_param(client):
+    resp = client.get("/api/ml-export/batch-detail")
+    assert resp.status_code == 400
+
+
+# ─── Task 12: PUT batch ────────────────────────────────────────────────────────
+
+def test_put_batch_editable_field(client, db):
+    resp = client.put("/api/ml-export/batch/1",
+                      json={"masa_kg": 14000.0},
+                      content_type="application/json")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["ok"] is True
+    assert data["new_value"] == 14000.0
+    # Verify DB updated
+    row = db.execute("SELECT wielkosc_szarzy_kg FROM ebr_batches WHERE ebr_id=1").fetchone()
+    assert row[0] == 14000.0
+
+
+def test_put_batch_rejected_field(client):
+    resp = client.put("/api/ml-export/batch/1",
+                      json={"ebr_id": 99},
+                      content_type="application/json")
+    assert resp.status_code == 400
+
+
+def test_put_batch_not_found(client):
+    resp = client.put("/api/ml-export/batch/9999",
+                      json={"masa_kg": 1000.0},
+                      content_type="application/json")
+    assert resp.status_code == 404
+
+
+# ─── Task 13: PUT session ──────────────────────────────────────────────────────
+
+def test_put_session_editable_field(client, db):
+    resp = client.put("/api/ml-export/session/1",
+                      json={"laborant": "MK"},
+                      content_type="application/json")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["ok"] is True
+    assert data["new_value"] == "MK"
+    row = db.execute("SELECT laborant FROM ebr_etap_sesja WHERE id=1").fetchone()
+    assert row[0] == "MK"
+
+
+def test_put_session_rejected_field(client):
+    resp = client.put("/api/ml-export/session/1",
+                      json={"runda": 99},
+                      content_type="application/json")
+    assert resp.status_code == 400
+
+
+def test_put_session_not_found(client):
+    resp = client.put("/api/ml-export/session/9999",
+                      json={"laborant": "X"},
+                      content_type="application/json")
+    assert resp.status_code == 404
+
+
+# ─── Task 14: PUT measurement ─────────────────────────────────────────────────
+
+def test_put_measurement_pomiar(client, db):
+    # ebr_pomiar id=1 is ph_10proc=11.89 from seed
+    row = db.execute("SELECT id FROM ebr_pomiar LIMIT 1").fetchone()
+    meas_id = row[0]
+    resp = client.put(f"/api/ml-export/measurement/pomiar/{meas_id}",
+                      json={"wartosc": 12.5},
+                      content_type="application/json")
+    assert resp.status_code == 200
+    assert resp.get_json()["ok"] is True
+    updated = db.execute("SELECT wartosc FROM ebr_pomiar WHERE id=?", (meas_id,)).fetchone()
+    assert updated[0] == 12.5
+
+
+def test_put_measurement_wyniki_wartosc_text(client, db):
+    db.execute(
+        "INSERT INTO ebr_wyniki (wynik_id, ebr_id, sekcja, kod_parametru, tag, wartosc_text, dt_wpisu, wpisal) "
+        "VALUES (99, 1, 'analiza_koncowa', 'barwa_I2', 'barwa', '<1', '2026-04-16', 'JK')"
+    )
+    db.commit()
+    resp = client.put("/api/ml-export/measurement/wyniki/99",
+                      json={"wartosc_text": "<0.5"},
+                      content_type="application/json")
+    assert resp.status_code == 200
+    updated = db.execute("SELECT wartosc_text FROM ebr_wyniki WHERE wynik_id=99").fetchone()
+    assert updated[0] == "<0.5"
+
+
+def test_put_measurement_invalid_source(client):
+    resp = client.put("/api/ml-export/measurement/INVALID/1",
+                      json={"wartosc": 1.0},
+                      content_type="application/json")
+    assert resp.status_code == 400
+
+
+def test_put_measurement_rejected_field(client, db):
+    row = db.execute("SELECT id FROM ebr_pomiar LIMIT 1").fetchone()
+    resp = client.put(f"/api/ml-export/measurement/pomiar/{row[0]}",
+                      json={"wartosc_text": "x"},
+                      content_type="application/json")
+    # wartosc_text is not editable for source=pomiar
+    assert resp.status_code == 400
+
+
+# ─── Task 15: PUT correction ──────────────────────────────────────────────────
+
+def test_put_correction_kg(client, db):
+    # Fixture: ebr_korekta_v2 id=1, ilosc=15.0
+    row = db.execute("SELECT id FROM ebr_korekta_v2 LIMIT 1").fetchone()
+    korekta_id = row[0]
+    resp = client.put(f"/api/ml-export/correction/{korekta_id}",
+                      json={"kg": 18.5},
+                      content_type="application/json")
+    assert resp.status_code == 200
+    assert resp.get_json()["ok"] is True
+    updated = db.execute("SELECT ilosc FROM ebr_korekta_v2 WHERE id=?", (korekta_id,)).fetchone()
+    assert updated[0] == 18.5
+
+
+def test_put_correction_status(client, db):
+    row = db.execute("SELECT id FROM ebr_korekta_v2 LIMIT 1").fetchone()
+    resp = client.put(f"/api/ml-export/correction/{row[0]}",
+                      json={"status": "anulowana"},
+                      content_type="application/json")
+    assert resp.status_code == 200
+
+
+def test_put_correction_rejected_field(client, db):
+    row = db.execute("SELECT id FROM ebr_korekta_v2 LIMIT 1").fetchone()
+    resp = client.put(f"/api/ml-export/correction/{row[0]}",
+                      json={"substancja": "Woda"},
+                      content_type="application/json")
+    assert resp.status_code == 400
+
+
+def test_put_correction_not_found(client):
+    resp = client.put("/api/ml-export/correction/9999",
+                      json={"kg": 1.0},
+                      content_type="application/json")
+    assert resp.status_code == 404
+
+
+# ─── Task 16: inline edit UI ──────────────────────────────────────────────────
+
+def test_ml_export_page_has_search_input(client):
+    resp = client.get("/ml-export")
+    assert resp.status_code == 200
+    body = resp.data.decode("utf-8")
+    assert "nr_partii" in body
+    assert "Szukaj" in body
+
+
+def test_ml_export_page_has_edit_section(client):
+    resp = client.get("/ml-export")
+    body = resp.data.decode("utf-8")
+    # Editable detail section marker
+    assert "ml-edit" in body or "inline-edit" in body or "batch-detail" in body
+
+
 def test_export_pandas_pivot_roundtrip(db):
     """Smoke test: round-trip long format through pandas pivot to wide.
     Skipped if pandas not installed (dev env).
@@ -613,3 +796,83 @@ def test_export_pandas_pivot_roundtrip(db):
         index="ebr_id", columns=["etap", "runda"], values="wartosc"
     )
     assert wide.loc[1, ("sulfonowanie", 1)] == 11.89
+
+
+# ─── Task 17: buffer-cap-chart endpoint ───────────────────────────────────────
+
+def _seed_k7_acid_batch(db, ebr_id, nr_partii, masa_kg,
+                        ph_before, ph_after, acid_kg, status="completed"):
+    """Seed a minimal K7 batch with pH and acid dose data for buffer-cap diagnostics."""
+    db.execute(
+        """INSERT INTO ebr_batches (ebr_id, mbr_id, batch_id, nr_partii, wielkosc_szarzy_kg,
+                                    nastaw, dt_start, status, typ)
+           VALUES (?,1,?,?,?,?,?,?,'szarza')""",
+        (ebr_id, f"K7__{ebr_id}", nr_partii, masa_kg, masa_kg,
+         f"2026-04-{10+ebr_id:02d}T08:00:00", status),
+    )
+    # Seed standaryzacja session with ph measurements + acid correction
+    sess_id = ebr_id * 10
+    db.execute(
+        "INSERT INTO ebr_etap_sesja (id, ebr_id, etap_id, runda, status, laborant) "
+        "VALUES (?,?,9,1,'zamkniety','JK')",
+        (sess_id, ebr_id),
+    )
+    # ph_10proc pomiar: ph_before and ph_after
+    db.execute(
+        "INSERT INTO ebr_pomiar (sesja_id, parametr_id, wartosc, w_limicie, dt_wpisu, wpisal) "
+        "VALUES (?,1,?,1,'2026-04-16','JK')",
+        (sess_id, ph_before),
+    )
+    # Acid correction (Kwas cytrynowy = korekta_typ_id 5 from fixture)
+    db.execute(
+        "INSERT INTO ebr_korekta_v2 (sesja_id, korekta_typ_id, ilosc, status) "
+        "VALUES (?,5,?,'wykonana')",
+        (sess_id, acid_kg),
+    )
+    db.commit()
+
+
+def test_buffer_cap_chart_stats(db):
+    from mbr.ml_export.acid_diag import compute_buffer_cap_stats
+    # Seed 3 additional batches with K7 acid data (ebr_id 10,11,12)
+    _seed_k7_acid_batch(db, 10, '10/2026', 13300, ph_before=10.2, ph_after=6.3, acid_kg=150.0)
+    _seed_k7_acid_batch(db, 11, '11/2026', 13300, ph_before=10.5, ph_after=6.2, acid_kg=160.0)
+    _seed_k7_acid_batch(db, 12, '12/2026', 13300, ph_before=10.0, ph_after=6.4, acid_kg=140.0)
+    stats = compute_buffer_cap_stats(db, produkt="Chegina_K7")
+    assert stats["n"] >= 3
+    assert "mae" in stats
+    assert "mape" in stats
+    assert "mean_bias" in stats
+    assert "stdev" in stats
+    assert isinstance(stats["mae"], float)
+
+
+def test_buffer_cap_chart_endpoint(client, db):
+    _seed_k7_acid_batch(db, 10, '10/2026', 13300, ph_before=10.2, ph_after=6.3, acid_kg=150.0)
+    resp = client.get("/api/ml-export/buffer-cap-chart?produkt=Chegina_K7")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert "stats" in data
+    assert "chart_png_b64" in data
+    # chart_png_b64 is non-empty base64 string
+    import base64
+    png_bytes = base64.b64decode(data["chart_png_b64"])
+    assert png_bytes[:4] == b'\x89PNG'
+
+
+def test_buffer_cap_chart_empty(client):
+    # No acid batches → empty stats, still returns 200
+    resp = client.get("/api/ml-export/buffer-cap-chart?produkt=Chegina_K7")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["stats"]["n"] == 0
+
+
+# ─── Task 18: diagnostics section ─────────────────────────────────────────────
+
+def test_ml_export_page_has_diagnostics_section(client):
+    resp = client.get("/ml-export")
+    assert resp.status_code == 200
+    body = resp.data.decode("utf-8")
+    assert "Diagnostyka" in body
+    assert "buffer" in body.lower() or "kwasu" in body.lower()

@@ -62,5 +62,192 @@
       {% endif %}
     </div>
   {% endfor %}
-</div>
+
+  {# ─── Inline edit: search + detail ─────────────────────────────────────── #}
+  <div class="ml-panel" id="ml-edit" style="margin-top: 32px;">
+    <h3>Edycja rekordu szarży</h3>
+    <div style="display:flex; gap:8px; margin-bottom:12px;">
+      <input id="ml-search-input" type="text" placeholder="nr_partii (np. 1/2026)"
+             style="font-size:13px; padding:6px 10px; border:1px solid var(--border);
+                    border-radius:4px; width:220px; background:var(--surface);">
+      <button id="ml-search-btn" onclick="mlLoadDetail()"
+              style="font-size:12px; padding:6px 14px; border:1.5px solid var(--teal);
+                     border-radius:4px; background:none; color:var(--teal); cursor:pointer;">
+        Szukaj
+      </button>
+    </div>
+    <div id="ml-detail-area" style="display:none;">
+      <div id="ml-detail-content"></div>
+    </div>
+    <div id="ml-detail-error" style="display:none; color:var(--red); font-size:12px;"></div>
+  </div>
+
+<script>
+function mlLoadDetail() {
+  var nr = document.getElementById('ml-search-input').value.trim();
+  if (!nr) return;
+  fetch('/api/ml-export/batch-detail?nr_partii=' + encodeURIComponent(nr))
+    .then(function(r) {
+      if (r.status === 404) throw new Error('Szarża nie znaleziona.');
+      if (!r.ok) throw new Error('Błąd serwera: ' + r.status);
+      return r.json();
+    })
+    .then(function(data) {
+      document.getElementById('ml-detail-error').style.display = 'none';
+      document.getElementById('ml-detail-area').style.display = 'block';
+      document.getElementById('ml-detail-content').innerHTML = mlRenderDetail(data);
+    })
+    .catch(function(err) {
+      document.getElementById('ml-detail-area').style.display = 'none';
+      var el = document.getElementById('ml-detail-error');
+      el.textContent = err.message;
+      el.style.display = 'block';
+    });
+}
+
+var _ML_BATCH_EDITABLE = ['masa_kg','dt_start','dt_end','status','pakowanie_bezposrednie','nastaw'];
+var _ML_SESS_EDITABLE  = ['dt_start','laborant'];
+var _ML_MEAS_P_EDITABLE = ['wartosc','w_limicie'];
+var _ML_MEAS_W_EDITABLE = ['wartosc','wartosc_text','w_limicie'];
+var _ML_CORR_EDITABLE  = ['kg','status','dt_wykonania'];
+
+function mlRenderDetail(data) {
+  var html = '';
+  html += mlRenderTable('batches', [data.batch], _ML_BATCH_EDITABLE,
+    function(row, field, val) { return mlSaveField('batch', row.ebr_id, field, val); });
+  html += mlRenderTable('sessions', data.sessions, _ML_SESS_EDITABLE,
+    function(row, field, val) { return mlSaveField('session', row.id, field, val); });
+  html += mlRenderTable('measurements', data.measurements,
+    null /* source-dependent */,
+    function(row, field, val) {
+      var editable = row.source === 'pomiar' ? _ML_MEAS_P_EDITABLE : _ML_MEAS_W_EDITABLE;
+      return mlSaveMeasurement(row.source, row.id, field, val, editable);
+    }, data.measurements.map(function(r) {
+      return r.source === 'pomiar' ? _ML_MEAS_P_EDITABLE : _ML_MEAS_W_EDITABLE;
+    }));
+  html += mlRenderTable('corrections', data.corrections, _ML_CORR_EDITABLE,
+    function(row, field, val) { return mlSaveField('correction', row.id, field, val); });
+  return html;
+}
+
+function mlRenderTable(name, rows, editableCols, saveCallback, editableColsPerRow) {
+  if (!rows || !rows.length) return '<p style="font-size:12px;color:var(--text-dim);">' + name + ': brak danych.</p>';
+  var keys = Object.keys(rows[0]);
+  var html = '<h4 style="font-size:13px;margin:14px 0 4px;">' + name + '</h4>';
+  html += '<table class="ml-table"><thead><tr>';
+  keys.forEach(function(k) { html += '<th>' + k + '</th>'; });
+  html += '</tr></thead><tbody>';
+  rows.forEach(function(row, ri) {
+    var rowEditable = editableColsPerRow ? editableColsPerRow[ri] : editableCols;
+    html += '<tr>';
+    keys.forEach(function(k) {
+      var isEditable = rowEditable && rowEditable.indexOf(k) !== -1;
+      var v = row[k];
+      if (isEditable) {
+        html += '<td><span class="ml-editable" contenteditable="true" '
+             + 'data-field="' + k + '" data-orig="' + (v === null ? '' : v) + '" '
+             + 'onblur="mlOnBlur(this, ' + JSON.stringify(row) + ', \'' + name + '\')"'
+             + '>' + (v === null ? '' : v) + '</span></td>';
+      } else {
+        html += '<td' + (v === null ? ' class="ml-null"' : '') + '>' + (v === null ? '—' : v) + '</td>';
+      }
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  return html;
+}
+
+function mlOnBlur(el, row, tableName) {
+  var field = el.dataset.field;
+  var newVal = el.textContent.trim();
+  if (newVal === el.dataset.orig) return;
+  el.style.background = 'var(--yellow-bg, #fffbe6)';
+  var url, body;
+  if (tableName === 'batches') {
+    url = '/api/ml-export/batch/' + row.ebr_id;
+    body = {}; body[field] = newVal;
+    doSaveMlField(el, url, body);
+  } else if (tableName === 'sessions') {
+    url = '/api/ml-export/session/' + row.id;
+    body = {}; body[field] = newVal;
+    doSaveMlField(el, url, body);
+  } else if (tableName === 'measurements') {
+    url = '/api/ml-export/measurement/' + row.source + '/' + row.id;
+    body = {}; body[field] = newVal;
+    doSaveMlField(el, url, body);
+  } else if (tableName === 'corrections') {
+    url = '/api/ml-export/correction/' + row.id;
+    body = {}; body[field] = newVal;
+    doSaveMlField(el, url, body);
+  }
+}
+
+function doSaveMlField(el, url, body) {
+  fetch(url, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)})
+    .then(function(r) { return r.json().then(function(d) { return {ok: r.ok, data: d}; }); })
+    .then(function(res) {
+      if (res.ok) {
+        el.style.background = 'var(--green-bg, #f0fff4)';
+        el.dataset.orig = el.textContent.trim();
+        setTimeout(function() { el.style.background = ''; }, 1200);
+      } else {
+        el.style.background = 'var(--red-bg, #fff5f5)';
+        el.title = res.data.description || 'Błąd zapisu';
+      }
+    })
+    .catch(function() {
+      el.style.background = 'var(--red-bg, #fff5f5)';
+    });
+}
+</script>
+  </div>{# /ml-edit #}
+
+  {# ─── Diagnostics: buffer capacity ──────────────────────────────────────── #}
+  <div class="ml-panel" id="ml-diagnostics" style="margin-top: 32px;">
+    <h3>Diagnostyka modelu kwasu — K7</h3>
+    <p style="font-size:12px; color:var(--text-dim); margin:0 0 10px;">
+      Porównanie rzeczywistej i prognozowanej pojemności buforowej (kg/t/ΔpH)
+      dla ukończonych szarż K7. Filtr: delta_pH &gt; 0.5, acid_kg &gt; 0, pH&gt;=9.
+    </p>
+    <div id="ml-diag-stats" style="font-size:12px; color:var(--text-dim); margin-bottom:8px;">
+      — kliknij Odśwież aby wczytać —
+    </div>
+    <div id="ml-diag-chart" style="min-height:40px;"></div>
+    <button id="ml-diag-refresh" onclick="mlLoadDiagnostics()"
+            style="margin-top:10px; font-size:12px; padding:5px 14px;
+                   border:1.5px solid var(--teal); border-radius:4px;
+                   background:none; color:var(--teal); cursor:pointer;">
+      Odśwież
+    </button>
+  </div>
+
+<script>
+function mlLoadDiagnostics() {
+  document.getElementById('ml-diag-stats').textContent = 'Ładowanie…';
+  document.getElementById('ml-diag-chart').innerHTML = '';
+  fetch('/api/ml-export/buffer-cap-chart?produkt=Chegina_K7')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var s = data.stats;
+      document.getElementById('ml-diag-stats').innerHTML =
+        '<strong>n=' + s.n + '</strong>'
+        + '  MAE=' + s.mae + ' kg/t/ΔpH'
+        + '  MAPE=' + s.mape + '%'
+        + '  bias=' + (s.mean_bias >= 0 ? '+' : '') + s.mean_bias
+        + '  σ=' + s.stdev;
+      if (data.chart_png_b64) {
+        var img = document.createElement('img');
+        img.src = 'data:image/png;base64,' + data.chart_png_b64;
+        img.style.maxWidth = '100%';
+        img.alt = 'Buffer capacity diagnostic chart';
+        document.getElementById('ml-diag-chart').appendChild(img);
+      }
+    })
+    .catch(function(err) {
+      document.getElementById('ml-diag-stats').textContent = 'Błąd: ' + err.message;
+    });
+}
+</script>
+</div>{# /ml-wrap #}
 {% endblock %}
