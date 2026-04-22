@@ -601,6 +601,32 @@ def test_ml_export_page_include_failed_toggle(client):
     assert 'checked' in resp.data.decode("utf-8").lower()
 
 
+# ─── Task 11: batch-detail endpoint ───────────────────────────────────────────
+
+def test_batch_detail_returns_shape(client, db):
+    resp = client.get("/api/ml-export/batch-detail?nr_partii=1/2026")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert "batch" in data
+    assert "sessions" in data
+    assert "measurements" in data
+    assert "corrections" in data
+    assert data["batch"]["nr_partii"] == "1/2026"
+    assert isinstance(data["sessions"], list)
+    assert isinstance(data["measurements"], list)
+    assert isinstance(data["corrections"], list)
+
+
+def test_batch_detail_404_on_unknown(client):
+    resp = client.get("/api/ml-export/batch-detail?nr_partii=NOTEXIST")
+    assert resp.status_code == 404
+
+
+def test_batch_detail_missing_param(client):
+    resp = client.get("/api/ml-export/batch-detail")
+    assert resp.status_code == 400
+
+
 def test_export_pandas_pivot_roundtrip(db):
     """Smoke test: round-trip long format through pandas pivot to wide.
     Skipped if pandas not installed (dev env).

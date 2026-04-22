@@ -1,10 +1,11 @@
 """HTTP endpoints + admin page for the ML export package."""
 from datetime import date
 
-from flask import abort, request, Response, render_template
+from flask import abort, jsonify, request, Response, render_template
 
 from mbr.db import get_db
 from mbr.ml_export import ml_export_bp
+from mbr.ml_export.edit import get_batch_detail
 from mbr.ml_export.query import export_ml_package, build_batches, build_sessions, \
     build_measurements, build_corrections
 from mbr.shared.decorators import role_required
@@ -59,3 +60,19 @@ def ml_export_page():
     }
     return render_template("ml_export/ml_export.html",
                            preview=preview, include_failed=include_failed)
+
+
+@ml_export_bp.route("/api/ml-export/batch-detail", methods=["GET"])
+@role_required("admin")
+def ml_batch_detail():
+    nr_partii = request.args.get("nr_partii")
+    if not nr_partii:
+        abort(400, description="nr_partii is required")
+    db = get_db()
+    try:
+        detail = get_batch_detail(db, nr_partii)
+    finally:
+        db.close()
+    if detail is None:
+        abort(404)
+    return jsonify(detail)
