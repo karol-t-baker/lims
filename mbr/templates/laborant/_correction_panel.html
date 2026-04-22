@@ -423,8 +423,8 @@ function recomputeStandV2(sekcja) {
                 var range = _bagFractionRange(kwas);
                 if (range) {
                     var modelFmt = Math.round(range.model).toString();
-                    var underFmt = _fmtKg(range.under);
-                    var overFmt  = _fmtKg(range.over);
+                    var underFmt = Math.round(range.under).toString();
+                    var overFmt  = Math.round(range.over).toString();
                     var rangeStr = (range.under === range.over)
                         ? overFmt
                         : underFmt + '–' + overFmt;  // en-dash
