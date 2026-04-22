@@ -770,10 +770,21 @@ async function openCalculatorSrednia(kod, sekcja) {
         var resp = await fetch('/api/ebr/' + _calcState.ebrId + '/samples/' + sekcja + '/' + kod);
         var data = await resp.json();
         if (data.samples && data.samples.length > 0) {
-            _calcState.samples = data.samples.slice(0, 2).map(function(s) {
-                return { v: s.v ? String(s.v).replace(',', '.') : '' };
+            // Stale data from a different calculator (e.g. titration stores {m,v}
+            // pairs). If ANY sample has a non-srednia field, drop the lot —
+            // reusing titration volumes as srednia values would silently corrupt
+            // the stored result instead of letting the laborant re-enter cleanly.
+            var looksLikeSrednia = data.samples.every(function(s) {
+                if (!s || typeof s !== 'object') return false;
+                var keys = Object.keys(s);
+                return keys.length === 0 || (keys.length === 1 && keys[0] === 'v');
             });
-            while (_calcState.samples.length < 2) _calcState.samples.push({v: ''});
+            if (looksLikeSrednia) {
+                _calcState.samples = data.samples.slice(0, 2).map(function(s) {
+                    return { v: s.v ? String(s.v).replace(',', '.') : '' };
+                });
+                while (_calcState.samples.length < 2) _calcState.samples.push({v: ''});
+            }
         }
     } catch(e) {}
 

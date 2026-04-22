@@ -35,14 +35,18 @@
   </span>
   {% elif b.stage_name and b.typ not in ('zbiornik', 'platkowanie') %}
   {# Fallback: single stage badge for products without pipeline #}
-  <span class="bc-etap-badge {% if 'Amidowanie' in b.stage_name|default('') or 'SMCA' in b.stage_name|default('') %}etap-amid{% elif 'Czwartorzęd' in b.stage_name|default('') %}etap-czwart{% elif 'Sulfonowanie' in b.stage_name|default('') %}etap-sulfon{% elif 'Utlenienie' in b.stage_name|default('') or 'Rozjaśnianie' in b.stage_name|default('') %}etap-utlen{% elif 'Standaryzacja' in b.stage_name|default('') and 'Analiza' not in b.stage_name|default('') %}etap-st{% elif 'końcowa' in b.stage_name|default('') %}etap-ak{% elif 'Analiza' in b.stage_name|default('') %}etap-an{% elif 'Gotowy' in b.stage_name|default('') %}etap-go{% endif %}">
+  {# Badge class + abbreviation. Each "Analiza po <etap>" variant must be checked
+     BEFORE the generic 'Analiza' fallback so renamed stages keep their chemical-
+     phase colour and abbreviation (sulfonowaniu→SF, utlenianiu→UT, standaryzacji→ST).
+     Chemical-phase tokens are also kept for batches migrated before the rename. #}
+  <span class="bc-etap-badge {% if 'Amidowanie' in b.stage_name|default('') or 'SMCA' in b.stage_name|default('') %}etap-amid{% elif 'Czwartorzęd' in b.stage_name|default('') %}etap-czwart{% elif 'sulfonowaniu' in b.stage_name|default('') or 'Sulfonowanie' in b.stage_name|default('') %}etap-sulfon{% elif 'utlenianiu' in b.stage_name|default('') or 'Utlenienie' in b.stage_name|default('') or 'Rozjaśnianie' in b.stage_name|default('') %}etap-utlen{% elif 'standaryzacji' in b.stage_name|default('') or ('Standaryzacja' in b.stage_name|default('') and 'Analiza' not in b.stage_name|default('')) %}etap-st{% elif 'końcowa' in b.stage_name|default('') %}etap-ak{% elif 'Analiza' in b.stage_name|default('') %}etap-an{% elif 'Gotowy' in b.stage_name|default('') %}etap-go{% endif %}">
     {%- if 'Amidowanie' in b.stage_name|default('') -%}AM
     {%- elif 'SMCA' in b.stage_name|default('') -%}SM
     {%- elif 'Czwartorzęd' in b.stage_name|default('') -%}CZ
-    {%- elif 'Sulfonowanie' in b.stage_name|default('') -%}SF
-    {%- elif 'Utlenienie' in b.stage_name|default('') -%}UT
+    {%- elif 'sulfonowaniu' in b.stage_name|default('') or 'Sulfonowanie' in b.stage_name|default('') -%}SF
+    {%- elif 'utlenianiu' in b.stage_name|default('') or 'Utlenienie' in b.stage_name|default('') -%}UT
     {%- elif 'Rozjaśnianie' in b.stage_name|default('') -%}RZ
-    {%- elif 'Standaryzacja' in b.stage_name|default('') and 'Analiza' not in b.stage_name|default('') -%}ST
+    {%- elif 'standaryzacji' in b.stage_name|default('') or ('Standaryzacja' in b.stage_name|default('') and 'Analiza' not in b.stage_name|default('')) -%}ST
     {%- elif 'końcowa' in b.stage_name|default('') -%}AK
     {%- elif 'Analiza' in b.stage_name|default('') -%}AN
     {%- elif 'Gotowy' in b.stage_name|default('') -%}GO

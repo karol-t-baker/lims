@@ -27,8 +27,8 @@ KONTEKST_META = {
     "utlenienie":        {"nazwa": "Analiza po utlenianiu",    "typ_cyklu": "cykliczny",   "kol": 5},
     "rozjasnianie":      {"nazwa": "Rozjaśnianie",             "typ_cyklu": "cykliczny",   "kol": 6},
     "standaryzacja":     {"nazwa": "Analiza po standaryzacji", "typ_cyklu": "cykliczny",   "kol": 7},
-    "dodatki":           {"nazwa": "Dodatki standaryzacyjne",  "typ_cyklu": "cykliczny",   "kol": 7},
-    "analiza_koncowa":   {"nazwa": "Analiza końcowa",          "typ_cyklu": "jednorazowy", "kol": 8},
+    "dodatki":           {"nazwa": "Dodatki standaryzacyjne",  "typ_cyklu": "cykliczny",   "kol": 8},
+    "analiza_koncowa":   {"nazwa": "Analiza końcowa",          "typ_cyklu": "jednorazowy", "kol": 9},
 }
 
 _DEFAULT_META = {"nazwa": None, "typ_cyklu": "jednorazowy", "kol": 99}

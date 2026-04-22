@@ -159,7 +159,7 @@ _NEW_COLUMNS = [
     ("wymagany",        "INTEGER NOT NULL DEFAULT 0"),
     ("grupa",           "TEXT NOT NULL DEFAULT 'lab'"),
     ("dla_szarzy",      "INTEGER NOT NULL DEFAULT 1"),
-    ("dla_zbiornika",   "INTEGER NOT NULL DEFAULT 1"),
+    ("dla_zbiornika",   "INTEGER NOT NULL DEFAULT 0"),
     ("dla_platkowania", "INTEGER NOT NULL DEFAULT 0"),
 ]
 
@@ -236,7 +236,12 @@ def copy_limits(db: sqlite3.Connection) -> int:
 
     - Skips kontekst='cert_variant' (handled by migrate_cert_fields instead)
     - If target row exists and destination value is NOT NULL, keep destination
-    - Default typ flags: dla_szarzy=1, dla_zbiornika=1, dla_platkowania=0
+    - Typ flags are kontekst-aware: only 'analiza_koncowa' is tank-bound
+      (dla_zbiornika=1); every other kontekst is a batch-phase measurement
+      (dla_zbiornika=0). Hardcoding dla_zbiornika=1 for all kontekstów leaked
+      phase-specific params (sulfonowanie/utlenienie/standaryzacja) into the
+      zbiornik view. dla_szarzy stays 1 across the board; mvp_pipeline_cleanup
+      rewrites it to 0 for analiza_koncowa.
     - Assumes ensure_pipeline_for_legacy has already run
     """
     src_rows = db.execute(
@@ -256,16 +261,17 @@ def copy_limits(db: sqlite3.Connection) -> int:
             (r["produkt"], etap_id, r["parametr_id"]),
         ).fetchone()
         if dst is None:
+            dla_zbiornika = 1 if r["kontekst"] == "analiza_koncowa" else 0
             db.execute(
                 "INSERT INTO produkt_etap_limity "
                 "(produkt, etap_id, parametr_id, min_limit, max_limit, nawazka_g, precision, "
                 " spec_value, kolejnosc, formula, sa_bias, krok, grupa, "
                 " dla_szarzy, dla_zbiornika, dla_platkowania) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, 0)",
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, 0)",
                 (r["produkt"], etap_id, r["parametr_id"],
                  r["min_limit"], r["max_limit"], r["nawazka_g"], r["precision"],
                  r["target"], r["kolejnosc"] or 0, r["formula"], r["sa_bias"],
-                 r["krok"], r["grupa"] or "lab"),
+                 r["krok"], r["grupa"] or "lab", dla_zbiornika),
             )
         else:
             # Partial update: fill only NULLs in destination with non-NULL from source
