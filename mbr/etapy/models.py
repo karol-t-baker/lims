@@ -3,6 +3,8 @@
 import sqlite3
 from datetime import datetime
 
+from mbr.shared.timezone import app_now_iso
+
 
 def save_etap_analizy(
     db: sqlite3.Connection, ebr_id: int, etap: str, runda: int,
@@ -18,7 +20,7 @@ def save_etap_analizy(
         user: who entered the data
         krok: sub-step number within the stage (default 1)
     """
-    now = datetime.now().isoformat(timespec="seconds")
+    now = app_now_iso()
     for kod, value in wyniki.items():
         if value is None or value == "":
             continue
@@ -88,7 +90,7 @@ def add_korekta(
     substancja: str, ilosc_kg: float, user: str
 ) -> int:
     """Add a correction recommendation. Returns korekta ID."""
-    now = datetime.now().isoformat(timespec="seconds")
+    now = app_now_iso()
     cur = db.execute(
         """INSERT INTO ebr_korekty (ebr_id, etap, po_rundzie, substancja, ilosc_kg, zalecil, dt_zalecenia)
            VALUES (?, ?, ?, ?, ?, ?, ?)""",
@@ -99,7 +101,7 @@ def add_korekta(
 
 def confirm_korekta(db: sqlite3.Connection, korekta_id: int) -> None:
     """Mark a correction as executed."""
-    now = datetime.now().isoformat(timespec="seconds")
+    now = app_now_iso()
     db.execute(
         "UPDATE ebr_korekty SET wykonano = 1, dt_wykonania = ? WHERE id = ?",
         (now, korekta_id),
@@ -154,7 +156,7 @@ def init_etapy_status(db: sqlite3.Connection, ebr_id: int, produkt: str) -> None
     stages = get_process_stages(produkt)
     if not stages:
         return
-    now = datetime.now().isoformat(timespec="seconds")
+    now = app_now_iso()
     for etap in stages:
         is_parallel = etap in PARALLEL_STAGES
         status = "in_progress" if is_parallel else "pending"
@@ -179,7 +181,7 @@ def get_etapy_status(db: sqlite3.Connection, ebr_id: int) -> list[dict]:
 def zatwierdz_etap(db: sqlite3.Connection, ebr_id: int, etap: str, user: str, produkt: str) -> str | None:
     """Approve current stage, advance to next. Returns next stage name or None if last.
     For parallel stages (amid/smca): czwartorzedowanie activates only when BOTH are done."""
-    now = datetime.now().isoformat(timespec="seconds")
+    now = app_now_iso()
     db.execute(
         "UPDATE ebr_etapy_status SET status='done', dt_end=?, zatwierdzil=? WHERE ebr_id=? AND etap=?",
         (now, user, ebr_id, etap),
@@ -237,7 +239,7 @@ def zatwierdz_etap(db: sqlite3.Connection, ebr_id: int, etap: str, user: str, pr
 
 def skip_etap(db: sqlite3.Connection, ebr_id: int, etap: str, user: str, produkt: str) -> str | None:
     """Skip an optional stage. Marks as 'skipped', advances to next. Returns next stage name or None."""
-    now = datetime.now().isoformat(timespec="seconds")
+    now = app_now_iso()
     db.execute(
         "UPDATE ebr_etapy_status SET status='skipped', dt_end=?, zatwierdzil=? WHERE ebr_id=? AND etap=?",
         (now, user, ebr_id, etap),

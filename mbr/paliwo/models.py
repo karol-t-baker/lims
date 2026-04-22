@@ -6,6 +6,8 @@ import sqlite3
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
+from mbr.shared.timezone import app_now_iso
+
 import requests
 from docxtpl import DocxTemplate
 from num2words import num2words
@@ -60,7 +62,7 @@ def get_osoba(db: sqlite3.Connection, osoba_id: int) -> dict | None:
 def add_osoba(db: sqlite3.Connection, imie_nazwisko: str, stanowisko: str, nr_rejestracyjny: str) -> int:
     cur = db.execute(
         "INSERT INTO paliwo_osoby (imie_nazwisko, stanowisko, nr_rejestracyjny, dt_dodania) VALUES (?, ?, ?, ?)",
-        (imie_nazwisko, stanowisko, nr_rejestracyjny, datetime.now().isoformat(timespec="seconds"))
+        (imie_nazwisko, stanowisko, nr_rejestracyjny, app_now_iso())
     )
     db.commit()
     return cur.lastrowid

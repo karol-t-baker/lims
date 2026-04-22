@@ -10,6 +10,8 @@ import json
 import sys
 from datetime import datetime
 
+from mbr.shared.timezone import app_now_iso
+
 from mbr.models import get_db, init_mbr_tables, create_user
 
 # ---------------------------------------------------------------------------
@@ -1059,7 +1061,7 @@ def seed(update=False):
     db = get_db()
     try:
         init_mbr_tables(db)
-        now = datetime.now().isoformat(timespec="seconds")
+        now = app_now_iso()
 
         # --- Users ---
         for u in SEED_USERS:

@@ -48,7 +48,8 @@
   };
 
   function _renderAuditEntry(r) {
-    var dt = (r.dt || '').substring(0, 19).replace('T', ' ');
+    var dt = (typeof fmtDt === 'function') ? fmtDt(r.dt, {long: true})
+                                             : (r.dt || '').substring(0, 19).replace('T', ' ');
     var actors = (r.actors || []).map(function(a) { return _esc(a.actor_login); }).join(', ') || '—';
     var diffStr = '';
     if (r.diff_json) {

@@ -3,6 +3,8 @@
 import sqlite3
 from datetime import datetime
 
+from mbr.shared.timezone import app_now_iso
+
 
 def list_zbiorniki(db: sqlite3.Connection, include_inactive: bool = False) -> list[dict]:
     sql = "SELECT * FROM zbiorniki"
@@ -32,7 +34,7 @@ def update_zbiornik(db: sqlite3.Connection, zbiornik_id: int, **fields) -> None:
 
 
 def link_szarza(db: sqlite3.Connection, ebr_id: int, zbiornik_id: int, masa_kg: float | None = None) -> int:
-    now = datetime.now().isoformat(timespec="seconds")
+    now = app_now_iso()
     cur = db.execute(
         "INSERT OR REPLACE INTO zbiornik_szarze (ebr_id, zbiornik_id, masa_kg, dt_dodania) VALUES (?, ?, ?, ?)",
         (ebr_id, zbiornik_id, masa_kg, now),

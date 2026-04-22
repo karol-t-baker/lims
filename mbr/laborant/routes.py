@@ -6,6 +6,8 @@ import json
 from datetime import datetime
 from urllib.parse import urlparse
 
+from mbr.shared.timezone import app_now_iso
+
 from flask import request, session, render_template, redirect, url_for, flash, jsonify
 
 from mbr.db import db_session
@@ -115,7 +117,7 @@ def szarze_new():
             zbiorniki_ids = request.form.get("zbiorniki_ids", "")
             if zbiorniki_ids:
                 from datetime import datetime
-                now = datetime.now().isoformat(timespec="seconds")
+                now = app_now_iso()
                 for zid_str in zbiorniki_ids.split(","):
                     zid = int(zid_str.strip()) if zid_str.strip() else 0
                     if zid:
@@ -463,7 +465,7 @@ def save_samples(ebr_id):
         ).fetchone()
 
         samples_json = json.dumps(data["samples"])
-        now = datetime.now().isoformat(timespec="seconds")
+        now = app_now_iso()
         db.execute("""
             INSERT INTO ebr_wyniki (ebr_id, sekcja, kod_parametru, tag, wartosc,
                 min_limit, max_limit, w_limicie, samples_json, is_manual, dt_wpisu, wpisal)

@@ -7,6 +7,8 @@ from pathlib import Path
 
 from flask import jsonify, render_template, request
 
+from mbr.shared.timezone import app_now
+
 from mbr.admin import admin_bp
 from mbr.db import db_session, DB_PATH
 from mbr.shared.decorators import role_required
@@ -116,7 +118,7 @@ def api_create_backup():
         backup_dir = _get_backup_dir(db)
 
     # Create timestamped folder
-    ts = datetime.now().strftime("%Y-%m-%d_%H-%M")
+    ts = app_now().strftime("%Y-%m-%d_%H-%M")
     dest = backup_dir / f"lims_backup_{ts}"
     if dest.exists():
         return jsonify({"ok": False, "error": f"Backup {dest.name} już istnieje"}), 409

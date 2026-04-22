@@ -6,6 +6,7 @@ import sqlite3
 from datetime import datetime
 
 from mbr.db import get_db, db_session  # noqa: F401
+from mbr.shared.timezone import app_now_iso
 
 
 def list_mbr(db: sqlite3.Connection) -> list[dict]:
@@ -63,7 +64,7 @@ def activate_mbr(db: sqlite3.Connection, mbr_id: int) -> bool:
     if row is None or row["status"] != "draft":
         return False
     produkt = row["produkt"]
-    now = datetime.now().isoformat(timespec="seconds")
+    now = app_now_iso()
     # Archive current active template for same product
     db.execute(
         "UPDATE mbr_templates SET status = 'archived' "
@@ -93,7 +94,7 @@ def clone_mbr(db: sqlite3.Connection, mbr_id: int, user: str) -> int | None:
         (produkt,),
     ).fetchone()
     new_wersja = (max_row["mv"] or 0) + 1
-    now = datetime.now().isoformat(timespec="seconds")
+    now = app_now_iso()
     cur = db.execute(
         "INSERT INTO mbr_templates (produkt, wersja, status, etapy_json, parametry_lab, "
         "utworzony_przez, dt_utworzenia, notatki) VALUES (?, ?, 'draft', ?, ?, ?, ?, ?)",

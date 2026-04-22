@@ -15,6 +15,8 @@ import re as _re
 import sqlite3
 from datetime import datetime
 
+from mbr.shared.timezone import app_now_iso
+
 
 # ---------------------------------------------------------------------------
 # etapy_analityczne CRUD
@@ -385,7 +387,7 @@ def create_sesja(
     globals may drift over time as formulas get retuned.
     """
     import json as _json
-    now = datetime.now().isoformat(timespec="seconds")
+    now = app_now_iso()
 
     cele_json = None
     try:
@@ -442,7 +444,7 @@ def create_round_with_inheritance(
     new_sesja_id = create_sesja(db, ebr_id, etap_id, runda=next_runda, laborant=laborant)
 
     # 3. Copy measurements where w_limicie = 1 (OK) or w_limicie IS NULL (no limit)
-    now = datetime.now().isoformat(timespec="seconds")
+    now = app_now_iso()
     db.execute(
         """INSERT INTO ebr_pomiar
                (sesja_id, parametr_id, wartosc, min_limit, max_limit,
@@ -499,7 +501,7 @@ def close_sesja(db: sqlite3.Connection, sesja_id: int, decyzja: str,
         ('zamknij_etap', 'przejscie', 'new_round', 'release_comment',
          'close_note', 'skip_to_next')
     """
-    now = datetime.now().isoformat(timespec="seconds")
+    now = app_now_iso()
     if decyzja == "reopen_etap":
         db.execute(
             """UPDATE ebr_etap_sesja
@@ -565,7 +567,7 @@ def save_pomiar(
     odziedziczony: int = 0,
 ) -> int:
     """Upsert a measurement for (sesja_id, parametr_id). Returns row id."""
-    now = datetime.now().isoformat(timespec="seconds")
+    now = app_now_iso()
     w_limicie = _compute_w_limicie(wartosc, min_limit, max_limit)
     cur = db.execute(
         """INSERT INTO ebr_pomiar
@@ -703,7 +705,7 @@ def create_ebr_korekta(
     ilosc_wyliczona: float | None = None,
 ) -> int:
     """Insert a correction recommendation. Returns new id."""
-    now = datetime.now().isoformat(timespec="seconds")
+    now = app_now_iso()
     cur = db.execute(
         """INSERT INTO ebr_korekta_v2
                (sesja_id, korekta_typ_id, ilosc, ilosc_wyliczona, zalecil, dt_zalecenia)
@@ -731,7 +733,7 @@ def upsert_ebr_korekta(
     suggestion can show again in the UI). ilosc_wyliczona is always written
     so we retain a record of what the formula suggested at each save.
     """
-    now = datetime.now().isoformat(timespec="seconds")
+    now = app_now_iso()
     existing = db.execute(
         "SELECT id FROM ebr_korekta_v2 "
         "WHERE sesja_id=? AND korekta_typ_id=? "
@@ -780,7 +782,7 @@ def update_ebr_korekta_status(
     wykonawca_info: str | None = None,
 ) -> None:
     """Update correction status and optionally record executor info. Sets dt_wykonania=now."""
-    now = datetime.now().isoformat(timespec="seconds")
+    now = app_now_iso()
     db.execute(
         """UPDATE ebr_korekta_v2
            SET status = ?, wykonawca_info = ?, dt_wykonania = ?
@@ -1171,7 +1173,7 @@ def patch_parametry_etapy(
             filtered["target"] = filtered.pop("spec_value")
         sets = ", ".join(f"{k} = ?" for k in filtered)
         vals = list(filtered.values())
-        now = datetime.now().isoformat(timespec="seconds")
+        now = app_now_iso()
         sets += ", dt_modified = ?, modified_by = ?"
         vals.extend([now, user_id])
         vals.append(pe_id)

@@ -78,6 +78,25 @@ var API = {
 };
 
 
+// ═══ Date/time formatting — single source of truth ═══
+// App timezone is Europe/Warsaw (server writes ISO strings in that zone).
+// Python side uses mbr/shared/timezone.py + the pl_date Jinja filter; this JS
+// helper mirrors them so dziennik, audit history, and feedback lists all
+// display the same format: DD.MM HH:MM (short) or DD.MM.YYYY HH:MM (long).
+function fmtDt(iso, opts) {
+    if (!iso) return '';
+    // Strip any timezone suffix — all stored timestamps are already Europe/Warsaw.
+    var s = String(iso).replace(/([+-]\d{2}:\d{2}|Z)$/, '');
+    var m = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);
+    if (!m) return s.slice(0, 16).replace('T', ' ');
+    var yyyy = m[1], MM = m[2], dd = m[3], HH = m[4], mm = m[5];
+    var long = opts && opts.long;
+    return long ? (dd + '.' + MM + '.' + yyyy + ' ' + HH + ':' + mm)
+                : (dd + '.' + MM + ' ' + HH + ':' + mm);
+}
+window.fmtDt = fmtDt;
+
+
 // ═══ Rich-text markup for parameter labels ═══
 // Convert ^{sup} / _{sub} markup to HTML — mirrors _rtHtml in
 // admin/wzory_cert.html and _md_to_richtext in mbr/certs/generator.py.

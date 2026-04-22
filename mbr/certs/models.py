@@ -7,10 +7,12 @@ couldn't roll back the cert row.
 
 from datetime import datetime
 
+from mbr.shared.timezone import app_now_iso
+
 
 def create_swiadectwo(db, ebr_id, template_name, nr_partii, pdf_path, wystawil,
                      data_json=None, target_produkt=None):
-    now = datetime.now().isoformat(timespec="seconds")
+    now = app_now_iso()
     cur = db.execute(
         "INSERT INTO swiadectwa (ebr_id, template_name, nr_partii, pdf_path, "
         "dt_wystawienia, wystawil, data_json, target_produkt) "

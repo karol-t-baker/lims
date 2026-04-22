@@ -262,7 +262,7 @@
                 {% if fb.priorytet == 'pilne' %}<span class="fb-badge-pilne">pilne</span>{% endif %}
                 {{ fb.text }}
               </div>
-              <div class="fb-meta"><span class="fb-who">{{ fb.who }}</span> &middot; {{ fb.dt[:16].replace('T', ' ') }}</div>
+              <div class="fb-meta"><span class="fb-who">{{ fb.who }}</span> &middot; {{ fb.dt | pl_date }}</div>
             </div>
             <div class="fb-actions">
               {% if fb.priorytet != 'pilne' %}

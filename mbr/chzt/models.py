@@ -6,6 +6,8 @@ callers own the transaction.
 
 from datetime import datetime
 
+from mbr.shared.timezone import app_now_iso
+
 
 def init_chzt_tables(db):
     """Create/migrate chzt_sesje + chzt_pomiary. Idempotent.
@@ -139,7 +141,7 @@ def create_session(db, *, created_by: int, n_kontenery: int = 8) -> int:
     if db.execute("SELECT 1 FROM chzt_sesje WHERE finalized_at IS NULL LIMIT 1").fetchone():
         raise ValueError("already_open")
 
-    now = datetime.now().isoformat(timespec="seconds")
+    now = app_now_iso()
     cur = db.execute(
         "INSERT INTO chzt_sesje (dt_start, n_kontenery, created_at, created_by) "
         "VALUES (?, ?, ?, ?)",
@@ -197,7 +199,7 @@ def update_pomiar(db, pomiar_id: int, new_values: dict, *, updated_by: int):
             merged[k] = new_values[k]
 
     srednia = compute_srednia(merged)
-    now = datetime.now().isoformat(timespec="seconds")
+    now = app_now_iso()
 
     db.execute(
         "UPDATE chzt_pomiary "
@@ -229,7 +231,7 @@ def resize_kontenery(db, session_id: int, *, new_n: int):
     if new_n == old_n:
         return
 
-    now = datetime.now().isoformat(timespec="seconds")
+    now = app_now_iso()
 
     if new_n > old_n:
         # Add kontener (old_n+1)..new_n. Shift szambiarka kolejnosc.
@@ -291,7 +293,7 @@ def validate_for_finalize(db, session_id: int) -> list:
 
 
 def finalize_session(db, session_id: int, *, finalized_by: int):
-    now = datetime.now().isoformat(timespec="seconds")
+    now = app_now_iso()
     db.execute(
         "UPDATE chzt_sesje SET finalized_at=?, finalized_by=? WHERE id=?",
         (now, finalized_by, session_id),

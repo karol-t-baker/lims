@@ -7,6 +7,8 @@ import re
 import sqlite3
 from datetime import datetime
 
+from mbr.shared.timezone import app_now, app_now_iso
+
 
 PRODUCTS = [
     # Grupa 1: Chegina betainy (2 sekcje lab)
@@ -45,7 +47,7 @@ def next_nr_partii(db: sqlite3.Connection, produkt: str) -> str:
     ``batch_id LIKE '<produkt>%'`` form leaked numbers between siblings
     (querying K40GL caught every K40GLOL / K40GLN / K40GLOL_HQ row).
     """
-    year = datetime.now().year
+    year = app_now().year
     suffix = f"/{year}"
 
     rows = db.execute(
@@ -356,7 +358,7 @@ def list_ebr_completed(
 def list_ebr_recent(db: sqlite3.Connection, days: int = 7) -> list[dict]:
     """List recently completed batches (last N days) with wyniki summary."""
     from datetime import timedelta
-    cutoff = (datetime.now() - timedelta(days=days)).isoformat(timespec="seconds")
+    cutoff = (app_now() - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S")
     rows = db.execute("""
         SELECT
             eb.ebr_id,
@@ -405,7 +407,7 @@ def _autofill_jakosciowe_wyniki(
         parametry_lab = json.loads(parametry_lab_json)
     except Exception:
         return 0
-    now = datetime.now().isoformat(timespec="seconds")
+    now = app_now_iso()
     inserted = 0
     for sekcja_key, sekcja in parametry_lab.items():
         for pole in sekcja.get("pola", []):
@@ -454,7 +456,7 @@ def create_ebr(
     if mbr is None:
         return None
     batch_id = f"{produkt}__{nr_partii.replace('/', '_')}"
-    now = datetime.now().isoformat(timespec="seconds")
+    now = app_now_iso()
     cur = db.execute(
         "INSERT INTO ebr_batches (mbr_id, batch_id, nr_partii, nr_amidatora, "
         "nr_mieszalnika, wielkosc_szarzy_kg, dt_start, operator, typ, nastaw, nr_zbiornika) "
@@ -635,7 +637,7 @@ def save_wyniki(
     if not isinstance(pola, list):
         pola = []
     pola_map = {p["kod"]: p for p in pola if isinstance(p, dict) and "kod" in p}
-    now = datetime.now().isoformat(timespec="seconds")
+    now = app_now_iso()
 
     diffs = []
     has_inserts = False
@@ -889,7 +891,7 @@ def save_wyniki(
 
 def complete_ebr(db: sqlite3.Connection, ebr_id: int, zbiorniki: list | None = None) -> None:
     """Set status='completed', dt_end=now, assign sync_seq. Optionally save pump-out targets."""
-    now = datetime.now().isoformat(timespec="seconds")
+    now = app_now_iso()
     zbiorniki_json = json.dumps(zbiorniki, ensure_ascii=False) if zbiorniki else None
 
     # Next sync_seq = max existing + 1 (atomic within single-writer SQLite)
@@ -981,7 +983,7 @@ def sync_ebr_to_v4(db: sqlite3.Connection, ebr_id: int, ebr: dict | None = None)
     if ebr is None:
         return
     batch_id = ebr["batch_id"]
-    now = datetime.now().isoformat(timespec="seconds")
+    now = app_now_iso()
 
     # 0. Ensure batch row exists
     existing_batch = db.execute(

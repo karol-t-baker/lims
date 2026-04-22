@@ -7,6 +7,8 @@ from datetime import datetime
 
 from markupsafe import Markup, escape
 
+from mbr.shared.timezone import to_app_tz
+
 
 _RT_MARKUP_RE = _re.compile(r'(\^\{[^}]*\}|_\{[^}]*\})')
 
@@ -69,23 +71,23 @@ def fmt_decimal_filter(value, places=None):
 
 
 def pl_date_filter(value):
-    """Format ISO date to Polish: DD.MM.YYYY HH:MM"""
+    """Format ISO date to Polish: DD.MM.YYYY HH:MM (Europe/Warsaw)."""
     if not value:
         return '\u2014'
     try:
-        dt = datetime.fromisoformat(str(value))
-        return dt.strftime('%d.%m.%Y %H:%M')
+        dt = to_app_tz(value)
+        return dt.strftime('%d.%m.%Y %H:%M') if dt else '—'
     except Exception:
         return str(value)[:16]
 
 
 def pl_date_short_filter(value):
-    """Format ISO date to Polish short: DD.MM.YYYY"""
+    """Format ISO date to Polish short: DD.MM.YYYY (Europe/Warsaw)."""
     if not value:
         return '\u2014'
     try:
-        dt = datetime.fromisoformat(str(value))
-        return dt.strftime('%d.%m.%Y')
+        dt = to_app_tz(value)
+        return dt.strftime('%d.%m.%Y') if dt else '—'
     except Exception:
         return str(value)[:10]
 

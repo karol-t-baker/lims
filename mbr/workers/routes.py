@@ -2,6 +2,8 @@ from datetime import datetime
 
 from flask import request, session, jsonify
 
+from mbr.shared.timezone import app_now_iso
+
 from mbr.workers import workers_bp
 from mbr.shared.decorators import login_required
 from mbr.shared import audit
@@ -259,7 +261,7 @@ def api_feedback():
     who = (data.get("who") or "").strip()
     if not text:
         return jsonify({"error": "empty"}), 400
-    now = datetime.now().isoformat(timespec="seconds")
+    now = app_now_iso()
     with db_session() as db:
         db.execute("INSERT INTO feedback (text, who, dt) VALUES (?, ?, ?)", (text, who, now))
         db.commit()
