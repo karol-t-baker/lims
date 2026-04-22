@@ -767,6 +767,23 @@ def test_put_correction_not_found(client):
     assert resp.status_code == 404
 
 
+# ─── Task 16: inline edit UI ──────────────────────────────────────────────────
+
+def test_ml_export_page_has_search_input(client):
+    resp = client.get("/ml-export")
+    assert resp.status_code == 200
+    body = resp.data.decode("utf-8")
+    assert "nr_partii" in body
+    assert "Szukaj" in body
+
+
+def test_ml_export_page_has_edit_section(client):
+    resp = client.get("/ml-export")
+    body = resp.data.decode("utf-8")
+    # Editable detail section marker
+    assert "ml-edit" in body or "inline-edit" in body or "batch-detail" in body
+
+
 def test_export_pandas_pivot_roundtrip(db):
     """Smoke test: round-trip long format through pandas pivot to wide.
     Skipped if pandas not installed (dev env).
