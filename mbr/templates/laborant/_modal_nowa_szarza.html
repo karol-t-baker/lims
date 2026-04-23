@@ -293,30 +293,61 @@ function _getKodForProdukt(produktName) {
     return p ? p.kod : '';
 }
 
+function _modalTankPillHtml(z, multiSelect, crossProduct) {
+    var badge = crossProduct
+        ? '<span class="pm-tank-xp">[' + (z.kod_produktu || z.produkt || '?') + ']</span>'
+        : '';
+    var cls = 'pm-tank-pill' + (crossProduct ? ' pm-tank-xp-pill pm-pill-dim' : '');
+    return '<button type="button" class="' + cls + '" data-zid="' + z.id + '" data-nr="' + z.nr_zbiornika + '" onclick="_toggleModalZb(this,' + z.id + ',\'' + z.nr_zbiornika + '\',' + (multiSelect ? 'true' : 'false') + ')">' +
+        '<span class="pm-pill-nr">' + z.nr_zbiornika + '</span>' +
+        '<span class="pm-pill-cap">' + (z.max_pojemnosc || '?') + 't</span>' +
+        badge +
+    '</button>';
+}
+
 function _renderZbPills(containerId, produktName, multiSelect) {
     var container = document.getElementById(containerId);
     if (!container) return;
     var kod = _getKodForProdukt(produktName);
     var matched = kod ? _modalZbList.filter(function(z) { return z.kod_produktu === kod; }) : [];
-    var rest = _modalZbList.filter(function(z) { return !z.kod_produktu || z.kod_produktu !== kod; });
+    var others = _modalZbList.filter(function(z) { return !kod || z.kod_produktu !== kod; });
+
+    if (matched.length === 0 && others.length === 0) {
+        container.innerHTML = '<div class="pm-empty-hint">Brak zbiorników dla tego produktu</div>';
+        return;
+    }
 
     var html = '';
 
     // Matched tanks — pills directly, no label in compact modal context
-    if (matched.length > 0) {
-        html += '<div class="pm-tank-grid">';
-        matched.forEach(function(z) {
-            html += '<button type="button" class="pm-tank-pill" data-zid="' + z.id + '" data-nr="' + z.nr_zbiornika + '" onclick="_toggleModalZb(this,' + z.id + ',\'' + z.nr_zbiornika + '\',' + (multiSelect ? 'true' : 'false') + ')">' +
-                '<span class="pm-pill-nr">' + z.nr_zbiornika + '</span>' +
-                '<span class="pm-pill-cap">' + (z.max_pojemnosc || '?') + 't</span>' +
-            '</button>';
+    html += '<div class="pm-tank-grid">';
+    matched.forEach(function(z) {
+        html += _modalTankPillHtml(z, multiSelect, false);
+    });
+    html += '</div>';
+
+    // Toggle button + hidden grid for cross-product tanks
+    if (others.length > 0) {
+        var gridId = containerId + '-xp-grid';
+        var btnId = containerId + '-xp-btn';
+        html += '<button type="button" class="pm-tank-expand" id="' + btnId + '" ' +
+            'onclick="_toggleModalZbExpand(\'' + gridId + '\',\'' + btnId + '\')">' +
+            '+ Pokaż wszystkie (' + others.length + ')</button>';
+        html += '<div class="pm-tank-grid" id="' + gridId + '" style="display:none;margin-top:6px;">';
+        others.forEach(function(z) {
+            html += _modalTankPillHtml(z, multiSelect, true);
         });
         html += '</div>';
     }
 
-    // Other tanks omitted — only matching tanks shown
+    container.innerHTML = html;
+}
 
-    container.innerHTML = html || '<div class="pm-empty-hint">Brak zbiorników dla tego produktu</div>';
+function _toggleModalZbExpand(gridId, btnId) {
+    var g = document.getElementById(gridId);
+    var b = document.getElementById(btnId);
+    if (g) g.style.display = '';
+    if (b) b.remove();
 }
 
 function _toggleModalZb(btn, zid, nr, multiSelect) {

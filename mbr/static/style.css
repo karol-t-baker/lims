@@ -1588,6 +1588,21 @@ body {
   border-radius: 10px; text-align: center; width: 100%;
   background: var(--surface-alt);
 }
+.pm-tank-expand {
+  display: block; margin-top: 6px; padding: 4px 10px;
+  background: none; border: none; color: var(--text-dim);
+  font-size: 11px; cursor: pointer; text-decoration: underline;
+}
+.pm-tank-expand:hover { color: var(--text); }
+.pm-tank-xp-pill { border-style: dashed !important; }
+.pm-tank-xp {
+  position: absolute; top: 3px; left: 4px;
+  font-size: 8px; color: var(--text-dim);
+  padding: 0 3px;
+  border: 1px solid var(--border); border-radius: 3px;
+  background: var(--surface-alt);
+  line-height: 1.3;
+}
 
 /* Type selection cards (Step 1) */
 .type-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
