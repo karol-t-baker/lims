@@ -124,3 +124,38 @@ def test_cert_generate_no_longer_blocks_pakowanie_bezposrednie(client):
     # 200 or a DIFFERENT 400 (missing template config etc.) is OK — just not the old gate.
     assert "tylko dla zbiorników" not in (body.get("error") or ""), body
     assert "tylko dla zbiornika" not in (body.get("error") or ""), body
+
+
+def test_complete_ebr_logs_cross_product_assignment(client, app_db):
+    app, db = app_db
+    # /complete endpoint requires role 'lab' or 'admin'. Use 'admin' to
+    # bypass the shift_workers requirement that 'lab' would trigger.
+    with client.session_transaction() as s:
+        s["user"] = {"login": "admin1", "rola": "admin"}
+
+    # Clear pakowanie_bezposrednie so the batch looks like a typical szarża
+    # pouring into a tank (endpoint doesn't block, but keeps intent clean).
+    db.execute("UPDATE ebr_batches SET pakowanie_bezposrednie=NULL WHERE ebr_id=100")
+    # Seed: Chegina_K7 batch + a tank assigned to Chegina_K40GL (different product)
+    db.execute(
+        "INSERT INTO zbiorniki (id, nr_zbiornika, produkt, kod_produktu, aktywny) "
+        "VALUES (50, 'Z50', 'Chegina_K40GL', 'K40GL', 1)"
+    )
+    db.commit()
+
+    resp = client.post("/laborant/ebr/100/complete",
+                       json={"zbiorniki": [{"zbiornik_id": 50, "kg": 1000}]})
+    # Route may redirect (302), return 200, or 204 — any non-error is fine here
+    assert resp.status_code in (200, 204, 302), resp.get_data(as_text=True)[:200]
+
+    row = db.execute(
+        "SELECT event_type, payload_json FROM audit_log "
+        "WHERE entity_id=100 AND event_type LIKE 'ebr.przepompowanie.%' "
+        "ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    assert row is not None, "no audit row emitted"
+    import json as _j
+    payload = _j.loads(row["payload_json"])
+    assert payload.get("cross_product") == 1
+    assert payload.get("batch_produkt") == "Chegina_K7"
+    assert any(c.get("zbiornik_produkt") == "Chegina_K40GL" for c in (payload.get("cross") or []))

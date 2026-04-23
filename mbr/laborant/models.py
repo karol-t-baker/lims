@@ -933,6 +933,41 @@ def complete_ebr(db: sqlite3.Connection, ebr_id: int, zbiorniki: list | None = N
                 (new_uwagi, ebr_id),
             )
 
+    # Detect cross-product assignments so QA can trace unusual pours.
+    batch_produkt_row = db.execute(
+        "SELECT m.produkt FROM mbr_templates m "
+        "JOIN ebr_batches b ON b.mbr_id = m.mbr_id "
+        "WHERE b.ebr_id = ?",
+        (ebr_id,),
+    ).fetchone()
+    if zbiorniki and batch_produkt_row:
+        batch_produkt = batch_produkt_row["produkt"]
+        cross = []
+        for z in zbiorniki:
+            zb = db.execute(
+                "SELECT nr_zbiornika, produkt FROM zbiorniki WHERE id = ?",
+                (z.get("zbiornik_id"),),
+            ).fetchone()
+            if zb and zb["produkt"] and zb["produkt"] != batch_produkt:
+                cross.append({
+                    "zbiornik_id": z.get("zbiornik_id"),
+                    "nr_zbiornika": zb["nr_zbiornika"],
+                    "zbiornik_produkt": zb["produkt"],
+                })
+        if cross:
+            from mbr.shared import audit as _audit
+            _audit.log_event(
+                _audit.EVENT_EBR_PRZEPOMPOWANIE_ADDED,
+                entity_type="ebr",
+                entity_id=ebr_id,
+                payload={
+                    "cross_product": 1,
+                    "batch_produkt": batch_produkt,
+                    "cross": cross,
+                },
+                db=db,
+            )
+
 
 
 # ---------------------------------------------------------------------------
