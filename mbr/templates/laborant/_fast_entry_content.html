@@ -1127,6 +1127,7 @@ window._batchProdukt = "{{ ebr.produkt }}";
 var ebrId = window.ebrId = {{ ebr.ebr_id }};
 var ebrStatus = window.ebrStatus = "{{ ebr.status }}";
 var ebrTyp = "{{ ebr.typ|default('szarza') }}";
+var ebrPakowanie = "{{ ebr.pakowanie_bezposrednie|default('', true) }}";
 var userRola = "{{ session.get('user', {}).get('rola', '') }}";
 var userGrupa = "{{ session.get('user', {}).get('default_grupa', '') }}";
 var ebrNastaw = {{ ebr.wielkosc_szarzy_kg or ebr.nastaw or 0 }};
@@ -1730,6 +1731,10 @@ function renderCompletedView() {
     container.innerHTML = '';
     var isZbiornik = ebrTyp === 'zbiornik';
     var isPlatkowanie = ebrTyp === 'platkowanie';
+    // Cert panel visible for: zbiornik, platkowanie, or szarza with pakowanie_bezposrednie
+    var canIssueCert = isZbiornik
+                    || isPlatkowanie
+                    || (ebrTyp === 'szarza' && ebrPakowanie && String(ebrPakowanie).trim() !== '');
 
     // Build displaySekcje: which sekcje are shown in the completed view.
     // Rule: all 'jednorazowy' etapy + last 'cykliczny' etap (main cykliczny
@@ -1901,8 +1906,8 @@ function renderCompletedView() {
     // ONLY admin-panel bindings for analiza_koncowa (+ standaryzacja for K7),
     // with last-round values. No stage selectors below.
 
-    // Cert section — only for zbiornik, hidden from lab role
-    if (isZbiornik && userRola !== 'lab') {
+    // Cert section — for zbiornik, platkowanie, or szarza with pakowanie_bezposrednie; hidden from lab role
+    if (canIssueCert && userRola !== 'lab') {
         html += '<div class="cv-certs" id="cv-certs"></div>';
     }
     // Zbiorniki section for completed batch (not for platkowanie — no tanks)
@@ -1935,7 +1940,7 @@ function renderCompletedView() {
     container.innerHTML = html;
     setTimeout(loadCompletedZbiorniki, 100);
     if (isPlatkowanie) loadCompletedSubstraty();
-    if (isZbiornik) loadCompletedCerts();
+    if (canIssueCert) loadCompletedCerts();
 
     // Dynamic topbar — hide when hero visible, show on scroll past hero
     var topbar = document.getElementById('topbar');
