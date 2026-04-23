@@ -33,37 +33,28 @@
           <thead>
             <tr>
               <th class="th-date">Data</th>
+              <th class="th-sz-ext-chzt">ChZT zew</th>
+              <th class="th-sz-ext-ph">pH zew</th>
+              <th class="th-sz-chzt">ChZT</th>
+              <th class="th-sz-ph">pH</th>
+              <th class="th-sz-waga">Waga</th>
               <th class="th-kont">Kontenery</th>
-              <th class="th-avg">Śr. ChZT</th>
-              <th class="th-min">Min</th>
-              <th class="th-max">Max</th>
-              <th class="th-range">Rozstęp</th>
-              <th class="th-over">Przekroczeń &gt;40k</th>
-              <th class="th-avg-ph">Śr. pH</th>
-              <th class="th-status">Status</th>
-              <th class="th-who">Sfinalizował</th>
+              <th class="th-over">Przekroczeń pH</th>
             </tr>
           </thead>
           <tbody>
             {% for s in sesje %}
-            {% set range_val = (s.max_chzt - s.min_chzt) if (s.max_chzt and s.min_chzt is not none) else None %}
+            {% set fmt_int = '{:,}'.format(s.sz_ext_chzt|int).replace(',', ' ') if s.sz_ext_chzt is not none else None %}
+            {% set fmt_chzt = '{:,}'.format(s.sz_chzt|int).replace(',', ' ') if s.sz_chzt is not none else None %}
             <tr class="chzt-hist-row" data-sid="{{ s.id }}" data-data="{{ s.dt_start }}" onclick="chztShowDetail({{ s.id }}, '{{ s.dt_start }}')">
               <td class="td-date-iso">{{ s.dt_start|pl_date }}</td>
+              <td class="td-sz-ext-chzt">{{ fmt_int if fmt_int is not none else '—' }}</td>
+              <td class="td-sz-ext-ph">{% if s.sz_ext_ph is not none %}{{ ('%.1f' % s.sz_ext_ph)|replace('.', ',') }}{% else %}—{% endif %}</td>
+              <td class="td-sz-chzt">{{ fmt_chzt if fmt_chzt is not none else '—' }}</td>
+              <td class="td-sz-ph">{% if s.sz_ph is not none %}{{ ('%.1f' % s.sz_ph)|replace('.', ',') }}{% else %}—{% endif %}</td>
+              <td class="td-sz-waga">{% if s.sz_waga is not none %}{{ '{:,}'.format(s.sz_waga|int).replace(',', ' ') }}{% else %}—{% endif %}</td>
               <td class="td-kont">{{ s.n_kontenery }}</td>
-              <td class="td-avg">{% if s.avg_chzt %}{{ '{:,}'.format(s.avg_chzt|int).replace(',', ' ') }}{% else %}—{% endif %}</td>
-              <td class="td-min">{% if s.min_chzt is not none %}{{ '{:,}'.format(s.min_chzt|int).replace(',', ' ') }}{% else %}—{% endif %}</td>
-              <td class="td-max {% if s.max_chzt and s.max_chzt > 40000 %}val-warn{% endif %}">{% if s.max_chzt %}{{ '{:,}'.format(s.max_chzt|int).replace(',', ' ') }}{% else %}—{% endif %}</td>
-              <td class="td-range">{% if range_val is not none %}{{ '{:,}'.format(range_val|int).replace(',', ' ') }}{% else %}—{% endif %}</td>
-              <td class="td-over {% if s.over_40k_count and s.over_40k_count > 0 %}val-warn{% endif %}">{{ s.over_40k_count or 0 }}</td>
-              <td class="td-avg-ph">{% if s.avg_ph is not none %}{{ ('%.1f' % s.avg_ph)|replace('.', ',') }}{% else %}—{% endif %}</td>
-              <td class="td-status">
-                {% if s.finalized_at %}
-                  <span class="status-ok">Ukończono</span>
-                {% else %}
-                  <span class="status-draft">Otwarta</span>
-                {% endif %}
-              </td>
-              <td class="td-who">{{ s.finalized_by_name or '—' }}</td>
+              <td class="td-over {% if s.over_ph_count and s.over_ph_count > 0 %}val-warn{% endif %}">{{ s.over_ph_count or 0 }}</td>
             </tr>
             {% endfor %}
           </tbody>
