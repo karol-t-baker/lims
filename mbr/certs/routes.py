@@ -7,7 +7,7 @@ from flask import Response, abort, jsonify, render_template, request, send_file,
 
 from mbr.certs import certs_bp
 from mbr.certs.generator import generate_certificate_pdf, get_required_fields, get_variants, save_certificate_data, build_preview_context, _docxtpl_render, _gotenberg_convert
-from mbr.certs.models import create_swiadectwo, list_swiadectwa
+from mbr.certs.models import create_swiadectwo, list_swiadectwa, get_pipeline_wyniki_flat
 from mbr.db import db_session
 from mbr.models import get_ebr, get_ebr_wyniki, get_mbr
 from mbr.shared.decorators import login_required, role_required
@@ -59,8 +59,9 @@ def api_cert_generate():
         ebr = get_ebr(db, ebr_id)
         if not ebr:
             return jsonify({"ok": False, "error": "EBR not found"}), 404
-        if ebr.get("typ") not in ("zbiornik", "platkowanie"):
-            return jsonify({"ok": False, "error": "Świadectwa tylko dla zbiorników i płatkowania"}), 400
+        is_pakowanie = ebr.get("typ") == "szarza" and (ebr.get("pakowanie_bezposrednie") or "").strip() != ""
+        if ebr.get("typ") not in ("zbiornik", "platkowanie") and not is_pakowanie:
+            return jsonify({"ok": False, "error": "Świadectwa tylko dla zbiorników, płatkowania i pakowania bezpośredniego"}), 400
 
         # Resolve target_produkt (defaults to ebr.produkt for backward compat)
         requested_target = data.get("target_produkt") or ebr["produkt"]
@@ -72,11 +73,14 @@ def api_cert_generate():
                                          f"{ebr['produkt']}→{requested_target}"}), 400
         target_produkt = requested_target
 
-        wyniki = get_ebr_wyniki(db, ebr_id)
-        wyniki_flat = {}
-        for sekcja_data in wyniki.values():
-            for kod, row in sekcja_data.items():
-                wyniki_flat[kod] = row
+        if is_pakowanie:
+            wyniki_flat = get_pipeline_wyniki_flat(db, ebr_id)
+        else:
+            wyniki = get_ebr_wyniki(db, ebr_id)
+            wyniki_flat = {}
+            for sekcja_data in wyniki.values():
+                for kod, row in sekcja_data.items():
+                    wyniki_flat[kod] = row
 
         # Resolve wystawil — prefer explicit from request, fallback to shift/session
         wystawil = (data.get("wystawil") or "").strip()

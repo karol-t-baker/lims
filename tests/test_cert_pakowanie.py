@@ -58,3 +58,69 @@ def test_ignores_null_wartosc(db):
     db.commit()
     wf = get_pipeline_wyniki_flat(db, ebr_id=100)
     assert "barwa_hz" not in wf
+
+
+# ---------------------------------------------------------------------------
+# Flask-based fixtures for endpoint tests
+# ---------------------------------------------------------------------------
+
+
+class _NoCloseDB:
+    def __init__(self, real_db):
+        self._db = real_db
+
+    def close(self):
+        pass
+
+    def __getattr__(self, name):
+        return getattr(self._db, name)
+
+
+@pytest.fixture
+def app_db(tmp_path, monkeypatch):
+    monkeypatch.setenv("MBR_SECRET_KEY", "x" * 32)
+    real_db = sqlite3.connect(":memory:")
+    real_db.row_factory = sqlite3.Row
+    init_mbr_tables(real_db)
+    # Seed: Chegina_K7 szarza with pakowanie_bezposrednie='IBC'
+    real_db.execute(
+        "INSERT INTO mbr_templates (mbr_id, produkt, wersja, status, etapy_json, dt_utworzenia) "
+        "VALUES (1, 'Chegina_K7', 1, 'active', '[]', '2026-04-23T00:00:00')"
+    )
+    real_db.execute(
+        "INSERT INTO ebr_batches (ebr_id, mbr_id, batch_id, nr_partii, typ, status, dt_start, pakowanie_bezposrednie) "
+        "VALUES (100, 1, 'K7-PAK-1', 'K7/PAK-1', 'szarza', 'open', '2026-04-23T09:00:00', 'IBC')"
+    )
+    real_db.commit()
+
+    wrapper = _NoCloseDB(real_db)
+
+    # Patch at source so both create_app startup init and request handlers
+    # share the same in-memory connection (certs routes use db_session()).
+    import mbr.db as _db_mod
+    monkeypatch.setattr(_db_mod, "get_db", lambda: wrapper)
+
+    from mbr.app import create_app
+    app = create_app()
+    app.config["TESTING"] = True
+    yield app, real_db
+    real_db.close()
+
+
+@pytest.fixture
+def client(app_db):
+    app, _ = app_db
+    with app.test_client() as c:
+        with c.session_transaction() as s:
+            s["user"] = {"login": "lab1", "rola": "laborant_coa"}
+        yield c
+
+
+def test_cert_generate_no_longer_blocks_pakowanie_bezposrednie(client):
+    """The old gate error 'Świadectwa tylko dla zbiorników i płatkowania' must be gone."""
+    resp = client.post("/api/cert/generate",
+                       json={"ebr_id": 100, "variant_id": "STANDARD"})
+    body = resp.get_json() or {}
+    # 200 or a DIFFERENT 400 (missing template config etc.) is OK — just not the old gate.
+    assert "tylko dla zbiorników" not in (body.get("error") or ""), body
+    assert "tylko dla zbiornika" not in (body.get("error") or ""), body
