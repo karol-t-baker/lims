@@ -378,6 +378,29 @@ function saveKorektaField(input) {
   return promise;
 }
 
+// Persist values currently shown in the correction panel without relying on
+// blur. recompute*() auto-fills inputs with suggestions; if the operator
+// clicks the action button (Zatwierdź / Nowa runda / …) without ever
+// focusing a field, blur never fires, saveKorektaField never runs, and the
+// visible suggestion is lost. Call this from every advance/approve handler
+// right before awaiting _pendingKorektaSaves.
+async function _saveVisibleCorrections(sekcja) {
+  var baseSekcja = (sekcja || '').split('__')[0];
+  var container = document.getElementById('correction-panel-' + sekcja) ||
+                  document.getElementById('correction-panel-' + baseSekcja);
+  if (!container) return;
+  var inputs = container.querySelectorAll('input[data-substancja][data-ebr-id][data-etap-id]');
+  var promises = [];
+  inputs.forEach(function(inp) {
+    var raw = (inp.value || '').trim();
+    if (raw === '') return; // skip empty — don't create null rows
+    promises.push(saveKorektaField(inp));
+  });
+  if (promises.length > 0) {
+    try { await Promise.allSettled(promises); } catch (_) {}
+  }
+}
+
 function recomputeStandV2(sekcja) {
     var nd20 = _parsePl(document.getElementById('corr-nd20-wynik-' + sekcja)?.value);
     var ph = _parsePl(document.getElementById('corr-ph-wynik-' + sekcja)?.value);
@@ -512,7 +535,9 @@ async function advanceStandNewRound(sekcja) {
     var gate = window._lastGate;
     if (!gate || !gate.etap_id || !gate.sesja_id) return;
 
-    // Flush any in-flight per-field auto-saves before closing the session
+    // Persist visible suggestions (blur may not have fired) + flush any
+    // in-flight per-field auto-saves before closing the session
+    await _saveVisibleCorrections(sekcja);
     if (window._pendingKorektaSaves && window._pendingKorektaSaves.length > 0) {
         await Promise.allSettled(window._pendingKorektaSaves.slice());
     }
@@ -538,7 +563,9 @@ async function approveStandWithUwagi(sekcja) {
     if (uwagi === null) return;
     if (!uwagi.trim()) { alert('Uwaga nie może być pusta.'); return; }
 
-    // Flush any in-flight per-field auto-saves before closing the session
+    // Persist visible suggestions (blur may not have fired) + flush any
+    // in-flight per-field auto-saves before closing the session
+    await _saveVisibleCorrections(sekcja);
     if (window._pendingKorektaSaves && window._pendingKorektaSaves.length > 0) {
         await Promise.allSettled(window._pendingKorektaSaves.slice());
     }
@@ -566,7 +593,9 @@ async function advanceWithStandV2(sekcja) {
     var gate = window._lastGate;
     if (!gate || !gate.etap_id) return;
 
-    // Flush any in-flight per-field auto-saves before closing the session
+    // Persist visible suggestions (blur may not have fired) + flush any
+    // in-flight per-field auto-saves before closing the session
+    await _saveVisibleCorrections(sekcja);
     if (window._pendingKorektaSaves && window._pendingKorektaSaves.length > 0) {
         await Promise.allSettled(window._pendingKorektaSaves.slice());
     }
@@ -705,7 +734,9 @@ async function advanceWithPerhydrol(sekcja) {
     var gate = window._lastGate;
     if (!gate || !gate.etap_id) return;
 
-    // Flush any in-flight per-field auto-saves before closing the session
+    // Persist visible suggestions (blur may not have fired) + flush any
+    // in-flight per-field auto-saves before closing the session
+    await _saveVisibleCorrections(sekcja);
     if (window._pendingKorektaSaves && window._pendingKorektaSaves.length > 0) {
         await Promise.allSettled(window._pendingKorektaSaves.slice());
     }
@@ -804,7 +835,9 @@ async function advancePerhydrolWithStand(sekcja) {
     var gate = window._lastGate;
     if (!gate || !gate.etap_id || !gate.sesja_id) return;
 
-    // Flush any in-flight per-field auto-saves before closing the session
+    // Persist visible suggestions (blur may not have fired) + flush any
+    // in-flight per-field auto-saves before closing the session
+    await _saveVisibleCorrections(sekcja);
     if (window._pendingKorektaSaves && window._pendingKorektaSaves.length > 0) {
         await Promise.allSettled(window._pendingKorektaSaves.slice());
     }
