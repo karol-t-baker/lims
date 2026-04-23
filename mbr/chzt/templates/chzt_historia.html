@@ -26,7 +26,7 @@
 
     <div class="registry-wrap">
       {% if sesje|length == 0 %}
-        <div class="registry-empty">Brak zapisanych pomiarów ChZT. <a href="{{ url_for('registry.narzedzia') }}" style="color:var(--teal);">Zacznij nową sesję</a></div>
+        <div class="registry-empty">Brak zapisanych pomiarów ChZT.</div>
       {% else %}
       <div class="registry">
         <table class="chzt-hist-table">
@@ -76,6 +76,18 @@
         {% if page < pages %}<a href="?page={{ page + 1 }}">Starsze →</a>{% else %}<span></span>{% endif %}
       </div>
       {% endif %}
+
+      {# "Dodaj nowy pomiar" — opens the same modal as the C shortcut.
+         Produkcja only touches external (szambiarka) data, so the CTA is
+         hidden for that role (matches ROLES_EDIT_INTERNAL in routes.py). #}
+      {% if session.get('user', {}).get('rola') != 'produkcja' %}
+      <div class="chzt-add-wrap">
+        <button type="button" class="chzt-btn-primary chzt-add-btn" onclick="openChztModal()">
+          <svg class="chzt-add-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Dodaj nowy pomiar
+        </button>
+      </div>
+      {% endif %}
     </div>
   </div>
 
@@ -118,4 +130,20 @@
 </div>
 
 {# chzt_modal.html + chzt.js loaded globally from base.html (edit-from-historia still works) #}
+
+<script>
+// Reload the list after the ChZT modal closes so a newly created/edited
+// session shows up without a manual refresh. Uses a MutationObserver on the
+// overlay's class attribute — no coupling with closeChztModal internals.
+document.addEventListener('DOMContentLoaded', function() {
+  var overlay = document.getElementById('chzt-overlay');
+  if (!overlay) return;
+  var wasOpen = overlay.classList.contains('show');
+  new MutationObserver(function() {
+    var isOpen = overlay.classList.contains('show');
+    if (wasOpen && !isOpen) location.reload();
+    wasOpen = isOpen;
+  }).observe(overlay, {attributes: true, attributeFilter: ['class']});
+});
+</script>
 {% endblock %}
