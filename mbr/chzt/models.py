@@ -9,6 +9,12 @@ from datetime import datetime
 from mbr.shared.timezone import app_now_iso
 
 
+# Threshold for "pH exceedance" count shown in the history list view.
+# Only the upper bound is checked (matches the existing ">40k ChZT" upper-only
+# framing). Change this single constant to retune.
+CHZT_PH_UPPER_LIMIT = 10.0
+
+
 def init_chzt_tables(db):
     """Create/migrate chzt_sesje + chzt_pomiary. Idempotent.
 
@@ -320,16 +326,20 @@ def list_sessions_paginated(db, *, page: int = 1, per_page: int = 10) -> dict:
         "SELECT s.id, s.dt_start, s.n_kontenery, s.finalized_at, "
         "       w.imie || ' ' || w.nazwisko AS finalized_by_name, "
         "       (SELECT MAX(updated_at) FROM chzt_pomiary WHERE sesja_id=s.id) AS updated_at_max, "
-        "       (SELECT ROUND(AVG(srednia)) FROM chzt_pomiary WHERE sesja_id=s.id AND srednia IS NOT NULL) AS avg_chzt, "
-        "       (SELECT ROUND(MIN(srednia)) FROM chzt_pomiary WHERE sesja_id=s.id AND srednia IS NOT NULL) AS min_chzt, "
-        "       (SELECT ROUND(MAX(srednia)) FROM chzt_pomiary WHERE sesja_id=s.id AND srednia IS NOT NULL) AS max_chzt, "
-        "       (SELECT COUNT(*) FROM chzt_pomiary WHERE sesja_id=s.id AND srednia IS NOT NULL AND srednia > 40000) AS over_40k_count, "
-        "       (SELECT ROUND(AVG(ph), 1) FROM chzt_pomiary WHERE sesja_id=s.id AND ph IS NOT NULL) AS avg_ph "
+        "       sz.ext_chzt AS sz_ext_chzt, "
+        "       sz.ext_ph   AS sz_ext_ph, "
+        "       sz.srednia  AS sz_chzt, "
+        "       sz.ph       AS sz_ph, "
+        "       sz.waga_kg  AS sz_waga, "
+        "       (SELECT COUNT(*) FROM chzt_pomiary "
+        "        WHERE sesja_id=s.id AND ph IS NOT NULL AND ph > ?) AS over_ph_count "
         "FROM chzt_sesje s "
         "LEFT JOIN workers w ON w.id = s.finalized_by "
+        "LEFT JOIN chzt_pomiary sz "
+        "       ON sz.sesja_id = s.id AND sz.punkt_nazwa = 'szambiarka' "
         "ORDER BY s.dt_start DESC "
         "LIMIT ? OFFSET ?",
-        (per_page, offset),
+        (CHZT_PH_UPPER_LIMIT, per_page, offset),
     ).fetchall()
     return {
         "sesje": [dict(r) for r in rows],

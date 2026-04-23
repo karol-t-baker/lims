@@ -495,7 +495,7 @@ def test_list_sessions_paginated_splits_pages(db):
     assert page2["page"] == 2
 
 
-def test_list_sessions_paginated_includes_avg_and_max(db):
+def test_list_sessions_paginated_returns_szambiarka_fields(db):
     sid, _ = get_or_create_session(db, "2026-04-18", created_by=1, n_kontenery=1)
     db.commit()
     pid_hala = db.execute(
@@ -504,19 +504,43 @@ def test_list_sessions_paginated_includes_avg_and_max(db):
     pid_k1 = db.execute(
         "SELECT id FROM chzt_pomiary WHERE sesja_id=? AND punkt_nazwa='kontener 1'", (sid,)
     ).fetchone()["id"]
+    pid_sz = db.execute(
+        "SELECT id FROM chzt_pomiary WHERE sesja_id=? AND punkt_nazwa='szambiarka'", (sid,)
+    ).fetchone()["id"]
     update_pomiar(db, pid_hala, {"ph": 9, "p1": 20000, "p2": 22000, "p3": None, "p4": None, "p5": None}, updated_by=1)
     update_pomiar(db, pid_k1,   {"ph": 11, "p1": 45000, "p2": 44000, "p3": None, "p4": None, "p5": None}, updated_by=1)
+    update_pomiar(db, pid_sz, {
+        "ph": 10, "p1": 30000, "p2": 31000, "p3": None, "p4": None, "p5": None,
+        "ext_ph": 11, "ext_chzt": 28000, "waga_kg": 16500,
+    }, updated_by=1)
     db.commit()
     page = list_sessions_paginated(db, page=1, per_page=10)
     s = page["sesje"][0]
-    # Hala avg = 21000, Kontener 1 avg = 44500
-    assert s["avg_chzt"] is not None
-    assert s["min_chzt"] == 21000
-    assert s["max_chzt"] == 44500
-    # Only Kontener 1 (44500) exceeds 40k
-    assert s["over_40k_count"] == 1
-    # pH avg of {9, 11} = 10.0
-    assert s["avg_ph"] == 10.0
+    # szambiarka row fields
+    assert s["sz_chzt"] == 30500       # avg of 30000, 31000
+    assert s["sz_ph"] == 10
+    assert s["sz_ext_chzt"] == 28000
+    assert s["sz_ext_ph"] == 11
+    assert s["sz_waga"] == 16500
+    # pH breach count: hala=9 OK, k1=11 > 10 ✓, szambiarka=10 NOT over (strict >)
+    assert s["over_ph_count"] == 1
+    # n_kontenery passthrough
+    assert s["n_kontenery"] == 1
+
+
+def test_list_sessions_paginated_empty_szambiarka_returns_nulls(db):
+    """Session with no measurements on the szambiarka punkt → sz_* fields are None
+    and over_ph_count is 0. Template renders '—' for None."""
+    sid, _ = get_or_create_session(db, "2026-04-19", created_by=1, n_kontenery=0)
+    db.commit()
+    page = list_sessions_paginated(db, page=1, per_page=10)
+    s = page["sesje"][0]
+    assert s["sz_chzt"] is None
+    assert s["sz_ph"] is None
+    assert s["sz_ext_chzt"] is None
+    assert s["sz_ext_ph"] is None
+    assert s["sz_waga"] is None
+    assert s["over_ph_count"] == 0
 
 
 
