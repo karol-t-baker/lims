@@ -176,7 +176,7 @@ from mbr.pipeline.edit_policy import has_downstream_activity
 
 def test_downstream_detects_later_pomiar(db):
     db.execute("INSERT INTO parametry_analityczne (id, kod, label, typ) VALUES (1, 'x', 'X', 'bezposredni')")
-    db.execute("INSERT INTO ebr_pomiary (sesja_id, parametr_id, wartosc, wpisal, dt_wpisu) "
+    db.execute("INSERT INTO ebr_pomiar (sesja_id, parametr_id, wartosc, wpisal, dt_wpisu) "
                "VALUES (1001, 1, 5.0, 'u', '2026-04-22T12:00:00')")
     db.commit()
     # Editing sulfonowanie (etap 10) while analiza_koncowa (etap 11) has a pomiar → downstream exists.
@@ -226,7 +226,7 @@ def has_downstream_activity(db: sqlite3.Connection, *, ebr_id: int, etap_id: int
 
     rows = db.execute(
         """SELECT pp.etap_id, ea.nazwa,
-                  (SELECT COUNT(*) FROM ebr_pomiary p
+                  (SELECT COUNT(*) FROM ebr_pomiar p
                    JOIN ebr_etap_sesja s ON s.id = p.sesja_id
                    WHERE s.ebr_id = ? AND s.etap_id = pp.etap_id
                      AND p.wartosc IS NOT NULL) AS pomiary,
@@ -468,7 +468,7 @@ def test_downstream_summary_endpoint(client, app):
         db.execute("INSERT INTO ebr_etap_sesja (id, ebr_id, etap_id, runda, status) "
                    "VALUES (1001, 100, 11, 1, 'zamkniety')")
         db.execute("INSERT INTO parametry_analityczne (id, kod, label, typ) VALUES (3, 'z', 'Z', 'bezposredni')")
-        db.execute("INSERT INTO ebr_pomiary (sesja_id, parametr_id, wartosc, wpisal, dt_wpisu) "
+        db.execute("INSERT INTO ebr_pomiar (sesja_id, parametr_id, wartosc, wpisal, dt_wpisu) "
                    "VALUES (1001, 3, 9.0, 'lab1', '2026-04-22T13:00:00')")
         db.commit()
     resp = client.get("/api/pipeline/lab/ebr/100/etap/10/downstream-summary")
