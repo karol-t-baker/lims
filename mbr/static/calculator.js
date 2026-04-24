@@ -186,12 +186,15 @@ async function openCalculator(tag, kod, sekcja, calcMethod) {
         if (container) {
             container.innerHTML =
                 '<div class="calc-header">' +
-                    '<div class="calc-param">' + (kod || '').toUpperCase() + '</div>' +
+                    '<div class="calc-param"></div>' +
                     '<div class="calc-method" style="color:var(--red);">Brak metody miareczkowej</div>' +
                 '</div>' +
                 '<div style="padding:12px 14px;font-size:11px;color:var(--text-dim);line-height:1.5;">' +
                     'Parametr nie ma przypisanej metody (brak <code>metoda_id</code> lub pustych pól <code>metoda_formula</code> / <code>metoda_factor</code>). Uzupełnij w rejestrze parametrów (Technolog → Parametry).' +
                 '</div>';
+            // kod comes from DB (technolog-writable); set via textContent to avoid HTML injection
+            var paramEl = container.querySelector('.calc-param');
+            if (paramEl) paramEl.textContent = (kod || '').toUpperCase();
             showRightPanel('calc');
         }
         return;
