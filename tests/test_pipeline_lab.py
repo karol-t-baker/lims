@@ -626,7 +626,11 @@ def test_lab_start_sesja_is_idempotent_when_session_already_open(client, db):
     batch_id = s["ebr_id"]
     etap_id = s["etap_id"]
     r1 = client.post(f"/api/pipeline/lab/ebr/{batch_id}/etap/{etap_id}/start")
-    assert r1.status_code in (200, 201)
+    # Fixture pre-creates an open session, so first /start hits the existing
+    # branch (200). A fresh-session test (201) is covered in
+    # test_pipeline_routes.py::test_start_sesja — this test specifically
+    # pins the idempotent-on-already-open invariant.
+    assert r1.status_code == 200
     sid = r1.get_json()["sesja_id"]
     r2 = client.post(f"/api/pipeline/lab/ebr/{batch_id}/etap/{etap_id}/start")
     assert r2.status_code == 200

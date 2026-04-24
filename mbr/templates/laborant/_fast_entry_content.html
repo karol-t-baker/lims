@@ -5944,11 +5944,16 @@ window.showPipelineStage = async function(sekcjaLab, readonly) {
         });
         if (stage) {
             try {
-                await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + stage.pipeline_etap_id + '/start', {
+                var resp = await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + stage.pipeline_etap_id + '/start', {
                     method: 'POST'
                 });
+                if (!resp.ok) throw new Error('HTTP ' + resp.status);
             } catch (err) {
-                console.warn('[showPipelineStage] /start failed:', err);
+                console.error('[showPipelineStage] /start failed:', err);
+                // Surface to operator — without this, a failed /start silently
+                // regresses to the pre-fix bug (pipeline_dual_write finds no
+                // active session, no gate, no correction panel).
+                alert('Nie udało się otworzyć etapu "' + sekcjaLab + '". Odśwież stronę i spróbuj ponownie.');
             }
         }
     }
