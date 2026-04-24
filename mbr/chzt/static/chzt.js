@@ -149,11 +149,15 @@
 
   function getRowValues(pid) {
     var out = {};
-    document.querySelectorAll('input[data-pid="' + pid + '"]').forEach(function(inp) {
+    document.querySelectorAll('[data-pid="' + pid + '"]').forEach(function(inp) {
       if (inp.disabled) return;
       var field = inp.dataset.field;
       if (!field) return;
-      out[field] = parseNum(inp.value);
+      if (inp.dataset.type === 'text') {
+        out[field] = (inp.value || '').trim();  // server normalizes empty → None
+      } else {
+        out[field] = parseNum(inp.value);
+      }
     });
     return out;
   }
@@ -164,11 +168,12 @@
       if (inp.dataset.wired === '1') return;
       inp.dataset.wired = '1';
       inp.addEventListener('input', function(){
-        // regex validation only — no save
-        if (inp.value !== '' && !/^[0-9]*[.,]?[0-9]*$/.test(inp.value)) {
-          inp.classList.add('invalid');
-        } else {
-          inp.classList.remove('invalid');
+        if (inp.dataset.type !== 'text') {
+          if (inp.value !== '' && !/^[0-9]*[.,]?[0-9]*$/.test(inp.value)) {
+            inp.classList.add('invalid');
+          } else {
+            inp.classList.remove('invalid');
+          }
         }
         _markDirty(parseInt(inp.dataset.pid));
       });
@@ -217,6 +222,11 @@
     section.className = 'chzt-ext-section';
 
     var fmt = function(v) { return v === null || v === undefined ? '' : v; };
+    var _htmlEscape = function(s) {
+      var d = document.createElement('div');
+      d.textContent = s || '';
+      return d.innerHTML;
+    };
     var roCls = canEdit ? '' : 'readonly';
     var disabledAttr = canEdit ? '' : 'disabled';
 
@@ -243,6 +253,13 @@
                  disabledAttr + '>' +
           '<span class="chzt-ext-unit">kg</span>' +
         '</div>' +
+      '</div>' +
+      '<div class="chzt-ext-uwagi-row">' +
+        '<label>Uwagi</label>' +
+        '<textarea class="chzt-inp chzt-ext-uwagi ' + roCls + '" rows="2" ' +
+                  'data-pid="' + szambiarka.id + '" data-field="uwagi" data-type="text" ' +
+                  'placeholder="np. Kożuch na powierzchni, dodano 5L NaOH…" ' +
+                  disabledAttr + '>' + _htmlEscape(szambiarka.uwagi || '') + '</textarea>' +
       '</div>';
 
     var registryEl = detailView.querySelector('.registry');
