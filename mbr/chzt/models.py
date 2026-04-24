@@ -101,6 +101,7 @@ def init_chzt_tables(db):
                 ext_chzt     REAL,
                 ext_ph       REAL,
                 waga_kg      REAL,
+                uwagi        TEXT,
                 updated_at   TEXT NOT NULL,
                 updated_by   INTEGER REFERENCES workers(id),
                 UNIQUE(sesja_id, punkt_nazwa)
@@ -114,6 +115,8 @@ def init_chzt_tables(db):
             db.execute("ALTER TABLE chzt_pomiary ADD COLUMN ext_ph REAL")
         if "waga_kg" not in pcols:
             db.execute("ALTER TABLE chzt_pomiary ADD COLUMN waga_kg REAL")
+        if "uwagi" not in pcols:
+            db.execute("ALTER TABLE chzt_pomiary ADD COLUMN uwagi TEXT")
 
     db.execute("CREATE INDEX IF NOT EXISTS idx_chzt_pomiary_sesja ON chzt_pomiary(sesja_id)")
     db.commit()
@@ -175,14 +178,15 @@ def compute_srednia(row: dict):
 
 
 POMIAR_FIELDS_INTERNAL = ("ph", "p1", "p2", "p3", "p4", "p5")
-POMIAR_FIELDS_EXTERNAL = ("ext_chzt", "ext_ph", "waga_kg")
+POMIAR_FIELDS_EXTERNAL = ("ext_chzt", "ext_ph", "waga_kg", "uwagi")
+POMIAR_FIELDS_TEXT = ("uwagi",)  # coerced as string (route-side) instead of float
 POMIAR_FIELDS = POMIAR_FIELDS_INTERNAL + POMIAR_FIELDS_EXTERNAL
 
 
 def get_pomiar(db, pomiar_id: int) -> dict:
     row = db.execute(
         "SELECT id, sesja_id, punkt_nazwa, kolejnosc, ph, p1, p2, p3, p4, p5, "
-        "       srednia, ext_chzt, ext_ph, waga_kg, updated_at, updated_by "
+        "       srednia, ext_chzt, ext_ph, waga_kg, uwagi, updated_at, updated_by "
         "FROM chzt_pomiary WHERE id=?",
         (pomiar_id,),
     ).fetchone()
@@ -210,13 +214,14 @@ def update_pomiar(db, pomiar_id: int, new_values: dict, *, updated_by: int):
     db.execute(
         "UPDATE chzt_pomiary "
         "SET ph=?, p1=?, p2=?, p3=?, p4=?, p5=?, srednia=?, "
-        "    ext_chzt=?, ext_ph=?, waga_kg=?, "
+        "    ext_chzt=?, ext_ph=?, waga_kg=?, uwagi=?, "
         "    updated_at=?, updated_by=? "
         "WHERE id=?",
         (
             merged.get("ph"), merged.get("p1"), merged.get("p2"), merged.get("p3"),
             merged.get("p4"), merged.get("p5"), srednia,
             merged.get("ext_chzt"), merged.get("ext_ph"), merged.get("waga_kg"),
+            merged.get("uwagi"),
             now, updated_by, pomiar_id,
         ),
     )
@@ -331,6 +336,7 @@ def list_sessions_paginated(db, *, page: int = 1, per_page: int = 10) -> dict:
         "       sz.srednia  AS sz_chzt, "
         "       sz.ph       AS sz_ph, "
         "       sz.waga_kg  AS sz_waga, "
+        "       sz.uwagi    AS sz_uwagi, "
         "       (SELECT COUNT(*) FROM chzt_pomiary "
         "        WHERE sesja_id=s.id AND ph IS NOT NULL AND ph > ?) AS over_ph_count "
         "FROM chzt_sesje s "
@@ -368,7 +374,7 @@ def get_session_with_pomiary(db, session_id: int) -> dict:
         return None
     prows = db.execute(
         "SELECT id, punkt_nazwa, kolejnosc, ph, p1, p2, p3, p4, p5, srednia, "
-        "       ext_chzt, ext_ph, waga_kg, updated_at, updated_by "
+        "       ext_chzt, ext_ph, waga_kg, uwagi, updated_at, updated_by "
         "FROM chzt_pomiary WHERE sesja_id=? ORDER BY kolejnosc",
         (session_id,),
     ).fetchall()

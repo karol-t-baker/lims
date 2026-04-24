@@ -512,6 +512,7 @@ def test_list_sessions_paginated_returns_szambiarka_fields(db):
     update_pomiar(db, pid_sz, {
         "ph": 10, "p1": 30000, "p2": 31000, "p3": None, "p4": None, "p5": None,
         "ext_ph": 11, "ext_chzt": 28000, "waga_kg": 16500,
+        "uwagi": "Po wyjeździe dodano 5L NaOH",
     }, updated_by=1)
     db.commit()
     page = list_sessions_paginated(db, page=1, per_page=10)
@@ -522,6 +523,7 @@ def test_list_sessions_paginated_returns_szambiarka_fields(db):
     assert s["sz_ext_chzt"] == 28000
     assert s["sz_ext_ph"] == 11
     assert s["sz_waga"] == 16500
+    assert s["sz_uwagi"] == "Po wyjeździe dodano 5L NaOH"
     # pH breach count: hala=9 OK, k1=11 > 10 ✓, szambiarka=10 NOT over (strict >)
     assert s["over_ph_count"] == 1
     # n_kontenery passthrough
@@ -540,8 +542,27 @@ def test_list_sessions_paginated_empty_szambiarka_returns_nulls(db):
     assert s["sz_ext_chzt"] is None
     assert s["sz_ext_ph"] is None
     assert s["sz_waga"] is None
+    assert s["sz_uwagi"] is None
     assert s["over_ph_count"] == 0
 
+
+def test_update_pomiar_roundtrips_uwagi_and_normalizes_empty(db):
+    """update_pomiar stores uwagi as a string; whitespace-only / '' → None."""
+    sid, _ = get_or_create_session(db, "2026-04-20", created_by=1, n_kontenery=0)
+    db.commit()
+    pid_sz = db.execute(
+        "SELECT id FROM chzt_pomiary WHERE sesja_id=? AND punkt_nazwa='szambiarka'", (sid,)
+    ).fetchone()["id"]
+    # Write
+    update_pomiar(db, pid_sz, {"uwagi": "Kożuch na powierzchni"}, updated_by=1)
+    db.commit()
+    row = db.execute("SELECT uwagi FROM chzt_pomiary WHERE id=?", (pid_sz,)).fetchone()
+    assert row["uwagi"] == "Kożuch na powierzchni"
+    # Overwrite with None → NULL
+    update_pomiar(db, pid_sz, {"uwagi": None}, updated_by=1)
+    db.commit()
+    row = db.execute("SELECT uwagi FROM chzt_pomiary WHERE id=?", (pid_sz,)).fetchone()
+    assert row["uwagi"] is None
 
 
 def test_get_day_finalized_returns_frame(client, db):

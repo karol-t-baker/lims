@@ -8,7 +8,7 @@ from mbr.chzt.models import (
     get_pomiar, update_pomiar, resize_kontenery,
     validate_for_finalize, finalize_session, unfinalize_session,
     list_sessions_paginated,
-    POMIAR_FIELDS, POMIAR_FIELDS_INTERNAL, POMIAR_FIELDS_EXTERNAL,
+    POMIAR_FIELDS, POMIAR_FIELDS_INTERNAL, POMIAR_FIELDS_EXTERNAL, POMIAR_FIELDS_TEXT,
 )
 from mbr.db import db_session
 from mbr.shared.audit import (
@@ -115,10 +115,17 @@ def api_pomiar_update(pomiar_id: int):
     rola = session.get("user", {}).get("rola") or ""
     allowed = _allowed_fields_for_role(rola)
 
-    # Filter: keep only allowed keys that are actually present in payload
+    # Filter: keep only allowed keys that are actually present in payload.
+    # Text fields (uwagi) bypass float coercion; whitespace-only string → None
+    # so the row's "no override" state is representable.
     new_values = {}
     for k in allowed:
-        if k in payload:
+        if k not in payload:
+            continue
+        if k in POMIAR_FIELDS_TEXT:
+            v = payload[k]
+            new_values[k] = None if v is None else (str(v).strip() or None)
+        else:
             new_values[k] = _coerce_float(payload[k])
 
     with db_session() as db:
