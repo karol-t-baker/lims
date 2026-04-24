@@ -565,6 +565,45 @@ def test_update_pomiar_roundtrips_uwagi_and_normalizes_empty(db):
     assert row["uwagi"] is None
 
 
+def test_api_pomiar_put_normalizes_empty_uwagi_to_null(client, db):
+    """PUT /api/chzt/pomiar/<id> with uwagi='' or uwagi='   ' stores NULL.
+    Normalization lives in api_pomiar_update's text-field branch."""
+    sid = _fill_all_today(client, db, ph=10, p1=25000, p2=26000)
+    pid_sz = db.execute(
+        "SELECT id FROM chzt_pomiary WHERE sesja_id=? AND punkt_nazwa='szambiarka'", (sid,)
+    ).fetchone()["id"]
+    # Elevate to admin so the session may write POMIAR_FIELDS_EXTERNAL (uwagi).
+    # The default `client` fixture is `lab`, which is filtered out of external fields.
+    with client.session_transaction() as sess:
+        sess["user"] = {"login": "admin", "rola": "admin", "imie_nazwisko": "Admin"}
+
+    # Seed a non-empty uwagi so we can see it cleared
+    db.execute("UPDATE chzt_pomiary SET uwagi=? WHERE id=?", ("przed czyszczeniem", pid_sz))
+    db.commit()
+
+    # Empty string → NULL
+    resp = client.put(f"/api/chzt/pomiar/{pid_sz}", json={"uwagi": ""})
+    assert resp.status_code == 200
+    row = db.execute("SELECT uwagi FROM chzt_pomiary WHERE id=?", (pid_sz,)).fetchone()
+    assert row["uwagi"] is None
+
+    # Seed again
+    db.execute("UPDATE chzt_pomiary SET uwagi=? WHERE id=?", ("przed", pid_sz))
+    db.commit()
+
+    # Whitespace-only → NULL
+    resp = client.put(f"/api/chzt/pomiar/{pid_sz}", json={"uwagi": "   "})
+    assert resp.status_code == 200
+    row = db.execute("SELECT uwagi FROM chzt_pomiary WHERE id=?", (pid_sz,)).fetchone()
+    assert row["uwagi"] is None
+
+    # Non-empty stays
+    resp = client.put(f"/api/chzt/pomiar/{pid_sz}", json={"uwagi": "Kożuch"})
+    assert resp.status_code == 200
+    row = db.execute("SELECT uwagi FROM chzt_pomiary WHERE id=?", (pid_sz,)).fetchone()
+    assert row["uwagi"] == "Kożuch"
+
+
 def test_get_day_finalized_returns_frame(client, db):
     sid = _fill_all_today(client, db, ph=10, p1=25000, p2=26000)
     client.post(f"/api/chzt/session/{sid}/finalize")
