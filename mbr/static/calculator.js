@@ -13,32 +13,31 @@
 if (typeof CALC_METHODS === 'undefined') {
 var CALC_METHODS = {};
 
-(function loadCalcMethods() {
-    fetch('/api/parametry/calc-methods')
-        .then(function(resp) { return resp.json(); })
-        .then(function(data) {
-            // data = {kod: {name, method, formula, factor}}
-            for (var kod in data) {
-                var m = data[kod];
-                CALC_METHODS[kod] = m;
-                // Legacy aliases: tag-based keys used by old parametry_lab format
-                CALC_METHODS['procent_' + kod] = m;
-            }
-        })
-        .catch(function() {
-            // Fallback: hardcoded methods if API fails (e.g. not logged in)
-            CALC_METHODS = {
-                nacl:  { name: '%NaCl', method: 'Argentometryczna Mohr', formula: '% = (V * 0.00585 * 100) / m', factor: 0.585 },
-                aa:    { name: '%AA',   method: 'Alkacymetria',          formula: '% = (V * C * M) / (m * 10)',   factor: 3.015 },
-                so3:   { name: '%SO3',  method: 'Jodometryczna',         formula: '% = (V * 0.004 * 100) / m',   factor: 0.4 },
-                h2o2:  { name: '%H2O2', method: 'Manganometryczna',      formula: '% = (V * 0.0017 * 100) / m',  factor: 0.17 },
-                lk:    { name: 'LK',    method: 'Alkacymetria KOH',      formula: 'LK = (V * C * 56.1) / m',     factor: 5.61 },
-            };
-            for (var k in CALC_METHODS) {
-                CALC_METHODS['procent_' + k] = CALC_METHODS[k];
-            }
-        });
-})();
+// Promise resolves when CALC_METHODS is ready (either populated from the
+// API or filled with the hardcoded fallback on catch). openCalculator()
+// awaits this so rapid-click after page load doesn't race with the fetch.
+var CALC_METHODS_READY = fetch('/api/parametry/calc-methods')
+    .then(function(resp) { return resp.json(); })
+    .then(function(data) {
+        for (var kod in data) {
+            var m = data[kod];
+            CALC_METHODS[kod] = m;
+            CALC_METHODS['procent_' + kod] = m;
+        }
+    })
+    .catch(function() {
+        // Fallback: hardcoded methods if API fails (e.g. not logged in)
+        CALC_METHODS = {
+            nacl:  { name: '%NaCl', method: 'Argentometryczna Mohr', formula: '% = (V * 0.00585 * 100) / m', factor: 0.585 },
+            aa:    { name: '%AA',   method: 'Alkacymetria',          formula: '% = (V * C * M) / (m * 10)',   factor: 3.015 },
+            so3:   { name: '%SO3',  method: 'Jodometryczna',         formula: '% = (V * 0.004 * 100) / m',   factor: 0.4 },
+            h2o2:  { name: '%H2O2', method: 'Manganometryczna',      formula: '% = (V * 0.0017 * 100) / m',  factor: 0.17 },
+            lk:    { name: 'LK',    method: 'Alkacymetria KOH',      formula: 'LK = (V * C * 56.1) / m',     factor: 5.61 },
+        };
+        for (var k in CALC_METHODS) {
+            CALC_METHODS['procent_' + k] = CALC_METHODS[k];
+        }
+    });
 } // end CALC_METHODS guard
 
 function _normalizeDecimal(value) {
@@ -170,9 +169,33 @@ async function openCalculator(tag, kod, sekcja, calcMethod) {
             suggested_mass: calcMethod.suggested_mass || null,
         };
     } else {
+        // Wait for the one-time CALC_METHODS fetch to finish. Rapid click
+        // right after page load used to race with this, silently falling
+        // through to `undefined` and returning below without rendering.
+        if (typeof CALC_METHODS_READY !== 'undefined') {
+            try { await CALC_METHODS_READY; } catch (_) { /* already handled via fallback */ }
+        }
         method = CALC_METHODS[tag] || CALC_METHODS[kod];
     }
-    if (!method) return;
+    if (!method) {
+        // No DOM-embedded calcMethod AND no CALC_METHODS entry for this
+        // kod/tag. Data issue (param lacks metoda_id / metoda_formula /
+        // metoda_factor), not a transient glitch — surface it instead of
+        // leaving the right panel blank.
+        var container = document.getElementById('calc-container');
+        if (container) {
+            container.innerHTML =
+                '<div class="calc-header">' +
+                    '<div class="calc-param">' + (kod || '').toUpperCase() + '</div>' +
+                    '<div class="calc-method" style="color:var(--red);">Brak metody miareczkowej</div>' +
+                '</div>' +
+                '<div style="padding:12px 14px;font-size:11px;color:var(--text-dim);line-height:1.5;">' +
+                    'Parametr nie ma przypisanej metody (brak <code>metoda_id</code> lub pustych pól <code>metoda_formula</code> / <code>metoda_factor</code>). Uzupełnij w rejestrze parametrów (Technolog → Parametry).' +
+                '</div>';
+            showRightPanel('calc');
+        }
+        return;
+    }
 
     _calcState = {
         tag: tag,
