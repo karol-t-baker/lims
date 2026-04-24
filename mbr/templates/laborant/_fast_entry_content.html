@@ -5929,9 +5929,29 @@ window.saveReceptNa2so3 = async function() {
     }
 };
 
-window.showPipelineStage = function(sekcjaLab, readonly) {
+window.showPipelineStage = async function(sekcjaLab, readonly) {
     window._activePipelineStage = sekcjaLab;
     window._activePipelineReadonly = !!readonly;
+    // When switching to an editable stage, ensure its pipeline session
+    // exists. Without this, pipeline_dual_write on the first pomiar save
+    // finds no active session for the etap (dual_write returns None), no
+    // gate is evaluated, and the correction panel never appears. The
+    // /start endpoint is idempotent — returns the existing sesja_id when
+    // a nierozpoczety/w_trakcie session is already present.
+    if (!readonly) {
+        var stage = (typeof etapy !== 'undefined' ? etapy : []).find(function(e) {
+            return e.sekcja_lab === sekcjaLab && !!e.pipeline_etap_id;
+        });
+        if (stage) {
+            try {
+                await fetch('/api/pipeline/lab/ebr/' + ebrId + '/etap/' + stage.pipeline_etap_id + '/start', {
+                    method: 'POST'
+                });
+            } catch (err) {
+                console.warn('[showPipelineStage] /start failed:', err);
+            }
+        }
+    }
     renderSections();
     updateSpecPanel();
     if (typeof renderSidebarEtapy === 'function') renderSidebarEtapy();

@@ -615,3 +615,26 @@ def test_put_korekta_attribution_per_batch(client, db):
     assert b1 is not None
     assert b1["ilosc"] == 42.0
     assert b2 is None
+
+
+def test_lab_start_sesja_is_idempotent_when_session_already_open(client, db):
+    """Calling /etap/<id>/start on a stage whose session is already in
+    'w_trakcie' or 'nierozpoczety' must return the same sesja_id with 200.
+    showPipelineStage() relies on this to safely pre-start sessions on every
+    sidebar switch without spawning duplicate sessions."""
+    s = _seed_pipeline_fixture_for_korekta(db)
+    batch_id = s["ebr_id"]
+    etap_id = s["etap_id"]
+    r1 = client.post(f"/api/pipeline/lab/ebr/{batch_id}/etap/{etap_id}/start")
+    assert r1.status_code in (200, 201)
+    sid = r1.get_json()["sesja_id"]
+    r2 = client.post(f"/api/pipeline/lab/ebr/{batch_id}/etap/{etap_id}/start")
+    assert r2.status_code == 200
+    assert r2.get_json()["sesja_id"] == sid
+    db.execute(
+        "UPDATE ebr_etap_sesja SET status='w_trakcie' WHERE id=?", (sid,)
+    )
+    db.commit()
+    r3 = client.post(f"/api/pipeline/lab/ebr/{batch_id}/etap/{etap_id}/start")
+    assert r3.status_code == 200
+    assert r3.get_json()["sesja_id"] == sid
