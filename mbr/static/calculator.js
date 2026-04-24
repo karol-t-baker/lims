@@ -690,6 +690,10 @@ async function acceptCalc() {
         if (typeof validateField === 'function') {
             validateField(input);
         }
+        // Notify dependency listeners (setupComputedFields) — programmatic
+        // .value = ... does not fire 'input'. Obliczeniowy params like SA
+        // whose formula references this field recompute via that event.
+        input.dispatchEvent(new Event('input', { bubbles: true }));
         // Trigger auto-save (oninput or onblur depending on context)
         if (input.dataset.etap) {
             // Process stage field — trigger psAutoSave + psSave
