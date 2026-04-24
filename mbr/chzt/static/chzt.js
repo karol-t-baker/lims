@@ -222,11 +222,6 @@
     section.className = 'chzt-ext-section';
 
     var fmt = function(v) { return v === null || v === undefined ? '' : v; };
-    var _htmlEscape = function(s) {
-      var d = document.createElement('div');
-      d.textContent = s || '';
-      return d.innerHTML;
-    };
     var roCls = canEdit ? '' : 'readonly';
     var disabledAttr = canEdit ? '' : 'disabled';
 
@@ -259,7 +254,7 @@
         '<textarea class="chzt-inp chzt-ext-uwagi ' + roCls + '" rows="2" ' +
                   'data-pid="' + szambiarka.id + '" data-field="uwagi" data-type="text" ' +
                   'placeholder="np. Kożuch na powierzchni, dodano 5L NaOH…" ' +
-                  disabledAttr + '>' + _htmlEscape(szambiarka.uwagi || '') + '</textarea>' +
+                  disabledAttr + '>' + escapeHtml(szambiarka.uwagi || '') + '</textarea>' +
       '</div>';
 
     var registryEl = detailView.querySelector('.registry');
@@ -629,7 +624,7 @@
         if (_session.finalized_at) {
           var who = _session.finalized_by_name || '\u2014';
           badge.innerHTML = '<span class="chzt-expand-finalized">\u2713 Uko\u0144czono ' +
-            fmtTime(_session.finalized_at) + ' \u00b7 ' + escapeHtmlHist(who) + '</span>';
+            fmtTime(_session.finalized_at) + ' \u00b7 ' + escapeHtml(who) + '</span>';
         } else {
           badge.innerHTML = '<span class="chzt-expand-draft">\u25cf Otwarta</span>';
         }
@@ -641,7 +636,7 @@
       _session.punkty.forEach(function(p) {
         var warn = p.srednia !== null && p.srednia > 40000;
         rows += '<tr data-pid="' + p.id + '"' + (warn ? ' class="row-warn"' : '') + '>' +
-          '<td>' + escapeHtmlHist(p.punkt_nazwa) + '</td>' +
+          '<td>' + escapeHtml(p.punkt_nazwa) + '</td>' +
           inputCell(p, 'ph', canEditInt ? 'chzt-ph' : 'chzt-ph readonly', !canEditInt) +
           inputCell(p, 'p1', canEditInt ? '' : 'readonly', !canEditInt) +
           inputCell(p, 'p2', canEditInt ? '' : 'readonly', !canEditInt) +
@@ -684,12 +679,6 @@
 
   function readCell(v) {
     return '<td>' + (v === null || v === undefined ? '—' : String(v).replace('.', ',')) + '</td>';
-  }
-
-  function escapeHtmlHist(s) {
-    return String(s).replace(/[&<>"']/g, function(c){
-      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
-    });
   }
 
 })();
