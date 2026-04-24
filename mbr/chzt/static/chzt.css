@@ -521,3 +521,53 @@
 .chzt-inp:disabled:hover {
   background: var(--surface-alt);
 }
+
+/* Uwagi column — truncate with ellipsis, full text on hover via title attribute.
+   Mirrors mbr/templates/laborant/szarze_list.html:1499-1504 pattern. */
+.chzt-hist-table .th-uwagi {
+  min-width: 180px;
+  max-width: 280px;
+}
+.chzt-hist-table .td-uwagi {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-sec);
+  font-size: 12px;
+}
+.chzt-hist-table .td-uwagi.empty {
+  color: var(--text-dim);
+}
+
+/* Szambiarka external uwagi textarea (Task 2's output) */
+.chzt-ext-uwagi-row {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.chzt-ext-uwagi-row label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-sec);
+}
+.chzt-ext-uwagi {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font-family: var(--font);
+  font-size: 13px;
+  resize: vertical;
+  min-height: 44px;
+}
+.chzt-ext-uwagi:focus {
+  outline: none;
+  border-color: var(--teal);
+}
+.chzt-ext-uwagi.readonly {
+  background: var(--surface-alt);
+  color: var(--text-dim);
+}

@@ -40,6 +40,7 @@
               <th class="th-sz-waga">Waga</th>
               <th class="th-kont">Kontenery</th>
               <th class="th-over">Przekroczeń pH</th>
+              <th class="th-uwagi">Uwagi</th>
             </tr>
           </thead>
           <tbody>
@@ -55,6 +56,11 @@
               <td class="td-sz-waga">{% if s.sz_waga is not none %}{{ '{:,}'.format(s.sz_waga|int).replace(',', ' ') }}{% else %}—{% endif %}</td>
               <td class="td-kont">{{ s.n_kontenery }}</td>
               <td class="td-over {% if s.over_ph_count and s.over_ph_count > 0 %}val-warn{% endif %}">{{ s.over_ph_count or 0 }}</td>
+              {% if s.sz_uwagi %}
+              <td class="td-uwagi" title="{{ s.sz_uwagi|e }}">{{ (s.sz_uwagi[:47] + '…') if s.sz_uwagi|length > 50 else s.sz_uwagi }}</td>
+              {% else %}
+              <td class="td-uwagi empty">—</td>
+              {% endif %}
             </tr>
             {% endfor %}
           </tbody>
