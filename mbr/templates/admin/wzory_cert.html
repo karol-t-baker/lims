@@ -1465,9 +1465,82 @@ function refreshUsageBanner() {
   });
 }
 
-// Stub — real implementation in Task B8
+/* Drag & Drop reorder (Task B8) */
+var _dragMdItem = null;
+
 function initParamListDragAndDrop() {
-  // Task B8 will implement
+  document.querySelectorAll('#wc-md-list-body .wc-md-item').forEach(function(item) {
+    item.addEventListener('dragstart', function(e) {
+      _dragMdItem = this;
+      this.style.opacity = '0.4';
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', '');
+    });
+    item.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if (_dragMdItem !== this) {
+        var rect = this.getBoundingClientRect();
+        var midY = rect.top + rect.height / 2;
+        if (e.clientY < midY) { this.style.borderTop = '2px solid var(--teal)'; this.style.borderBottom = ''; }
+        else { this.style.borderBottom = '2px solid var(--teal)'; this.style.borderTop = ''; }
+      }
+    });
+    item.addEventListener('dragleave', function() {
+      this.style.borderTop = ''; this.style.borderBottom = '';
+    });
+    item.addEventListener('drop', function(e) {
+      e.preventDefault();
+      this.style.borderTop = ''; this.style.borderBottom = '';
+      if (!_dragMdItem || _dragMdItem === this) return;
+
+      var fromIdx = parseInt(_dragMdItem.getAttribute('data-idx'));
+      var toIdx = parseInt(this.getAttribute('data-idx'));
+      var rect = this.getBoundingClientRect();
+      var midY = rect.top + rect.height / 2;
+      var insertBefore = e.clientY < midY;
+
+      // Persist current detail-panel edits before reorder (don't lose pending input)
+      if (typeof saveCurrentParamToState === 'function') saveCurrentParamToState();
+
+      var arr = _currentProduct.parameters;
+      if (fromIdx < 0 || fromIdx >= arr.length || toIdx < 0 || toIdx >= arr.length) return;
+
+      var moved = arr.splice(fromIdx, 1)[0];
+      var newIdx = insertBefore ? toIdx : toIdx + 1;
+      if (fromIdx < newIdx) newIdx--;
+      arr.splice(newIdx, 0, moved);
+
+      // Update active selection — follow the dragged item if it was selected
+      if (_selectedParamIdx === fromIdx) {
+        _selectedParamIdx = newIdx;
+      } else if (_selectedParamIdx != null) {
+        // Adjust other selected index if it shifted due to the move
+        if (_selectedParamIdx > fromIdx && _selectedParamIdx <= newIdx) _selectedParamIdx--;
+        else if (_selectedParamIdx < fromIdx && _selectedParamIdx >= newIdx) _selectedParamIdx++;
+      }
+
+      // Reindex dirty flags by their new positions
+      var newDirty = {};
+      Object.keys(_paramDirty).forEach(function(k) {
+        var i = parseInt(k);
+        var newPos;
+        if (i === fromIdx) newPos = newIdx;
+        else if (i > fromIdx && i <= newIdx) newPos = i - 1;
+        else if (i < fromIdx && i >= newIdx) newPos = i + 1;
+        else newPos = i;
+        newDirty[newPos] = _paramDirty[k];
+      });
+      _paramDirty = newDirty;
+
+      _setDirty(true);
+      renderParamList();
+    });
+    item.addEventListener('dragend', function() {
+      this.style.opacity = '';
+      _dragMdItem = null;
+    });
+  });
 }
 
 /* ═══ Parameters Table ═══ */
