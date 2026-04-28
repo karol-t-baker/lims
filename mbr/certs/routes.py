@@ -373,12 +373,22 @@ def api_cert_config_product_get(key):
             base_kods.add(pid)
             param = {
                 "id": pid,
+                "parametr_id": bp["parametr_id"],
                 "name_pl": bp["name_pl"] or bp["pa_label"] or "",
                 "name_en": name_en,
                 "requirement": bp["requirement"] or "",
                 "method": bp["method"] or bp["pa_method_code"] or "",
                 "format": bp["format"] or "1",
                 "data_field": bp["kod"] or "",
+                # Dual-field surface for the editor (Cert Editor Redesign A4):
+                # globals always present, overrides preserved raw (None = inherit,
+                # "" = explicit blank). Legacy fields above keep existing consumers working.
+                "name_pl_global": bp["pa_label"] or "",
+                "name_en_global": bp["pa_name_en"] or "",
+                "method_global": bp["pa_method_code"] or "",
+                "name_pl_override": bp["name_pl"],
+                "name_en_override": bp["name_en"],
+                "method_override": bp["method"],
             }
             if bp["qualitative_result"]:
                 param["qualitative_result"] = bp["qualitative_result"]
@@ -438,12 +448,20 @@ def api_cert_config_product_get(key):
                     ap_name_en = ap["name_en"] if ap["name_en"] is not None else (ap["pa_name_en"] or "")
                     param = {
                         "id": ap["kod"] or f"param_{ap['parametr_id']}",
+                        "parametr_id": ap["parametr_id"],
                         "name_pl": ap["name_pl"] or ap["pa_label"] or "",
                         "name_en": ap_name_en,
                         "requirement": ap["requirement"] or "",
                         "method": ap["method"] or ap["pa_method_code"] or "",
                         "format": ap["format"] or "1",
                         "data_field": ap["kod"] or "",
+                        # Dual-field surface for the editor (Cert Editor Redesign A4).
+                        "name_pl_global": ap["pa_label"] or "",
+                        "name_en_global": ap["pa_name_en"] or "",
+                        "method_global": ap["pa_method_code"] or "",
+                        "name_pl_override": ap["name_pl"],
+                        "name_en_override": ap["name_en"],
+                        "method_override": ap["method"],
                     }
                     if ap["qualitative_result"]:
                         param["qualitative_result"] = ap["qualitative_result"]
