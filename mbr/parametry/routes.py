@@ -92,7 +92,7 @@ def api_parametry_update(param_id):
         old_audit = None
         if rola == "admin":
             old_audit = db.execute(
-                "SELECT label, name_en, method_code FROM parametry_analityczne WHERE id=?",
+                "SELECT label, name_en, method_code, precision, aktywny FROM parametry_analityczne WHERE id=?",
                 (param_id,),
             ).fetchone()
 
@@ -149,10 +149,10 @@ def api_parametry_update(param_id):
         # Non-admin label edits exist but are out-of-scope for this event.
         if rola == "admin":
             new_audit = db.execute(
-                "SELECT label, name_en, method_code FROM parametry_analityczne WHERE id=?",
+                "SELECT label, name_en, method_code, precision, aktywny FROM parametry_analityczne WHERE id=?",
                 (param_id,),
             ).fetchone()
-            diff = diff_fields(dict(old_audit), dict(new_audit), ["label", "name_en", "method_code"])
+            diff = diff_fields(dict(old_audit), dict(new_audit), ["label", "name_en", "method_code", "precision", "aktywny"])
             if diff:
                 log_event(
                     EVENT_PARAMETR_UPDATED,
