@@ -722,6 +722,7 @@ function _rejRtHtml(text) {
 function rejLoadParams() {
   fetch('/api/parametry/list').then(function(r) { return r.json(); }).then(function(data) {
     _rejParams = Array.isArray(data) ? data : [];
+    _rejUsageCache = {};  // clear cache after fresh load
     rejRenderPills();
     rejRenderList();
   });
@@ -1172,8 +1173,65 @@ function rejSaveCurrentToState() {
   });
 }
 
-// Stub — Task B6 implements full banner logic
-function rejRefreshBanner() { /* B6 */ }
+var _rejUsageCache = {};  // param_id → usage-impact response
+
+function _rejFetchUsage(paramId) {
+  if (_rejUsageCache[paramId]) return Promise.resolve(_rejUsageCache[paramId]);
+  return fetch('/api/parametry/' + paramId + '/usage-impact')
+    .then(function(r) { return r.json(); })
+    .then(function(j) {
+      if (j && typeof j.cert_products_count === 'number') _rejUsageCache[paramId] = j;
+      return j;
+    });
+}
+
+function _rejHideBanner() {
+  var banner = document.getElementById('pe-rej-banner');
+  if (banner) banner.classList.add('hidden');
+}
+
+function rejRefreshBanner() {
+  if (_rejSelectedId == null) { _rejHideBanner(); return; }
+  var p = _rejParams.find(function(x) { return x.id === _rejSelectedId; });
+  if (!p || !_rejOriginalParam) { _rejHideBanner(); return; }
+
+  var detail = document.getElementById('pe-rej-detail');
+  if (!detail) return;
+
+  // Read current input values; compare to snapshot
+  function _val(key) {
+    var el = detail.querySelector('[data-rej="' + key + '"]');
+    return el ? el.value : '';
+  }
+  var labelChanged = _val('label') !== (_rejOriginalParam.label || '');
+  var enChanged = _val('name_en') !== (_rejOriginalParam.name_en || '');
+  var methodChanged = _val('method_code') !== (_rejOriginalParam.method_code || '');
+  var precChanged = _val('precision') !== String(_rejOriginalParam.precision != null ? _rejOriginalParam.precision : '');
+
+  if (!labelChanged && !enChanged && !methodChanged && !precChanged) {
+    _rejHideBanner();
+    return;
+  }
+
+  _rejFetchUsage(p.id).then(function(impact) {
+    var banner = document.getElementById('pe-rej-banner');
+    if (!banner) return;
+    var certN = (impact && impact.cert_products_count) || 0;
+    var mbrN = (impact && impact.mbr_products_count) || 0;
+    var lines = ['⚠ Edytujesz <strong>rejestr globalny</strong> (zmiana wpłynie na inne produkty).'];
+    lines.push('Świadectwa: <strong>' + certN + ' produkt(ów)</strong>.');
+    if (labelChanged) {
+      lines.push('Również widoczne w: laboratorium, MBR, kalkulator (' + mbrN + ' produkt(ów) z parametrem w MBR).');
+    }
+    if (precChanged) {
+      lines.push('MBR: <strong>' + mbrN + ' produkt(ów)</strong> (precyzja propaguje się przez COALESCE w parametry_etapy).');
+    }
+    banner.innerHTML = lines.join(' ');
+    banner.classList.remove('hidden');
+  }).catch(function() {
+    _rejHideBanner();
+  });
+}
 
 // ═══ TAB SWITCHING ═══
 
