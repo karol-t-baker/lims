@@ -1222,8 +1222,8 @@ function onGlobalFieldChange(input) {
     if (typeof onVarParamFieldChange === 'function') onVarParamFieldChange();
   } else {
     if (_selectedParamIdx != null) _markParamDirty(_selectedParamIdx);
-    if (typeof refreshUsageBanner === 'function') refreshUsageBanner();
   }
+  if (typeof refreshUsageBanner === 'function') refreshUsageBanner();
 }
 
 function onOverrideFieldChange(input) {
@@ -1379,33 +1379,55 @@ function _fetchUsageImpact(parametr_id) {
 }
 
 function refreshUsageBanner() {
-  var banner = document.getElementById('wc-md-banner');
+  // Base params panel
+  _refreshBannerFor({
+    bannerEl: document.getElementById('wc-md-banner'),
+    detailEl: document.getElementById('wc-md-detail'),
+    selectedIdx: _selectedParamIdx,
+    items: (_currentProduct && _currentProduct.parameters) || [],
+    originals: _originalParams,
+    origIdxOf: function(p) { return p ? p._origIdx : null; },
+  });
+  // Variant params panel
+  _refreshBannerFor({
+    bannerEl: document.getElementById('wc-var-md-banner'),
+    detailEl: document.getElementById('wc-var-md-detail'),
+    selectedIdx: _selectedVarParamIdx,
+    items: _variantAddParams(),
+    originals: null,  // variants have no _originalParams snapshot — see comment below
+    origIdxOf: function(p) { return null; },
+  });
+}
+
+function _refreshBannerFor(ctx) {
+  var banner = ctx.bannerEl;
   if (!banner) return;
-  if (_selectedParamIdx == null) { banner.classList.add('hidden'); return; }
-  var p = _currentProduct.parameters[_selectedParamIdx];
+  if (ctx.selectedIdx == null) { banner.classList.add('hidden'); return; }
+  var p = ctx.items[ctx.selectedIdx];
   if (!p || !p.parametr_id) { banner.classList.add('hidden'); return; }
+  if (!ctx.detailEl) { banner.classList.add('hidden'); return; }
 
-  // Detect which global fields differ from the loaded original.
-  // _originalParams (per Task B6) holds the snapshot from server load.
-  // Until B6 wires it, we fall back to the current state itself — banner won't fire.
-  var orig = (typeof _originalParams !== 'undefined' && _originalParams && _originalParams[p._origIdx]) || null;
+  // Compare current input value to the loaded baseline. For base params,
+  // baseline comes from _originalParams[origIdx]. For variant params we
+  // don't have a per-row snapshot — fall back to the in-memory value
+  // (which is unchanged until user edits).
+  var origIdx = ctx.origIdxOf(p);
+  var orig = (ctx.originals && origIdx != null) ? ctx.originals[origIdx] : null;
 
-  var detail = document.getElementById('wc-md-detail');
-  if (!detail) return;
-  var labelInp = detail.querySelector('[data-md="name_pl_global"]');
-  var enInp = detail.querySelector('[data-md="name_en_global"]');
-  var methodInp = detail.querySelector('[data-md="method_global"]');
-
+  var labelInp  = ctx.detailEl.querySelector('[data-md="name_pl_global"]');
+  var enInp     = ctx.detailEl.querySelector('[data-md="name_en_global"]');
+  var methodInp = ctx.detailEl.querySelector('[data-md="method_global"]');
   var labelChanged = false, enChanged = false, methodChanged = false;
   if (orig) {
-    if (labelInp && labelInp.value !== (orig.name_pl_global || '')) labelChanged = true;
-    if (enInp && enInp.value !== (orig.name_en_global || '')) enChanged = true;
-    if (methodInp && methodInp.value !== (orig.method_global || '')) methodChanged = true;
+    if (labelInp  && labelInp.value  !== (orig.name_pl_global || ''))  labelChanged = true;
+    if (enInp     && enInp.value     !== (orig.name_en_global || '')) enChanged = true;
+    if (methodInp && methodInp.value !== (orig.method_global  || '')) methodChanged = true;
   } else {
-    // No baseline — fall back to comparing against current p.* (same value, never fires)
-    if (labelInp && labelInp.value !== (p.name_pl_global || '')) labelChanged = true;
-    if (enInp && enInp.value !== (p.name_en_global || '')) enChanged = true;
-    if (methodInp && methodInp.value !== (p.method_global || '')) methodChanged = true;
+    // Compare against the current p (no baseline) — fires only if user has
+    // typed and the input value diverges from the stored model.
+    if (labelInp  && labelInp.value  !== (p.name_pl_global || ''))  labelChanged = true;
+    if (enInp     && enInp.value     !== (p.name_en_global || '')) enChanged = true;
+    if (methodInp && methodInp.value !== (p.method_global  || '')) methodChanged = true;
   }
 
   if (!labelChanged && !enChanged && !methodChanged) {
@@ -1416,17 +1438,14 @@ function refreshUsageBanner() {
   _fetchUsageImpact(p.parametr_id).then(function(impact) {
     var certN = (impact && impact.cert_products_count) || 0;
     var mbrN = (impact && impact.mbr_products_count) || 0;
-    var lines = [];
-    lines.push('⚠ Edytujesz wartości w <strong>rejestrze</strong> (zmiana wpłynie na inne produkty).');
-    lines.push('Świadectwa: <strong>' + certN + ' produkt(ów)</strong>.');
+    var lines = ['⚠ Edytujesz wartości w <strong>rejestrze</strong> (zmiana wpłynie na inne produkty).',
+                 'Świadectwa: <strong>' + certN + ' produkt(ów)</strong>.'];
     if (labelChanged) {
-      // label = parametry_analityczne.label visible in laborant UI / MBR / kalkulator
       lines.push('Również widoczne w: laboratorium, MBR, kalkulator (' + mbrN + ' produkt(ów) z parametrem w MBR).');
     }
     banner.innerHTML = lines.join(' ');
     banner.classList.remove('hidden');
   }).catch(function() {
-    // Swallow — never break the editor if the count fetch fails
     banner.classList.add('hidden');
   });
 }
@@ -2013,6 +2032,29 @@ function saveProduct() {
     var msg = 'Błąd: ' + err.message;
     if (status) { status.textContent = msg; status.style.color = 'var(--red)'; }
     flash(msg, false);
+  });
+}
+
+function _serializeVariantsForSave() {
+  // Deep-clone _variantsData and transform add_parameters: project *_override
+  // onto legacy name_pl/name_en/method keys, preserving null vs empty-string.
+  // The cert config PUT reads the legacy keys; the in-memory model is the
+  // *_override fields (master-detail editor). Without this transform, variant
+  // override edits are silently dropped on save.
+  return (_variantsData || []).map(function(v) {
+    var clone = JSON.parse(JSON.stringify(v));
+    var overrides = clone.overrides = clone.overrides || {};
+    var aps = overrides.add_parameters = overrides.add_parameters || [];
+    overrides.add_parameters = aps.map(function(ap) {
+      var out = {};
+      // Copy all fields, then override the legacy ones with override values
+      Object.keys(ap).forEach(function(k) { out[k] = ap[k]; });
+      out.name_pl = ap.name_pl_override == null ? null : ap.name_pl_override;
+      out.name_en = ap.name_en_override == null ? null : ap.name_en_override;
+      out.method  = ap.method_override  == null ? null : ap.method_override;
+      return out;
+    });
+    return clone;
   });
 }
 
