@@ -485,6 +485,48 @@
   </div>
   {% endif %}
 </div>
+
+<!-- ═══ Add Parameter Modal (Rejestr) ═══ -->
+<div id="pe-rej-add-modal" style="position:fixed;inset:0;z-index:600;background:rgba(15,12,8,0.45);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;" onclick="if(event.target===this)rejCloseAddModal()">
+  <div style="background:var(--surface);border-radius:8px;width:90vw;max-width:480px;box-shadow:0 8px 32px rgba(0,0,0,.2);">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);">
+      <span style="font-weight:700;">Dodaj nowy parametr do rejestru</span>
+      <button onclick="rejCloseAddModal()" style="background:none;border:none;font-size:20px;color:var(--text-dim);cursor:pointer;">×</button>
+    </div>
+    <div style="padding:18px 22px;">
+      <div style="margin-bottom:14px;">
+        <label style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px;">Kod *</label>
+        <input id="pe-rej-add-kod" type="text" placeholder="np. nD20, gestosc, lk" style="width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:var(--mono);font-size:12px;box-sizing:border-box;">
+        <div style="font-size:10px;color:var(--text-dim);margin-top:3px;">Litery a-z, A-Z, cyfry, podkreślnik. Read-only po utworzeniu.</div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px;">Label PL *</label>
+        <input id="pe-rej-add-label" type="text" placeholder="np. Współczynnik załamania" style="width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:'Times New Roman',serif;font-size:12px;box-sizing:border-box;">
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px;">Typ *</label>
+        <select id="pe-rej-add-typ" style="width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;box-sizing:border-box;">
+          <option value="bezposredni">bezpośredni</option>
+          <option value="titracja">titracja</option>
+          <option value="obliczeniowy">obliczeniowy</option>
+          <option value="jakosciowy">jakościowy (opisowy)</option>
+          <option value="srednia">średnia (z 2 pomiarów)</option>
+        </select>
+      </div>
+      <div style="margin-bottom:14px;">
+        <label style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px;">Grupa</label>
+        <select id="pe-rej-add-grupa" style="width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;box-sizing:border-box;">
+          <option value="lab" selected>lab (wewnętrzny)</option>
+          <option value="zewn">zewn (lab. zewn.)</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;">
+        <button onclick="rejCloseAddModal()" style="background:transparent;border:1.5px solid var(--border);padding:7px 14px;border-radius:5px;cursor:pointer;font-size:12px;">Anuluj</button>
+        <button onclick="rejConfirmAdd()" style="background:var(--teal);color:#fff;border:none;padding:7px 14px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;">Utwórz</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -1199,8 +1241,53 @@ function rejSaveAll() {
 function rejDeactivate() { alert('B10 — Deactivate'); }
 function rejReactivate() { alert('B10 — Reactivate'); }
 
-// Stub — Task B9 will implement
-function rejOpenAddModal() { alert('B9 — Add Parameter modal'); }
+function rejOpenAddModal() {
+  document.getElementById('pe-rej-add-kod').value = '';
+  document.getElementById('pe-rej-add-label').value = '';
+  document.getElementById('pe-rej-add-typ').value = 'bezposredni';
+  document.getElementById('pe-rej-add-grupa').value = 'lab';
+  document.getElementById('pe-rej-add-modal').style.display = 'flex';
+  setTimeout(function() { document.getElementById('pe-rej-add-kod').focus(); }, 60);
+}
+
+function rejCloseAddModal() {
+  document.getElementById('pe-rej-add-modal').style.display = 'none';
+}
+
+function rejConfirmAdd() {
+  var kod = (document.getElementById('pe-rej-add-kod').value || '').trim();
+  var label = (document.getElementById('pe-rej-add-label').value || '').trim();
+  var typ = document.getElementById('pe-rej-add-typ').value;
+  var grupa = document.getElementById('pe-rej-add-grupa').value;
+
+  if (!kod) { alert('Kod jest wymagany'); return; }
+  if (!/^[a-zA-Z0-9_]+$/.test(kod)) { alert('Kod może zawierać tylko litery, cyfry i podkreślnik.'); return; }
+  if (kod.length > 30) { alert('Kod max 30 znaków.'); return; }
+  if (!label) { alert('Label PL jest wymagany'); return; }
+  if (label.length > 200) { alert('Label max 200 znaków.'); return; }
+
+  // jakosciowy needs at least one opisowe_wartosci — server requires non-empty list.
+  // Send a placeholder; admin fills real values in detail panel after creation.
+  var body = { kod: kod, label: label, typ: typ, grupa: grupa };
+  if (typ === 'jakosciowy') body.opisowe_wartosci = ['(uzupełnij)'];
+
+  fetch('/api/parametry', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body),
+  }).then(function(r) {
+    return r.json().then(function(d) { return { status: r.status, data: d }; });
+  }).then(function(res) {
+    if (res.status === 200 && res.data.ok) {
+      rejCloseAddModal();
+      rejLoadParams();
+      // After list reload, select the new param
+      setTimeout(function() { rejSelect(res.data.id); }, 200);
+    } else {
+      alert('Błąd: ' + (res.data.error || 'nie udało się utworzyć'));
+    }
+  });
+}
 
 // B5 — capture detail-panel inputs into in-memory _rejParams entry
 function rejSaveCurrentToState() {
