@@ -966,11 +966,93 @@ function renderEditor() {
   document.getElementById('ed-exp').value = (m && m.expiry_months) || p.expiry_months || 12;
   document.getElementById('ed-opl').value = (m && m.opinion_pl) || p.opinion_pl || '';
   document.getElementById('ed-oen').value = (m && m.opinion_en) || p.opinion_en || '';
-  // Old tabular renderer - will be replaced in Task B2 with renderParamList()
-  if (document.getElementById('wc-params-body')) {
-    renderParamsTable(p.parameters || []);
-  }
+  // New master-detail rendering (Task B2+)
+  _currentProduct.parameters = p.parameters || [];
+  _selectedParamIdx = null;
+  _paramDirty = {};
+  _paramFilter = '';
+  var filterInput = document.getElementById('wc-md-filter');
+  if (filterInput) filterInput.value = '';
+  renderParamList();
+  renderParamDetail();
   renderVariants(p.variants || []);
+}
+
+/* ═══ Master-detail state (Task B2) ═══ */
+var _selectedParamIdx = null;
+var _paramFilter = '';
+var _paramDirty = {};  // idx → bool
+
+function _markParamDirty(idx) {
+  _paramDirty[idx] = true;
+  renderParamList();
+  _setDirty(true);
+}
+
+function renderParamList() {
+  var params = (_currentProduct && _currentProduct.parameters) || [];
+  var body = document.getElementById('wc-md-list-body');
+  if (!body) return;
+  var filter = _paramFilter.toLowerCase();
+  var html = '';
+  params.forEach(function(p, i) {
+    var name = p.name_pl_override || p.name_pl_global || p.name_pl || '';
+    var kod = p.kod || p.data_field || '';
+    if (filter) {
+      var hay = (name + ' ' + kod).toLowerCase();
+      if (hay.indexOf(filter) === -1) return;
+    }
+    var activeCls = (i === _selectedParamIdx) ? ' active' : '';
+    var dirtyCls = (_paramDirty[i]) ? ' dirty' : '';
+    html += '<div class="wc-md-item' + activeCls + dirtyCls + '" data-idx="' + i + '" onclick="selectParam(' + i + ')" draggable="true">' +
+      '<span class="wc-md-drag" onmousedown="event.stopPropagation()">&#10303;</span>' +
+      '<span class="wc-md-item-name">' + _rtHtml(name) + '</span>' +
+      '<span class="wc-md-item-bind">' + _esc(kod) + '</span>' +
+    '</div>';
+  });
+  if (!html) {
+    html = '<div style="padding:14px;color:var(--text-dim);font-size:11px;text-align:center;">' +
+      (filter ? 'Brak wyników filtra.' : 'Brak parametrów. Kliknij + Dodaj parametr.') + '</div>';
+  }
+  body.innerHTML = html;
+  initParamListDragAndDrop();
+}
+
+function filterParamList(value) {
+  _paramFilter = value || '';
+  renderParamList();
+}
+
+function selectParam(idx) {
+  // Persist current edits in detail panel before switching (B3 will implement saveCurrentParamToState)
+  if (typeof saveCurrentParamToState === 'function' && _selectedParamIdx !== null) {
+    saveCurrentParamToState();
+  }
+  _selectedParamIdx = idx;
+  renderParamList();
+  renderParamDetail();
+}
+
+// Stub — real implementation in Task B3
+function renderParamDetail() {
+  var detail = document.getElementById('wc-md-detail');
+  if (!detail) return;
+  if (_selectedParamIdx == null) {
+    detail.innerHTML = '<div class="wc-md-detail-empty">Wybierz parametr z listy po lewej</div>';
+    return;
+  }
+  var p = (_currentProduct && _currentProduct.parameters && _currentProduct.parameters[_selectedParamIdx]) || null;
+  if (!p) {
+    detail.innerHTML = '<div class="wc-md-detail-empty">Brak parametru.</div>';
+    return;
+  }
+  // B3 will fill this in. For now, just confirm selection works:
+  detail.innerHTML = '<div class="wc-md-detail-empty">Wybrany: <strong>' + _esc(p.kod || p.data_field || '') + '</strong> — szczegóły w Task B3</div>';
+}
+
+// Stub — real implementation in Task B8
+function initParamListDragAndDrop() {
+  // Task B8 will implement
 }
 
 /* ═══ Parameters Table ═══ */
