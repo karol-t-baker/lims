@@ -373,6 +373,7 @@ def api_cert_config_product_get(key):
             base_kods.add(pid)
             param = {
                 "id": pid,
+                "parametr_id": bp["parametr_id"],
                 "name_pl": bp["name_pl"] or bp["pa_label"] or "",
                 "name_en": name_en,
                 "requirement": bp["requirement"] or "",
@@ -447,6 +448,7 @@ def api_cert_config_product_get(key):
                     ap_name_en = ap["name_en"] if ap["name_en"] is not None else (ap["pa_name_en"] or "")
                     param = {
                         "id": ap["kod"] or f"param_{ap['parametr_id']}",
+                        "parametr_id": ap["parametr_id"],
                         "name_pl": ap["name_pl"] or ap["pa_label"] or "",
                         "name_en": ap_name_en,
                         "requirement": ap["requirement"] or "",
