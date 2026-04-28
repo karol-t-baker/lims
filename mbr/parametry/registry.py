@@ -238,7 +238,7 @@ def get_cert_params(db: sqlite3.Connection, produkt: str) -> list[dict]:
     """
     rows = db.execute("""
         SELECT
-            pa.kod, pa.label, pa.name_en, pa.method_code,
+            pa.kod, pa.label, pa.name_en, pa.method_code, pa.precision AS pa_precision,
             pa.typ, pa.grupa,
             pc.requirement, pc.format, pc.qualitative_result,
             pc.kolejnosc, pc.parametr_id,
@@ -259,16 +259,18 @@ def get_cert_params(db: sqlite3.Connection, produkt: str) -> list[dict]:
             "name_pl_global": r["label"] or "",
             "name_en_global": r["name_en"] or "",
             "method_global": r["method_code"] or "",
+            "format_global": str(r["pa_precision"]) if r["pa_precision"] is not None else "",
             # Per-product overrides (raw — None means "inherit")
             "name_pl_override": r["cert_name_pl"],
             "name_en_override": r["cert_name_en"],
             "method_override": r["cert_method"],
+            "format_override": r["format"],
             # Effective values (legacy — preserved for cert generator backward compat)
             "name_pl": r["cert_name_pl"] or r["label"] or "",
             "name_en": r["cert_name_en"] if r["cert_name_en"] is not None else (r["name_en"] or ""),
             "method": r["cert_method"] or r["method_code"] or "",
             "requirement": r["requirement"] or "",
-            "format": r["format"] or "1",
+            "format": r["format"] or (str(r["pa_precision"]) if r["pa_precision"] is not None else "1"),
             "qualitative_result": r["qualitative_result"],
         }
         for r in rows
@@ -279,7 +281,7 @@ def get_cert_variant_params(db: sqlite3.Connection, cert_variant_db_id: int) -> 
     """Get variant-specific add_parameters from parametry_cert."""
     rows = db.execute("""
         SELECT
-            pa.kod, pa.label, pa.name_en, pa.method_code,
+            pa.kod, pa.label, pa.name_en, pa.method_code, pa.precision AS pa_precision,
             pa.typ, pa.grupa,
             pc.requirement, pc.format, pc.qualitative_result,
             pc.kolejnosc, pc.parametr_id,
@@ -300,16 +302,18 @@ def get_cert_variant_params(db: sqlite3.Connection, cert_variant_db_id: int) -> 
             "name_pl_global": r["label"] or "",
             "name_en_global": r["name_en"] or "",
             "method_global": r["method_code"] or "",
+            "format_global": str(r["pa_precision"]) if r["pa_precision"] is not None else "",
             # Per-product overrides (raw — None means "inherit")
             "name_pl_override": r["cert_name_pl"],
             "name_en_override": r["cert_name_en"],
             "method_override": r["cert_method"],
+            "format_override": r["format"],
             # Effective values (legacy — preserved for cert generator backward compat)
             "name_pl": r["cert_name_pl"] or r["label"] or "",
             "name_en": r["cert_name_en"] if r["cert_name_en"] is not None else (r["name_en"] or ""),
             "method": r["cert_method"] or r["method_code"] or "",
             "requirement": r["requirement"] or "",
-            "format": r["format"] or "1",
+            "format": r["format"] or (str(r["pa_precision"]) if r["pa_precision"] is not None else "1"),
             "qualitative_result": r["qualitative_result"],
         }
         for r in rows

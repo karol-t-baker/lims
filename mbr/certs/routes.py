@@ -355,7 +355,7 @@ def api_cert_config_product_get(key):
             "SELECT pc.parametr_id, pc.kolejnosc, pc.requirement, pc.format, "
             "pc.qualitative_result, pc.name_pl, pc.name_en, pc.method, "
             "pa.kod, pa.label AS pa_label, pa.name_en AS pa_name_en, "
-            "pa.method_code AS pa_method_code "
+            "pa.method_code AS pa_method_code, pa.precision AS pa_precision "
             "FROM parametry_cert pc "
             "JOIN parametry_analityczne pa ON pa.id = pc.parametr_id "
             "WHERE pc.produkt = ? AND pc.variant_id IS NULL "
@@ -380,15 +380,17 @@ def api_cert_config_product_get(key):
                 "method": bp["method"] or bp["pa_method_code"] or "",
                 "format": bp["format"] or "1",
                 "data_field": bp["kod"] or "",
-                # Dual-field surface for the editor (Cert Editor Redesign A4):
+                # Dual-field surface for the editor (Cert Editor Redesign A4 + A5):
                 # globals always present, overrides preserved raw (None = inherit,
                 # "" = explicit blank). Legacy fields above keep existing consumers working.
                 "name_pl_global": bp["pa_label"] or "",
                 "name_en_global": bp["pa_name_en"] or "",
                 "method_global": bp["pa_method_code"] or "",
+                "format_global": str(bp["pa_precision"]) if bp["pa_precision"] is not None else "",
                 "name_pl_override": bp["name_pl"],
                 "name_en_override": bp["name_en"],
                 "method_override": bp["method"],
+                "format_override": bp["format"],
             }
             if bp["qualitative_result"]:
                 param["qualitative_result"] = bp["qualitative_result"]
@@ -434,7 +436,7 @@ def api_cert_config_product_get(key):
             # Variant-specific add_parameters
             add_params_db = db.execute(
                 "SELECT pc.*, pa.kod, pa.label AS pa_label, pa.name_en AS pa_name_en, "
-                "pa.method_code AS pa_method_code "
+                "pa.method_code AS pa_method_code, pa.precision AS pa_precision "
                 "FROM parametry_cert pc "
                 "JOIN parametry_analityczne pa ON pa.id = pc.parametr_id "
                 "WHERE pc.variant_id = ? "
@@ -455,13 +457,15 @@ def api_cert_config_product_get(key):
                         "method": ap["method"] or ap["pa_method_code"] or "",
                         "format": ap["format"] or "1",
                         "data_field": ap["kod"] or "",
-                        # Dual-field surface for the editor (Cert Editor Redesign A4).
+                        # Dual-field surface for the editor (Cert Editor Redesign A4 + A5).
                         "name_pl_global": ap["pa_label"] or "",
                         "name_en_global": ap["pa_name_en"] or "",
                         "method_global": ap["pa_method_code"] or "",
+                        "format_global": str(ap["pa_precision"]) if ap["pa_precision"] is not None else "",
                         "name_pl_override": ap["name_pl"],
                         "name_en_override": ap["name_en"],
                         "method_override": ap["method"],
+                        "format_override": ap["format"],
                     }
                     if ap["qualitative_result"]:
                         param["qualitative_result"] = ap["qualitative_result"]
