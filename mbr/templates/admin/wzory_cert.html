@@ -1849,8 +1849,8 @@ function saveCurrentVariantParamToState() {
   ap.name_pl_override = _val_or_null('[data-md="name_pl_override"]');
   ap.name_en_override = _val_or_null('[data-md="name_en_override"]');
   ap.method_override = _val_or_null('[data-md="method_override"]');
+  ap.format_override = _val_or_null('[data-md="format_override"]');
   ap.requirement = _val('[data-md="requirement"]');
-  ap.format = _val('[data-md="format"]');
   ap.qualitative_result = _val_or_null('[data-md="qualitative_result"]');
   if (!ap.parametr_id && !ap.id) {
     var df = _val('[data-md="data_field"]');
@@ -1945,9 +1945,9 @@ function renderVariantParamDetail() {
     _dualRow('Nazwa PL', 'name_pl', ap.name_pl_global || '', ap.name_pl_override) +
     _dualRow('Nazwa EN', 'name_en', ap.name_en_global || '', ap.name_en_override) +
     _dualRow('Metoda',  'method',  ap.method_global  || '', ap.method_override) +
+    _dualRowSelect('Precyzja', 'format', ap.format_global || '', ap.format_override) +
     '<div class="wc-md-single-section">' +
       '<div class="wc-md-single-row"><label>Wymaganie</label><div><input data-md="requirement" value="' + _esc(ap.requirement || '') + '" oninput="onVarParamFieldChange()" style="flex:1;"></div></div>' +
-      '<div class="wc-md-single-row"><label>Precyzja</label><div><select data-md="format" onchange="onVarParamFieldChange()" style="width:120px;">' + _fmtOptions(ap.format) + '</select></div></div>' +
       '<div class="wc-md-single-row"><label>Wynik opisowy</label><div>' + _qualResultInputMd(ap) + '</div></div>' +
       '<div class="wc-md-single-row"><label>Powiąż z pomiarem</label><div><select data-md="data_field" onchange="onVarParamFieldChange()" ' + bindingDisabled + ' style="flex:1;max-width:320px;">' + _codeOptions(ap.data_field || ap.kod) + '</select>' + (bindingDisabled ? '<span style="font-size:10px;color:var(--text-dim);margin-left:8px;">read-only po utworzeniu</span>' : '') + '</div></div>' +
     '</div>';
@@ -2229,6 +2229,7 @@ function _serializeVariantsForSave() {
       out.name_pl = ap.name_pl_override == null ? null : ap.name_pl_override;
       out.name_en = ap.name_en_override == null ? null : ap.name_en_override;
       out.method  = ap.method_override  == null ? null : ap.method_override;
+      out.format  = ap.format_override  == null ? null : ap.format_override;
       return out;
     });
     return clone;
