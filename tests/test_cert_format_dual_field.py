@@ -42,7 +42,7 @@ def test_get_cert_params_returns_format_dual_fields(db):
     r0 = rows[0]
     assert r0["format_global"] == "4"  # registry precision as string
     assert r0["format_override"] is None
-    assert r0["format"] == "1"  # legacy effective fallback (current behaviour: NULL → "1")
+    assert r0["format"] == "4"  # legacy effective falls back to registry precision when NULL
 
     r1 = rows[1]
     assert r1["format_global"] == "2"
@@ -81,3 +81,4 @@ def test_get_cert_params_format_global_empty_when_precision_null(db):
     rows = get_cert_params(db, "TEST")
     assert rows[0]["format_global"] == ""
     assert rows[0]["format_override"] is None
+    assert rows[0]["format"] == "1"  # both override and registry NULL → final fallback "1"

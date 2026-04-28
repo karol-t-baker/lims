@@ -270,7 +270,7 @@ def get_cert_params(db: sqlite3.Connection, produkt: str) -> list[dict]:
             "name_en": r["cert_name_en"] if r["cert_name_en"] is not None else (r["name_en"] or ""),
             "method": r["cert_method"] or r["method_code"] or "",
             "requirement": r["requirement"] or "",
-            "format": r["format"] or "1",
+            "format": r["format"] or (str(r["pa_precision"]) if r["pa_precision"] is not None else "1"),
             "qualitative_result": r["qualitative_result"],
         }
         for r in rows
@@ -313,7 +313,7 @@ def get_cert_variant_params(db: sqlite3.Connection, cert_variant_db_id: int) -> 
             "name_en": r["cert_name_en"] if r["cert_name_en"] is not None else (r["name_en"] or ""),
             "method": r["cert_method"] or r["method_code"] or "",
             "requirement": r["requirement"] or "",
-            "format": r["format"] or "1",
+            "format": r["format"] or (str(r["pa_precision"]) if r["pa_precision"] is not None else "1"),
             "qualitative_result": r["qualitative_result"],
         }
         for r in rows
