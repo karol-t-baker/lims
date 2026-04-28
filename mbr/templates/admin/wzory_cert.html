@@ -1809,15 +1809,17 @@ function _buildCertConfigPayload() {
     opinion_pl: document.getElementById('ed-opl').value,
     opinion_en: document.getElementById('ed-oen').value,
     parameters: products.map(function(p, i) {
-      // Server-side schema: send overrides as name_pl/name_en/method (NOT *_global).
-      // Empty string → backend will store NULL per existing semantics.
+      // Send override fields RAW — preserve null-vs-empty distinction.
+      // null → SQL NULL on server (= dziedzicz z rejestru).
+      // "" → stored as empty (only meaningful for name_en where cert
+      // generator's `is not None` fallback honours empty as explicit blank).
       return {
         id: p.id || p.kod || p.data_field || '',
         data_field: p.data_field || p.kod || '',
         kolejnosc: i,
-        name_pl: p.name_pl_override || '',
-        name_en: p.name_en_override || '',
-        method: p.method_override || '',
+        name_pl: p.name_pl_override == null ? null : p.name_pl_override,
+        name_en: p.name_en_override == null ? null : p.name_en_override,
+        method: p.method_override == null ? null : p.method_override,
         requirement: p.requirement || '',
         format: p.format || '',
         qualitative_result: p.qualitative_result || null,
