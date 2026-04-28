@@ -545,6 +545,7 @@ def build_preview_context(product_json: dict, variant_id: str) -> dict:
         else:
             _ne = param.get("name_en_global") or ""
         method_eff = param.get("method") or param.get("method_global") or ""
+        format_eff = param.get("format") or param.get("format_global") or "1"
         rows.append({
             "name_pl": _md_to_richtext(name_pl_eff, font=_settings["body_font_family"]),
             "name_en": _md_to_richtext(f"/{_ne}", font=_settings["body_font_family"]) if _ne else None,

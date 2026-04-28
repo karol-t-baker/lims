@@ -786,10 +786,20 @@ function _codeOptions(current) {
 }
 
 function _fmtOptions(current) {
-  var opts = [{v:'',l:'—'},{v:'0',l:'0'},{v:'1',l:'1'},{v:'2',l:'2'},{v:'3',l:'3'},{v:'4',l:'4'}];
+  var opts = [
+    {v: '',  l: '—'},
+    {v: '0', l: '0 (123)'},
+    {v: '1', l: '1 (123,4)'},
+    {v: '2', l: '2 (123,45)'},
+    {v: '3', l: '3 (123,456)'},
+    {v: '4', l: '4 (123,4567)'},
+    {v: '5', l: '5 (123,45678)'},
+    {v: '6', l: '6 (123,456789)'},
+  ];
   var html = '';
+  var cur = String(current == null ? '' : current);
   opts.forEach(function(o) {
-    html += '<option value="' + o.v + '"' + (String(current||'') === o.v ? ' selected' : '') + '>' + o.l + '</option>';
+    html += '<option value="' + o.v + '"' + (cur === o.v ? ' selected' : '') + '>' + o.l + '</option>';
   });
   return html;
 }
@@ -1284,15 +1294,12 @@ function renderParamDetail() {
     _dualRow('Nazwa PL', 'name_pl', p.name_pl_global || '', p.name_pl_override) +
     _dualRow('Nazwa EN', 'name_en', p.name_en_global || '', p.name_en_override) +
     _dualRow('Metoda',  'method',  p.method_global  || '', p.method_override) +
+    _dualRowSelect('Precyzja', 'format', p.format_global || '', p.format_override) +
 
     '<div class="wc-md-single-section">' +
       '<div class="wc-md-single-row">' +
         '<label>Wymaganie</label>' +
         '<div><input data-md="requirement" value="' + _esc(p.requirement || '') + '" oninput="onParamFieldChange()" style="flex:1;"></div>' +
-      '</div>' +
-      '<div class="wc-md-single-row">' +
-        '<label>Precyzja</label>' +
-        '<div><select data-md="format" onchange="onParamFieldChange()" style="width:120px;">' + _fmtOptions(p.format) + '</select></div>' +
       '</div>' +
       '<div class="wc-md-single-row">' +
         '<label>Wynik opisowy</label>' +
@@ -1332,6 +1339,24 @@ function _dualRow(label, fieldKey, globalVal, overrideVal) {
       '</label>' +
       '<input data-md="' + fieldKey + '_override" value="' + _esc(overrideVal == null ? '' : overrideVal) + '" placeholder="puste = jak globalne →" oninput="onOverrideFieldChange(this)">' +
       '<div class="wc-md-rt-prev" data-prev-for="' + fieldKey + '_override">' + _rtHtml(overrideVal || '') + '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+function _dualRowSelect(label, fieldKey, globalVal, overrideVal) {
+  var hasOverride = overrideVal !== null && overrideVal !== undefined && overrideVal !== '';
+  return '<div class="wc-md-dual-row">' +
+    '<div class="wc-md-dual-cell">' +
+      '<label>' + _esc(label) + '</label>' +
+      '<select data-md="' + fieldKey + '_global" disabled style="opacity:.7;cursor:not-allowed;">' + _fmtOptions(globalVal) + '</select>' +
+      '<div style="font-size:9px;color:var(--text-dim);padding:0 9px;">Z rejestru — edytuj w /admin/parametry</div>' +
+    '</div>' +
+    '<div class="wc-md-dual-cell">' +
+      '<label>' + _esc(label) + ' (override) ' +
+        '<button type="button" class="wc-md-reset' + (hasOverride ? '' : ' hidden') + '" data-reset-for="' + fieldKey + '_override" onclick="resetOverride(\'' + fieldKey + '_override\')" title="Reset do globalnego (rejestru)" aria-label="Reset"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></button>' +
+      '</label>' +
+      '<select data-md="' + fieldKey + '_override" onchange="onOverrideFieldChange(this)">' + _fmtOptions(overrideVal == null ? '' : overrideVal) + '</select>' +
+      '<div style="font-size:10px;color:var(--text-dim);padding:0 9px;">' + (hasOverride ? 'Override aktywny — kliknij ⤺ aby reset.' : 'Puste = dziedzicz precyzję z rejestru.') + '</div>' +
     '</div>' +
   '</div>';
 }
@@ -1428,8 +1453,8 @@ function saveCurrentParamToState() {
   p.name_pl_override = _val_or_null('[data-md="name_pl_override"]');
   p.name_en_override = _val_or_null('[data-md="name_en_override"]');
   p.method_override = _val_or_null('[data-md="method_override"]');
+  p.format_override = _val_or_null('[data-md="format_override"]');
   p.requirement = _val('[data-md="requirement"]');
-  p.format = _val('[data-md="format"]');
   p.qualitative_result = _val_or_null('[data-md="qualitative_result"]');
   // Binding (data_field) stays read-only post-creation; for new rows it's editable
   if (!p.parametr_id && !p.id) {
@@ -2233,11 +2258,12 @@ function _buildCertConfigPayload() {
         name_pl: p.name_pl_override == null ? null : p.name_pl_override,
         name_en: p.name_en_override == null ? null : p.name_en_override,
         method: p.method_override == null ? null : p.method_override,
+        format: p.format_override == null ? null : p.format_override,
         name_pl_global: p.name_pl_global || '',
         name_en_global: p.name_en_global || '',
         method_global: p.method_global || '',
+        format_global: p.format_global || '',
         requirement: p.requirement || '',
-        format: p.format || '',
         qualitative_result: p.qualitative_result || null,
       };
     }),
