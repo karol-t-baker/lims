@@ -1774,32 +1774,113 @@ function _validateBeforeSave(state) {
   return { ok: errors.length === 0, errors: errors };
 }
 
-/* ═══ Save ═══ */
+/* ═══ Save (Task B6 — split flow) ═══ */
 function saveProduct() {
-  var state = collectEditorState();
-  var preflight = _validateBeforeSave(state);
-  if (!preflight.ok) {
-    flash('Nie można zapisać: ' + preflight.errors.map(function(e) { return e.msg; }).join('; '), false);
-    return;
-  }
-  var st = document.getElementById('wc-save-status');
-  st.textContent = 'Zapisywanie...'; st.style.color = 'var(--text-dim)';
+  if (!_currentKey) return;
+  // Persist current detail-panel edits before save
+  if (typeof saveCurrentParamToState === 'function') saveCurrentParamToState();
+  if (typeof saveCurrentVariantToData === 'function') saveCurrentVariantToData();
 
-  fetch('/api/cert/config/product/' + encodeURIComponent(_currentKey), {
-    method: 'PUT', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(state)
-  }).then(function(r) { return r.json(); }).then(function(res) {
-    if (res && res.ok) {
-      flash('Zapisano pomyślnie', true);
-      st.textContent = 'Zapisano'; st.style.color = 'var(--green)';
-      _currentProduct = Object.assign(_currentProduct || {}, state);
-      _setDirty(false);
-      updatePreviewVariantSelect();
-    } else {
-      flash('Błąd zapisu: ' + ((res && res.error) || ''), false);
-      st.textContent = 'Błąd'; st.style.color = 'var(--red)';
+  var products = (_currentProduct && _currentProduct.parameters) || [];
+
+  // Build registry-level diff: which params changed *_global vs the loaded snapshot.
+  // _originalParams is the deep copy at load time (per Task B5 wiring in editProduct).
+  var registryUpdates = [];
+  products.forEach(function(p) {
+    if (!p.parametr_id) return;  // new unsaved row — registry not edited via cert UI
+    var origIdx = p._origIdx;
+    var orig = (origIdx != null) ? _originalParams[origIdx] : null;
+    if (!orig) return;
+    var diff = {};
+    if (p.name_pl_global !== orig.name_pl_global) diff.label = p.name_pl_global || '';
+    if (p.name_en_global !== orig.name_en_global) diff.name_en = p.name_en_global || '';
+    if (p.method_global !== orig.method_global) diff.method_code = p.method_global || '';
+    if (Object.keys(diff).length) {
+      registryUpdates.push({ parametr_id: p.parametr_id, diff: diff });
     }
-  }).catch(function(e) { flash('Błąd sieci: ' + e.message, false); st.textContent = 'Błąd'; st.style.color = 'var(--red)'; });
+  });
+
+  var status = document.getElementById('wc-save-status');
+  if (status) { status.textContent = 'Zapisuję...'; status.style.color = 'var(--text-dim)'; }
+
+  // Step 1: parallel registry PUTs
+  var registryPromise = registryUpdates.length === 0
+    ? Promise.resolve([])
+    : Promise.all(registryUpdates.map(function(u) {
+        return fetch('/api/parametry/' + u.parametr_id, {
+          method: 'PUT',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(u.diff),
+        }).then(function(r) {
+          if (!r.ok) {
+            return r.json().then(function(e) {
+              throw new Error('Registry PUT for parametr_id=' + u.parametr_id + ' failed: ' + (e.error || r.status));
+            }).catch(function() {
+              throw new Error('Registry PUT for parametr_id=' + u.parametr_id + ' failed: ' + r.status);
+            });
+          }
+          return r.json();
+        });
+      }));
+
+  registryPromise.then(function() {
+    // Step 2: cert config PUT (existing schema)
+    var payload = _buildCertConfigPayload();
+    return fetch('/api/cert/config/product/' + encodeURIComponent(_currentKey), {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    }).then(function(r) { return r.json().then(function(d) { return { status: r.status, data: d }; }); });
+  }).then(function(res) {
+    if (res.data.ok) {
+      var perProductCount = ((_currentProduct && _currentProduct.parameters) || []).length;
+      var msg = 'Zapisano: ' + registryUpdates.length + ' globalnych, ' +
+                perProductCount + ' parametrów cert.';
+      if (status) { status.textContent = msg; status.style.color = 'var(--green)'; }
+      flash(msg, true);
+      _setDirty(false);
+      _paramDirty = {};
+      _usageImpactCache = {};
+      // Reload to refresh state with persisted values
+      editProduct(_currentKey);
+    } else {
+      var err = 'Błąd: ' + (res.data.error || 'zapis nie powiódł się');
+      if (status) { status.textContent = err; status.style.color = 'var(--red)'; }
+      flash(err, false);
+    }
+  }).catch(function(err) {
+    var msg = 'Błąd: ' + err.message;
+    if (status) { status.textContent = msg; status.style.color = 'var(--red)'; }
+    flash(msg, false);
+  });
+}
+
+function _buildCertConfigPayload() {
+  var products = (_currentProduct && _currentProduct.parameters) || [];
+  return {
+    display_name: document.getElementById('ed-dn').value,
+    spec_number: document.getElementById('ed-spec').value,
+    cas_number: document.getElementById('ed-cas').value,
+    expiry_months: parseInt(document.getElementById('ed-exp').value) || 12,
+    opinion_pl: document.getElementById('ed-opl').value,
+    opinion_en: document.getElementById('ed-oen').value,
+    parameters: products.map(function(p, i) {
+      // Server-side schema: send overrides as name_pl/name_en/method (NOT *_global).
+      // Empty string → backend will store NULL per existing semantics.
+      return {
+        id: p.id || p.kod || p.data_field || '',
+        data_field: p.data_field || p.kod || '',
+        kolejnosc: i,
+        name_pl: p.name_pl_override || '',
+        name_en: p.name_en_override || '',
+        method: p.method_override || '',
+        requirement: p.requirement || '',
+        format: p.format || '',
+        qualitative_result: p.qualitative_result || null,
+      };
+    }),
+    variants: (typeof _serializeVariantsForSave === 'function') ? _serializeVariantsForSave() : (_variantsData || []),
+  };
 }
 
 /* ═══ Preview Modal ═══ */
