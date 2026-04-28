@@ -536,12 +536,20 @@ def build_preview_context(product_json: dict, variant_id: str) -> dict:
             # lets the admin visually size the Wynik column without
             # guessing what real values might look like.
             result = "1,0000"
-        _ne = param.get("name_en", "")
+        # Fall back to globals when override is null (= inherit from registry).
+        # name_en uses `is not None` so an empty-string override stays blank.
+        name_pl_eff = param.get("name_pl") or param.get("name_pl_global") or ""
+        ne_override = param.get("name_en")
+        if ne_override is not None:
+            _ne = ne_override
+        else:
+            _ne = param.get("name_en_global") or ""
+        method_eff = param.get("method") or param.get("method_global") or ""
         rows.append({
-            "name_pl": _md_to_richtext(param.get("name_pl", ""), font=_settings["body_font_family"]),
+            "name_pl": _md_to_richtext(name_pl_eff, font=_settings["body_font_family"]),
             "name_en": _md_to_richtext(f"/{_ne}", font=_settings["body_font_family"]) if _ne else None,
             "requirement": param.get("requirement", ""),
-            "method": param.get("method", ""),
+            "method": method_eff,
             "result": result,
         })
 
