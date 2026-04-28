@@ -663,35 +663,17 @@ function _fmtOptions(current) {
   return html;
 }
 
-function _isAutoValue(val) {
-  if (!val) return true;
-  for (var i = 0; i < _availableCodes.length; i++) {
-    var c = _availableCodes[i];
-    if (val === c.label || val === c.name_en || val === c.method_code) return true;
-  }
-  return false;
-}
-
-function onCodeSelect(sel) {
-  var kod = sel.value;
-  if (!kod) return;
-  var tr = sel.closest('tr');
-  if (!tr) return;
-  var code = _availableCodes.find(function(c) { return c.kod === kod; });
-  if (!code) return;
-  var pl = tr.querySelector('[data-field="name_pl"]');
-  var en = tr.querySelector('[data-field="name_en"]');
-  var meth = tr.querySelector('[data-field="method"]');
-  var fmt = tr.querySelector('[data-field="format"]');
-  if (pl && _isAutoValue(pl.value)) pl.value = code.label || '';
-  if (en && _isAutoValue(en.value)) { en.value = code.name_en || ''; autoId(en); }
-  if (meth && _isAutoValue(meth.value)) meth.value = code.method_code || '';
-  if (fmt && (!fmt.value || _isAutoValue(fmt.value)) && code.precision != null) fmt.value = String(code.precision);
-  if (pl) updateRtPreview(pl);
-  if (en) updateRtPreview(en);
-}
-
 function onCodeSelectAp(sel) {
+  // Detect "auto-filled" values: empty, or matching an existing code's label/name/method.
+  // Only auto-fills are overwritten; manual edits are preserved.
+  function isAuto(val) {
+    if (!val) return true;
+    for (var i = 0; i < _availableCodes.length; i++) {
+      var c = _availableCodes[i];
+      if (val === c.label || val === c.name_en || val === c.method_code) return true;
+    }
+    return false;
+  }
   var kod = sel.value;
   if (!kod) return;
   var row = sel.closest('.wc-vaprow');
@@ -701,9 +683,9 @@ function onCodeSelectAp(sel) {
   var pl = row.querySelector('[data-ap="name_pl"]');
   var en = row.querySelector('[data-ap="name_en"]');
   var meth = row.querySelector('[data-ap="method"]');
-  if (pl && _isAutoValue(pl.value)) pl.value = code.label || '';
-  if (en && _isAutoValue(en.value)) en.value = code.name_en || '';
-  if (meth && _isAutoValue(meth.value)) meth.value = code.method_code || '';
+  if (pl && isAuto(pl.value)) pl.value = code.label || '';
+  if (en && isAuto(en.value)) en.value = code.name_en || '';
+  if (meth && isAuto(meth.value)) meth.value = code.method_code || '';
 }
 
 /* ═══ Tab switching ═══ */
@@ -1543,105 +1525,6 @@ function initParamListDragAndDrop() {
   });
 }
 
-/* ═══ Parameters Table ═══ */
-function renderParamsTable(params) {
-  var html = '';
-  params.forEach(function(p, i) { html += _paramRow(p, i); });
-  document.getElementById('wc-params-body').innerHTML = html;
-  initDragAndDrop();
-}
-
-function _paramRow(p, idx) {
-  // Lock the hidden id against auto-regeneration when an id is already
-  // present (loaded from DB). Without this flag autoId() would silently
-  // rewrite a hand-crafted id the first time the operator retypes a name,
-  // breaking the data_field linkage.
-  var manualFlag = (p.id || '').trim() ? ' data-manual="1"' : '';
-  return '<tr draggable="true" data-idx="' + idx + '">' +
-    '<td><span class="wc-drag">&#10303;</span></td>' +
-    '<td><div class="rt-w"><input data-field="name_pl" value="' + _esc(p.name_pl || '') + '" oninput="autoId(this);updateRtPreview(this)"><div class="rt-prev">' + _rtHtml(p.name_pl || '') + '</div></div>' +
-      '<input data-field="id" type="hidden" value="' + _esc(p.id || '') + '"' + manualFlag + '></td>' +
-    '<td><div class="rt-w"><input data-field="name_en" value="' + _esc(p.name_en || '') + '" oninput="autoId(this);updateRtPreview(this)"><div class="rt-prev">' + _rtHtml(p.name_en || '') + '</div></div></td>' +
-    '<td><input data-field="requirement" value="' + _esc(p.requirement || '') + '"></td>' +
-    '<td><input data-field="method" value="' + _esc(p.method || '') + '"></td>' +
-    '<td><select data-field="data_field" onchange="onCodeSelect(this)">' + _codeOptions(p.data_field) + '</select></td>' +
-    '<td><select data-field="format">' + _fmtOptions(p.format) + '</select></td>' +
-    '<td>' + renderQualResultInput(p) + '</td>' +
-    '<td><button class="wc-del" onclick="removeBaseParam(this)" title="Usuń">&times;</button></td>' +
-  '</tr>';
-}
-
-// Remove a base parameter AND scrub every reference to it from all variants'
-// remove_parameters lists (we cache variant state in _variantsData).
-// add_parameters are independent additions so they're left alone.
-function removeBaseParam(btn) {
-  var row = btn.closest('tr');
-  var idInput = row.querySelector('[data-field="id"]');
-  var pid = idInput ? (idInput.value || '').trim() : '';
-  row.remove();
-  if (!pid) return;
-  saveCurrentVariantToData();
-  if (!Array.isArray(_variantsData)) return;
-  _variantsData.forEach(function(v) {
-    var ov = v.overrides = v.overrides || {};
-    if (Array.isArray(ov.remove_parameters) && ov.remove_parameters.indexOf(pid) !== -1) {
-      ov.remove_parameters = ov.remove_parameters.filter(function(x) { return x !== pid; });
-    }
-  });
-  // Re-render the currently displayed variant so its remove_parameters
-  // checkboxes / chips match the cleaned state.
-  if (typeof _currentVarIdx === 'number' && _variantsData[_currentVarIdx]) {
-    showVariant(_currentVarIdx);
-  }
-  _setDirty(true);
-}
-
-function addParameter() {
-  var tbody = document.getElementById('wc-params-body');
-  var idx = tbody.querySelectorAll('tr').length;
-  var tmp = document.createElement('tbody');
-  tmp.innerHTML = _paramRow({}, idx);
-  var row = tmp.firstChild;
-  tbody.appendChild(row);
-  initDragAndDrop();
-  var np = row.querySelector('[data-field="name_pl"]');
-  if (np) np.focus();
-  _setDirty(true);
-}
-
-function autoId(input) {
-  var tr = input.closest('tr');
-  var idInput = tr.querySelector('[data-field="id"]');
-  if (idInput.dataset.manual === '1') return;
-  var en = (tr.querySelector('[data-field="name_en"]').value || '').trim();
-  var pl = (tr.querySelector('[data-field="name_pl"]').value || '').trim();
-  var val = (en || pl).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-  var allIds = [];
-  document.querySelectorAll('#wc-params-body tr').forEach(function(r) {
-    if (r !== tr) { var v = r.querySelector('[data-field="id"]').value; if (v) allIds.push(v); }
-  });
-  var base = val, n = 2;
-  while (allIds.indexOf(val) !== -1) { val = base + '_' + n; n++; }
-  idInput.value = val;
-}
-
-/* ═══ Drag & Drop ═══ */
-var _dragRow = null;
-function initDragAndDrop() {
-  document.querySelectorAll('#wc-params-body tr').forEach(function(row) {
-    row.addEventListener('dragstart', function(e) { _dragRow = this; this.classList.add('wc-dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain',''); });
-    row.addEventListener('dragover', function(e) {
-      e.preventDefault(); e.dataTransfer.dropEffect = 'move';
-      if (this === _dragRow || !_dragRow) return;
-      var rows = Array.from(document.getElementById('wc-params-body').querySelectorAll('tr'));
-      if (rows.indexOf(_dragRow) < rows.indexOf(this)) this.parentNode.insertBefore(_dragRow, this.nextSibling);
-      else this.parentNode.insertBefore(_dragRow, this);
-    });
-    row.addEventListener('drop', function(e) { e.preventDefault(); });
-    row.addEventListener('dragend', function() { if (_dragRow) _dragRow.classList.remove('wc-dragging'); _dragRow = null; });
-  });
-}
-
 /* ═══ Variants ═══ */
 var _allFlags = [
   {key:'has_rspo', label:'Numer RSPO'},
@@ -1835,121 +1718,6 @@ function saveCurrentVariantToData() {
   else v.overrides = {};
 }
 
-/* ═══ Collect State ═══ */
-function collectEditorState() {
-  var s = {};
-  s.display_name = document.getElementById('ed-dn').value.trim();
-  s.spec_number = document.getElementById('ed-spec').value.trim();
-  s.cas_number = document.getElementById('ed-cas').value.trim();
-  s.expiry_months = parseInt(document.getElementById('ed-exp').value) || 12;
-  s.opinion_pl = document.getElementById('ed-opl').value.trim();
-  s.opinion_en = document.getElementById('ed-oen').value.trim();
-
-  var params = [];
-  document.querySelectorAll('#wc-params-body tr').forEach(function(tr) {
-    var p = {};
-    p.id = (tr.querySelector('[data-field="id"]').value || '').trim();
-    p.name_pl = (tr.querySelector('[data-field="name_pl"]').value || '').trim();
-    p.name_en = (tr.querySelector('[data-field="name_en"]').value || '').trim();
-    p.requirement = (tr.querySelector('[data-field="requirement"]').value || '').trim();
-    p.method = (tr.querySelector('[data-field="method"]').value || '').trim();
-    var df = tr.querySelector('[data-field="data_field"]');
-    p.data_field = df.value || null;
-    p.format = tr.querySelector('[data-field="format"]').value || undefined;
-    var qr = (tr.querySelector('[data-field="qualitative_result"]').value || '').trim();
-    if (qr) p.qualitative_result = qr;
-    if (p.id) params.push(p);
-  });
-  s.parameters = params;
-
-  saveCurrentVariantToData();
-  s.variants = _variantsData.map(function(v) {
-    var copy = JSON.parse(JSON.stringify(v));
-    if (copy.overrides && !Object.keys(copy.overrides).length) delete copy.overrides;
-    return copy;
-  });
-  return s;
-}
-
-/* ═══ Validate ═══ */
-function _validateBeforeSave(state) {
-  /**
-   * Return { ok: bool, errors: [ {msg} ] }.
-   * Collects all errors — doesn't stop at first — so the operator sees
-   * the full picture. UI marks offending rows red via background color.
-   */
-  var errors = [];
-
-  // Clear previous error marks
-  document.querySelectorAll('#wc-params-body tr, #wc-var-params tr').forEach(function(tr) {
-    tr.style.background = '';
-  });
-
-  function markRow(sel) {
-    var el = document.querySelector(sel);
-    if (el) el.style.background = '#fef2f2';
-  }
-
-  // 1. Duplicate parameter ids
-  var seenParamIds = {};
-  (state.parameters || []).forEach(function(p, idx) {
-    if (seenParamIds[p.id]) {
-      errors.push({ msg: 'Duplikat id parametru: ' + p.id });
-      markRow('#wc-params-body tr:nth-child(' + (idx + 1) + ')');
-    }
-    seenParamIds[p.id] = true;
-  });
-
-  // 2. Empty name_pl
-  (state.parameters || []).forEach(function(p, idx) {
-    if (!p.name_pl || !p.name_pl.trim()) {
-      errors.push({ msg: 'Parametr bez nazwy PL (' + (p.id || 'nowy') + ')' });
-      markRow('#wc-params-body tr:nth-child(' + (idx + 1) + ')');
-    }
-  });
-
-  // 3. Param must have either data_field or qualitative_result
-  (state.parameters || []).forEach(function(p, idx) {
-    var hasMeas = p.data_field && p.data_field.trim();
-    var hasQual = p.qualitative_result && p.qualitative_result.trim();
-    if (!hasMeas && !hasQual) {
-      errors.push({ msg: '"' + (p.id || 'nowy') + '" musi mieć pomiar lub stałą wartość' });
-      markRow('#wc-params-body tr:nth-child(' + (idx + 1) + ')');
-    }
-  });
-
-  // 4. Duplicate variant ids
-  var seenVariantIds = {};
-  (state.variants || []).forEach(function(v) {
-    if (seenVariantIds[v.id]) {
-      errors.push({ msg: 'Duplikat id wariantu: ' + v.id });
-    }
-    seenVariantIds[v.id] = true;
-  });
-
-  // 5. Variant missing label
-  (state.variants || []).forEach(function(v) {
-    if (!v.label || !v.label.trim()) {
-      errors.push({ msg: 'Wariant "' + v.id + '" bez nazwy' });
-    }
-  });
-
-  // 6. Duplicate ids inside variant add_parameters
-  (state.variants || []).forEach(function(v) {
-    var ap = (v.overrides || {}).add_parameters || [];
-    var apSeen = {};
-    ap.forEach(function(p) {
-      if (!p.id) return;
-      if (apSeen[p.id]) {
-        errors.push({ msg: 'Wariant "' + v.id + '": duplikat id "' + p.id + '"' });
-      }
-      apSeen[p.id] = true;
-    });
-  });
-
-  return { ok: errors.length === 0, errors: errors };
-}
-
 /* ═══ Save (Task B6 — split flow) ═══ */
 function saveProduct() {
   if (!_currentKey) return;
@@ -2082,7 +1850,10 @@ function closePreview() {
 }
 
 function refreshPreview() {
-  var state = collectEditorState();
+  // Persist current detail-panel edits before previewing (mirrors saveProduct).
+  if (typeof saveCurrentParamToState === 'function') saveCurrentParamToState();
+  if (typeof saveCurrentVariantToData === 'function') saveCurrentVariantToData();
+  var state = _buildCertConfigPayload();
   var vid = document.getElementById('wc-pv-variant').value;
   if (!vid) { flash('Brak wariantu do podglądu', false); return; }
   var ph = document.getElementById('wc-pv-ph');
