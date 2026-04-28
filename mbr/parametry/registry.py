@@ -255,6 +255,15 @@ def get_cert_params(db: sqlite3.Connection, produkt: str) -> list[dict]:
             "parametr_id": r["parametr_id"],
             "typ": r["typ"],
             "grupa": r["grupa"],
+            # Global registry values (always present, may be empty string)
+            "name_pl_global": r["label"] or "",
+            "name_en_global": r["name_en"] or "",
+            "method_global": r["method_code"] or "",
+            # Per-product overrides (raw — None means "inherit")
+            "name_pl_override": r["cert_name_pl"],
+            "name_en_override": r["cert_name_en"],
+            "method_override": r["cert_method"],
+            # Effective values (legacy — preserved for cert generator backward compat)
             "name_pl": r["cert_name_pl"] or r["label"] or "",
             "name_en": r["cert_name_en"] if r["cert_name_en"] is not None else (r["name_en"] or ""),
             "method": r["cert_method"] or r["method_code"] or "",
@@ -287,6 +296,15 @@ def get_cert_variant_params(db: sqlite3.Connection, cert_variant_db_id: int) -> 
             "parametr_id": r["parametr_id"],
             "typ": r["typ"],
             "grupa": r["grupa"],
+            # Global registry values (always present, may be empty string)
+            "name_pl_global": r["label"] or "",
+            "name_en_global": r["name_en"] or "",
+            "method_global": r["method_code"] or "",
+            # Per-product overrides (raw — None means "inherit")
+            "name_pl_override": r["cert_name_pl"],
+            "name_en_override": r["cert_name_en"],
+            "method_override": r["cert_method"],
+            # Effective values (legacy — preserved for cert generator backward compat)
             "name_pl": r["cert_name_pl"] or r["label"] or "",
             "name_en": r["cert_name_en"] if r["cert_name_en"] is not None else (r["name_en"] or ""),
             "method": r["cert_method"] or r["method_code"] or "",
