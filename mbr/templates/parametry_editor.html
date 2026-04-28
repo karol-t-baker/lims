@@ -1141,7 +1141,61 @@ function rejOnTypChange(select) {
   p.typ = select.value;
   _rejRerenderTypConfig();
 }
-function rejSaveAll() { alert('B8 — Save Wszystko'); }
+function rejSaveAll() {
+  if (_rejSelectedId == null) return;
+  rejSaveCurrentToState();  // flush pending input edits
+
+  var p = _rejParams.find(function(x) { return x.id === _rejSelectedId; });
+  if (!p) return;
+
+  var status = document.getElementById('pe-rej-status');
+  if (status) { status.textContent = 'Zapisuję...'; status.style.color = 'var(--text-dim)'; }
+
+  // Build PUT body — all fields from p (PUT /api/parametry/<id> accepts arbitrary subset)
+  var body = {
+    label: p.label || '',
+    name_en: p.name_en || '',
+    skrot: p.skrot || '',
+    typ: p.typ,
+    grupa: p.grupa || 'lab',
+    aktywny: p.aktywny != null ? p.aktywny : 1,
+    method_code: p.method_code || '',
+    jednostka: p.jednostka || '',
+    precision: p.precision != null ? parseInt(p.precision) : null,
+    formula: p.formula || '',
+    metoda_nazwa: p.metoda_nazwa || '',
+    metoda_formula: p.metoda_formula || '',
+    metoda_factor: p.metoda_factor != null ? parseFloat(p.metoda_factor) : null,
+  };
+  // jakosciowy: send opisowe_wartosci as parsed array (server expects list)
+  if (p.typ === 'jakosciowy') {
+    var values = [];
+    try { values = JSON.parse(p.opisowe_wartosci || '[]'); } catch (e) { values = []; }
+    body.opisowe_wartosci = values;
+  }
+
+  fetch('/api/parametry/' + _rejSelectedId, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body),
+  }).then(function(r) {
+    return r.json().then(function(d) { return { status: r.status, data: d }; });
+  }).then(function(res) {
+    if (res.status === 200 && res.data.ok) {
+      if (status) { status.textContent = 'Zapisano: ' + p.kod; status.style.color = 'var(--green, #1a7a3a)'; }
+      _rejDirty = false;
+      _rejUsageCache = {};
+      // Reload list to reflect changes (server may have rebuilt parametry_lab snapshots, etc.)
+      rejLoadParams();
+    } else {
+      var err = res.data.error || 'Błąd zapisu';
+      if (status) { status.textContent = 'Błąd: ' + err; status.style.color = 'var(--red, #b91c1c)'; }
+      alert('Zapis nieudany: ' + err);
+    }
+  }).catch(function(e) {
+    if (status) { status.textContent = 'Błąd: ' + e.message; status.style.color = 'var(--red, #b91c1c)'; }
+  });
+}
 function rejDeactivate() { alert('B10 — Deactivate'); }
 function rejReactivate() { alert('B10 — Reactivate'); }
 
