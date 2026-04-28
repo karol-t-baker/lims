@@ -802,7 +802,6 @@ function rejSelect(id) {
   rejRenderDetail();
 }
 
-// Stub — real implementation in B3
 function rejRenderDetail() {
   var detail = document.getElementById('pe-rej-detail');
   if (!detail) return;
@@ -815,8 +814,121 @@ function rejRenderDetail() {
     detail.innerHTML = '<div class="wc-md-detail-empty">Brak parametru.</div>';
     return;
   }
-  detail.innerHTML = '<div class="wc-md-detail-empty">Wybrany: <strong>' + _rejEsc(p.kod) + '</strong> — szczegóły w Task B3</div>';
+
+  var nameEff = p.label || p.kod;
+  var inactiveBadge = !p.aktywny ? '<span class="wc-md-item-tag-base" style="background:#fef3c7;color:#92400e;border-color:#fde68a;">deakt.</span>' : '';
+
+  detail.innerHTML =
+    '<div class="wc-md-detail-head">' +
+      '<div class="wc-md-detail-title">' + _rejRtHtml(nameEff) + '</div>' +
+      '<span class="wc-md-detail-bind">' + _rejEsc(p.kod) + '</span>' +
+      inactiveBadge +
+      (p.aktywny
+        ? '<button class="wc-md-detail-del" onclick="rejDeactivate()">Deaktywuj</button>'
+        : '<button class="wc-md-detail-del" style="border-color:var(--teal);color:var(--teal);" onclick="rejReactivate()">Reaktywuj</button>'
+      ) +
+    '</div>' +
+
+    '<div class="wc-md-banner hidden" id="pe-rej-banner"></div>' +
+
+    '<div class="wc-md-toolbar" id="pe-rej-toolbar">' +
+      '<span class="wc-md-toolbar-label">Wstaw do focused pola:</span>' +
+      '<button class="wc-md-tbtn" data-tb="sup" onclick="rejTbInsert(\'sup\')" title="^{}">X<sup>²</sup></button>' +
+      '<button class="wc-md-tbtn" data-tb="sub" onclick="rejTbInsert(\'sub\')" title="_{}">X<sub>₂</sub></button>' +
+      '<button class="wc-md-tbtn" data-tb="br" onclick="rejTbInsert(\'br\')" title="|">↲</button>' +
+      '<span class="wc-md-toolbar-sep"></span>' +
+      '<button class="wc-md-tbtn" data-tb="leq" onclick="rejTbInsert(\'leq\')" title="≤">≤</button>' +
+      '<button class="wc-md-tbtn" data-tb="geq" onclick="rejTbInsert(\'geq\')" title="≥">≥</button>' +
+      '<button class="wc-md-tbtn" data-tb="div" onclick="rejTbInsert(\'div\')" title="÷">÷</button>' +
+      '<button class="wc-md-tbtn" data-tb="deg" onclick="rejTbInsert(\'deg\')" title="°">°</button>' +
+    '</div>' +
+
+    '<div class="wc-md-single-section" style="margin-top:0;padding-top:0;border-top:none;">' +
+      '<div style="font-size:9px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Tożsamość</div>' +
+      '<div class="wc-md-single-row"><label>Kod</label><div><input data-rej="kod" value="' + _rejEsc(p.kod) + '" disabled style="font-family:var(--mono);max-width:200px;"><span style="font-size:10px;color:var(--text-dim);margin-left:8px;">read-only po utworzeniu</span></div></div>' +
+      '<div class="wc-md-single-row"><label>Label PL</label><div style="flex:1;flex-direction:column;align-items:stretch;display:flex;gap:3px;">' +
+        '<input data-rej="label" value="' + _rejEsc(p.label || '') + '" oninput="rejOnFieldInput(this)" style="font-family:\'Times New Roman\',serif;">' +
+        '<div class="wc-md-rt-prev" data-rej-prev="label">' + _rejRtHtml(p.label || '') + '</div>' +
+      '</div></div>' +
+      '<div class="wc-md-single-row"><label>Label EN</label><div style="flex:1;flex-direction:column;align-items:stretch;display:flex;gap:3px;">' +
+        '<input data-rej="name_en" value="' + _rejEsc(p.name_en || '') + '" oninput="rejOnFieldInput(this)" style="font-family:\'Times New Roman\',serif;">' +
+        '<div class="wc-md-rt-prev" data-rej-prev="name_en">' + _rejRtHtml(p.name_en || '') + '</div>' +
+      '</div></div>' +
+      '<div class="wc-md-single-row"><label>Skrót</label><div><input data-rej="skrot" value="' + _rejEsc(p.skrot || '') + '" oninput="rejOnFieldInput(this)" style="max-width:160px;"></div></div>' +
+    '</div>' +
+
+    '<div class="wc-md-single-section">' +
+      '<div style="font-size:9px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Klasyfikacja</div>' +
+      '<div class="wc-md-single-row"><label>Typ</label><div><select data-rej="typ" onchange="rejOnTypChange(this)">' + _rejTypOptions(p.typ) + '</select></div></div>' +
+      '<div class="wc-md-single-row"><label>Grupa</label><div><select data-rej="grupa" onchange="rejOnFieldInput(this)"><option value="lab"' + (p.grupa==='lab'?' selected':'') + '>lab (wewn.)</option><option value="zewn"' + (p.grupa==='zewn'?' selected':'') + '>zewn (lab. zewn.)</option></select></div></div>' +
+    '</div>' +
+
+    '<div class="wc-md-single-section">' +
+      '<div style="font-size:9px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Pomiar</div>' +
+      '<div class="wc-md-single-row"><label>Jednostka</label><div><input data-rej="jednostka" value="' + _rejEsc(p.jednostka || '') + '" oninput="rejOnFieldInput(this)" style="max-width:200px;font-family:\'Times New Roman\',serif;"></div></div>' +
+      '<div class="wc-md-single-row"><label>Precyzja</label><div><select data-rej="precision" onchange="rejOnFieldInput(this)">' + _rejPrecisionOptions(p.precision) + '</select></div></div>' +
+      '<div class="wc-md-single-row"><label>Metoda (kod)</label><div><input data-rej="method_code" value="' + _rejEsc(p.method_code || '') + '" oninput="rejOnFieldInput(this)" style="flex:1;"></div></div>' +
+    '</div>' +
+
+    // Konfiguracja typu — Task B4 will fill in dynamically
+    '<div class="wc-md-single-section" id="pe-rej-typ-config">' +
+      '<div style="font-size:9px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Konfiguracja typu</div>' +
+      '<div style="font-size:11px;color:var(--text-dim);">[B4 — dynamic by typ]</div>' +
+    '</div>' +
+
+    // Powiązania — Task B7 will fill in
+    '<div class="wc-md-single-section" id="pe-rej-powiazania">' +
+      '<div style="font-size:9px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Powiązania</div>' +
+      '<div style="font-size:11px;color:var(--text-dim);">[B7 — accordion z listami]</div>' +
+    '</div>' +
+
+    // Save button
+    '<div style="display:flex;gap:12px;align-items:center;margin-top:18px;padding-top:14px;border-top:1.5px solid var(--border);">' +
+      '<button class="wc-btn wc-btn-p" onclick="rejSaveAll()" style="background:var(--teal);color:#fff;border:none;padding:8px 18px;border-radius:6px;font-weight:700;cursor:pointer;">Zapisz wszystko</button>' +
+      '<span id="pe-rej-status" style="font-size:11px;color:var(--text-dim);"></span>' +
+    '</div>';
+
+  // Wire focus tracking on text inputs (toolbar target — B5)
+  detail.querySelectorAll('input[data-rej]').forEach(function(inp) {
+    inp.addEventListener('focus', function() { _rejFocusedInput = inp; rejUpdateToolbarState(); });
+  });
+  detail.querySelectorAll('.wc-md-tbtn').forEach(function(btn) {
+    btn.addEventListener('mousedown', function(e) { e.preventDefault(); });
+  });
+  rejUpdateToolbarState();
 }
+
+function _rejTypOptions(current) {
+  return _REJ_TYPS.map(function(t) {
+    return '<option value="' + t + '"' + (t === current ? ' selected' : '') + '>' + _REJ_TYP_LABELS[t] + '</option>';
+  }).join('');
+}
+
+function _rejPrecisionOptions(current) {
+  var opts = [
+    {v: '0', l: '0 (123)'},
+    {v: '1', l: '1 (123,4)'},
+    {v: '2', l: '2 (123,45)'},
+    {v: '3', l: '3 (123,456)'},
+    {v: '4', l: '4 (123,4567)'},
+    {v: '5', l: '5 (123,45678)'},
+    {v: '6', l: '6 (123,456789)'},
+  ];
+  var cur = String(current == null ? '' : current);
+  return opts.map(function(o) {
+    return '<option value="' + o.v + '"' + (cur === o.v ? ' selected' : '') + '>' + o.l + '</option>';
+  }).join('');
+}
+
+// Stubs — implemented in subsequent tasks
+var _rejFocusedInput = null;
+function rejUpdateToolbarState() { /* B5 */ }
+function rejTbInsert(kind) { /* B5 */ }
+function rejOnFieldInput(input) { /* B5 dirty tracking + banner */ }
+function rejOnTypChange(select) { rejOnFieldInput(select); /* B4 also re-renders typ-config */ }
+function rejSaveAll() { alert('B8 — Save Wszystko'); }
+function rejDeactivate() { alert('B10 — Deactivate'); }
+function rejReactivate() { alert('B10 — Reactivate'); }
 
 // Stub — Task B9 will implement
 function rejOpenAddModal() { alert('B9 — Add Parameter modal'); }
