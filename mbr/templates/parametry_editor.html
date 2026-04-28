@@ -793,11 +793,15 @@ function rejRenderList() {
 }
 
 function rejSelect(id) {
-  // Persist current edits (B5 will implement rejSaveCurrentToState — stub for now)
-  if (typeof rejSaveCurrentToState === 'function' && _rejSelectedId !== null) {
-    rejSaveCurrentToState();
+  // Confirm before discarding pending dirty edits
+  if (_rejSelectedId !== null && _rejDirty) {
+    if (!confirm('Masz niezapisane zmiany. Porzucić?')) return;
   }
   _rejSelectedId = id;
+  _rejDirty = false;
+  // Snapshot for banner detection (B6)
+  var p = _rejParams.find(function(x) { return x.id === id; });
+  _rejOriginalParam = p ? JSON.parse(JSON.stringify(p)) : null;
   rejRenderList();
   rejRenderDetail();
 }
@@ -1062,14 +1066,71 @@ function rejOpisoweEditChip(span, idx) {
   });
 }
 
-// Stub for B5 — markDirty
-function rejMarkDirty() { /* B5 */ }
+// B5 — dirty tracking + markDirty
+var _rejDirty = false;
+var _rejOriginalParam = null;  // snapshot for banner detection (B6)
 
-// Stubs — implemented in subsequent tasks
+function rejMarkDirty() {
+  _rejDirty = true;
+  var status = document.getElementById('pe-rej-status');
+  if (status) { status.textContent = '● Niezapisane zmiany'; status.style.color = 'var(--orange, #d97706)'; }
+}
+
+// B5 — toolbar state + insert
 var _rejFocusedInput = null;
-function rejUpdateToolbarState() { /* B5 */ }
-function rejTbInsert(kind) { /* B5 */ }
-function rejOnFieldInput(input) { /* B5 dirty tracking + banner */ }
+var _REJ_SUB_SUP_FIELDS = ['label', 'name_en', 'jednostka'];  // these accept indices
+
+function rejUpdateToolbarState() {
+  var toolbar = document.getElementById('pe-rej-toolbar');
+  if (!toolbar) return;
+  var inp = _rejFocusedInput;
+  var dataRej = (inp && inp.tagName === 'INPUT' && inp.getAttribute) ? inp.getAttribute('data-rej') : null;
+  toolbar.querySelectorAll('.wc-md-tbtn').forEach(function(btn) {
+    var kind = btn.getAttribute('data-tb');
+    var allowed = false;
+    if (!inp || !dataRej) { allowed = false; }
+    else if (kind === 'sup' || kind === 'sub' || kind === 'br') {
+      allowed = _REJ_SUB_SUP_FIELDS.indexOf(dataRej) !== -1;
+    } else {
+      allowed = true;
+    }
+    btn.disabled = !allowed;
+  });
+}
+
+function rejTbInsert(kind) {
+  var inp = _rejFocusedInput;
+  if (!inp) return;
+  var ins = ''; var caretInside = false;
+  if (kind === 'sup') { ins = '^{}'; caretInside = true; }
+  else if (kind === 'sub') { ins = '_{}'; caretInside = true; }
+  else if (kind === 'br') { ins = '|'; }
+  else if (kind === 'leq') { ins = '≤'; }
+  else if (kind === 'geq') { ins = '≥'; }
+  else if (kind === 'div') { ins = '÷'; }
+  else if (kind === 'deg') { ins = '°'; }
+  if (!ins) return;
+  var start = inp.selectionStart || 0;
+  var end = inp.selectionEnd || 0;
+  inp.value = inp.value.slice(0, start) + ins + inp.value.slice(end);
+  var newPos = caretInside ? start + 2 : start + ins.length;
+  inp.setSelectionRange(newPos, newPos);
+  inp.focus();
+  inp.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function rejOnFieldInput(input) {
+  var key = input.getAttribute('data-rej');
+  // Live preview for label + name_en (sub/sup tokens)
+  if (['label', 'name_en'].indexOf(key) !== -1) {
+    var prev = document.querySelector('[data-rej-prev="' + key + '"]');
+    if (prev) prev.innerHTML = _rejRtHtml(input.value || '');
+  }
+  rejMarkDirty();
+  // Banner (B6 — stub for now)
+  if (typeof rejRefreshBanner === 'function') rejRefreshBanner();
+}
+
 function rejOnTypChange(select) {
   rejOnFieldInput(select);
   // Read all current detail-panel inputs into in-memory p (so we don't lose pending edits)
@@ -1087,8 +1148,32 @@ function rejReactivate() { alert('B10 — Reactivate'); }
 // Stub — Task B9 will implement
 function rejOpenAddModal() { alert('B9 — Add Parameter modal'); }
 
-// Stub — Task B5 will implement
-function rejSaveCurrentToState() { /* B5 */ }
+// B5 — capture detail-panel inputs into in-memory _rejParams entry
+function rejSaveCurrentToState() {
+  if (_rejSelectedId == null) return;
+  var p = _rejParams.find(function(x) { return x.id === _rejSelectedId; });
+  if (!p) return;
+  var detail = document.getElementById('pe-rej-detail');
+  if (!detail) return;
+  detail.querySelectorAll('[data-rej]').forEach(function(el) {
+    var key = el.getAttribute('data-rej');
+    if (key === 'kod') return;  // read-only
+    var val = el.value;
+    if (key === 'precision') {
+      val = val === '' ? null : parseInt(val);
+    }
+    if (key === 'metoda_factor') {
+      val = val === '' ? null : parseFloat(val);
+    }
+    if (key === 'aktywny') {
+      val = el.checked ? 1 : 0;
+    }
+    p[key] = val;
+  });
+}
+
+// Stub — Task B6 implements full banner logic
+function rejRefreshBanner() { /* B6 */ }
 
 // ═══ TAB SWITCHING ═══
 
