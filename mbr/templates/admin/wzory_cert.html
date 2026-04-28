@@ -96,8 +96,6 @@
 .wc-dragging { opacity: .4; }
 .wc-del { background: none; border: none; color: var(--red); cursor: pointer; font-size: 14px; padding: 2px 6px; border-radius: 4px; }
 .wc-del:hover { background: #fef2f2; }
-.wc-row-hidden td { opacity: .4; }
-.wc-hide-cb { accent-color: var(--red); }
 
 /* ═══ Variants ═══ */
 .wc-variants { display: flex; flex-direction: column; gap: 10px; }
@@ -172,6 +170,12 @@
 .wc-md-item-name sub { font-size: .75em; vertical-align: sub; }
 .wc-md-item-name sup { font-size: .75em; vertical-align: super; }
 .wc-md-item-bind { font-family: var(--mono); font-size: 9px; background: var(--surface-alt); color: var(--teal); padding: 1px 5px; border-radius: 3px; flex-shrink: 0; }
+.wc-md-item-tag-base { font-size: 9px; padding: 1px 5px; border-radius: 3px; background: var(--surface-alt); color: var(--text-dim); flex-shrink: 0; text-transform: uppercase; letter-spacing: .3px; }
+.wc-md-item-tag-variant { font-size: 9px; padding: 1px 5px; border-radius: 3px; background: #e6f4f4; color: var(--teal); flex-shrink: 0; text-transform: uppercase; letter-spacing: .3px; }
+.wc-md-item-hide-cb { accent-color: var(--red); margin-right: 6px; flex-shrink: 0; }
+.wc-md-item.base { background: rgba(0,0,0,0.02); }
+.wc-md-item.base.hidden-in-variant .wc-md-item-name { text-decoration: line-through; opacity: .55; }
+.wc-md-divider { padding: 6px 10px; font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .4px; background: var(--surface-alt); border-top: 1px solid var(--border-subtle, #f0ece4); border-bottom: 1px solid var(--border-subtle, #f0ece4); }
 .wc-md-add { padding: 8px 10px; background: var(--surface); border-top: 1px solid var(--border); color: var(--teal); cursor: pointer; font-weight: 600; text-align: center; font-size: 11px; }
 .wc-md-add:hover { background: var(--surface-alt); }
 
@@ -355,37 +359,20 @@
           </div>
         </div>
 
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;margin-bottom:10px;">
-          <div class="wc-sub" style="margin:0;">Parametry na świadectwie</div>
-        </div>
-        <div id="wc-var-base-params-wrap">
-          <table class="wc-tbl">
-            <thead>
-              <tr>
-                <th style="width:50px;">Ukryj</th>
-                <th>Nazwa PL</th>
-                <th>Nazwa EN</th>
-                <th>Wymaganie</th>
-                <th>Metoda</th>
-                <th style="width:130px;">Powiąż z pomiarem</th>
-                <th style="width:90px;">Precyzja</th>
-                <th>Wynik opisowy</th>
-              </tr>
-            </thead>
-            <tbody id="wc-var-params"></tbody>
-          </table>
-        </div>
-        <div class="wc-sub" style="margin-top:18px;">Parametry dodane w tym wariancie</div>
-        <div class="wc-md" id="wc-var-md" style="margin-top:14px;">
+        <div class="wc-sub" style="margin-top:18px;">Parametry świadectwa w wariancie</div>
+        <p style="font-size:11px;color:var(--text-dim);margin:4px 0 10px;">
+          Bazowe parametry (z zakładki „Parametry świadectwa") możesz <strong>ukryć</strong> w tym wariancie. Możesz też <strong>dodać</strong> parametry występujące tylko w tym wariancie.
+        </p>
+        <div class="wc-md" id="wc-var-md">
           <div class="wc-md-list">
             <div class="wc-md-search">
-              <input id="wc-var-md-filter" type="text" placeholder="Filtruj parametry wariantu..." oninput="filterVariantParamList(this.value)">
+              <input id="wc-var-md-filter" type="text" placeholder="Filtruj parametry..." oninput="filterVariantParamList(this.value)">
             </div>
             <div class="wc-md-list-body" id="wc-var-md-list-body"></div>
             <div class="wc-md-add" onclick="openAddVariantParamModal()">+ Dodaj parametr wariantu</div>
           </div>
           <div class="wc-md-detail" id="wc-var-md-detail">
-            <div class="wc-md-detail-empty">Wybierz parametr wariantu</div>
+            <div class="wc-md-detail-empty">Wybierz parametr</div>
           </div>
         </div>
       </div>
@@ -953,6 +940,7 @@ function confirmAddParam() {
     var aps = _variantAddParams();
     aps.push(newParam);
     _selectedVarParamIdx = aps.length - 1;
+    _selectedBaseInVariantIdx = null;
     _varParamDirty[_selectedVarParamIdx] = true;
     renderVariantParamList();
     renderVariantParamDetail();
@@ -1521,8 +1509,9 @@ function initParamListDragAndDrop() {
   });
 }
 
-/* ═══ Variant params master-detail (Task C1) ═══ */
+/* ═══ Variant params master-detail (Task C1 / C2) ═══ */
 var _selectedVarParamIdx = null;
+var _selectedBaseInVariantIdx = null;
 var _varParamFilter = '';
 var _varParamDirty = {};
 
@@ -1540,31 +1529,98 @@ function _variantAddParams() {
 }
 
 function renderVariantParamList() {
+  var v = _currentVariant();
+  if (!v) return;
+  var basePs = (_currentProduct && _currentProduct.parameters) || [];
   var aps = _variantAddParams();
+  var removeIds = ((v.overrides && v.overrides.remove_parameters) || []).slice();
   var body = document.getElementById('wc-var-md-list-body');
   if (!body) return;
   var filter = _varParamFilter.toLowerCase();
+
+  function _matches(name, kod) {
+    if (!filter) return true;
+    return (name + ' ' + kod).toLowerCase().indexOf(filter) !== -1;
+  }
+
   var html = '';
-  aps.forEach(function(ap, i) {
-    var name = ap.name_pl_override || ap.name_pl_global || ap.name_pl || '';
-    var kod = ap.kod || ap.data_field || '';
-    if (filter) {
-      var hay = (name + ' ' + kod).toLowerCase();
-      if (hay.indexOf(filter) === -1) return;
-    }
-    var activeCls = (i === _selectedVarParamIdx) ? ' active' : '';
-    var dirtyCls = (_varParamDirty[i]) ? ' dirty' : '';
-    html += '<div class="wc-md-item' + activeCls + dirtyCls + '" data-idx="' + i + '" onclick="selectVariantParam(' + i + ')">' +
-      '<span class="wc-md-drag" onmousedown="event.stopPropagation()">&#10303;</span>' +
+  // --- Base params section ---
+  var baseHtml = '';
+  basePs.forEach(function(p, i) {
+    var name = p.name_pl_override || p.name_pl_global || p.name_pl || '';
+    var kod = p.kod || p.data_field || '';
+    var pid = p.id || kod;
+    if (!_matches(name, kod)) return;
+    var hidden = removeIds.indexOf(pid) !== -1;
+    var hiddenCls = hidden ? ' hidden-in-variant' : '';
+    var activeCls = (i === _selectedBaseInVariantIdx) ? ' active' : '';
+    baseHtml += '<div class="wc-md-item base' + hiddenCls + activeCls + '" data-base-idx="' + i + '" data-pid="' + _esc(pid) + '" onclick="selectBaseInVariantList(' + i + ')">' +
+      '<input type="checkbox" class="wc-md-item-hide-cb" ' + (hidden ? 'checked' : '') + ' onclick="event.stopPropagation();toggleBaseHidden(\'' + _esc(pid) + '\', this.checked)" title="Ukryj w tym wariancie">' +
       '<span class="wc-md-item-name">' + _rtHtml(name) + '</span>' +
+      '<span class="wc-md-item-tag-base">base</span>' +
       '<span class="wc-md-item-bind">' + _esc(kod) + '</span>' +
     '</div>';
   });
+
+  if (baseHtml) {
+    html += '<div class="wc-md-divider">Bazowe (z zakładki Parametry)</div>' + baseHtml;
+  }
+
+  // --- Variant add_parameters section ---
+  var varHtml = '';
+  aps.forEach(function(ap, i) {
+    var name = ap.name_pl_override || ap.name_pl_global || ap.name_pl || '';
+    var kod = ap.kod || ap.data_field || '';
+    if (!_matches(name, kod)) return;
+    var activeCls = (i === _selectedVarParamIdx) ? ' active' : '';
+    var dirtyCls = (_varParamDirty[i]) ? ' dirty' : '';
+    varHtml += '<div class="wc-md-item' + activeCls + dirtyCls + '" data-var-idx="' + i + '" onclick="selectVariantParam(' + i + ')">' +
+      '<span class="wc-md-drag" onmousedown="event.stopPropagation()">&#10303;</span>' +
+      '<span class="wc-md-item-name">' + _rtHtml(name) + '</span>' +
+      '<span class="wc-md-item-tag-variant">wariant</span>' +
+      '<span class="wc-md-item-bind">' + _esc(kod) + '</span>' +
+    '</div>';
+  });
+
+  if (varHtml) {
+    html += '<div class="wc-md-divider">Dodatkowe w tym wariancie</div>' + varHtml;
+  }
+
   if (!html) {
     html = '<div style="padding:14px;color:var(--text-dim);font-size:11px;text-align:center;">' +
-      (filter ? 'Brak wyników filtra.' : 'Brak parametrów wariantu. Klik + Dodaj parametr wariantu.') + '</div>';
+      (filter ? 'Brak wyników filtra.' : 'Brak parametrów.') + '</div>';
   }
   body.innerHTML = html;
+}
+
+function toggleBaseHidden(pid, hidden) {
+  var v = _currentVariant();
+  if (!v) return;
+  v.overrides = v.overrides || {};
+  var arr = v.overrides.remove_parameters = v.overrides.remove_parameters || [];
+  var idx = arr.indexOf(pid);
+  if (hidden && idx === -1) arr.push(pid);
+  else if (!hidden && idx !== -1) arr.splice(idx, 1);
+  _setDirty(true);
+  renderVariantParamList();
+  // If currently selected base param matches this pid, refresh detail panel
+  if (_selectedBaseInVariantIdx != null) {
+    var basePs = (_currentProduct && _currentProduct.parameters) || [];
+    var p = basePs[_selectedBaseInVariantIdx];
+    var thisPid = (p && (p.id || p.kod || p.data_field)) || null;
+    if (thisPid === pid) renderVariantParamDetail();
+  }
+}
+
+function selectBaseInVariantList(baseIdx) {
+  // Persist any pending edits in variant detail panel before switching
+  if (_selectedVarParamIdx !== null && typeof saveCurrentVariantParamToState === 'function') {
+    saveCurrentVariantParamToState();
+  }
+  _selectedVarParamIdx = null;  // not editing a variant add_param
+  _selectedBaseInVariantIdx = baseIdx;
+  renderVariantParamList();
+  renderVariantParamDetail();
 }
 
 function filterVariantParamList(value) {
@@ -1577,6 +1633,7 @@ function selectVariantParam(idx) {
     saveCurrentVariantParamToState();
   }
   _selectedVarParamIdx = idx;
+  _selectedBaseInVariantIdx = null;  // switching back to variant editor
   renderVariantParamList();
   renderVariantParamDetail();
 }
@@ -1608,8 +1665,51 @@ function saveCurrentVariantParamToState() {
 function renderVariantParamDetail() {
   var detail = document.getElementById('wc-var-md-detail');
   if (!detail) return;
+
+  // Mode: base param selected (read-only summary + hide toggle)
+  if (_selectedBaseInVariantIdx != null) {
+    var basePs = (_currentProduct && _currentProduct.parameters) || [];
+    var bp = basePs[_selectedBaseInVariantIdx];
+    if (!bp) {
+      detail.innerHTML = '<div class="wc-md-detail-empty">Brak parametru.</div>';
+      return;
+    }
+    var v = _currentVariant() || {};
+    var removeIds = ((v.overrides && v.overrides.remove_parameters) || []);
+    var pid = bp.id || bp.kod || bp.data_field;
+    var isHidden = removeIds.indexOf(pid) !== -1;
+    var name = bp.name_pl_override || bp.name_pl_global || bp.name_pl || '';
+    var kod = bp.kod || bp.data_field || '';
+
+    detail.innerHTML =
+      '<div class="wc-md-detail-head">' +
+        '<div class="wc-md-detail-title">' + _rtHtml(name) + '</div>' +
+        '<span class="wc-md-detail-bind">' + _esc(kod) + '</span>' +
+        '<span class="wc-md-item-tag-base" style="font-size:10px;padding:2px 7px;">base</span>' +
+      '</div>' +
+      '<div style="background:var(--surface-alt);padding:10px 12px;border-radius:4px;margin-bottom:12px;font-size:11px;color:var(--text-dim);">' +
+        '<strong>Parametr bazowy</strong> — pochodzi z zakładki „Parametry świadectwa". ' +
+        'Edytuj go tam, aby zmiana objęła wszystkie warianty. Tutaj możesz tylko ukryć go w tym konkretnym wariancie.' +
+      '</div>' +
+      '<div class="wc-md-single-section" style="margin-top:0;padding-top:0;border-top:none;">' +
+        '<div class="wc-md-single-row"><label>Nazwa PL</label><div style="color:var(--text);">' + _rtHtml(name) + '</div></div>' +
+        '<div class="wc-md-single-row"><label>Nazwa EN</label><div style="color:var(--text);">' + _rtHtml(bp.name_en_override || bp.name_en_global || bp.name_en || '—') + '</div></div>' +
+        '<div class="wc-md-single-row"><label>Wymaganie</label><div style="color:var(--text);">' + _esc(bp.requirement || '—') + '</div></div>' +
+        '<div class="wc-md-single-row"><label>Metoda</label><div style="color:var(--text);">' + _esc(bp.method_override || bp.method_global || bp.method || '—') + '</div></div>' +
+        '<div class="wc-md-single-row" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border-subtle, #f0ece4);">' +
+          '<label>Ukryj w wariancie</label>' +
+          '<div><label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:11px;">' +
+            '<input type="checkbox" ' + (isHidden ? 'checked' : '') + ' onchange="toggleBaseHidden(\'' + _esc(pid) + '\', this.checked)" style="accent-color: var(--red);">' +
+            (isHidden ? 'Tak — parametr nie pojawi się na świadectwie tego wariantu' : 'Nie — parametr pojawi się na świadectwie tego wariantu') +
+          '</label></div>' +
+        '</div>' +
+      '</div>';
+    return;
+  }
+
+  // Mode: variant add_parameter selected — full dual-field editor (existing behavior)
   if (_selectedVarParamIdx == null) {
-    detail.innerHTML = '<div class="wc-md-detail-empty">Wybierz parametr wariantu</div>';
+    detail.innerHTML = '<div class="wc-md-detail-empty">Wybierz parametr</div>';
     return;
   }
   var aps = _variantAddParams();
@@ -1627,7 +1727,8 @@ function renderVariantParamDetail() {
     '<div class="wc-md-detail-head">' +
       '<div class="wc-md-detail-title">' + _rtHtml(name_pl_eff) + '</div>' +
       '<span class="wc-md-detail-bind">' + _esc(kod) + '</span>' +
-      '<button class="wc-md-detail-del" onclick="removeSelectedVariantParam()">Usuń parametr</button>' +
+      '<span class="wc-md-item-tag-variant" style="font-size:10px;padding:2px 7px;">wariant</span>' +
+      '<button class="wc-md-detail-del" onclick="removeSelectedVariantParam()" style="margin-left:auto;">Usuń parametr</button>' +
     '</div>' +
     '<div class="wc-md-banner hidden" id="wc-var-md-banner"></div>' +
     '<div class="wc-md-toolbar" id="wc-var-md-toolbar">' +
@@ -1678,6 +1779,7 @@ function removeSelectedVariantParam() {
   if (!confirm('Usunąć parametr „' + (ap.kod || ap.data_field || '') + '" z wariantu?')) return;
   aps.splice(_selectedVarParamIdx, 1);
   _selectedVarParamIdx = null;
+  _selectedBaseInVariantIdx = null;
   _varParamDirty = {};
   _setDirty(true);
   renderVariantParamList();
@@ -1757,10 +1859,10 @@ function showVariant(vi) {
     document.getElementById('wc-var-oen').value = ov.opinion_en || '';
   }
 
-  renderVariantParamsTable(v, isBase);
-
-  // Master-detail for variant add_parameters (Task C1) — only meaningful for non-base variants
+  // Master-detail for variant params (Task C1 / C2) — unified base + add_parameters list.
+  // Hide entirely on base variant since the master list duplicates the Parametry tab there.
   _selectedVarParamIdx = null;
+  _selectedBaseInVariantIdx = null;
   _varParamDirty = {};
   _varParamFilter = '';
   var fInp = document.getElementById('wc-var-md-filter');
@@ -1769,32 +1871,6 @@ function showVariant(vi) {
   if (mdWrap) mdWrap.style.display = isBase ? 'none' : '';
   renderVariantParamList();
   renderVariantParamDetail();
-}
-
-function renderVariantParamsTable(v, isBase) {
-  var bp = _currentProduct ? (_currentProduct.parameters || []) : [];
-  var ov = v.overrides || {};
-  var rp = ov.remove_parameters || [];
-  var tbody = document.getElementById('wc-var-params');
-  var html = '';
-
-  bp.forEach(function(p) {
-    var hidden = rp.indexOf(p.id) !== -1;
-    var name_pl_eff = p.name_pl_override || p.name_pl_global || p.name_pl || p.id || '';
-    var name_en_eff = p.name_en_override || p.name_en_global || p.name_en || '';
-    var method_eff  = p.method_override  || p.method_global  || p.method  || '';
-    html += '<tr class="' + (hidden ? 'wc-row-hidden' : '') + '" data-base-id="' + _esc(p.id) + '">' +
-      '<td style="text-align:center;">' + (isBase ? '' : '<input type="checkbox" class="wc-hide-cb" ' + (hidden ? 'checked' : '') + ' onchange="this.closest(\'tr\').classList.toggle(\'wc-row-hidden\',this.checked)" title="Ukryj w tym wariancie">') + '</td>' +
-      '<td style="color:' + (hidden ? 'var(--text-dim)' : 'var(--text)') + ';">' + _rtHtml(name_pl_eff) + '</td>' +
-      '<td style="color:var(--text-sec);">' + _rtHtml(name_en_eff) + '</td>' +
-      '<td>' + _esc(p.requirement || '') + '</td>' +
-      '<td>' + _esc(method_eff) + '</td>' +
-      '<td style="font-family:var(--mono);font-size:10px;color:var(--text-dim);">' + _esc(p.data_field || '') + '</td>' +
-      '<td>' + (p.format || '') + '</td>' +
-      '<td>' + _esc(p.qualitative_result || '') + '</td></tr>';
-  });
-
-  tbody.innerHTML = html || '<tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:16px;">Brak parametrów bazowych</td></tr>';
 }
 
 function addVariant() {
@@ -1849,11 +1925,10 @@ function saveCurrentVariantToData() {
     if (spec) ov.spec_number = spec;
     if (opl) ov.opinion_pl = opl;
     if (oen) ov.opinion_en = oen;
-    var rmp = [];
-    document.querySelectorAll('#wc-var-params tr[data-base-id] .wc-hide-cb').forEach(function(cb) {
-      if (cb.checked) rmp.push(cb.closest('tr').dataset.baseId);
-    });
-    if (rmp.length) ov.remove_parameters = rmp;
+    // Task C2: remove_parameters is now maintained in-memory by toggleBaseHidden(),
+    // not gathered from DOM checkboxes. Preserve whatever is on the variant object.
+    var existingRemove = (v.overrides && Array.isArray(v.overrides.remove_parameters)) ? v.overrides.remove_parameters : [];
+    if (existingRemove.length) ov.remove_parameters = existingRemove;
     if (existingAdd.length) ov.add_parameters = existingAdd;
   }
   if (Object.keys(ov).length) v.overrides = ov;
