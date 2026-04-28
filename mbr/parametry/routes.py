@@ -5,7 +5,7 @@ from flask import request, jsonify, render_template, session
 from mbr.parametry import parametry_bp
 from mbr.parametry.registry import get_parametry_for_kontekst, get_calc_methods, get_konteksty, build_parametry_lab
 from mbr.shared.decorators import login_required, role_required
-from mbr.shared.audit import log_event, EVENT_PARAMETR_UPDATED, diff_fields
+from mbr.shared.audit import log_event, EVENT_PARAMETR_UPDATED, EVENT_PARAMETR_CREATED, diff_fields
 from mbr.db import db_session
 
 ALLOWED_GRUPY = {"lab", "zewn"}
@@ -240,10 +240,19 @@ def api_parametry_create():
                  data.get("precision", 2), data.get("name_en", ""), data.get("method_code", ""),
                  grupa, opisowe_json),
             )
+            new_id = cur.lastrowid
+            log_event(
+                EVENT_PARAMETR_CREATED,
+                entity_type="parametr",
+                entity_id=new_id,
+                entity_label=kod,
+                payload={"kod": kod, "label": label, "typ": typ, "grupa": grupa},
+                db=db,
+            )
             db.commit()
         except Exception:
             return jsonify({"error": "Parametr already exists"}), 409
-    return jsonify({"ok": True, "id": cur.lastrowid})
+    return jsonify({"ok": True, "id": new_id})
 
 
 @parametry_bp.route("/api/parametry/etapy", methods=["POST"])
