@@ -1229,10 +1229,63 @@ function removeSelectedParam() {
   renderParamDetail();
 }
 
-/* Toolbar — Task B4 will implement updateToolbarState + tbInsert */
+/* Toolbar — Task B4 */
 var _focusedTextInput = null;
-function updateToolbarState() { /* B4 */ }
-function tbInsert(kind) { /* B4 */ }
+
+// Fields where sub/sup tokens (^{}, _{}, |) make sense — only param names.
+// Special chars (≤ ≥ ÷ °) are allowed on any text input that has data-md.
+var _SUB_SUP_FIELDS = ['name_pl_global','name_pl_override','name_en_global','name_en_override'];
+
+function updateToolbarState() {
+  var toolbar = document.getElementById('wc-md-toolbar');
+  if (!toolbar) return;
+  var inp = _focusedTextInput;
+  var dataMd = (inp && inp.tagName === 'INPUT' && inp.getAttribute) ? inp.getAttribute('data-md') : null;
+  toolbar.querySelectorAll('.wc-md-tbtn').forEach(function(btn) {
+    var kind = btn.getAttribute('data-tb');
+    var allowed = false;
+    if (!inp || !dataMd) {
+      allowed = false;
+    } else if (kind === 'sup' || kind === 'sub' || kind === 'br') {
+      // Indices/line break only on name fields
+      allowed = _SUB_SUP_FIELDS.indexOf(dataMd) !== -1;
+    } else {
+      // Special chars: any text input bound via data-md
+      allowed = true;
+    }
+    btn.disabled = !allowed;
+  });
+}
+
+function tbInsert(kind) {
+  var inp = _focusedTextInput;
+  if (!inp) return;
+  var ins = '';
+  var caretInside = false;
+  if (kind === 'sup') { ins = '^{}'; caretInside = true; }
+  else if (kind === 'sub') { ins = '_{}'; caretInside = true; }
+  else if (kind === 'br') { ins = '|'; }
+  else if (kind === 'leq') { ins = '≤'; }
+  else if (kind === 'geq') { ins = '≥'; }
+  else if (kind === 'div') { ins = '÷'; }
+  else if (kind === 'deg') { ins = '°'; }
+  if (!ins) return;
+
+  var start = inp.selectionStart || 0;
+  var end = inp.selectionEnd || 0;
+  var before = inp.value.slice(0, start);
+  var after = inp.value.slice(end);
+  inp.value = before + ins + after;
+
+  // Position caret: inside braces for sup/sub, after the inserted char otherwise
+  var newPos = start + ins.length;
+  if (caretInside) newPos = start + 2;
+  inp.setSelectionRange(newPos, newPos);
+  inp.focus();
+
+  // Trigger input event so previews + dirty tracking fire
+  inp.dispatchEvent(new Event('input', { bubbles: true }));
+}
 
 /* Banner — Task B5 will implement */
 function refreshUsageBanner() { /* B5 */ }
