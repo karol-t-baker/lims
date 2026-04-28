@@ -476,6 +476,27 @@
   </div>
 </div>
 
+<!-- ═══ Add Parameter Modal ═══ -->
+<div class="wc-modal" id="wc-add-param-modal" onclick="if(event.target===this)closeAddParamModal()">
+  <div class="wc-modal-box" style="max-width:440px;height:auto;">
+    <div class="wc-modal-head">
+      <span style="font-weight:700;">Dodaj parametr do świadectwa</span>
+      <button class="wc-modal-close" onclick="closeAddParamModal()">&times;</button>
+    </div>
+    <div style="padding:16px 20px;">
+      <label class="wc-lbl">Wybierz kod parametru z rejestru</label>
+      <select class="wc-sel" id="wc-add-param-code" style="width:100%;"></select>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:6px;">
+        Wartości nazwy PL/EN i metody pochodzą z rejestru. Wymaganie i precyzję ustawisz w edytorze po dodaniu.
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;">
+        <button class="wc-btn wc-btn-o" onclick="closeAddParamModal()">Anuluj</button>
+        <button class="wc-btn wc-btn-p" onclick="confirmAddParam()">Dodaj</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ═══ State ═══ */
 var _products = [];
@@ -912,6 +933,88 @@ function saveCertSettings() {
         flash('Błąd: ' + (res.data.error || 'nie udało się zapisać'), false);
       }
     });
+}
+
+/* ═══ Add Param Modal (Task B7) ═══ */
+var _addParamMode = 'base';  // 'base' | 'variant' (variant mode wired in C1)
+
+function openAddParamModal() {
+  var sel = document.getElementById('wc-add-param-code');
+  if (!sel) return;
+  // Filter out kods already in cert (avoid duplicates)
+  var taken = ((_currentProduct && _currentProduct.parameters) || []).map(function(p) { return p.kod || p.data_field; });
+  var candidates = _availableCodes.filter(function(c) { return taken.indexOf(c.kod) === -1; });
+
+  var html = '<option value="">— wybierz —</option>';
+  var inMbr = candidates.filter(function(c) { return c.in_mbr; });
+  var notInMbr = candidates.filter(function(c) { return !c.in_mbr; });
+  if (inMbr.length) {
+    html += '<optgroup label="W MBR (mierzone przez laborantów)">';
+    inMbr.forEach(function(c) {
+      html += '<option value="' + _esc(c.kod) + '">● ' + _esc(c.kod) + ' — ' + _esc(c.skrot || c.label) + '</option>';
+    });
+    html += '</optgroup>';
+  }
+  if (notInMbr.length) {
+    html += '<optgroup label="Poza MBR (opisowe / external lab)">';
+    notInMbr.forEach(function(c) {
+      html += '<option value="' + _esc(c.kod) + '">○ ' + _esc(c.kod) + ' — ' + _esc(c.skrot || c.label) + '</option>';
+    });
+    html += '</optgroup>';
+  }
+  if (!inMbr.length && !notInMbr.length) {
+    html += '<option value="" disabled>Brak dostępnych kodów (wszystkie już dodane?)</option>';
+  }
+  sel.innerHTML = html;
+  document.getElementById('wc-add-param-modal').classList.add('show');
+}
+
+function closeAddParamModal() {
+  document.getElementById('wc-add-param-modal').classList.remove('show');
+  _addParamMode = 'base';
+}
+
+function confirmAddParam() {
+  var sel = document.getElementById('wc-add-param-code');
+  var kod = sel.value;
+  if (!kod) { flash('Wybierz parametr', false); return; }
+  var code = _availableCodes.find(function(c) { return c.kod === kod; });
+  if (!code) return;
+
+  var newParam = {
+    id: kod,
+    data_field: kod,
+    kod: kod,
+    parametr_id: code.id,
+    name_pl_global: code.label || '',
+    name_en_global: code.name_en || '',
+    method_global: code.method_code || '',
+    name_pl_override: null,
+    name_en_override: null,
+    method_override: null,
+    name_pl: code.label || '',  // legacy effective fallback
+    name_en: code.name_en || '',
+    method: code.method_code || '',
+    requirement: '',
+    format: String(code.precision != null ? code.precision : ''),
+    qualitative_result: null,
+  };
+
+  if (_addParamMode === 'variant') {
+    // Wired in C1 (variants). For now, fall through to base behavior.
+  }
+
+  newParam._origIdx = _originalParams.length;
+  _currentProduct.parameters.push(newParam);
+  // Add a matching original snapshot so registry-diff doesn't see this row as "global edit"
+  _originalParams.push(JSON.parse(JSON.stringify(newParam)));
+
+  _selectedParamIdx = _currentProduct.parameters.length - 1;
+  _markParamDirty(_selectedParamIdx);
+  closeAddParamModal();
+  renderParamList();
+  renderParamDetail();
+  _setDirty(true);
 }
 
 /* ═══ Editor ═══ */
