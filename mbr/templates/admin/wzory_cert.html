@@ -155,6 +155,74 @@
 
 .wc-back { font-size: 12px; color: var(--teal); cursor: pointer; margin-bottom: 12px; display: inline-block; text-decoration: none; }
 .wc-back:hover { text-decoration: underline; }
+
+/* ═══ Master-detail (Parametry + Warianty) ═══ */
+.wc-md { display: grid; grid-template-columns: 280px 1fr; gap: 14px; min-height: 340px; }
+.wc-md-list { border: 1px solid var(--border); border-radius: 6px; background: var(--surface-alt); overflow: hidden; display: flex; flex-direction: column; }
+.wc-md-search { padding: 8px; border-bottom: 1px solid var(--border); background: var(--surface); }
+.wc-md-search input { width: 100%; padding: 5px 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 11px; box-sizing: border-box; }
+.wc-md-list-body { flex: 1; overflow-y: auto; max-height: 480px; }
+.wc-md-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-bottom: 1px solid var(--border-subtle, #f0ece4); cursor: pointer; font-size: 11px; }
+.wc-md-item:hover { background: var(--surface); }
+.wc-md-item.active { background: var(--surface); border-left: 3px solid var(--teal); padding-left: 7px; }
+.wc-md-item.dirty .wc-md-item-name::after { content: " •"; color: var(--orange, #d97706); font-weight: bold; }
+.wc-md-drag { color: var(--text-dim); cursor: grab; user-select: none; font-size: 12px; }
+.wc-md-drag:active { cursor: grabbing; }
+.wc-md-item-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: 'Times New Roman', serif; }
+.wc-md-item-name sub { font-size: .75em; vertical-align: sub; }
+.wc-md-item-name sup { font-size: .75em; vertical-align: super; }
+.wc-md-item-bind { font-family: var(--mono); font-size: 9px; background: var(--surface-alt); color: var(--teal); padding: 1px 5px; border-radius: 3px; flex-shrink: 0; }
+.wc-md-add { padding: 8px 10px; background: var(--surface); border-top: 1px solid var(--border); color: var(--teal); cursor: pointer; font-weight: 600; text-align: center; font-size: 11px; }
+.wc-md-add:hover { background: var(--surface-alt); }
+
+.wc-md-detail { padding: 14px 16px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); }
+.wc-md-detail-empty { display: flex; align-items: center; justify-content: center; min-height: 200px; color: var(--text-dim); font-size: 12px; }
+
+/* Toolbar in detail header */
+.wc-md-toolbar { display: flex; align-items: center; gap: 4px; padding: 6px 8px; background: var(--surface-alt); border: 1px solid var(--border); border-radius: 4px; margin-bottom: 12px; }
+.wc-md-toolbar-label { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .3px; margin-right: 6px; }
+.wc-md-tbtn { background: transparent; border: 1px solid transparent; cursor: pointer; padding: 3px 8px; font-size: 11px; border-radius: 3px; color: var(--text); font-family: var(--mono); min-width: 24px; }
+.wc-md-tbtn:hover:not(:disabled) { background: var(--surface); border-color: var(--border); }
+.wc-md-tbtn:disabled { opacity: .35; cursor: not-allowed; }
+.wc-md-tbtn sub, .wc-md-tbtn sup { font-size: .75em; }
+
+/* Two-column dual-field layout */
+.wc-md-dual-header { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .3px; margin-bottom: 4px; padding-bottom: 4px; border-bottom: 1px solid var(--border-subtle, #f0ece4); }
+.wc-md-dual-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; margin-bottom: 10px; }
+.wc-md-dual-cell { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.wc-md-dual-cell label { font-size: 10px; color: var(--text-dim); display: flex; align-items: center; gap: 6px; }
+.wc-md-dual-cell input { padding: 6px 9px; font-size: 11px; border: 1.5px solid var(--border); border-radius: 4px; box-sizing: border-box; font-family: 'Times New Roman', serif; }
+.wc-md-dual-cell input:focus { border-color: var(--teal); outline: none; }
+.wc-md-dual-cell input.dirty-global { background: #fffbeb; }
+.wc-md-rt-prev { font-size: 11px; color: var(--text-dim); padding: 0 9px; min-height: 13px; font-family: 'Times New Roman', serif; }
+.wc-md-rt-prev sub { font-size: .75em; vertical-align: sub; }
+.wc-md-rt-prev sup { font-size: .75em; vertical-align: super; }
+.wc-md-reset { background: transparent; border: 1px solid var(--border); color: var(--text-dim); cursor: pointer; padding: 1px 6px; font-size: 11px; border-radius: 3px; }
+.wc-md-reset:hover { color: var(--orange, #d97706); border-color: var(--orange, #d97706); }
+.wc-md-reset.hidden { display: none; }
+
+/* Single-column (per-product only) section */
+.wc-md-single-section { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border-subtle, #f0ece4); }
+.wc-md-single-row { display: grid; grid-template-columns: 130px 1fr; gap: 6px 12px; margin-bottom: 8px; align-items: center; }
+.wc-md-single-row > label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: .3px; }
+.wc-md-single-row > div { display: flex; gap: 8px; align-items: center; }
+.wc-md-single-row input, .wc-md-single-row select { padding: 5px 8px; font-size: 11px; border: 1.5px solid var(--border); border-radius: 4px; box-sizing: border-box; }
+.wc-md-single-row input:focus, .wc-md-single-row select:focus { border-color: var(--teal); outline: none; }
+.wc-md-single-row input:disabled, .wc-md-single-row select:disabled { background: var(--surface-alt); color: var(--text-dim); cursor: not-allowed; }
+
+/* Banner */
+.wc-md-banner { background: #fef3c7; border: 1px solid #f59e0b; color: #78350f; padding: 8px 12px; border-radius: 4px; font-size: 11px; margin: 0 0 12px; line-height: 1.4; }
+.wc-md-banner.hidden { display: none; }
+.wc-md-banner strong { font-weight: 700; }
+
+/* Detail header */
+.wc-md-detail-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border-subtle, #f0ece4); }
+.wc-md-detail-title { font-size: 13px; font-weight: 700; flex: 1; font-family: 'Times New Roman', serif; }
+.wc-md-detail-title sub { font-size: .75em; vertical-align: sub; }
+.wc-md-detail-title sup { font-size: .75em; vertical-align: super; }
+.wc-md-detail-bind { font-family: var(--mono); font-size: 10px; background: var(--surface-alt); color: var(--teal); padding: 2px 7px; border-radius: 3px; }
+.wc-md-detail-del { background: transparent; border: 1px solid var(--red); color: var(--red); padding: 2px 9px; font-size: 11px; border-radius: 3px; cursor: pointer; }
+.wc-md-detail-del:hover { background: var(--red); color: #fff; }
 </style>
 {% endblock %}
 
@@ -242,29 +310,23 @@
       </div>
     </div>
 
-    <!-- Tab 2: Parametry -->
+    <!-- Tab 2: Parametry (master-detail layout) -->
     <div class="wc-panel" id="panel-parametry" style="display:none;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-        <div style="font-size:13px;font-weight:600;color:var(--text);">Parametry na świadectwie</div>
-        <button class="wc-btn wc-btn-o wc-btn-sm" onclick="addParameter()">+ Dodaj parametr</button>
+      <div class="wc-md">
+        <!-- Left: list -->
+        <div class="wc-md-list">
+          <div class="wc-md-search">
+            <input id="wc-md-filter" type="text" placeholder="Filtruj parametry..." oninput="filterParamList(this.value)">
+          </div>
+          <div class="wc-md-list-body" id="wc-md-list-body"></div>
+          <div class="wc-md-add" onclick="openAddParamModal()">+ Dodaj parametr</div>
+        </div>
+
+        <!-- Right: detail editor -->
+        <div class="wc-md-detail" id="wc-md-detail">
+          <div class="wc-md-detail-empty">Wybierz parametr z listy po lewej</div>
+        </div>
       </div>
-      <p class="wc-hint">Indeksy w nazwach: <code>^{...}</code> = górny, <code>_{...}</code> = dolny. Przykład: <code>n_{D}^{20}</code> → n<sub>D</sub><sup>20</sup></p>
-      <table class="wc-tbl">
-        <thead>
-          <tr>
-            <th style="width:28px;"></th>
-            <th>Nazwa PL</th>
-            <th>Nazwa EN</th>
-            <th>Wymaganie</th>
-            <th>Metoda</th>
-            <th style="width:130px;">Powiąż z pomiarem</th>
-            <th style="width:90px;">Precyzja</th>
-            <th>Wynik opisowy</th>
-            <th style="width:28px;"></th>
-          </tr>
-        </thead>
-        <tbody id="wc-params-body"></tbody>
-      </table>
     </div>
 
     <!-- Tab 3: Warianty -->
@@ -904,7 +966,10 @@ function renderEditor() {
   document.getElementById('ed-exp').value = (m && m.expiry_months) || p.expiry_months || 12;
   document.getElementById('ed-opl').value = (m && m.opinion_pl) || p.opinion_pl || '';
   document.getElementById('ed-oen').value = (m && m.opinion_en) || p.opinion_en || '';
-  renderParamsTable(p.parameters || []);
+  // Old tabular renderer - will be replaced in Task B2 with renderParamList()
+  if (document.getElementById('wc-params-body')) {
+    renderParamsTable(p.parameters || []);
+  }
   renderVariants(p.variants || []);
 }
 
