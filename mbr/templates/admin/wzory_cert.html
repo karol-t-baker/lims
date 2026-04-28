@@ -489,6 +489,7 @@ var _dirty = false;
 var _unloadHandler = null;
 var _prevDebounce = null;
 var _prevModalOpen = false;
+var _originalParams = [];
 window.__paramMeta = {}; // indexed by kod; populated on init from /api/parametry/list
 
 /* ═══ Helpers ═══ */
@@ -933,6 +934,12 @@ function editProduct(key) {
     if (!data.ok) { flash(data.error || 'Błąd ładowania', false); return; }
     _currentProduct = data.product;
     _dbMeta = data.db_meta;
+    // Task B5/B6: snapshot loaded params so we can detect global-column edits
+    _originalParams = ((_currentProduct.parameters || []).map(function(par, i) {
+      par._origIdx = i;
+      return JSON.parse(JSON.stringify(par));
+    }));
+    _usageImpactCache = {};  // fresh per product load
     renderEditor();
     document.getElementById('wc-list').style.display = 'none';
     document.getElementById('wc-new').style.display = 'none';
@@ -1287,8 +1294,73 @@ function tbInsert(kind) {
   inp.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
-/* Banner — Task B5 will implement */
-function refreshUsageBanner() { /* B5 */ }
+/* Banner — Task B5 */
+var _usageImpactCache = {};  // parametr_id → {cert_products_count, mbr_products_count}
+
+function _fetchUsageImpact(parametr_id) {
+  if (_usageImpactCache[parametr_id]) return Promise.resolve(_usageImpactCache[parametr_id]);
+  return fetch('/api/parametry/' + parametr_id + '/usage-impact')
+    .then(function(r) { return r.json(); })
+    .then(function(j) {
+      if (j && typeof j.cert_products_count === 'number') {
+        _usageImpactCache[parametr_id] = j;
+      }
+      return j;
+    });
+}
+
+function refreshUsageBanner() {
+  var banner = document.getElementById('wc-md-banner');
+  if (!banner) return;
+  if (_selectedParamIdx == null) { banner.classList.add('hidden'); return; }
+  var p = _currentProduct.parameters[_selectedParamIdx];
+  if (!p || !p.parametr_id) { banner.classList.add('hidden'); return; }
+
+  // Detect which global fields differ from the loaded original.
+  // _originalParams (per Task B6) holds the snapshot from server load.
+  // Until B6 wires it, we fall back to the current state itself — banner won't fire.
+  var orig = (typeof _originalParams !== 'undefined' && _originalParams && _originalParams[p._origIdx]) || null;
+
+  var detail = document.getElementById('wc-md-detail');
+  if (!detail) return;
+  var labelInp = detail.querySelector('[data-md="name_pl_global"]');
+  var enInp = detail.querySelector('[data-md="name_en_global"]');
+  var methodInp = detail.querySelector('[data-md="method_global"]');
+
+  var labelChanged = false, enChanged = false, methodChanged = false;
+  if (orig) {
+    if (labelInp && labelInp.value !== (orig.name_pl_global || '')) labelChanged = true;
+    if (enInp && enInp.value !== (orig.name_en_global || '')) enChanged = true;
+    if (methodInp && methodInp.value !== (orig.method_global || '')) methodChanged = true;
+  } else {
+    // No baseline — fall back to comparing against current p.* (same value, never fires)
+    if (labelInp && labelInp.value !== (p.name_pl_global || '')) labelChanged = true;
+    if (enInp && enInp.value !== (p.name_en_global || '')) enChanged = true;
+    if (methodInp && methodInp.value !== (p.method_global || '')) methodChanged = true;
+  }
+
+  if (!labelChanged && !enChanged && !methodChanged) {
+    banner.classList.add('hidden');
+    return;
+  }
+
+  _fetchUsageImpact(p.parametr_id).then(function(impact) {
+    var certN = (impact && impact.cert_products_count) || 0;
+    var mbrN = (impact && impact.mbr_products_count) || 0;
+    var lines = [];
+    lines.push('⚠ Edytujesz wartości w <strong>rejestrze</strong> (zmiana wpłynie na inne produkty).');
+    lines.push('Świadectwa: <strong>' + certN + ' produkt(ów)</strong>.');
+    if (labelChanged) {
+      // label = parametry_analityczne.label visible in laborant UI / MBR / kalkulator
+      lines.push('Również widoczne w: laboratorium, MBR, kalkulator (' + mbrN + ' produkt(ów) z parametrem w MBR).');
+    }
+    banner.innerHTML = lines.join(' ');
+    banner.classList.remove('hidden');
+  }).catch(function() {
+    // Swallow — never break the editor if the count fetch fails
+    banner.classList.add('hidden');
+  });
+}
 
 // Stub — real implementation in Task B8
 function initParamListDragAndDrop() {
