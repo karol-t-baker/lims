@@ -1,4 +1,5 @@
 import json as _json
+import sqlite3
 
 from flask import request, jsonify, render_template, session
 
@@ -277,7 +278,7 @@ def api_parametry_create():
                 db=db,
             )
             db.commit()
-        except Exception:
+        except sqlite3.IntegrityError:
             return jsonify({"error": "Parametr already exists"}), 409
     return jsonify({"ok": True, "id": new_id})
 
