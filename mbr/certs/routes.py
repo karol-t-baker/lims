@@ -379,6 +379,15 @@ def api_cert_config_product_get(key):
                 "method": bp["method"] or bp["pa_method_code"] or "",
                 "format": bp["format"] or "1",
                 "data_field": bp["kod"] or "",
+                # Dual-field surface for the editor (Cert Editor Redesign A4):
+                # globals always present, overrides preserved raw (None = inherit,
+                # "" = explicit blank). Legacy fields above keep existing consumers working.
+                "name_pl_global": bp["pa_label"] or "",
+                "name_en_global": bp["pa_name_en"] or "",
+                "method_global": bp["pa_method_code"] or "",
+                "name_pl_override": bp["name_pl"],
+                "name_en_override": bp["name_en"],
+                "method_override": bp["method"],
             }
             if bp["qualitative_result"]:
                 param["qualitative_result"] = bp["qualitative_result"]
@@ -444,6 +453,13 @@ def api_cert_config_product_get(key):
                         "method": ap["method"] or ap["pa_method_code"] or "",
                         "format": ap["format"] or "1",
                         "data_field": ap["kod"] or "",
+                        # Dual-field surface for the editor (Cert Editor Redesign A4).
+                        "name_pl_global": ap["pa_label"] or "",
+                        "name_en_global": ap["pa_name_en"] or "",
+                        "method_global": ap["pa_method_code"] or "",
+                        "name_pl_override": ap["name_pl"],
+                        "name_en_override": ap["name_en"],
+                        "method_override": ap["method"],
                     }
                     if ap["qualitative_result"]:
                         param["qualitative_result"] = ap["qualitative_result"]
