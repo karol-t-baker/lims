@@ -441,6 +441,12 @@
         <div class="wc-md-search">
           <input id="pe-rej-filter" type="text" placeholder="Filtruj parametry..." oninput="rejFilter(this.value)">
         </div>
+        <div style="padding:6px 8px 0;background:var(--surface);">
+          <label style="font-size:10px;color:var(--text-dim);cursor:pointer;display:flex;align-items:center;gap:5px;">
+            <input type="checkbox" id="pe-rej-show-inactive" onchange="rejToggleShowInactive(this.checked)">
+            Pokaż nieaktywne
+          </label>
+        </div>
         <div id="pe-rej-pills" style="display:flex;flex-wrap:wrap;gap:4px;padding:8px;border-bottom:1px solid var(--border);background:var(--surface);"></div>
         <div class="wc-md-list-body" id="pe-rej-list-body"></div>
         <div class="wc-md-add" onclick="rejOpenAddModal()">+ Dodaj parametr</div>
@@ -805,7 +811,8 @@ function rejRenderList() {
     return (a.kod || '').toLowerCase().localeCompare((b.kod || '').toLowerCase());
   });
   sorted.forEach(function(p) {
-    if (!_isAdmin && !p.aktywny) return;  // non-admin sees only active
+    if (!_isAdmin && !p.aktywny) return;
+    if (_isAdmin && !p.aktywny && !_rejShowInactive) return;
     var matchesFilter = !filter || (p.kod + ' ' + (p.label || '')).toLowerCase().indexOf(filter) !== -1;
     var matchesTyp = typFilter.size === 0 || typFilter.has(p.typ);
     var isSelected = (p.id === _rejSelectedId);
@@ -1238,8 +1245,51 @@ function rejSaveAll() {
     if (status) { status.textContent = 'Błąd: ' + e.message; status.style.color = 'var(--red, #b91c1c)'; }
   });
 }
-function rejDeactivate() { alert('B10 — Deactivate'); }
-function rejReactivate() { alert('B10 — Reactivate'); }
+function rejDeactivate() {
+  if (_rejSelectedId == null) return;
+  var p = _rejParams.find(function(x) { return x.id === _rejSelectedId; });
+  if (!p) return;
+  if (!p.aktywny) return;  // already inactive
+
+  _rejFetchUsage(_rejSelectedId).then(function(impact) {
+    var certN = impact.cert_products_count || 0;
+    var mbrN = impact.mbr_products_count || 0;
+    var msg = 'Deaktywować parametr „' + p.kod + '"?\n\n' +
+      'Parametr jest używany w ' + certN + ' świadectwach + ' + mbrN + ' produktach MBR.\n\n' +
+      'Po deaktywacji:\n' +
+      '✓ historyczne szarże nadal generują się poprawnie\n' +
+      '✓ nowe konfiguracje nie będą widziały tego parametru\n' +
+      '✓ deaktywacja jest odwracalna (Reaktywuj)';
+    if (!confirm(msg)) return;
+
+    fetch('/api/parametry/' + _rejSelectedId, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ aktywny: 0 }),
+    }).then(function(r) {
+      if (r.ok) { rejLoadParams(); }
+      else { r.json().then(function(d) { alert('Błąd: ' + (d.error || r.status)); }); }
+    });
+  });
+}
+
+function rejReactivate() {
+  if (_rejSelectedId == null) return;
+  var p = _rejParams.find(function(x) { return x.id === _rejSelectedId; });
+  if (!p) return;
+  if (p.aktywny) return;
+
+  if (!confirm('Reaktywować parametr „' + p.kod + '"? Wróci do listy aktywnych parametrów.')) return;
+
+  fetch('/api/parametry/' + _rejSelectedId, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ aktywny: 1 }),
+  }).then(function(r) {
+    if (r.ok) { rejLoadParams(); }
+    else { r.json().then(function(d) { alert('Błąd: ' + (d.error || r.status)); }); }
+  });
+}
 
 function rejOpenAddModal() {
   document.getElementById('pe-rej-add-kod').value = '';
@@ -1314,6 +1364,13 @@ function rejSaveCurrentToState() {
 }
 
 var _rejUsageCache = {};  // param_id → usage-impact response
+
+var _rejShowInactive = false;
+
+function rejToggleShowInactive(checked) {
+  _rejShowInactive = checked;
+  rejRenderList();
+}
 
 function _rejFetchUsage(paramId) {
   if (_rejUsageCache[paramId]) return Promise.resolve(_rejUsageCache[paramId]);
