@@ -5,6 +5,7 @@ from flask import request, jsonify, render_template, session
 from mbr.parametry import parametry_bp
 from mbr.parametry.registry import get_parametry_for_kontekst, get_calc_methods, get_konteksty, build_parametry_lab
 from mbr.shared.decorators import login_required, role_required
+from mbr.shared.audit import log_event, EVENT_PARAMETR_UPDATED, diff_fields
 from mbr.db import db_session
 
 ALLOWED_GRUPY = {"lab", "zewn"}
@@ -87,6 +88,12 @@ def api_parametry_update(param_id):
         if not existing:
             return jsonify({"error": "Parametr not found"}), 404
 
+        # Snapshot old state for audit diff (label/name_en/method_code only).
+        old_audit = db.execute(
+            "SELECT label, name_en, method_code FROM parametry_analityczne WHERE id=?",
+            (param_id,),
+        ).fetchone()
+
         if rola == "admin":
             # Determine effective typ after this update
             new_typ = data["typ"] if "typ" in data else existing["typ"]
@@ -134,6 +141,23 @@ def api_parametry_update(param_id):
         sets = ", ".join(f"{k}=?" for k in updates)
         vals = list(updates.values()) + [param_id]
         db.execute(f"UPDATE parametry_analityczne SET {sets} WHERE id=?", vals)
+
+        # Audit registry-level field changes (label / name_en / method_code).
+        # Other fields (skrot, formula, etc.) are admin-internal — not audited here.
+        new_audit = db.execute(
+            "SELECT label, name_en, method_code FROM parametry_analityczne WHERE id=?",
+            (param_id,),
+        ).fetchone()
+        diff = diff_fields(dict(old_audit), dict(new_audit), ["label", "name_en", "method_code"])
+        if diff:
+            log_event(
+                EVENT_PARAMETR_UPDATED,
+                entity_type="parametr",
+                entity_id=param_id,
+                entity_label=existing["kod"],
+                diff=diff,
+                db=db,
+            )
 
         # Rebuild parametry_lab for all active templates that use this parameter
         affected = db.execute(
