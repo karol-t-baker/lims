@@ -177,6 +177,31 @@ def api_parametry_update(param_id):
     return jsonify({"ok": True})
 
 
+@parametry_bp.route("/api/parametry/<int:param_id>/usage-impact")
+@login_required
+def api_parametry_usage_impact(param_id):
+    """Return product counts for usage banner: how many cert + mbr products use this param."""
+    with db_session() as db:
+        exists = db.execute(
+            "SELECT 1 FROM parametry_analityczne WHERE id=?", (param_id,)
+        ).fetchone()
+        if not exists:
+            return jsonify({"error": "Parametr not found"}), 404
+
+        cert_count = db.execute(
+            "SELECT COUNT(DISTINCT produkt) AS c FROM parametry_cert WHERE parametr_id=?",
+            (param_id,),
+        ).fetchone()["c"]
+        mbr_count = db.execute(
+            "SELECT COUNT(DISTINCT produkt) AS c FROM parametry_etapy WHERE parametr_id=?",
+            (param_id,),
+        ).fetchone()["c"]
+    return jsonify({
+        "cert_products_count": cert_count,
+        "mbr_products_count": mbr_count,
+    })
+
+
 @parametry_bp.route("/api/parametry", methods=["POST"])
 @role_required("admin")
 def api_parametry_create():
