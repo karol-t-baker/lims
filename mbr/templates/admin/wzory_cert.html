@@ -1033,7 +1033,6 @@ function selectParam(idx) {
   renderParamDetail();
 }
 
-// Stub — real implementation in Task B3
 function renderParamDetail() {
   var detail = document.getElementById('wc-md-detail');
   if (!detail) return;
@@ -1046,9 +1045,197 @@ function renderParamDetail() {
     detail.innerHTML = '<div class="wc-md-detail-empty">Brak parametru.</div>';
     return;
   }
-  // B3 will fill this in. For now, just confirm selection works:
-  detail.innerHTML = '<div class="wc-md-detail-empty">Wybrany: <strong>' + _esc(p.kod || p.data_field || '') + '</strong> — szczegóły w Task B3</div>';
+
+  var name_pl_eff = p.name_pl_override || p.name_pl_global || p.name_pl || '';
+  var kod = p.kod || p.data_field || '';
+  // After-save params have parametr_id set from registry. New unsaved params don't yet.
+  var bindingDisabled = (p.parametr_id || p.id) ? 'disabled' : '';
+
+  detail.innerHTML =
+    '<div class="wc-md-detail-head">' +
+      '<div class="wc-md-detail-title">' + _rtHtml(name_pl_eff) + '</div>' +
+      '<span class="wc-md-detail-bind">' + _esc(kod) + '</span>' +
+      '<button class="wc-md-detail-del" onclick="removeSelectedParam()">Usuń parametr</button>' +
+    '</div>' +
+
+    '<div class="wc-md-banner hidden" id="wc-md-banner"></div>' +
+
+    '<div class="wc-md-toolbar" id="wc-md-toolbar">' +
+      '<span class="wc-md-toolbar-label">Wstaw do focused pola:</span>' +
+      '<button class="wc-md-tbtn" data-tb="sup" onclick="tbInsert(\'sup\')" title="Górny indeks ^{}">X<sup>²</sup></button>' +
+      '<button class="wc-md-tbtn" data-tb="sub" onclick="tbInsert(\'sub\')" title="Dolny indeks _{}">X<sub>₂</sub></button>' +
+      '<button class="wc-md-tbtn" data-tb="br" onclick="tbInsert(\'br\')" title="Łamanie wiersza |">↲</button>' +
+      '<span style="width:1px;height:14px;background:var(--border);margin:0 4px;"></span>' +
+      '<button class="wc-md-tbtn" data-tb="leq" onclick="tbInsert(\'leq\')" title="≤">≤</button>' +
+      '<button class="wc-md-tbtn" data-tb="geq" onclick="tbInsert(\'geq\')" title="≥">≥</button>' +
+      '<button class="wc-md-tbtn" data-tb="div" onclick="tbInsert(\'div\')" title="÷">÷</button>' +
+      '<button class="wc-md-tbtn" data-tb="deg" onclick="tbInsert(\'deg\')" title="°">°</button>' +
+    '</div>' +
+
+    '<div class="wc-md-dual-header">' +
+      '<div>Globalne (rejestr — dotyczy wszystkich produktów)</div>' +
+      '<div>Per produkt (puste = dziedzicz globalne)</div>' +
+    '</div>' +
+
+    _dualRow('Nazwa PL', 'name_pl', p.name_pl_global || '', p.name_pl_override) +
+    _dualRow('Nazwa EN', 'name_en', p.name_en_global || '', p.name_en_override) +
+    _dualRow('Metoda',  'method',  p.method_global  || '', p.method_override) +
+
+    '<div class="wc-md-single-section">' +
+      '<div class="wc-md-single-row">' +
+        '<label>Wymaganie</label>' +
+        '<div><input data-md="requirement" value="' + _esc(p.requirement || '') + '" oninput="onParamFieldChange()" style="flex:1;"></div>' +
+      '</div>' +
+      '<div class="wc-md-single-row">' +
+        '<label>Precyzja</label>' +
+        '<div><select data-md="format" onchange="onParamFieldChange()" style="width:120px;">' + _fmtOptions(p.format) + '</select></div>' +
+      '</div>' +
+      '<div class="wc-md-single-row">' +
+        '<label>Wynik opisowy</label>' +
+        '<div>' + _qualResultInputMd(p) + '</div>' +
+      '</div>' +
+      '<div class="wc-md-single-row">' +
+        '<label>Powiąż z pomiarem</label>' +
+        '<div><select data-md="data_field" onchange="onParamFieldChange()" ' + bindingDisabled + ' style="flex:1;max-width:320px;">' +
+          _codeOptions(p.data_field || p.kod) + '</select>' +
+          (bindingDisabled ? '<span style="font-size:10px;color:var(--text-dim);margin-left:8px;">read-only po utworzeniu</span>' : '') +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  // Wire focus tracking on text inputs (B4 will use _focusedTextInput)
+  detail.querySelectorAll('input[data-md]').forEach(function(inp) {
+    inp.addEventListener('focus', function() { _focusedTextInput = inp; updateToolbarState(); });
+  });
+  // Toolbar buttons must not steal focus from input
+  detail.querySelectorAll('.wc-md-tbtn').forEach(function(btn) {
+    btn.addEventListener('mousedown', function(e) { e.preventDefault(); });
+  });
+  updateToolbarState();
 }
+
+function _dualRow(label, fieldKey, globalVal, overrideVal) {
+  var hasOverride = overrideVal !== null && overrideVal !== undefined && overrideVal !== '';
+  return '<div class="wc-md-dual-row">' +
+    '<div class="wc-md-dual-cell">' +
+      '<label>' + _esc(label) + '</label>' +
+      '<input data-md="' + fieldKey + '_global" value="' + _esc(globalVal) + '" oninput="onGlobalFieldChange(this)">' +
+      '<div class="wc-md-rt-prev" data-prev-for="' + fieldKey + '_global">' + _rtHtml(globalVal) + '</div>' +
+    '</div>' +
+    '<div class="wc-md-dual-cell">' +
+      '<label>' + _esc(label) + ' (override) ' +
+        '<button type="button" class="wc-md-reset' + (hasOverride ? '' : ' hidden') + '" data-reset-for="' + fieldKey + '_override" onclick="resetOverride(\'' + fieldKey + '_override\')" title="Reset do globalnego">⤺</button>' +
+      '</label>' +
+      '<input data-md="' + fieldKey + '_override" value="' + _esc(overrideVal == null ? '' : overrideVal) + '" placeholder="puste = jak globalne →" oninput="onOverrideFieldChange(this)">' +
+      '<div class="wc-md-rt-prev" data-prev-for="' + fieldKey + '_override">' + _rtHtml(overrideVal || '') + '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+function _qualResultInputMd(p) {
+  var meta = window.__paramMeta && window.__paramMeta[p.kod || p.data_field];
+  if (meta && meta.typ === 'jakosciowy') {
+    var values = [];
+    try { values = JSON.parse(meta.opisowe_wartosci || '[]'); } catch (e) { values = []; }
+    if (values.length > 0) {
+      var cur = p.qualitative_result || '';
+      var opts = '<option value=""' + (cur === '' ? ' selected' : '') + '>—</option>';
+      values.forEach(function(v) {
+        opts += '<option value="' + _esc(v) + '"' + (v === cur ? ' selected' : '') + '>' + _esc(v) + '</option>';
+      });
+      if (cur && values.indexOf(cur) === -1) {
+        opts += '<option value="' + _esc(cur) + '" selected>' + _esc(cur) + ' (historyczna)</option>';
+      }
+      return '<select data-md="qualitative_result" onchange="onParamFieldChange()" style="flex:1;max-width:240px;">' + opts + '</select>';
+    }
+  }
+  return '<input data-md="qualitative_result" value="' + _esc(p.qualitative_result || '') + '" oninput="onParamFieldChange()" style="flex:1;max-width:240px;" placeholder="—">';
+}
+
+function onParamFieldChange() {
+  if (_selectedParamIdx == null) return;
+  _markParamDirty(_selectedParamIdx);
+}
+
+function onGlobalFieldChange(input) {
+  var key = input.getAttribute('data-md').replace('_global', '');
+  var prev = document.querySelector('[data-prev-for="' + key + '_global"]');
+  if (prev) prev.innerHTML = _rtHtml(input.value || '');
+  input.classList.add('dirty-global');
+  if (_selectedParamIdx != null) _markParamDirty(_selectedParamIdx);
+  if (typeof refreshUsageBanner === 'function') refreshUsageBanner();
+}
+
+function onOverrideFieldChange(input) {
+  var key = input.getAttribute('data-md').replace('_override', '');
+  var prev = document.querySelector('[data-prev-for="' + key + '_override"]');
+  if (prev) prev.innerHTML = _rtHtml(input.value || '');
+  // Toggle reset button visibility
+  var resetBtn = document.querySelector('[data-reset-for="' + key + '_override"]');
+  if (resetBtn) {
+    if (input.value) resetBtn.classList.remove('hidden');
+    else resetBtn.classList.add('hidden');
+  }
+  if (_selectedParamIdx != null) _markParamDirty(_selectedParamIdx);
+}
+
+function resetOverride(field) {
+  var inp = document.querySelector('[data-md="' + field + '"]');
+  if (!inp) return;
+  inp.value = '';
+  onOverrideFieldChange(inp);
+}
+
+function saveCurrentParamToState() {
+  if (_selectedParamIdx == null || !_currentProduct) return;
+  var detail = document.getElementById('wc-md-detail');
+  if (!detail) return;
+  var p = _currentProduct.parameters[_selectedParamIdx];
+  if (!p) return;
+  function _val(sel) { var el = detail.querySelector(sel); return el ? el.value : ''; }
+  function _val_or_null(sel) { var v = _val(sel); return v === '' ? null : v; }
+  p.name_pl_global = _val('[data-md="name_pl_global"]');
+  p.name_en_global = _val('[data-md="name_en_global"]');
+  p.method_global = _val('[data-md="method_global"]');
+  p.name_pl_override = _val_or_null('[data-md="name_pl_override"]');
+  p.name_en_override = _val_or_null('[data-md="name_en_override"]');
+  p.method_override = _val_or_null('[data-md="method_override"]');
+  p.requirement = _val('[data-md="requirement"]');
+  p.format = _val('[data-md="format"]');
+  p.qualitative_result = _val_or_null('[data-md="qualitative_result"]');
+  // Binding (data_field) stays read-only post-creation; for new rows it's editable
+  if (!p.parametr_id && !p.id) {
+    var df = _val('[data-md="data_field"]');
+    if (df) p.data_field = df;
+  }
+}
+
+function removeSelectedParam() {
+  if (_selectedParamIdx == null) return;
+  var p = _currentProduct.parameters[_selectedParamIdx];
+  if (!confirm('Usunąć parametr „' + (p.kod || p.data_field || '') + '"?')) return;
+  _currentProduct.parameters.splice(_selectedParamIdx, 1);
+  // Re-index dirty flags
+  var newDirty = {};
+  Object.keys(_paramDirty).forEach(function(k) {
+    var i = parseInt(k);
+    if (i < _selectedParamIdx) newDirty[i] = _paramDirty[k];
+    else if (i > _selectedParamIdx) newDirty[i - 1] = _paramDirty[k];
+  });
+  _paramDirty = newDirty;
+  _selectedParamIdx = null;
+  _setDirty(true);
+  renderParamList();
+  renderParamDetail();
+}
+
+/* Toolbar — Task B4 will implement updateToolbarState + tbInsert */
+var _focusedTextInput = null;
+function updateToolbarState() { /* B4 */ }
+function tbInsert(kind) { /* B4 */ }
+
+/* Banner — Task B5 will implement */
+function refreshUsageBanner() { /* B5 */ }
 
 // Stub — real implementation in Task B8
 function initParamListDragAndDrop() {
