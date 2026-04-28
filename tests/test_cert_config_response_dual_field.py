@@ -141,3 +141,36 @@ def test_cert_config_get_variant_add_parameters_dual_fields(monkeypatch, db):
     assert ap["method_override"] is None
     # Legacy effective name_pl still respects override
     assert ap["name_pl"] == "Variant nazwa"
+
+
+def test_cert_config_get_distinguishes_empty_override_from_null(monkeypatch, db):
+    """Empty-string override on name_en must round-trip as `""`, not fall back to global.
+
+    Cert generator depends on this: NULL = inherit, "" = explicit blank.
+    """
+    db.execute("DELETE FROM parametry_analityczne")
+    db.execute(
+        "INSERT INTO parametry_analityczne (id, kod, label, typ, name_en, method_code) "
+        "VALUES (1, 'nd20', 'Wsp. załamania', 'bezposredni', 'Refractive index', 'PN-EN ISO 5661')"
+    )
+    db.execute("INSERT INTO produkty (nazwa, display_name) VALUES ('TEST', 'Test')")
+    db.execute(
+        "INSERT INTO cert_variants (produkt, variant_id, label, flags, kolejnosc) VALUES ('TEST', 'base', 'Base', '[]', 0)"
+    )
+    db.execute(
+        "INSERT INTO parametry_cert (produkt, parametr_id, kolejnosc, name_pl, name_en, method, variant_id) "
+        "VALUES ('TEST', 1, 0, NULL, '', NULL, NULL)"
+    )
+    db.commit()
+    client = _admin_client(monkeypatch, db)
+
+    rv = client.get("/api/cert/config/product/TEST")
+    assert rv.status_code == 200
+    j = rv.get_json()
+    p = j["product"]["parameters"][0]
+    assert p["name_en_override"] == ""
+    assert p["name_en_override"] is not None
+    assert p["name_en"] == ""  # legacy effective: override wins, even when ""
+    # Other fields fall back to global as expected
+    assert p["name_pl"] == "Wsp. załamania"
+    assert p["method"] == "PN-EN ISO 5661"

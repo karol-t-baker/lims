@@ -131,7 +131,7 @@ Skrypt nie modyfikuje `parametry_analityczne`. Skrypt nie zmienia logiki renderi
   - `name_pl_global / name_en_global / method_global` — z `parametry_analityczne` (zawsze obecne, mogą być empty string)
   - `name_pl_override / name_en_override / method_override` — z `parametry_cert`, raw (mogą być NULL)
   - Istniejące pola `name_pl / name_en / method` (efektywna wartość, fallback) **zostają zachowane** dla kompatybilności z `cert_master_template.docx` rendering pipeline.
-- Endpoint `/api/cert/config/product/<key>` GET (`mbr/certs/routes.py`) zwraca nowe pola automatycznie (delegate'uje do `get_cert_params`/`get_cert_variant_params`).
+- Endpoint `/api/cert/config/product/<key>` GET (`mbr/certs/routes.py`) zwraca nowe pola — endpoint ma własną inline SQL (nie deleguje do `get_cert_params`), więc po wykonaniu A3 należało dodać 6 nowych pól bezpośrednio do dict-comprehension w obu pętlach (base parameters + variant add_parameters). **Tech debt**: skonsolidować z `get_cert_params`/`get_cert_variant_params` w przyszłości — obecnie ryzyko driftu między dwoma read-paths przy zmianach schematu.
 
 ### 8. Dodawanie nowego parametru do świadectwa + binding read-only
 
