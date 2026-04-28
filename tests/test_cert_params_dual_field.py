@@ -99,3 +99,31 @@ def test_get_cert_variant_params_dual_fields(db):
     assert r["name_en_global"] == "Refractive index"
     assert r["name_en_override"] is None
     assert r["name_pl"] == "Variant nazwa"  # effective
+
+
+def test_get_cert_params_distinguishes_empty_override_from_null(db):
+    """Empty-string override must round-trip as `""`, not fall back to global.
+
+    The cert generator depends on this distinction: NULL = inherit registry,
+    `""` = explicit blank (force empty cell on cert).
+    """
+    _seed(db)
+    # Re-seed: clear and use parametr 1 only with empty-string name_en override
+    db.execute("DELETE FROM parametry_cert")
+    db.execute(
+        "INSERT INTO parametry_cert (produkt, parametr_id, kolejnosc, name_pl, name_en, method, variant_id) "
+        "VALUES ('TEST', 1, 0, NULL, '', NULL, NULL)"
+    )
+    db.commit()
+
+    rows = get_cert_params(db, "TEST")
+    assert len(rows) == 1
+    r = rows[0]
+    # Override is empty string, NOT None
+    assert r["name_en_override"] == ""
+    assert r["name_en_override"] is not None
+    # Effective name_en respects the empty-string override (not the registry value)
+    assert r["name_en"] == ""
+    # Other fields fall back to global as expected
+    assert r["name_pl"] == "Wsp. załamania"
+    assert r["method"] == "PN-EN ISO 5661"
