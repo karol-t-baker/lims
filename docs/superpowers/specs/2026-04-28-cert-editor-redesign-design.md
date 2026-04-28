@@ -74,12 +74,12 @@ Live preview pod każdym polem nazwy (już jest w kodzie, `updateRtPreview`) —
 
 ### 4. Zapisywanie
 
-Jeden przycisk `Zapisz wszystko` na dole edytora wywołuje **dwa endpointy sekwencyjnie**:
+Jeden przycisk `Zapisz wszystko` na dole edytora wywołuje **dwa typy endpointów sekwencyjnie**:
 
-1. Jeśli są zmiany w lewej kolumnie (globalne) → batch call `PUT /api/parametry/registry-batch` z listą `[{parametr_id, label, name_en, method_code}]`. Backend `UPDATE parametry_analityczne` w jednej transakcji, audyt jako `parametry.registry.updated` per parametr.
-2. Zawsze potem → `PUT /api/cert/config/product/<key>` z cert configiem (jak teraz). Backend `UPDATE parametry_cert` z NULL gdzie puste, audyt jako `cert.config.updated`.
+1. Jeśli są zmiany w lewej kolumnie (globalne) → N równoległych `PUT /api/parametry/<id>` (`Promise.all`), jeden per zmieniony parametr. Backend `UPDATE parametry_analityczne` + audit per parametr (`EVENT_PARAMETR_UPDATED` z `diff`).
+2. Tylko gdy wszystkie z kroku 1 OK → `PUT /api/cert/config/product/<key>` z cert configiem (jak teraz). Backend `UPDATE parametry_cert` z NULL gdzie puste, audyt `EVENT_CERT_CONFIG_UPDATED`.
 
-Jeśli krok 1 zwróci błąd, krok 2 się nie wykonuje. Worst case (krok 1 OK, krok 2 fail): admin widzi error, klika Save jeszcze raz — krok 1 jest idempotentny (te same wartości), krok 2 dokończy zapis. Brak data corruption.
+Jeśli którykolwiek z kroku 1 zwróci błąd, krok 2 się nie wykonuje. Worst case (część kroku 1 OK, krok 2 fail): admin widzi error, klika Save jeszcze raz — kroki idempotentne (UPDATE z tymi samymi wartościami no-op'em). Brak data corruption.
 
 Status flash po sukcesie pokazuje rozbicie: `Zapisano: 3 globalne, 2 per produkt`.
 
@@ -113,26 +113,25 @@ Po uruchomieniu skryptu: ~80–90% pól będzie pustych i wyświetli się w UI j
 
 Skrypt nie modyfikuje `parametry_analityczne`. Skrypt nie zmienia logiki rendering — cert generator już zwraca poprawną wartość (fallback `cert_name_pl or label`).
 
-### 7. Nowe endpointy backend
+### 7. Backend — endpointy
 
-- `PUT /api/parametry/<id>/registry` — admin edytuje `label`, `name_en`, `method_code` w `parametry_analityczne`. Audytowane jako `parametry.registry.updated`. Wymaga roli `admin`.
-- `GET /api/parametry/<id>/usage-impact` — zwraca:
+- **Reużycie istniejącego `PUT /api/parametry/<int:param_id>`** — endpoint już akceptuje edycję `label`, `name_en`, `method_code` przez admina (sprawdzone w `mbr/parametry/routes.py:70-153`). Trzeba **dodać audit logging** za pomocą `log_event(EVENT_PARAMETR_UPDATED, ...)` z `diff_fields()` — endpoint obecnie nie zapisuje audytu.
+- Frontend wysyła N równoległych PUT-ów (jeden per zmieniony parametr) gdy save zawiera zmiany w lewej kolumnie. Każdy PUT własna transakcja, własny event audytu.
+- **Nowy endpoint `GET /api/parametry/<int:param_id>/usage-impact`** — zwraca:
   ```json
   {
-    "products_total": 8,
-    "products_with_overrides": {
-      "name_pl": 0,
-      "name_en": 1,
-      "method": 2
-    }
+    "cert_products_count": 8,
+    "mbr_products_count": 12
   }
   ```
-  Frontend używa tego do bannera „dotknięte produkty: 8".
-- Modyfikacja `mbr/parametry/registry.py:get_cert_params` i `get_cert_variant_params` — zwracają teraz **dwa zestawy pól**:
-  - `name_pl_global / name_en_global / method_global` — z `parametry_analityczne` (zawsze obecne, nie NULL)
+  - `cert_products_count` = `SELECT COUNT(DISTINCT produkt) FROM parametry_cert WHERE parametr_id=?`
+  - `mbr_products_count` = `SELECT COUNT(DISTINCT produkt) FROM parametry_etapy WHERE parametr_id=?`
+  Frontend używa do bannera (sekcja 3): cert count zawsze, mbr count tylko dla edycji `label`.
+- **Modyfikacja `mbr/parametry/registry.py:get_cert_params` i `get_cert_variant_params`** — zwracają teraz **dwa zestawy pól**:
+  - `name_pl_global / name_en_global / method_global` — z `parametry_analityczne` (zawsze obecne, mogą być empty string)
   - `name_pl_override / name_en_override / method_override` — z `parametry_cert`, raw (mogą być NULL)
-  - Pole `name_pl / name_en / method` (efektywna wartość, fallback) zostaje zachowane dla kompatybilności z istniejącym cert generatorem
-  Stary endpoint `/api/cert/config/product/<key>` zwraca te pola obok dotychczasowych — frontend renderuje obie kolumny, backend renderingu używa tylko efektywnej wartości.
+  - Istniejące pola `name_pl / name_en / method` (efektywna wartość, fallback) **zostają zachowane** dla kompatybilności z `cert_master_template.docx` rendering pipeline.
+- Endpoint `/api/cert/config/product/<key>` GET (`mbr/certs/routes.py`) zwraca nowe pola automatycznie (delegate'uje do `get_cert_params`/`get_cert_variant_params`).
 
 ### 8. Dodawanie nowego parametru do świadectwa + binding read-only
 
@@ -161,23 +160,13 @@ Dodanie zupełnie nowego parametru (nowy `kod` w rejestrze) nie odbywa się w ed
 
 ### 10. Audyt zmian rejestru
 
-Endpoint `PUT /api/parametry/registry-batch` emituje audyt **per parametr** (nie per batch). Schemat eventu:
-- `event_type`: `parametry.registry.updated`
-- `actor_login`: bieżący user
-- `actor_role`: `admin`
-- `payload_json`:
-  ```json
-  {
-    "parametr_id": 42,
-    "kod": "nD20",
-    "changes": [
-      {"field": "label", "old": "Współczynnik załamania", "new": "Wsp. załamania n_{D}^{20}"},
-      {"field": "method_code", "old": "PN-EN ISO 5661:2002", "new": "PN-EN ISO 5661:2002 +Ap1:2024"}
-    ]
-  }
-  ```
-- Jeśli żadne pole się nie zmieniło dla danego parametru → bez eventu (idempotentnie)
-- Backend porównuje stan przed/po — bo frontend wysyła pełen state, nie diff
+Każde wywołanie `PUT /api/parametry/<id>` przez admina emituje audyt:
+- `event_type`: `EVENT_PARAMETR_UPDATED` (= `"parametr.updated"`, już zdefiniowane w `mbr/shared/audit.py`)
+- `entity_type`: `"parametr"`
+- `entity_id`: parametr_id
+- `entity_label`: kod (np. `"nD20"`)
+- `diff`: wynik `diff_fields(old_row, new_row, ["label", "name_en", "method_code"])` — zwraca listę `[{"pole": ..., "stara": ..., "nowa": ...}]` tylko dla pól które się zmieniły
+- Jeśli `diff` jest puste → endpoint zwraca OK ale nie emituje eventu (zmiana no-op)
 
 Audyt widoczny w `/admin/audit` panel jak inne eventy.
 
