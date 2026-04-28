@@ -870,10 +870,9 @@ function rejRenderDetail() {
       '<div class="wc-md-single-row"><label>Metoda (kod)</label><div><input data-rej="method_code" value="' + _rejEsc(p.method_code || '') + '" oninput="rejOnFieldInput(this)" style="flex:1;"></div></div>' +
     '</div>' +
 
-    // Konfiguracja typu — Task B4 will fill in dynamically
+    // Konfiguracja typu — Task B4
     '<div class="wc-md-single-section" id="pe-rej-typ-config">' +
-      '<div style="font-size:9px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Konfiguracja typu</div>' +
-      '<div style="font-size:11px;color:var(--text-dim);">[B4 — dynamic by typ]</div>' +
+      _rejRenderTypConfig(p) +
     '</div>' +
 
     // Powiązania — Task B7 will fill in
@@ -896,6 +895,7 @@ function rejRenderDetail() {
     btn.addEventListener('mousedown', function(e) { e.preventDefault(); });
   });
   rejUpdateToolbarState();
+  if (p.typ === 'jakosciowy') _rejInitOpisoweDrag();
 }
 
 function _rejTypOptions(current) {
@@ -920,12 +920,166 @@ function _rejPrecisionOptions(current) {
   }).join('');
 }
 
+function _rejRenderTypConfig(p) {
+  var typ = p.typ;
+  var html = '<div style="font-size:9px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Konfiguracja typu (' + _REJ_TYP_LABELS[typ] + ')</div>';
+
+  if (typ === 'bezposredni') {
+    html += '<div style="font-size:11px;color:var(--text-dim);font-style:italic;">Brak dodatkowej konfiguracji — wynik wpisywany ręcznie przez laboranta.</div>';
+  }
+  else if (typ === 'srednia') {
+    html += '<div style="font-size:11px;color:var(--text-dim);font-style:italic;">Brak dodatkowej konfiguracji — UI laboranta liczy średnią z 2 pomiarów. Różnica od „bezpośredni" tylko w widgecie wprowadzania.</div>';
+  }
+  else if (typ === 'titracja') {
+    html += '<div class="wc-md-single-row"><label>Metoda — nazwa</label><div><input data-rej="metoda_nazwa" value="' + _rejEsc(p.metoda_nazwa || '') + '" oninput="rejOnFieldInput(this)" placeholder="np. PN-EN ISO 660" style="flex:1;"></div></div>';
+    html += '<div class="wc-md-single-row"><label>Metoda — formuła</label><div><input data-rej="metoda_formula" value="' + _rejEsc(p.metoda_formula || '') + '" oninput="rejOnFieldInput(this)" placeholder="np. (V * C * 56.1) / m" style="flex:1;"></div></div>';
+    html += '<div class="wc-md-single-row"><label>Metoda — factor</label><div><input data-rej="metoda_factor" type="number" step="0.0001" value="' + _rejEsc(p.metoda_factor != null ? String(p.metoda_factor) : '') + '" oninput="rejOnFieldInput(this)" style="max-width:120px;"></div></div>';
+  }
+  else if (typ === 'obliczeniowy') {
+    html += '<div class="wc-md-single-row"><label>Formuła</label><div><textarea data-rej="formula" oninput="rejOnFieldInput(this)" rows="3" placeholder="np. 100 * a / b - sa_bias" style="flex:1;font-family:var(--mono);font-size:11px;padding:6px 9px;border:1.5px solid var(--border);border-radius:5px;">' + _rejEsc(p.formula || '') + '</textarea></div></div>';
+    html += '<div style="font-size:10px;color:var(--text-dim);margin-top:4px;padding-left:152px;">Tokeny: kod parametru w nawiasach klamrowych, np. {sa}, {nacl}. Lub bezpośrednio formuła SQL-style.</div>';
+  }
+  else if (typ === 'jakosciowy') {
+    var values = [];
+    try { values = JSON.parse(p.opisowe_wartosci || '[]'); } catch (e) { values = []; }
+    html += '<div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">Lista dozwolonych wartości opisowych. Pojawia się jako dropdown na cert i w UI laboranta.</div>';
+    html += '<div id="pe-rej-opisowe-list" style="display:flex;flex-direction:column;gap:6px;">';
+    values.forEach(function(v, i) {
+      html += '<div class="pe-rej-opisowe-chip" data-idx="' + i + '" draggable="true" style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--surface-alt);border:1px solid var(--border);border-radius:5px;font-size:11.5px;cursor:grab;">' +
+        '<span class="wc-md-drag" onmousedown="event.stopPropagation()" style="width:10px;height:14px;"></span>' +
+        '<span class="pe-rej-opisowe-text" style="flex:1;font-family:\'Times New Roman\',serif;" ondblclick="rejOpisoweEditChip(this, ' + i + ')">' + _rejEsc(v) + '</span>' +
+        '<button onclick="rejOpisoweRemove(' + i + ')" style="background:none;border:none;color:var(--text-dim);cursor:pointer;padding:2px 6px;" title="Usuń">×</button>' +
+      '</div>';
+    });
+    html += '</div>';
+    html += '<div style="display:flex;gap:6px;margin-top:10px;align-items:center;">' +
+      '<input id="pe-rej-opisowe-new" placeholder="Dodaj wartość..." style="flex:1;padding:6px 9px;border:1.5px solid var(--border);border-radius:5px;font-size:11.5px;font-family:\'Times New Roman\',serif;" onkeydown="if(event.key===\'Enter\'){event.preventDefault();rejOpisoweAdd();}">' +
+      '<button onclick="rejOpisoweAdd()" style="background:var(--teal);color:#fff;border:none;padding:6px 14px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;">+ Dodaj</button>' +
+    '</div>';
+  }
+  return html;
+}
+
+function _rejRerenderTypConfig() {
+  var p = _rejParams.find(function(x) { return x.id === _rejSelectedId; });
+  if (!p) return;
+  var section = document.getElementById('pe-rej-typ-config');
+  if (!section) return;
+  section.innerHTML = _rejRenderTypConfig(p);
+  if (p.typ === 'jakosciowy') _rejInitOpisoweDrag();
+}
+
+// Drag-and-drop reorder for opisowe chips
+var _rejOpisoweDrag = null;
+function _rejInitOpisoweDrag() {
+  document.querySelectorAll('#pe-rej-opisowe-list .pe-rej-opisowe-chip').forEach(function(chip) {
+    chip.addEventListener('dragstart', function(e) {
+      _rejOpisoweDrag = this; this.style.opacity = '0.4';
+      e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', '');
+    });
+    chip.addEventListener('dragover', function(e) { e.preventDefault(); });
+    chip.addEventListener('drop', function(ev) {
+      ev.preventDefault();
+      if (!_rejOpisoweDrag || _rejOpisoweDrag === this) return;
+      var fromIdx = parseInt(_rejOpisoweDrag.getAttribute('data-idx'));
+      var toIdx = parseInt(this.getAttribute('data-idx'));
+      var p = _rejParams.find(function(x) { return x.id === _rejSelectedId; });
+      if (!p) return;
+      var values = [];
+      try { values = JSON.parse(p.opisowe_wartosci || '[]'); } catch (e) { values = []; }
+      var moved = values.splice(fromIdx, 1)[0];
+      values.splice(toIdx, 0, moved);
+      p.opisowe_wartosci = JSON.stringify(values);
+      rejMarkDirty();
+      _rejRerenderTypConfig();
+    });
+    chip.addEventListener('dragend', function() { this.style.opacity = ''; _rejOpisoweDrag = null; });
+  });
+}
+
+function rejOpisoweRemove(idx) {
+  var p = _rejParams.find(function(x) { return x.id === _rejSelectedId; });
+  if (!p) return;
+  var values = [];
+  try { values = JSON.parse(p.opisowe_wartosci || '[]'); } catch (e) { values = []; }
+  if (values.length <= 1) { alert('Minimum 1 wartość — nie można usunąć ostatniej.'); return; }
+  values.splice(idx, 1);
+  p.opisowe_wartosci = JSON.stringify(values);
+  rejMarkDirty();
+  _rejRerenderTypConfig();
+}
+
+function rejOpisoweAdd() {
+  var inp = document.getElementById('pe-rej-opisowe-new');
+  if (!inp) return;
+  var v = (inp.value || '').trim();
+  if (!v) return;
+  var p = _rejParams.find(function(x) { return x.id === _rejSelectedId; });
+  if (!p) return;
+  var values = [];
+  try { values = JSON.parse(p.opisowe_wartosci || '[]'); } catch (e) { values = []; }
+  if (values.indexOf(v) !== -1) { alert('Wartość już istnieje na liście.'); return; }
+  values.push(v);
+  p.opisowe_wartosci = JSON.stringify(values);
+  rejMarkDirty();
+  _rejRerenderTypConfig();
+  // Focus on new value input after re-render
+  var inp2 = document.getElementById('pe-rej-opisowe-new');
+  if (inp2) inp2.focus();
+}
+
+function rejOpisoweEditChip(span, idx) {
+  var current = span.textContent;
+  var inp = document.createElement('input');
+  inp.value = current;
+  inp.style.cssText = "flex:1;padding:2px 4px;border:1px solid var(--teal);border-radius:3px;font-family:'Times New Roman',serif;";
+  span.replaceWith(inp);
+  inp.focus();
+  inp.select();
+
+  function commit() {
+    var v = (inp.value || '').trim();
+    if (!v) { v = current; }
+    var p = _rejParams.find(function(x) { return x.id === _rejSelectedId; });
+    if (!p) return;
+    var values = [];
+    try { values = JSON.parse(p.opisowe_wartosci || '[]'); } catch (e) { values = []; }
+    if (values.indexOf(v) !== -1 && v !== current) {
+      alert('Duplikat — wartość już jest na liście.');
+      _rejRerenderTypConfig();
+      return;
+    }
+    values[idx] = v;
+    p.opisowe_wartosci = JSON.stringify(values);
+    rejMarkDirty();
+    _rejRerenderTypConfig();
+  }
+
+  inp.addEventListener('blur', commit);
+  inp.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+    else if (e.key === 'Escape') { _rejRerenderTypConfig(); }
+  });
+}
+
+// Stub for B5 — markDirty
+function rejMarkDirty() { /* B5 */ }
+
 // Stubs — implemented in subsequent tasks
 var _rejFocusedInput = null;
 function rejUpdateToolbarState() { /* B5 */ }
 function rejTbInsert(kind) { /* B5 */ }
 function rejOnFieldInput(input) { /* B5 dirty tracking + banner */ }
-function rejOnTypChange(select) { rejOnFieldInput(select); /* B4 also re-renders typ-config */ }
+function rejOnTypChange(select) {
+  rejOnFieldInput(select);
+  // Read all current detail-panel inputs into in-memory p (so we don't lose pending edits)
+  var p = _rejParams.find(function(x) { return x.id === _rejSelectedId; });
+  if (!p) return;
+  // Update p.typ from the select (since rejSaveCurrentToState is a stub in B5,
+  // we manually capture the typ change)
+  p.typ = select.value;
+  _rejRerenderTypConfig();
+}
 function rejSaveAll() { alert('B8 — Save Wszystko'); }
 function rejDeactivate() { alert('B10 — Deactivate'); }
 function rejReactivate() { alert('B10 — Reactivate'); }
