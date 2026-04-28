@@ -21,8 +21,10 @@ Zakładka **Rejestr** przechodzi z tabeli na układ 280px : reszta:
 
 **Lewy panel — lista parametrów:**
 - Pole filtru tekstowego (filtruje po `kod` + `label`, case-insensitive)
-- Pillsy filtra typu nad listą: `[Wszystkie] [Bezpośredni] [Titracja] [Obliczeniowy] [Jakościowy] [Średnia]` — toggle, multi-select
-- Lista parametrów posortowana **alfabetycznie po `kod`**, każda pozycja:
+- Pillsy filtra typu nad listą: `[Wszystkie] [Bezpośredni] [Titracja] [Obliczeniowy] [Jakościowy] [Średnia]` — multi-select toggle. Semantyka:
+  - Brak zaznaczonych pillsów = pokaż wszystkie (implicit „all"). `[Wszystkie]` to fast-path reset (klik czyści wszystkie inne pillsy).
+  - Aktywny parametr w detail panelu zawsze widoczny w liście (z visual marker `opacity: .7` jeśli nie pasuje do filtru) — żeby admin nie zgubił selekcji
+- Lista parametrów posortowana **alfabetycznie po `kod`** (case-insensitive ze względu na uppercase outlier `barwa_I2`), każda pozycja:
   - Renderowana nazwa (`label` z sub/sup) — `_rtHtml`
   - Kod jako mono pillsa
   - Małe etykiety typu i grupy: `[titracja] [zewn]` (etykieta typu kolorowana subtelnie wg typu, etykieta grupy `lab`/`zewn` neutralna)
@@ -55,15 +57,24 @@ Sekcje pionowo (single column), każda z subtelnym dividerem.
 - `srednia` → notka „Brak dodatkowej konfiguracji — UI laboranta liczy średnią z 2 pomiarów" (typ nie ma własnych pól, różni się tylko widgetem laboranta)
 - `titracja` → 3 pola: `metoda_nazwa`, `metoda_formula`, `metoda_factor` (number)
 - `obliczeniowy` → `formula` (textarea, wsparcie tokenów `{{kod}}` — autocomplete z istniejących kodów *opcjonalnie*, MVP: free text)
-- `jakosciowy` → editor `opisowe_wartosci` (lista chip-ów + przycisk Dodaj wartość, walidacja minimum 1 wartość non-empty). Logic edytora już istnieje w obecnym kodzie (rozwijany wiersz) — przeniesiony do detail panelu.
+- `jakosciowy` → editor `opisowe_wartosci`:
+  - Lista chip-ów z wartościami opisowymi
+  - Klik chipa → inline edit (input zastępuje tekst, blur zapisuje, ESC anuluje)
+  - Klik `×` na chipie → usuwa (minimum 1 wartość — przycisk × disabled gdy chip jest ostatni)
+  - Drag-and-drop reorder chip-ów — kolejność = kolejność opcji w dropdown na cert
+  - Pole `+ Dodaj wartość` na końcu listy (input + Enter dodaje + clear)
+  - Walidacja: minimum 1 wartość non-empty, brak duplikatów (case-sensitive trim).
 
 #### Powiązania (accordion read-only)
-- `▼ Świadectwa: N produktów` — rozwija listę chip-ów produktów. Klik chip-a → otwiera `/admin/wzory-cert` z preselekcją tego parametru w lewej liście master-detail (URL: `/admin/wzory-cert?produkt=X&select_param=<kod>`).
-- `▼ Etapy MBR: M produktów × K bindings` — rozwija listę grupowaną produkt → etapy. Klik produkt+etap → otwiera `/admin/parametry` zakładka Etapy z preselekcją produkt+etap+parametr (URL: `/admin/parametry?tab=etapy&produkt=X&kontekst=Y`).
-- Dane pochodzą z dwóch nowych endpointów (sekcja 6 — Backend) lub rozszerzenia istniejącego `/api/parametry/<id>/usage-impact`.
+- `▼ Świadectwa: N produktów` — rozwija listę chip-ów produktów (read-only, no link). Pokazuje admin'owi gdzie parametr jest używany — informacja do decyzji „czy mogę zmienić nazwę / deaktywować".
+- `▼ Etapy MBR: M produktów × K bindings` — rozwija listę grupowaną produkt → etapy (read-only chip-y).
+- Brak URL preselect / nawigacji między edytorami — admin świadomie otwiera `/admin/wzory-cert` lub Etapy tab gdy chce edytować w innym kontekście. Edycja w Rejestrze zmienia globalnie wszędzie; edycja `*_global` w cert editor pisze do tego samego rejestru — oba edytory są symetryczne, nie ma „preferowanego punktu wejścia".
+- Dane pochodzą z rozszerzenia istniejącego `/api/parametry/<id>/usage-impact` (sekcja 6 — Backend).
 
 #### Banner usage-impact (jak cert editor)
-Pojawia się **tylko** gdy admin zmodyfikował co najmniej jedno z pól: `label`, `name_en`, `method_code`, `precision`. Field-specific:
+Pojawia się **tylko** gdy admin zmodyfikował co najmniej jedno z **4 pól z cross-editor scope**: `label`, `name_en`, `method_code`, `precision`. Pozostałe pola (`skrot`, `typ`, `grupa`, `aktywny`, `formula`, `metoda_*`, `jednostka`, `opisowe_wartosci`) zapisują się normalnie bez bannera — są albo dyskretne (skrot, jednostka — głównie display label w laborant UI), albo strukturalne z własnym guard'em w backend (typ z 409 dla historical data), albo categorization-only (grupa, aktywny).
+
+Field-specific message:
 - `label` → `⚠ Edytujesz rejestr. Świadectwa: N produktów. Również widoczne w: laboratorium, MBR, kalkulator (M produktów).`
 - `name_en` lub `method_code` → `⚠ Edytujesz rejestr. Świadectwa: N produktów.`
 - `precision` → `⚠ Edytujesz rejestr. Świadectwa: N produktów + MBR: M produktów.` (`precision` ma scope cert + MBR przez COALESCE w `parametry_etapy`)
@@ -83,32 +94,30 @@ Plus opcjonalnie: `Grupa` (default `lab`), `Skrót`.
 Po Dodaj → POST do istniejącego `POST /api/parametry`, response zawiera `id`. Frontend dodaje do listy + selectuje w detail panelu (z resztą pól pustych do uzupełnienia).
 
 Walidacje frontend:
-- Kod: regex `^[a-z0-9_]+$` (mała litera + cyfra + podkreślnik), maks 30 znaków
+- Kod: regex `^[a-zA-Z0-9_]+$` (litery dużej i małej + cyfra + podkreślnik), maks 30 znaków. Uppercase dozwolony bo skróty chemiczne (`nD`, `pH`, `CO2`, `H2O`) używają uppercase celowo, plus historycznie istnieje `barwa_I2` w danych.
 - Label: trim non-empty, maks 200 znaków
 - Konflikt kodu: walidacja po stronie serwera (409 → flash error)
 
-### 5. Delete — z impact warning
+### 5. Deaktywacja (soft delete) — z impact info
 
-Klik „Usuń parametr" w detail header → modal:
+Hard delete jest ryzykowny: regeneracja cert dla historycznych szarży faila, gdy `parametry_cert` jest pusta. Schema już ma flag `aktywny` — używamy soft delete.
+
+Klik „Deaktywuj parametr" w detail header → modal:
 - Preflight: GET `/api/parametry/<id>/usage-impact` — pobiera count cert + MBR products
-- Treść modala: `⚠ Parametr jest używany w 8 świadectwach + 12 produktach MBR. Usunięcie zepsuje wszystkie świadectwa i konfiguracje MBR używające tego parametru. Wpisz "usuń" aby potwierdzić.`
-- Input z weryfikacją: tylko po wpisaniu dosłownie `usuń` przycisk Usuń aktywuje się
-- Klik Usuń → DELETE `/api/parametry/<id>` (endpoint nie istnieje — trzeba dodać, sekcja 6)
+- Treść modala: `Deaktywować parametr nD20? Parametr jest używany w 8 świadectwach + 12 produktach MBR. Po deaktywacji: ✓ historyczne szarże nadal generują się poprawnie, ✓ nowe konfiguracje nie będą widziały tego parametru, ✓ deaktywacja jest odwracalna (Reaktywuj).` + zwykły OK/Anuluj
+- Klik OK → PUT `/api/parametry/<id>` z `{aktywny: 0}` (już istniejący endpoint, audit `parametr.updated`)
+- Po deaktywacji: parametr ZNIKA z lewej listy (lista pokazuje tylko `aktywny=1`), ale szczegóły dostępne przez „Pokaż nieaktywne" toggle nad listą (admin tylko)
 
-Gdy parametr nie jest nigdzie używany (cert + MBR count = 0): krótszy komunikat „Usunąć parametr nD20? Operacja nieodwracalna." + zwykły confirm OK/Anuluj.
+**Reaktywacja**: toggle „Pokaż nieaktywne" w lewym panelu → lista zawiera nieaktywne (z visual marker — opacity .5 + tag `[deakt.]`). Klik → detail panel pokazuje parametr z disabled fields (read-only) + przycisk **„Reaktywuj"** zamiast „Deaktywuj". Klik Reaktywuj → PUT `aktywny=1`, parametr wraca do normalnej listy.
+
+**Hard delete** (DROP z DB) **poza scope** — gdy admin naprawdę chce przeczyścić, robi to przez SQL ręcznie. W praktyce 99% przypadków to deaktywacja.
 
 ### 6. Backend changes
 
-#### Nowy endpoint `DELETE /api/parametry/<int:param_id>`
-- Wymaga `admin`
-- Sprawdza czy parametr istnieje → 404 jeśli nie
-- **Cascade delete w aplikacji** (FK są `REFERENCES` bez `ON DELETE` clause — sqlite default to RESTRICT, więc nie ma cascade'u na poziomie schema). Endpoint usuwa ręcznie w jednej transakcji w kolejności:
-  1. `DELETE FROM parametry_cert WHERE parametr_id = ?` (cert config wszystkich produktów + wariantów)
-  2. `DELETE FROM parametry_etapy WHERE parametr_id = ?` (MBR bindings wszystkich produktów)
-  3. `DELETE FROM parametry_analityczne WHERE id = ?`
-  4. Commit
-- Po DELETE: rebuild `parametry_lab` dla wszystkich produktów, których to dotyczyło (analogicznie do PUT, ale z preflight snapshot — bo po DELETE nie wiadomo już skąd były).
-- Audit: `EVENT_PARAMETR_DELETED` (już zdefiniowany w `mbr/shared/audit.py:36`), payload zawiera `kod`, `label`, `cert_products_count`, `mbr_products_count` (snapshot przed DELETE — admin może zrekonstruować co usunął).
+#### Soft delete przez istniejący `PUT /api/parametry/<int:param_id>`
+Wybraliśmy soft delete (toggle `aktywny`) zamiast hard delete (sekcja 5) — endpoint **nie wymaga zmian**. Frontend wysyła `{aktywny: 0}` lub `{aktywny: 1}`, audit `EVENT_PARAMETR_UPDATED` z diff zawiera zmianę. Wymóg: w `api_parametry_update` rozszerzyć `diff_fields()` o klucz `aktywny`, żeby toggle były audytowane (obecnie audit tylko dla label/name_en/method_code).
+
+Hard delete `/api/parametry/<id>` **NIE jest dodawany w tym scope** — operacja czyszczenia robiona przez SQL ręcznie w razie potrzeby.
 
 #### Rozszerzenie `GET /api/parametry/<int:param_id>/usage-impact`
 Obecna response:
@@ -151,7 +160,8 @@ Spójność z `name_pl/name_en/method` dual-field:
 - `api_cert_config_product_get` w `mbr/certs/routes.py` dodaje 2 nowe pola do response per parametr (analogicznie do `*_global`/`*_override` w A4).
 
 **Frontend cert editor:**
-- `_dualRow` w `wzory_cert.html` — dodać 4-ty wiersz dla `format`. Widget: number input (lub small dropdown 0-6) z reset-to-global ⤺.
+- `_dualRow` w `wzory_cert.html` — dodać 4-ty wiersz dla `format`. Widget: dropdown z labelami pokazującymi przykład wartości (`0 (123)` / `1 (123,4)` / `2 (123,45)` / `3 (123,456)` / `4 (123,4567)` / `5 (123,45678)` / `6 (123,456789)`) — self-documenting dla nietechnicznego usera. Zastąpić istniejący `_fmtOptions` helper (plain numeric labels) nową wersją lub stworzyć `_precisionOptionsWithExamples` — używać tego samego helpera w cert editor + rejestr editor.
+- Reset-to-global ⤺ jak inne override pola.
 - `_buildCertConfigPayload` — dodać `format_override` analogicznie do innych override fields.
 - Server PUT `/api/cert/config/product/<key>` już obsługuje pole `format` w payloadzie (per `mbr/certs/routes.py:666`) — frontend tylko zmienia z effective na raw override.
 
@@ -190,9 +200,9 @@ Skrypt `scripts/migrate_cert_override_cleanup.py` (już istnieje dla `name_pl/na
 ### 10. Audit
 
 Reuse istniejących eventów:
-- `EVENT_PARAMETR_UPDATED` (`parametr.updated`) — już emitowane przez `PUT /api/parametry/<id>` (Phase A1) — diff zawiera teraz oprócz `label/name_en/method_code` także `precision` (rozszerzyć diff_fields keys o `precision`)
+- `EVENT_PARAMETR_UPDATED` (`parametr.updated`) — już emitowane przez `PUT /api/parametry/<id>` (Phase A1). Rozszerzyć `diff_fields()` keys w endpoincie o `precision` i `aktywny` (obecnie tylko `label/name_en/method_code`). Toggle aktywności wpadnie tam jako audit z diff `{pole: 'aktywny', stara: 1, nowa: 0}`.
 - `EVENT_PARAMETR_CREATED` (`parametr.created`) — wymaga audit dodania w `POST /api/parametry` (obecnie nie emituje audytu)
-- `EVENT_PARAMETR_DELETED` (`parametr.deleted`) — emisja w nowym DELETE endpoincie
+- `EVENT_PARAMETR_DELETED` (`parametr.deleted`) — **nie używany** w tym scope (soft delete idzie przez UPDATE).
 
 ### 11. Out of scope
 
