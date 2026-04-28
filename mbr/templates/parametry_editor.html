@@ -690,6 +690,140 @@ function etapMove(idx, direction) {
   renderEtapTable(_etapBindings);
 }
 
+/* ═══ REJESTR master-detail (B2) ═══ */
+
+var _rejParams = [];
+var _rejSelectedId = null;
+var _rejFilter = '';
+var _rejTypFilter = new Set();  // empty = show all
+var _REJ_TYPS = ['bezposredni', 'titracja', 'obliczeniowy', 'jakosciowy', 'srednia'];
+var _REJ_TYP_LABELS = {
+  'bezposredni': 'Bezpośredni',
+  'titracja': 'Titracja',
+  'obliczeniowy': 'Obliczeniowy',
+  'jakosciowy': 'Jakościowy',
+  'srednia': 'Średnia',
+};
+
+function _rejEsc(s) { if (s == null) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function _rejRtHtml(text) {
+  if (!text) return '';
+  var out = '', re = /(\^\{[^}]*\}|_\{[^}]*\})/g, last = 0, m;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) out += _rejEsc(text.slice(last, m.index));
+    var inner = m[0].slice(2, -1);
+    out += (m[0][0] === '^') ? '<sup>' + _rejEsc(inner) + '</sup>' : '<sub>' + _rejEsc(inner) + '</sub>';
+    last = re.lastIndex;
+  }
+  if (last < text.length) out += _rejEsc(text.slice(last));
+  return out;
+}
+
+function rejLoadParams() {
+  fetch('/api/parametry/list').then(function(r) { return r.json(); }).then(function(data) {
+    _rejParams = Array.isArray(data) ? data : [];
+    rejRenderPills();
+    rejRenderList();
+  });
+}
+
+function rejRenderPills() {
+  var el = document.getElementById('pe-rej-pills');
+  if (!el) return;
+  var html = '<span class="pe-pill reset' + (_rejTypFilter.size === 0 ? ' active' : '') + '" onclick="rejTogglePill(\'_all\')">Wszystkie</span>';
+  _REJ_TYPS.forEach(function(t) {
+    var active = _rejTypFilter.has(t) ? ' active' : '';
+    html += '<span class="pe-pill' + active + '" onclick="rejTogglePill(\'' + t + '\')">' + _REJ_TYP_LABELS[t] + '</span>';
+  });
+  el.innerHTML = html;
+}
+
+function rejTogglePill(t) {
+  if (t === '_all') { _rejTypFilter.clear(); }
+  else if (_rejTypFilter.has(t)) { _rejTypFilter.delete(t); }
+  else { _rejTypFilter.add(t); }
+  rejRenderPills();
+  rejRenderList();
+}
+
+function rejFilter(value) {
+  _rejFilter = (value || '').toLowerCase();
+  rejRenderList();
+}
+
+function rejRenderList() {
+  var body = document.getElementById('pe-rej-list-body');
+  if (!body) return;
+  var filter = _rejFilter;
+  var typFilter = _rejTypFilter;
+  var html = '';
+  // Sort case-insensitively by kod
+  var sorted = _rejParams.slice().sort(function(a, b) {
+    return (a.kod || '').toLowerCase().localeCompare((b.kod || '').toLowerCase());
+  });
+  sorted.forEach(function(p) {
+    if (!_isAdmin && !p.aktywny) return;  // non-admin sees only active
+    var matchesFilter = !filter || (p.kod + ' ' + (p.label || '')).toLowerCase().indexOf(filter) !== -1;
+    var matchesTyp = typFilter.size === 0 || typFilter.has(p.typ);
+    var isSelected = (p.id === _rejSelectedId);
+    if (!isSelected && (!matchesFilter || !matchesTyp)) return;
+
+    var dimmed = (isSelected && (!matchesFilter || !matchesTyp)) ? ' style="opacity:.7;"' : '';
+    var inactiveDim = !p.aktywny ? ' style="opacity:.5;"' : '';
+    var style = dimmed || inactiveDim;
+    var activeCls = isSelected ? ' active' : '';
+
+    var typTag = '<span class="wc-md-item-tag-base" style="margin-left:4px;">' + _rejEsc((p.typ || '').slice(0, 4)) + '</span>';
+    var grupaTag = p.grupa === 'zewn'
+      ? '<span class="wc-md-item-tag-base" style="background:#fef3c7;color:#92400e;border-color:#fde68a;">zewn</span>'
+      : '';
+    var nameRendered = _rejRtHtml(p.label || p.kod);
+
+    html += '<div class="wc-md-item' + activeCls + '"' + style + ' data-id="' + p.id + '" onclick="rejSelect(' + p.id + ')">' +
+      '<span class="wc-md-item-name">' + nameRendered + '</span>' +
+      typTag + grupaTag +
+      '<span class="wc-md-item-bind">' + _rejEsc(p.kod) + '</span>' +
+    '</div>';
+  });
+  if (!html) {
+    html = '<div style="padding:14px;color:var(--text-dim);font-size:11px;text-align:center;">' +
+      (filter || typFilter.size ? 'Brak wyników filtra.' : 'Brak parametrów.') + '</div>';
+  }
+  body.innerHTML = html;
+}
+
+function rejSelect(id) {
+  // Persist current edits (B5 will implement rejSaveCurrentToState — stub for now)
+  if (typeof rejSaveCurrentToState === 'function' && _rejSelectedId !== null) {
+    rejSaveCurrentToState();
+  }
+  _rejSelectedId = id;
+  rejRenderList();
+  rejRenderDetail();
+}
+
+// Stub — real implementation in B3
+function rejRenderDetail() {
+  var detail = document.getElementById('pe-rej-detail');
+  if (!detail) return;
+  if (_rejSelectedId == null) {
+    detail.innerHTML = '<div class="wc-md-detail-empty">Wybierz parametr z listy po lewej</div>';
+    return;
+  }
+  var p = _rejParams.find(function(x) { return x.id === _rejSelectedId; });
+  if (!p) {
+    detail.innerHTML = '<div class="wc-md-detail-empty">Brak parametru.</div>';
+    return;
+  }
+  detail.innerHTML = '<div class="wc-md-detail-empty">Wybrany: <strong>' + _rejEsc(p.kod) + '</strong> — szczegóły w Task B3</div>';
+}
+
+// Stub — Task B9 will implement
+function rejOpenAddModal() { alert('B9 — Add Parameter modal'); }
+
+// Stub — Task B5 will implement
+function rejSaveCurrentToState() { /* B5 */ }
+
 // ═══ TAB SWITCHING ═══
 
 function switchTab(which) {
@@ -700,6 +834,7 @@ function switchTab(which) {
     if (panel) panel.style.display = (t === which) ? '' : 'none';
   });
   if (which === 'def' && !_paLoaded) loadDefinicje();
+  if (which === 'def' && _rejParams.length === 0) rejLoadParams();
   if (which === 'prod' && !_prodLoaded) loadProdukty();
 }
 
