@@ -76,9 +76,10 @@ def test_migration_returns_stats(db):
     _seed(db)
     from scripts.migrate_cert_override_cleanup import run_migration
     stats = run_migration(db)
-    # 6 nullings: A×3 + B×3
+    # 6 string-field nullings: A×3 + B×3
     assert stats["nulled_total"] == 6
-    assert stats["preserved_total"] == 3  # C×3
+    # C×3 (string mismatches) + A/B/C×1 each (format='1' default vs precision=2 default → mismatch)
+    assert stats["preserved_total"] == 6
     assert stats["rows_processed"] == 3
 
 
@@ -89,7 +90,8 @@ def test_migration_idempotent(db):
     stats2 = run_migration(db)
     # Second run nullifies nothing extra
     assert stats2["nulled_total"] == 0
-    assert stats2["preserved_total"] == 3
+    # Same preserved set: C×3 string mismatches + A/B/C×1 format mismatches
+    assert stats2["preserved_total"] == 6
 
 
 def test_migration_handles_variant_rows(db):
@@ -140,3 +142,68 @@ def test_migration_nulls_empty_string_when_registry_also_empty(db):
     run_migration(db)
     row = db.execute("SELECT name_en FROM parametry_cert WHERE produkt='D'").fetchone()
     assert row["name_en"] is None  # empty == empty after normalization → null
+
+
+def test_migration_nulls_format_when_matches_precision(db):
+    """format='4' + precision=4 → both numeric-equal after int conversion → NULL."""
+    db.execute("DELETE FROM parametry_analityczne")
+    db.execute(
+        "INSERT INTO parametry_analityczne (id, kod, label, typ, precision) "
+        "VALUES (1, 'nd20', 'nD20', 'bezposredni', 4)"
+    )
+    db.execute("INSERT INTO produkty (nazwa, display_name) VALUES ('A', 'A')")
+    db.execute(
+        "INSERT INTO parametry_cert (produkt, parametr_id, kolejnosc, format, variant_id) "
+        "VALUES ('A', 1, 0, '4', NULL)"
+    )
+    db.commit()
+    from scripts.migrate_cert_override_cleanup import run_migration
+    run_migration(db)
+    row = db.execute("SELECT format FROM parametry_cert WHERE produkt='A'").fetchone()
+    assert row["format"] is None
+
+
+def test_migration_preserves_format_mismatch(db):
+    """format='1' + precision=4 → numerically different → preserved."""
+    db.execute("DELETE FROM parametry_analityczne")
+    db.execute(
+        "INSERT INTO parametry_analityczne (id, kod, label, typ, precision) "
+        "VALUES (1, 'nd20', 'nD20', 'bezposredni', 4)"
+    )
+    db.execute("INSERT INTO produkty (nazwa, display_name) VALUES ('A', 'A')")
+    db.execute(
+        "INSERT INTO parametry_cert (produkt, parametr_id, kolejnosc, format, variant_id) "
+        "VALUES ('A', 1, 0, '1', NULL)"
+    )
+    db.commit()
+    from scripts.migrate_cert_override_cleanup import run_migration
+    run_migration(db)
+    row = db.execute("SELECT format FROM parametry_cert WHERE produkt='A'").fetchone()
+    assert row["format"] == '1'  # mismatch — preserved
+
+
+def test_migration_format_handles_null_precision(db):
+    """format='2' + precision=NULL → use default 2 → match → NULL."""
+    db.execute("DELETE FROM parametry_analityczne")
+    db.execute(
+        "INSERT INTO parametry_analityczne (id, kod, label, typ, precision) "
+        "VALUES (1, 'x', 'X', 'bezposredni', NULL)"
+    )
+    db.execute("INSERT INTO produkty (nazwa, display_name) VALUES ('A', 'A')")
+    db.execute(
+        "INSERT INTO parametry_cert (produkt, parametr_id, kolejnosc, format, variant_id) "
+        "VALUES ('A', 1, 0, '2', NULL)"
+    )
+    db.commit()
+    from scripts.migrate_cert_override_cleanup import run_migration
+    run_migration(db)
+    row = db.execute("SELECT format FROM parametry_cert WHERE produkt='A'").fetchone()
+    assert row["format"] is None  # 2 == default 2 → match
+
+
+def test_migration_format_in_stats(db):
+    """nulled_per_field stats include 'format' key."""
+    _seed(db)
+    from scripts.migrate_cert_override_cleanup import run_migration
+    stats = run_migration(db)
+    assert "format" in stats["nulled_per_field"]

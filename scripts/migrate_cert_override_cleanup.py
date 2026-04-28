@@ -45,20 +45,21 @@ def run_migration(db, dry_run=False):
 
     Returns:
         Stats dict: {rows_processed, nulled_total, preserved_total,
-                     nulled_per_field: {name_pl, name_en, method},
+                     nulled_per_field: {name_pl, name_en, method, format},
                      preserved_examples: [{produkt, kod, field, override_value, registry_value}]}
     """
     rows = db.execute(
         """
         SELECT pc.rowid AS rid, pc.produkt, pc.variant_id, pc.parametr_id,
-               pc.name_pl, pc.name_en, pc.method,
-               pa.kod, pa.label, pa.name_en AS pa_name_en, pa.method_code
+               pc.name_pl, pc.name_en, pc.method, pc.format,
+               pa.kod, pa.label, pa.name_en AS pa_name_en, pa.method_code,
+               pa.precision AS pa_precision
         FROM parametry_cert pc
         JOIN parametry_analityczne pa ON pa.id = pc.parametr_id
         """
     ).fetchall()
 
-    nulled = {"name_pl": 0, "name_en": 0, "method": 0}
+    nulled = {"name_pl": 0, "name_en": 0, "method": 0, "format": 0}
     preserved_examples = []
     nulled_total = 0
     preserved_total = 0
@@ -88,6 +89,33 @@ def run_migration(db, dry_run=False):
                         "override_value": override,
                         "registry_value": registry_val,
                     })
+
+        # format compared numerically (string TEXT vs INTEGER)
+        cert_format = r["format"]
+        if cert_format is not None:
+            try:
+                cert_format_int = int(cert_format)
+            except (ValueError, TypeError):
+                cert_format_int = None  # malformed, skip
+
+            if cert_format_int is not None:
+                # NULL precision → treat as default 2 (legacy COALESCE in get_parametry_for_kontekst)
+                reg_precision = r["pa_precision"] if r["pa_precision"] is not None else 2
+                if cert_format_int == reg_precision:
+                    updates["format"] = None
+                    nulled["format"] += 1
+                    nulled_total += 1
+                else:
+                    preserved_total += 1
+                    if len(preserved_examples) < 50:
+                        preserved_examples.append({
+                            "produkt": r["produkt"],
+                            "variant_id": r["variant_id"],
+                            "kod": r["kod"],
+                            "field": "format",
+                            "override_value": cert_format,
+                            "registry_value": str(reg_precision),
+                        })
 
         if updates and not dry_run:
             sets = ", ".join(f"{k}=NULL" for k in updates)
@@ -130,6 +158,7 @@ def main():
     print(f"  - name_pl:  {stats['nulled_per_field']['name_pl']}")
     print(f"  - name_en:  {stats['nulled_per_field']['name_en']}")
     print(f"  - method:   {stats['nulled_per_field']['method']}")
+    print(f"  - format:   {stats['nulled_per_field']['format']}")
     print(f"Real overrides preserved: {stats['preserved_total']}")
     if stats['preserved_examples']:
         print()
