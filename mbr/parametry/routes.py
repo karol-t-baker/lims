@@ -184,7 +184,13 @@ def api_parametry_update(param_id):
 @parametry_bp.route("/api/parametry/<int:param_id>/usage-impact")
 @login_required
 def api_parametry_usage_impact(param_id):
-    """Return product counts for usage banner: how many cert + mbr products use this param."""
+    """Return product counts + lists for the registry-edit banner and Powiązania accordion.
+
+    Lists are shaped for direct UI consumption:
+    - cert_products: distinct produkt rows from parametry_cert (with display_name JOIN)
+    - mbr_products: distinct produkt rows from parametry_etapy with stages array
+    - mbr_bindings_count: total parametry_etapy rows (= produkt × stages combinations)
+    """
     with db_session() as db:
         exists = db.execute(
             "SELECT 1 FROM parametry_analityczne WHERE id=?", (param_id,)
@@ -192,17 +198,38 @@ def api_parametry_usage_impact(param_id):
         if not exists:
             return jsonify({"error": "Parametr not found"}), 404
 
-        cert_count = db.execute(
-            "SELECT COUNT(DISTINCT produkt) AS c FROM parametry_cert WHERE parametr_id=?",
+        # Cert products (distinct produkt + display_name JOIN)
+        cert_rows = db.execute(
+            """SELECT DISTINCT pc.produkt AS key,
+                      COALESCE(p.display_name, pc.produkt) AS display_name
+               FROM parametry_cert pc
+               LEFT JOIN produkty p ON p.nazwa = pc.produkt
+               WHERE pc.parametr_id = ?
+               ORDER BY pc.produkt""",
             (param_id,),
-        ).fetchone()["c"]
-        mbr_count = db.execute(
-            "SELECT COUNT(DISTINCT produkt) AS c FROM parametry_etapy WHERE parametr_id=?",
+        ).fetchall()
+        cert_products = [{"key": r["key"], "display_name": r["display_name"]} for r in cert_rows]
+
+        # MBR products with stages (group by produkt → stages list)
+        mbr_rows = db.execute(
+            """SELECT pe.produkt AS key, pe.kontekst AS stage
+               FROM parametry_etapy pe
+               WHERE pe.parametr_id = ?
+               ORDER BY pe.produkt, pe.kontekst""",
             (param_id,),
-        ).fetchone()["c"]
+        ).fetchall()
+        mbr_grouped = {}
+        for r in mbr_rows:
+            mbr_grouped.setdefault(r["key"], []).append(r["stage"])
+        mbr_products = [{"key": k, "stages": v} for k, v in mbr_grouped.items()]
+        mbr_bindings_count = len(mbr_rows)
+
     return jsonify({
-        "cert_products_count": cert_count,
-        "mbr_products_count": mbr_count,
+        "cert_products_count": len(cert_products),
+        "cert_products": cert_products,
+        "mbr_products_count": len(mbr_products),
+        "mbr_products": mbr_products,
+        "mbr_bindings_count": mbr_bindings_count,
     })
 
 
