@@ -34,7 +34,7 @@ def client(monkeypatch, db):
     app.config["TESTING"] = True
     with app.test_client() as c:
         with c.session_transaction() as s:
-            s["user"] = {"username": "admin_test", "rola": "admin", "id": 1}
+            s["user"] = {"login": "admin_test", "rola": "admin", "id": 1}
         yield c
 
 

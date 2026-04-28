@@ -88,11 +88,13 @@ def api_parametry_update(param_id):
         if not existing:
             return jsonify({"error": "Parametr not found"}), 404
 
-        # Snapshot old state for audit diff (label/name_en/method_code only).
-        old_audit = db.execute(
-            "SELECT label, name_en, method_code FROM parametry_analityczne WHERE id=?",
-            (param_id,),
-        ).fetchone()
+        # Snapshot old state for audit diff (admin-only — see post-UPDATE block).
+        old_audit = None
+        if rola == "admin":
+            old_audit = db.execute(
+                "SELECT label, name_en, method_code FROM parametry_analityczne WHERE id=?",
+                (param_id,),
+            ).fetchone()
 
         if rola == "admin":
             # Determine effective typ after this update
@@ -143,21 +145,23 @@ def api_parametry_update(param_id):
         db.execute(f"UPDATE parametry_analityczne SET {sets} WHERE id=?", vals)
 
         # Audit registry-level field changes (label / name_en / method_code).
-        # Other fields (skrot, formula, etc.) are admin-internal — not audited here.
-        new_audit = db.execute(
-            "SELECT label, name_en, method_code FROM parametry_analityczne WHERE id=?",
-            (param_id,),
-        ).fetchone()
-        diff = diff_fields(dict(old_audit), dict(new_audit), ["label", "name_en", "method_code"])
-        if diff:
-            log_event(
-                EVENT_PARAMETR_UPDATED,
-                entity_type="parametr",
-                entity_id=param_id,
-                entity_label=existing["kod"],
-                diff=diff,
-                db=db,
-            )
+        # Per spec: only admin edits to the registry generate audit events.
+        # Non-admin label edits exist but are out-of-scope for this event.
+        if rola == "admin":
+            new_audit = db.execute(
+                "SELECT label, name_en, method_code FROM parametry_analityczne WHERE id=?",
+                (param_id,),
+            ).fetchone()
+            diff = diff_fields(dict(old_audit), dict(new_audit), ["label", "name_en", "method_code"])
+            if diff:
+                log_event(
+                    EVENT_PARAMETR_UPDATED,
+                    entity_type="parametr",
+                    entity_id=param_id,
+                    entity_label=existing["kod"],
+                    diff=diff,
+                    db=db,
+                )
 
         # Rebuild parametry_lab for all active templates that use this parameter
         affected = db.execute(

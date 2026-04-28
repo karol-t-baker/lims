@@ -95,3 +95,32 @@ def test_put_parametry_audit_multifield_diff(monkeypatch, db):
     diff = json.loads(rows[0]["diff_json"])
     fields = sorted(d["pole"] for d in diff)
     assert fields == ["label", "method_code", "name_en"]
+
+
+def test_put_parametry_non_admin_does_not_emit_audit(monkeypatch, db):
+    """Non-admin PUTs that change label still apply but don't emit registry audit."""
+    _seed(db)
+    # Set up non-admin session
+    import mbr.db, mbr.parametry.routes
+    @contextmanager
+    def fake_db_session():
+        yield db
+    monkeypatch.setattr(mbr.db, "db_session", fake_db_session)
+    monkeypatch.setattr(mbr.parametry.routes, "db_session", fake_db_session)
+    from mbr.app import app
+    client = app.test_client()
+    with client.session_transaction() as sess:
+        sess["user"] = {"login": "lab_user", "rola": "lab", "worker_id": None}
+
+    rv = client.put("/api/parametry/1", json={"label": "Updated by lab"})
+    assert rv.status_code == 200
+
+    # Label was updated
+    label = db.execute("SELECT label FROM parametry_analityczne WHERE id=1").fetchone()["label"]
+    assert label == "Updated by lab"
+
+    # But no audit event for registry change
+    rows = db.execute(
+        "SELECT 1 FROM audit_log WHERE event_type='parametr.updated'"
+    ).fetchall()
+    assert len(rows) == 0
