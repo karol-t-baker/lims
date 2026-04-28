@@ -43,9 +43,16 @@ Pola jedno-kolumnowe (zawsze per produkt, nie ma sensu globalnie):
 - Wymaganie
 - Precyzja
 - Wynik opisowy (qualitative_result)
-- Powiąż z pomiarem (parametr_id binding)
+- Powiąż z pomiarem (parametr_id binding — read-only po utworzeniu, patrz sekcja 8)
 
-**Banner** nad lewą kolumną: `⚠ Edytujesz wartości w rejestrze — dotknięte produkty: N` (live count z nowego endpointu `/api/parametry/<id>/usage-impact`). Banner pojawia się tylko gdy admin zmodyfikował co najmniej jedno pole w lewej kolumnie.
+Każdy override w prawej kolumnie ma obok ikonkę `⤺` (Reset do globalnego) — pojawia się tylko gdy w polu jest wartość. Klik czyści input → save jako NULL → pole pokaże wartość globalną z lewej kolumny po reload. Ręczne czyszczenie inputu też działa (oba mechanizmy zapisują NULL).
+
+**Banner** nad lewą kolumną: pojawia się tylko gdy admin zmodyfikował co najmniej jedno pole w lewej kolumnie. Treść zależy od edytowanego pola (live count z nowego endpointu `/api/parametry/<id>/usage-impact`):
+
+- Edycja **`label` (Nazwa PL)** → `⚠ Edytujesz rejestr. Świadectwa: N produktów. Również widoczne w: laboratorium, MBR, kalkulator.` (bo `label` jest używane wszędzie)
+- Edycja **`name_en` lub `method_code`** → `⚠ Edytujesz rejestr. Świadectwa: N produktów.` (te pola są tylko cert-related)
+
+Endpoint `/api/parametry/<id>/usage-impact` zwraca po jednym counterze per scope (cert, mbr-laborant), żeby frontend mógł wyrenderować odpowiedni banner.
 
 ### 3. Toolbar formatowania nad polami nazwy
 
@@ -67,31 +74,36 @@ Live preview pod każdym polem nazwy (już jest w kodzie, `updateRtPreview`) —
 
 ### 4. Zapisywanie
 
-Jeden przycisk `Zapisz wszystko` na dole edytora (jak teraz). Backend (`/api/cert/config/product/<key>` PUT) obsługuje obie kategorie zmian w jednej transakcji:
+Jeden przycisk `Zapisz wszystko` na dole edytora wywołuje **dwa endpointy sekwencyjnie**:
 
-- Zmiany w lewej kolumnie (globalne) → `UPDATE parametry_analityczne SET label/name_en/method_code = ?` (audytowane jako `parametry.registry.updated`)
-- Zmiany w prawej kolumnie (per-produkt) → `UPDATE parametry_cert SET name_pl/name_en/method = ?` (NULL gdzie puste)
+1. Jeśli są zmiany w lewej kolumnie (globalne) → batch call `PUT /api/parametry/registry-batch` z listą `[{parametr_id, label, name_en, method_code}]`. Backend `UPDATE parametry_analityczne` w jednej transakcji, audyt jako `parametry.registry.updated` per parametr.
+2. Zawsze potem → `PUT /api/cert/config/product/<key>` z cert configiem (jak teraz). Backend `UPDATE parametry_cert` z NULL gdzie puste, audyt jako `cert.config.updated`.
 
-Frontend wysyła pełen stan obu kolumn; backend porównuje z aktualnym DB i emituje zmiany. Status flash: `Zapisano: 3 globalne, 2 per produkt` — explicytna liczba dla każdego rodzaju.
+Jeśli krok 1 zwróci błąd, krok 2 się nie wykonuje. Worst case (krok 1 OK, krok 2 fail): admin widzi error, klika Save jeszcze raz — krok 1 jest idempotentny (te same wartości), krok 2 dokończy zapis. Brak data corruption.
+
+Status flash po sukcesie pokazuje rozbicie: `Zapisano: 3 globalne, 2 per produkt`.
 
 ### 5. Warianty
 
-Zakładka „Warianty" dostaje ten sam dwukolumnowy układ, ale **lewa kolumna pokazuje wartość efektywną bazy** (globalne `parametry_analityczne` + produktowe nadpisania `parametry_cert variant_id IS NULL`) jako tylko-do-odczytu. Prawa kolumna = nadpisanie wariantu (`parametry_cert variant_id = X`).
+Wariantowe parametry w `parametry_cert` (gdy `variant_id = X`) to **dodatkowe parametry występujące tylko w danym wariancie** — nie są nadpisaniami bazowych parametrów (mają inne `parametr_id` niż base). Np. parametr av-on w wariancie LV.
 
-Tag w lewej kolumnie pokazuje skąd pochodzi efektywna wartość:
-- `[rejestr]` — wartość z `parametry_analityczne`
-- `[produkt]` — wartość z `parametry_cert variant_id IS NULL`
+Zakładka „Warianty" dostaje **dokładnie ten sam dwukolumnowy układ co zakładka Parametry świadectwa**:
+- Lewa kolumna = wartości globalne z rejestru (`parametry_analityczne`)
+- Prawa kolumna = nadpisanie wariantu (`parametry_cert` z `variant_id = X`)
 
-Klik „edytuj globalnie" lub „edytuj produktowo" w wariancie redirektuje na zakładkę „Parametry świadectwa" produktu bazowego dla danego parametru.
+Brak konceptu „wartości efektywnej bazy" — wariantowy parametr nie ma bazowego odpowiednika.
+
+Z perspektywy edytora wariantów, edycja globalna w lewej kolumnie zachowuje się tak samo jak w bazowych parametrach: zmienia rejestr, propaguje wszędzie. Banner usage-impact pokazuje liczbę produktów (i wariantów) używających tego parametru.
 
 ### 6. Migracja istniejących nadpisań
 
 Jednorazowy skrypt `scripts/migrate_cert_override_cleanup.py` (uruchamiany ręcznie, idempotentny):
 
-- Iteruje przez wszystkie wiersze `parametry_cert`
+- Iteruje przez wszystkie wiersze `parametry_cert` (zarówno bazowe `variant_id IS NULL` jak i wariantowe)
 - Dla każdego pola (`name_pl`, `name_en`, `method`):
   - JOIN z `parametry_analityczne` po `parametr_id`
-  - Jeśli wartość override == wartość globalna (`label / name_en / method_code`) → `SET NULL`
+  - Porównanie z normalizacją: `strip()` + collapse wielokrotnych spacji do jednej (case-sensitive). Jeśli znormalizowana wartość override == znormalizowana wartość globalna (`label / name_en / method_code`) → `SET NULL`
+  - Bez normalizacji: skrót typu „PN-EN" vs „pn-en" zostaje (case ma znaczenie w domenie)
 - Loguje:
   - liczbę wierszy zaktualizowanych (per pole)
   - liczbę nadpisań pozostałych jako jawne (per produkt, per pole)
@@ -122,17 +134,54 @@ Skrypt nie modyfikuje `parametry_analityczne`. Skrypt nie zmienia logiki renderi
   - Pole `name_pl / name_en / method` (efektywna wartość, fallback) zostaje zachowane dla kompatybilności z istniejącym cert generatorem
   Stary endpoint `/api/cert/config/product/<key>` zwraca te pola obok dotychczasowych — frontend renderuje obie kolumny, backend renderingu używa tylko efektywnej wartości.
 
-### 8. Dodawanie nowego parametru do świadectwa
+### 8. Dodawanie nowego parametru do świadectwa + binding read-only
 
 Klik „+ Dodaj parametr" w lewym panelu listy:
 1. Modal z `<select>` listą kodów z `_availableCodes` (jak teraz, z grupowaniem „W MBR" / „Poza MBR")
 2. Po wyborze kodu — nowy wiersz w `parametry_cert` z `parametr_id = X`, wszystkie pola override = NULL
-3. Edytor pokazuje od razu wartości z rejestru w lewej kolumnie (read-only z tagiem `[rejestr]`), prawa kolumna pusta (`puste = dziedzicz`)
-4. Admin może od razu edytować wymaganie/precyzję/wynik opisowy (per produkt) lub kliknąć „Nadpisz" przy nazwie/metodzie żeby ustawić override
+3. Edytor pokazuje od razu wartości z rejestru w lewej kolumnie, prawa kolumna pusta (`puste = dziedzicz`)
+4. Admin może od razu edytować wymaganie/precyzję/wynik opisowy (per produkt) lub wpisać override w prawej kolumnie nazwy/metody
+
+**Binding read-only po utworzeniu**: pole „Powiąż z pomiarem" (parametr_id) jest edytowalne **tylko podczas tworzenia** wiersza. Po zapisie staje się disabled. Żeby zmienić binding admin musi usunąć parametr i dodać nowy z innym kodem. To zapobiega niespójnościom (overrides wyrosły dla jednego paramu, po rebindingu odnoszą się do innego).
 
 Dodanie zupełnie nowego parametru (nowy `kod` w rejestrze) nie odbywa się w edytorze cert — to flow w `/admin/parametry`.
 
-### 9. Poza scope (zostaje bez zmian)
+### 9. Lewy panel listy — szczegóły
+
+**Search/filter** — pole tekstowe na górze lewego panelu (`<input placeholder="Filtruj parametry...">`). Filtruje listę po prefiksie matching `kod` LUB substring matching renderowanej nazwy (case-insensitive). Bez filtra → pełna lista. Tylko frontend, brak nowego endpointu.
+
+**Drag-and-drop** — drag-handle przy każdej pozycji listy. Reorder zmienia `kolejnosc` w `parametry_cert`. Drag nie zmienia aktywnej selekcji ani nie commituje od razu — stan `kolejnosc` trzymany w JS-state, persisted na `Save Wszystko`. Wizualny feedback: dragowany element semi-transparent (jak teraz w tabeli).
+
+**Aktywna selekcja + dirty state** — kliknięcie innego parametru w liście:
+- Bieżące edycje w prawym panelu są **zachowane w JS-state** (`_currentProduct.parameters[i]` zaktualizowane in-memory)
+- Prawy panel renderuje wybrany parametr; przełączenie z powrotem pokazuje wcześniej wpisane edycje
+- Jeden globalny indykator dirty (`*` w tytule, podświetlony Save) — pokazuje że są jakieś niezapisane zmiany w którymkolwiek parametrze
+- Per-parametr w lewym liście dot kropka indykuje że ten konkretny ma niezapisane zmiany (drobny wskaźnik wizualny)
+- Brak per-param confirm — jedna `Save Wszystko` commituje wszystkie zmiany na raz, jak teraz
+
+### 10. Audyt zmian rejestru
+
+Endpoint `PUT /api/parametry/registry-batch` emituje audyt **per parametr** (nie per batch). Schemat eventu:
+- `event_type`: `parametry.registry.updated`
+- `actor_login`: bieżący user
+- `actor_role`: `admin`
+- `payload_json`:
+  ```json
+  {
+    "parametr_id": 42,
+    "kod": "nD20",
+    "changes": [
+      {"field": "label", "old": "Współczynnik załamania", "new": "Wsp. załamania n_{D}^{20}"},
+      {"field": "method_code", "old": "PN-EN ISO 5661:2002", "new": "PN-EN ISO 5661:2002 +Ap1:2024"}
+    ]
+  }
+  ```
+- Jeśli żadne pole się nie zmieniło dla danego parametru → bez eventu (idempotentnie)
+- Backend porównuje stan przed/po — bo frontend wysyła pełen state, nie diff
+
+Audyt widoczny w `/admin/audit` panel jak inne eventy.
+
+### 11. Poza scope (zostaje bez zmian)
 
 - Modal „Ustawienia globalne świadectw" (font, title/product/body sizes — `cert_settings` table)
 - Panel aliasów cert (`/admin/wzory-cert` sekcja „Aliasy cert")
