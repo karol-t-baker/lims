@@ -1226,11 +1226,20 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     ).fetchone()
     preexisting_legacy = legacy_row["value"] if legacy_row else None
 
+    # Snapshot body_font_family BEFORE seeding — needed to decide whether to
+    # copy it into header_font_family (preserve admin customization) or use the
+    # fresh-install sans-serif default.
+    preexisting_body_row = db.execute(
+        "SELECT value FROM cert_settings WHERE key='body_font_family'"
+    ).fetchone()
+    preexisting_body = preexisting_body_row["value"] if preexisting_body_row else None
+
     # Seed hardcoded defaults (INSERT OR IGNORE — idempotent).
-    # Legacy header_font_size_pt kept for backward compatibility; new code uses
-    # title_font_size_pt + product_name_font_size_pt + body_font_size_pt.
+    # Defaults match Gotenberg's bundled font stack (Noto Serif/Sans both ship
+    # with fonts-noto-core). Legacy header_font_size_pt kept for backcompat;
+    # new code uses title_font_size_pt + product_name_font_size_pt + body_font_size_pt.
     _cert_settings_defaults = [
-        ("body_font_family", "Source Serif 4"),
+        ("body_font_family", "Noto Serif"),
         ("header_font_size_pt", "14"),
         ("body_font_size_pt", "11"),
     ]
@@ -1240,12 +1249,28 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             (k, v),
         )
 
-    # One-shot migration: legacy default fonts (Bookman Old Style, TeX Gyre Bonum)
-    # → Source Serif 4 (current default). Admin's custom fonts (any other value)
-    # are preserved. Idempotent — re-running has no effect.
+    # One-shot migration: deprecated defaults (Bookman Old Style, TeX Gyre Bonum,
+    # Source Serif 4) → Noto Serif (current default, actually present in the
+    # Gotenberg image). Admin's custom fonts (any other value) are preserved.
+    # Idempotent — re-running has no effect.
+    _DEPRECATED_BODY_FONTS = ("Bookman Old Style", "TeX Gyre Bonum", "Source Serif 4")
     db.execute(
-        "UPDATE cert_settings SET value='Source Serif 4' "
-        "WHERE key='body_font_family' AND value IN ('Bookman Old Style', 'TeX Gyre Bonum')"
+        "UPDATE cert_settings SET value='Noto Serif' "
+        "WHERE key='body_font_family' AND value IN " + repr(_DEPRECATED_BODY_FONTS)
+    )
+
+    # Seed header_font_family. Two cases:
+    #   * Custom body (admin set a real choice) → copy to header so the upgrade
+    #     doesn't surprise them with a typographic mismatch.
+    #   * Fresh install or deprecated default (which we just normalized) → use
+    #     Noto Sans, the sans-serif counterpart in the same superfamily.
+    if preexisting_body and preexisting_body not in _DEPRECATED_BODY_FONTS:
+        _header_default = preexisting_body
+    else:
+        _header_default = "Noto Sans"
+    db.execute(
+        "INSERT OR IGNORE INTO cert_settings (key, value) VALUES (?, ?)",
+        ("header_font_family", _header_default),
     )
 
     # Title + product-name sizes — use pre-existing legacy value if the admin

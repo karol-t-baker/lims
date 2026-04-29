@@ -23,7 +23,7 @@ from docxtpl import DocxTemplate, RichText
 _RT_RE = re.compile(r"(\^\{[^}]*\}|_\{[^}]*\})")
 
 
-_CERT_FONT = "Bookman Old Style"
+_CERT_FONT = "Noto Serif"
 _CERT_SIZE = 22  # 11pt in half-points (docxtpl w:sz unit)
 
 
@@ -99,7 +99,8 @@ def _load_cert_settings(db) -> dict:
     Missing rows fall back to hardcoded defaults.
     """
     defaults = {
-        "body_font_family":          "Bookman Old Style",
+        "body_font_family":          "Noto Serif",
+        "header_font_family":        "Noto Sans",
         "header_font_size_pt":       14,   # legacy default
         "title_font_size_pt":        12,
         "product_name_font_size_pt": 16,
@@ -458,6 +459,7 @@ def build_context(
         "avon_name": avon_name,
         "wystawil": wystawil,
         "body_font_family":          _settings["body_font_family"],
+        "header_font_family":        _settings["header_font_family"],
         "header_font_size_pt":       _settings["header_font_size_pt"],       # legacy
         "title_font_size_pt":        _settings["title_font_size_pt"],
         "product_name_font_size_pt": _settings["product_name_font_size_pt"],
@@ -598,6 +600,7 @@ def build_preview_context(product_json: dict, variant_id: str) -> dict:
         "avon_name": avon_name,
         "wystawil": "Podgląd",
         "body_font_family":          _settings["body_font_family"],
+        "header_font_family":        _settings["header_font_family"],
         "header_font_size_pt":       _settings["header_font_size_pt"],       # legacy
         "title_font_size_pt":        _settings["title_font_size_pt"],
         "product_name_font_size_pt": _settings["product_name_font_size_pt"],
@@ -856,33 +859,38 @@ def _docxtpl_render(context: dict) -> bytes:
     buf = io.BytesIO()
     tpl.save(buf)
     docx_bytes = buf.getvalue()
-    font = context.get("body_font_family", _CERT_FONT)
+    body_font = context.get("body_font_family", _CERT_FONT)
+    header_font = context.get("header_font_family", body_font)
     sizes = {
         "title_pt":        context.get("title_font_size_pt", 12),
         "product_name_pt": context.get("product_name_font_size_pt", 16),
         "body_pt":         context.get("body_font_size_pt", 11),
     }
-    return _apply_typography_overrides(docx_bytes, font, sizes)
+    return _apply_typography_overrides(docx_bytes, body_font=body_font, header_font=header_font, sizes=sizes)
 
 
-def _apply_typography_overrides(docx_bytes: bytes, font: str, sizes: dict) -> bytes:
+def _apply_typography_overrides(docx_bytes: bytes, body_font: str, header_font: str, sizes: dict) -> bytes:
     """Post-render byte-level substitution for typography settings.
 
     Args:
         docx_bytes: rendered docx zip bytes.
-        font: body font family name (applied to body rFonts + header rFonts).
+        body_font: font family for body text — replaces _BODY_FONT_LITERAL in
+            word/document.xml only.
+        header_font: font family for the page header (title + product name) —
+            replaces _HEADER_FONT_LITERAL in word/header1.xml only.
         sizes: dict with keys:
             title_pt         — applied to sentinel 996 (Nagwek4 / title runs)
             product_name_pt  — applied to sentinel 997 (Nagwek8 / product name)
             body_pt          — applied to body w:sz/w:szCs w:val="22"
 
     Sentinel scheme in the template:
-      * word/header1.xml — rFonts font literal replaced globally. Inline
+      * word/header1.xml — _HEADER_FONT_LITERAL replaced with header_font. Inline
         w:szCs (and w:sz) w:val="996" (title runs) → title_pt*2, "997"
         (product name run) → product_name_pt*2.
       * word/styles.xml — Nagwek4 w:sz="996", Nagwek8 w:sz="997".
-      * word/document.xml — body runs use w:sz/w:szCs="22" (11pt) plus
-        "2" (1pt spacers). Only "22" is rewritten (exact value match).
+      * word/document.xml — _BODY_FONT_LITERAL replaced with body_font. Body
+        runs use w:sz/w:szCs="22" (11pt) plus "2" (1pt spacers). Only "22" is
+        rewritten (exact value match).
     """
     import zipfile
     from io import BytesIO
@@ -899,10 +907,10 @@ def _apply_typography_overrides(docx_bytes: bytes, font: str, sizes: dict) -> by
             data = zin.read(item)
             if item == "word/document.xml":
                 txt = data.decode("utf-8")
-                if font and font != _BODY_FONT_LITERAL:
+                if body_font and body_font != _BODY_FONT_LITERAL:
                     txt = re.sub(
                         r'(w:ascii|w:hAnsi|w:cs|w:eastAsia)="' + re.escape(_BODY_FONT_LITERAL) + r'"',
-                        lambda m: f'{m.group(1)}="{font}"',
+                        lambda m: f'{m.group(1)}="{body_font}"',
                         txt,
                     )
                 # Body size — only w:val="22" (exact); w:val="2" (1pt spacer) is left alone.
@@ -911,10 +919,10 @@ def _apply_typography_overrides(docx_bytes: bytes, font: str, sizes: dict) -> by
                 data = txt.encode("utf-8")
             elif item == "word/header1.xml":
                 txt = data.decode("utf-8")
-                if font and font != _HEADER_FONT_LITERAL:
+                if header_font and header_font != _HEADER_FONT_LITERAL:
                     txt = re.sub(
                         r'(w:ascii|w:hAnsi|w:cs|w:eastAsia)="' + re.escape(_HEADER_FONT_LITERAL) + r'"',
-                        lambda m: f'{m.group(1)}="{font}"',
+                        lambda m: f'{m.group(1)}="{header_font}"',
                         txt,
                     )
                 txt = txt.replace('w:sz w:val="996"', f'w:sz w:val="{t2}"')

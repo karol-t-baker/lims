@@ -97,11 +97,13 @@ def _read_xml(docx_bytes: bytes, member: str) -> str:
 
 
 def test_docx_typography_reflects_settings():
-    """body_font_family setting flows into both document.xml and header1.xml."""
+    """body_font_family + header_font_family flow into document.xml and header1.xml."""
     from mbr.certs.generator import _apply_typography_overrides
     raw = _template_bytes()
     sizes = {"title_pt": 12, "product_name_pt": 16, "body_pt": 11}
-    result = _apply_typography_overrides(raw, "EB Garamond", sizes=sizes)
+    result = _apply_typography_overrides(
+        raw, body_font="EB Garamond", header_font="EB Garamond", sizes=sizes
+    )
     doc_xml = _read_xml(result, "word/document.xml")
     hdr_xml = _read_xml(result, "word/header1.xml")
     assert "EB Garamond" in doc_xml, "custom font not in document.xml"
@@ -120,7 +122,9 @@ def test_docx_header_size_reflects_settings():
     raw = _template_bytes()
     # 20pt → 40 half-points for both title (996) and product name (997)
     sizes = {"title_pt": 20, "product_name_pt": 20, "body_pt": 11}
-    result = _apply_typography_overrides(raw, "TeX Gyre Bonum", sizes=sizes)
+    result = _apply_typography_overrides(
+        raw, body_font="TeX Gyre Bonum", header_font="Bookman Old Style", sizes=sizes
+    )
     hdr_xml = _read_xml(result, "word/header1.xml")
     sty_xml = _read_xml(result, "word/styles.xml")
     assert 'w:val="40"' in hdr_xml, "sz/szCs=40 not found in header for 20pt"
@@ -132,17 +136,20 @@ def test_docx_header_size_reflects_settings():
 
 
 def test_docx_default_settings_produce_substituted_output():
-    """Default settings (Bookman Old Style, title=12pt, product=16pt, body=11pt) produce clean output.
+    """Default settings (Bookman Old Style for both body and header, title=12pt,
+    product=16pt, body=11pt) produce clean output.
 
-    Body font literal 'TeX Gyre Bonum' is replaced with default 'Bookman Old Style';
-    header literal stays as 'Bookman Old Style' (default == literal, no-op).
+    Body font literal 'TeX Gyre Bonum' is replaced with 'Bookman Old Style';
+    header literal stays as 'Bookman Old Style' (header_font == literal, no-op).
     Sentinels 996 and 997 are replaced with their respective half-point values.
     """
     from mbr.certs.generator import _apply_typography_overrides
     raw = _template_bytes()
     # Default sizes: title=12pt (→24 half-pts), product=16pt (→32 half-pts), body=11pt (→22 half-pts)
     sizes = {"title_pt": 12, "product_name_pt": 16, "body_pt": 11}
-    result = _apply_typography_overrides(raw, "Bookman Old Style", sizes=sizes)
+    result = _apply_typography_overrides(
+        raw, body_font="Bookman Old Style", header_font="Bookman Old Style", sizes=sizes
+    )
     hdr_xml = _read_xml(result, "word/header1.xml")
     sty_xml = _read_xml(result, "word/styles.xml")
     doc_xml = _read_xml(result, "word/document.xml")
@@ -227,7 +234,9 @@ def test_user_content_with_font_literal_survives_substitution():
     # and text nodes containing the font literals
     raw_docx = _template_bytes()
     sizes = {"title_pt": 12, "product_name_pt": 16, "body_pt": 11}
-    result = _apply_typography_overrides(raw_docx, "EB Garamond", sizes=sizes)
+    result = _apply_typography_overrides(
+        raw_docx, body_font="EB Garamond", header_font="EB Garamond", sizes=sizes
+    )
     doc_xml = _read_xml(result, "word/document.xml")
 
     # The key test: if a user's parameter name, product name, or opinion text

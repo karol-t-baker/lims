@@ -74,7 +74,64 @@ def test_load_cert_settings_returns_three_new_size_keys(db):
     assert settings["title_font_size_pt"] == 12
     assert settings["product_name_font_size_pt"] == 16
     assert settings["body_font_size_pt"] == 11
-    assert settings["body_font_family"] == "Source Serif 4"
+    assert settings["body_font_family"] == "Noto Serif"
+
+
+def test_load_cert_settings_returns_header_font_family(db):
+    """New: header_font_family lives next to body_font_family in cert_settings."""
+    from mbr.certs.generator import _load_cert_settings
+    settings = _load_cert_settings(db)
+    assert settings["header_font_family"] == "Noto Sans"
+
+
+def test_migration_seeds_header_font_family_on_fresh_db(db):
+    """Fresh DB → header_font_family default is 'Noto Sans' (sans-serif pair)."""
+    assert _get_setting(db, "header_font_family") == "Noto Sans"
+
+
+def test_migration_copies_existing_body_font_to_header_on_upgrade():
+    """Admin-customized body_font_family must be copied to header_font_family
+    on upgrade — preserves visual until admin explicitly changes header."""
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    # Simulate legacy DB: only body_font_family is set, with a CUSTOM value.
+    conn.execute("CREATE TABLE cert_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+    conn.execute("INSERT INTO cert_settings (key, value) VALUES ('body_font_family', 'EB Garamond')")
+    conn.commit()
+    init_mbr_tables(conn)
+    rows = dict(conn.execute("SELECT key, value FROM cert_settings").fetchall())
+    # body untouched (custom value preserved)
+    assert rows["body_font_family"] == "EB Garamond"
+    # header copied from custom body — same font, no surprise typographic mismatch
+    assert rows["header_font_family"] == "EB Garamond"
+    conn.close()
+
+
+def test_migration_replaces_deprecated_default_with_noto_serif():
+    """'Source Serif 4' was a previous default but isn't shipped in our
+    Gotenberg image (silent fallback). Migration normalizes it to Noto Serif
+    (which IS bundled). 'Bookman Old Style' / 'TeX Gyre Bonum' likewise."""
+    for legacy in ("Source Serif 4", "Bookman Old Style", "TeX Gyre Bonum"):
+        conn = sqlite3.connect(":memory:")
+        conn.row_factory = sqlite3.Row
+        conn.execute("CREATE TABLE cert_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+        conn.execute(
+            "INSERT INTO cert_settings (key, value) VALUES ('body_font_family', ?)",
+            (legacy,),
+        )
+        conn.commit()
+        init_mbr_tables(conn)
+        body = conn.execute(
+            "SELECT value FROM cert_settings WHERE key='body_font_family'"
+        ).fetchone()["value"]
+        header = conn.execute(
+            "SELECT value FROM cert_settings WHERE key='header_font_family'"
+        ).fetchone()["value"]
+        # Body normalized to Noto Serif; header gets the fresh-install sans default
+        # (since the deprecated value isn't a meaningful customization to preserve).
+        assert body == "Noto Serif", f"body migration for {legacy} produced {body}"
+        assert header == "Noto Sans", f"header default for {legacy} produced {header}"
+        conn.close()
 
 
 def _make_docx_bytes(xml_parts: dict) -> bytes:
@@ -120,7 +177,9 @@ def test_overrides_substitute_three_sentinels_and_body_22():
     })
 
     sizes = {"title_pt": 14, "product_name_pt": 20, "body_pt": 9}
-    out = _apply_typography_overrides(src, font="TeX Gyre Bonum", sizes=sizes)
+    out = _apply_typography_overrides(
+        src, body_font="TeX Gyre Bonum", header_font="Bookman Old Style", sizes=sizes
+    )
 
     out_header = _read_docx_part(out, "word/header1.xml")
     assert 'w:szCs w:val="28"' in out_header       # 14pt title * 2
@@ -157,8 +216,60 @@ def test_overrides_do_not_touch_body_when_body_pt_equals_11():
         "word/document.xml": doc,
     })
     sizes = {"title_pt": 12, "product_name_pt": 16, "body_pt": 11}
-    out = _apply_typography_overrides(src, font="Bookman Old Style", sizes=sizes)
+    out = _apply_typography_overrides(
+        src, body_font="TeX Gyre Bonum", header_font="Bookman Old Style", sizes=sizes
+    )
+    # Both fonts match the in-template literals → no font rewrite should occur,
+    # AND body_pt=11 → no size rewrite. Bytes therefore unchanged.
     assert _read_docx_part(out, "word/document.xml") == doc
+
+
+def test_overrides_apply_body_and_header_fonts_independently():
+    """body_font replaces ONLY in word/document.xml; header_font replaces ONLY
+    in word/header1.xml. Cross-talk (header font leaking into document, body
+    font leaking into header) is the regression we're guarding against."""
+    from mbr.certs.generator import _apply_typography_overrides
+
+    header_xml = (
+        '<?xml version="1.0"?><w:hdr xmlns:w="x">'
+        '<w:p><w:r><w:rPr>'
+        '<w:rFonts w:ascii="Bookman Old Style" w:hAnsi="Bookman Old Style"/>'
+        '<w:szCs w:val="996"/>'
+        '</w:rPr><w:t>TITLE</w:t></w:r></w:p>'
+        '</w:hdr>'
+    )
+    document_xml = (
+        '<?xml version="1.0"?><w:document xmlns:w="x"><w:body>'
+        '<w:p><w:r><w:rPr>'
+        '<w:rFonts w:ascii="TeX Gyre Bonum" w:hAnsi="TeX Gyre Bonum"/>'
+        '<w:sz w:val="22"/>'
+        '</w:rPr><w:t>Body</w:t></w:r></w:p>'
+        '</w:body></w:document>'
+    )
+    src = _make_docx_bytes({
+        "word/header1.xml":  header_xml,
+        "word/styles.xml":   '<?xml version="1.0"?><w:styles xmlns:w="x"/>',
+        "word/document.xml": document_xml,
+    })
+
+    sizes = {"title_pt": 12, "product_name_pt": 16, "body_pt": 11}
+    out = _apply_typography_overrides(
+        src, body_font="Noto Serif", header_font="Noto Sans", sizes=sizes
+    )
+
+    out_doc = _read_docx_part(out, "word/document.xml")
+    assert 'w:ascii="Noto Serif"' in out_doc
+    assert 'w:hAnsi="Noto Serif"' in out_doc
+    # Header font must NOT appear in document.xml (no cross-talk)
+    assert "Noto Sans" not in out_doc
+    assert "TeX Gyre Bonum" not in out_doc
+
+    out_hdr = _read_docx_part(out, "word/header1.xml")
+    assert 'w:ascii="Noto Sans"' in out_hdr
+    assert 'w:hAnsi="Noto Sans"' in out_hdr
+    # Body font must NOT appear in header1.xml
+    assert "Noto Serif" not in out_hdr
+    assert "Bookman Old Style" not in out_hdr
 
 
 from contextlib import contextmanager
@@ -208,6 +319,29 @@ def test_put_cert_settings_validates_range(client):
     r = client.put("/api/cert/settings", json={"title_font_size_pt": 100})
     assert r.status_code == 400
     r = client.put("/api/cert/settings", json={"body_font_size_pt": 0})
+    assert r.status_code == 400
+
+
+def test_get_cert_settings_returns_header_font_family(client):
+    r = client.get("/api/cert/settings")
+    assert r.status_code == 200
+    d = r.get_json()
+    assert d["header_font_family"] == "Noto Sans"
+
+
+def test_put_cert_settings_accepts_header_font_family(client, db):
+    r = client.put("/api/cert/settings", json={"header_font_family": "Lato"})
+    assert r.status_code == 200, r.get_json()
+    assert _get_setting(db, "header_font_family") == "Lato"
+
+
+def test_put_cert_settings_rejects_empty_header_font_family(client):
+    r = client.put("/api/cert/settings", json={"header_font_family": "   "})
+    assert r.status_code == 400
+
+
+def test_put_cert_settings_rejects_xml_unsafe_header_font(client):
+    r = client.put("/api/cert/settings", json={"header_font_family": 'Bad"font'})
     assert r.status_code == 400
 
 

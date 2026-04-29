@@ -149,7 +149,8 @@ def test_cert_settings_table_exists(db):
 def test_cert_settings_default_seed(db):
     """Defaults must be seeded on first init."""
     rows = dict(db.execute("SELECT key, value FROM cert_settings").fetchall())
-    assert rows["body_font_family"] == "Source Serif 4"
+    assert rows["body_font_family"] == "Noto Serif"
+    assert rows["header_font_family"] == "Noto Sans"
     assert rows["header_font_size_pt"] == "14"
 
 
@@ -166,7 +167,8 @@ def test_cert_settings_init_idempotent(db):
 def test_load_cert_settings_returns_seeded_defaults(db):
     from mbr.certs.generator import _load_cert_settings
     s = _load_cert_settings(db)
-    assert s["body_font_family"] == "Source Serif 4"
+    assert s["body_font_family"] == "Noto Serif"
+    assert s["header_font_family"] == "Noto Sans"
     assert s["header_font_size_pt"] == 14  # int, parsed from "14"
 
 
@@ -196,6 +198,7 @@ def test_build_preview_context_includes_typography():
     with mock.patch("mbr.certs.generator._load_cert_settings",
                     return_value={
                         "body_font_family":          "EB Garamond",
+                        "header_font_family":        "Lato",
                         "header_font_size_pt":       18,
                         "title_font_size_pt":        12,
                         "product_name_font_size_pt": 16,
@@ -204,6 +207,7 @@ def test_build_preview_context_includes_typography():
         from mbr.certs.generator import build_preview_context
         ctx = build_preview_context(product, "base")
     assert ctx["body_font_family"] == "EB Garamond"
+    assert ctx["header_font_family"] == "Lato"
     assert ctx["header_font_size_pt"] == 18
     assert ctx["title_font_size_pt"] == 12
     assert ctx["product_name_font_size_pt"] == 16

@@ -882,9 +882,10 @@ def api_cert_settings_get():
     with db_session() as db:
         rows = db.execute("SELECT key, value FROM cert_settings").fetchall()
     # Defaults mirror _cert_settings_defaults in mbr/models.py. Four size keys
-    # are typed as int; body_font_family is str.
+    # are typed as int; body_font_family / header_font_family are str.
     out = {
-        "body_font_family":          "Bookman Old Style",
+        "body_font_family":          "Noto Serif",
+        "header_font_family":        "Noto Sans",
         "header_font_size_pt":       14,
         "title_font_size_pt":        12,
         "product_name_font_size_pt": 16,
@@ -916,17 +917,20 @@ def api_cert_settings_put():
     data = request.get_json(silent=True) or {}
     updated = {}
 
-    if "body_font_family" in data:
-        val = (data["body_font_family"] or "").strip()
+    # Font-family fields share the same XML-attribute-safety constraint:
+    # whitelist Unicode letters, digits, space, hyphen, period, apostrophe.
+    # Google Fonts / standard font-family names all fit this.
+    import re as _re
+    _FONT_FAMILY_RE = _re.compile(r"^[\w\s\-.']+$", flags=_re.UNICODE)
+    for font_key in ("body_font_family", "header_font_family"):
+        if font_key not in data:
+            continue
+        val = (data[font_key] or "").strip()
         if not val or len(val) > 120:
-            return jsonify({"error": "body_font_family: pusta lub za długa nazwa"}), 400
-        # Font names must be safe for direct XML attribute interpolation.
-        # Whitelist: Unicode letters, digits, space, hyphen, period, apostrophe.
-        # Google Fonts / standard font-family names all fit this.
-        import re as _re
-        if not _re.match(r"^[\w\s\-.']+$", val, flags=_re.UNICODE):
-            return jsonify({"error": "body_font_family: niedozwolone znaki (dozwolone: litery, cyfry, spacje, - . ')"}), 400
-        updated["body_font_family"] = val
+            return jsonify({"error": f"{font_key}: pusta lub za długa nazwa"}), 400
+        if not _FONT_FAMILY_RE.match(val):
+            return jsonify({"error": f"{font_key}: niedozwolone znaki (dozwolone: litery, cyfry, spacje, - . ')"}), 400
+        updated[font_key] = val
 
     # Numeric size keys — range 6–36 pt. Legacy header_font_size_pt is not in
     # this list, so any value passed there is silently ignored.
