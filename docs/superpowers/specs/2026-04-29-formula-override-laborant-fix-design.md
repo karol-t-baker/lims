@@ -100,15 +100,30 @@ Reszta endpointa (audit payload, rebuild `mbr_templates.parametry_lab`, response
 
 ### Backend — `usage-impact`
 
-`api_parametry_usage_impact` w `mbr/parametry/routes.py` (rozszerzenie z commitu 10729c7). Obecnie:
+`api_parametry_usage_impact` w `mbr/parametry/routes.py`. Dwie zmiany:
+
+**1. `mbr_products[]` source — `produkt_etap_limity` zamiast `parametry_etapy`** (consistency z endpoint formula-override; filtruje ghost products jak Chegina_KK którego nie ma w pipeline). Obecnie:
 
 ```sql
-SELECT produkt, formula
-FROM parametry_etapy
-WHERE parametr_id = ? AND kontekst = 'analiza_koncowa'
+SELECT pe.produkt AS key, pe.kontekst AS stage
+FROM parametry_etapy pe
+WHERE pe.parametr_id = ?
+ORDER BY pe.produkt, pe.kontekst
 ```
 
 Zmiana na:
+
+```sql
+SELECT pel.produkt AS key, ea.kod AS stage
+FROM produkt_etap_limity pel
+JOIN etapy_analityczne ea ON ea.id = pel.etap_id
+WHERE pel.parametr_id = ?
+ORDER BY pel.produkt, ea.kod
+```
+
+Skutek: produkty istniejące tylko w legacy (np. Chegina_KK) znikną z listy „Powiązania" i z dropdown override. Spójne z tym że laborant i tak nie ma SA dla Chegina_KK (snapshot `parametry_lab` go nie zawiera).
+
+**2. `formula_override` extension — czytanie z `produkt_etap_limity`** (rozszerzenie z commitu 10729c7):
 
 ```sql
 SELECT pel.produkt, pel.formula
@@ -247,6 +262,51 @@ document.querySelectorAll('input[data-formula]').forEach(function(computedInput)
 
 Po: bez ostatniej linii. Listener-only.
 
+**Diff 4 — `saveBias` / `updateBiasPreview` substytuują tylko ostatnią liczbę (zamiast hardcoded `'sm - nacl - ' + bias`):**
+
+Stary kod (linia 4286-4289 i 4263-4264) hardcoduje formułę `'sm - nacl - ' + bias` przy zapisie biasu, co nadpisałoby override w DOM (np. `sm` → reset do `sm - nacl - 0.6`). Cheminox_K override `sm` jest bezpieczny bo bias editor nie pojawia się (regex `[a-z_]+\s*[-+]\s*([0-9.]+)\s*$` nie matchuje), ale future override z numeric tail (np. `sm - 0.5`) wyzwoliłby bug.
+
+Przed:
+```js
+// updateBiasPreview (linia 4263-4264)
+el.textContent = 'Formuła: sm - nacl - ' + b;
+
+// saveBias (linia 4286-4289)
+var newFormula = 'sm - nacl - ' + bias;
+document.querySelectorAll('input[data-kod="' + kod + '"][data-formula]').forEach(function(saInp) {
+    saInp.dataset.formula = newFormula;
+    recomputeField(saInp);
+    ...
+});
+```
+
+Po:
+```js
+// updateBiasPreview — zachowaj prefix formuły, podmień ostatnią liczbę
+function updateBiasPreview(val, kod) {
+    var saInp = document.querySelector('input[data-kod="' + kod + '"][data-formula]');
+    var oldFormula = saInp ? saInp.dataset.formula : '';
+    var b = parseFloat(val) || 0;
+    var preview = oldFormula.replace(/([+-]\s*)[0-9.]+\s*$/, '$1' + b);
+    var el = document.getElementById('calc-bias-preview');
+    if (el) el.textContent = 'Formuła: ' + preview;
+}
+
+// saveBias — analogicznie, per-input substitution
+document.querySelectorAll('input[data-kod="' + kod + '"][data-formula]').forEach(function(saInp) {
+    var oldFormula = saInp.dataset.formula || '';
+    var newFormula = oldFormula.replace(/([+-]\s*)[0-9.]+\s*$/, '$1' + bias);
+    saInp.dataset.formula = newFormula;
+    recomputeField(saInp);
+    ...
+});
+```
+
+Działa dla:
+- `sm - nacl - 0.6` → bias 0.7 → `sm - nacl - 0.7` ✅ (stara funkcjonalność zachowana)
+- `sm - 0.5` → bias 0.7 → `sm - 0.7` ✅ (override z numeric tail)
+- `sm` → bias editor nie pokazuje się (brak numeric tail), `saveBias` nie wywoływane ✅
+
 ### Data flow po naprawie
 
 ```
@@ -337,8 +397,10 @@ Adaptacja istniejącego `test_usage_impact_includes_formula_override` (commit 10
 4. **Recompute nadpisuje manual przy zmianie SM**: po pkt 2 zmień SM = 35,8 → SA = 35,8, manual edit ginie
 5. **Stara szarża z SM ale pustym SA**: otwórz — SA pozostaje puste do czasu manualnego ruszenia SM lub wpisania SA
 6. **Czysty model — F5 z pustym SA i wypełnionym SM**: SA NIE wypełnia się automatycznie
-7. **Inne produkty (Chegina_K7)**: SM/Cl⁻/SA — formuła `sm - nacl - 0.6`, recompute działa jak dotąd
-8. **Pole SA edytowalne** — kursor w polu, kliknięcie → kursor pojawia się, można pisać
+7. **Chegina_K7 analiza_koncowa**: SM/Cl⁻/SA — formuła `sm - nacl - 0.6`, recompute działa jak dotąd. **K7 standaryzacja SA** — pole nadal manualne (laborant wpisuje ręcznie). Pre-existing: `setupComputedFields` wymaga `data-sekcja` którego process stage nie ustawia (linia 4961 — używa `data-etap`/`data-runda`). Out of scope tego fixu — naprawa wymagałaby alternatywnego query selectora w `setupComputedFields` lub dodania `data-sekcja` do process stage render
+8. **Bias editor dla SA z formułą `sm - nacl - 0.6`**: panel po prawej pokazuje edytor bias, zmiana na 0.7 → preview `Formuła: sm - nacl - 0.7` → klik Zapisz → SA przelicza się z nową formułą. Działa jak dotąd (zachowana funkcjonalność)
+9. **Bias editor dla Cheminox_K override `sm`**: bias editor NIE pokazuje się (regex nie matchuje braku numeric tail). Override bezpieczny ✅
+10. **Pole SA edytowalne** — kursor w polu, kliknięcie → kursor pojawia się, można pisać
 
 ## Edge cases
 
@@ -363,8 +425,8 @@ Adaptacja istniejącego `test_usage_impact_includes_formula_override` (commit 10
 
 ### PR2 — frontend laboranta
 
-1. Trzy diffy w `mbr/templates/laborant/_fast_entry_content.html`
-2. Manual verify checklist (8 punktów) — dev server + browser
+1. Cztery diffy w `mbr/templates/laborant/_fast_entry_content.html` (3 dla manual edit, 1 dla bias editor preserving override)
+2. Manual verify checklist (10 punktów) — dev server + browser
 3. Cache-bust calculator.js już istnieje (commit eb548b3 — per-startup `?v=`)
 
 PR1 i PR2 niezależne. Branch: kontynuacja istniejącego `formula-override` worktree.
@@ -373,13 +435,15 @@ PR1 i PR2 niezależne. Branch: kontynuacja istniejącego `formula-override` work
 
 - [ ] PUT `/api/parametry/<id>/formula-override` zapisuje do `produkt_etap_limity.formula`
 - [ ] Po PUT, `mbr_templates.parametry_lab["Cheminox_K"]["analiza_koncowa"]` SA pole ma `formula="sm"` (test integracyjny)
+- [ ] `usage-impact.mbr_products[]` lista czyta z `produkt_etap_limity` (ghost products typu Chegina_KK znikają)
 - [ ] `usage-impact` zwraca `formula_override` z `produkt_etap_limity`
-- [ ] Migracja idempotentna (drugi run = no-op)
+- [ ] Migracja idempotentna (drugi run = no-op) i rebuilduje snapshot dla affected products
 - [ ] SA pole edytowalne ręcznie
 - [ ] Manual edit survive on blur, F5, switch sekcji
 - [ ] Recompute odpala się tylko gdy `input` event na zależnym polu
 - [ ] Cheminox_K nowa szarża: SM → SA przelicza się natychmiast z formuły `sm`
-- [ ] Inne produkty (Chegina, SLES) — recompute działa jak dotąd
+- [ ] Bias editor preserving override (substitute last numeric, no hardcoded reset)
+- [ ] Chegina_K7 analiza_koncowa: recompute działa jak dotąd
 - [ ] Audit zawiera `parametr.updated` z `action='formula_override_set'`/`'cleared'`
 
 ## Out of scope
@@ -393,3 +457,5 @@ PR1 i PR2 niezależne. Branch: kontynuacja istniejącego `formula-override` work
 - **Bulk override** — pojedyncze edycje wystarczają
 - **Formula override w cert/variant params** — osobny flow
 - **Optimistic locking concurrent edits** — last-writer-wins + audit
+- **K7 standaryzacja SA reactive recompute** — pre-existing brak (process stage nie ma `data-sekcja`); naprawa wymaga osobnego refactoru `setupComputedFields` z alternatywnym query selectorem
+- **Naprawa danych Chegina_KK** — produkt ma SA/SM tylko w legacy `parametry_etapy`, brak w pipeline `produkt_etap_limity`; po fixie znika z UI override (bezpieczne — laborant i tak nie ma SA dla niego), ale samo wyrównanie tabel = osobny task technologa
