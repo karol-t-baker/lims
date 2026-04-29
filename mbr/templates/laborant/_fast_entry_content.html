@@ -2836,7 +2836,9 @@ async function flushPendingSaves() {
     var promises = [];
     entries.forEach(function(e) {
         clearTimeout(e.tid);
-        if (e.input && e.input.value !== '') {
+        if (e.input) {
+            // Empty values flow through too — backend persists NULL so the
+            // user-intended clear doesn't get reverted to the prior DB value.
             var p = doSaveField(e.input, e.sekcja, e.kod, false);
             if (p && typeof p.then === 'function') promises.push(p);
         }
@@ -3549,11 +3551,11 @@ function doSaveField(input, sekcja, kod, fromBlur) {
         clearTimeout(_saveTimers[key].tid || _saveTimers[key]);
         delete _saveTimers[key];
     }
-    if (input.value === '') return;
 
-    // Auto-round to parameter precision ONLY on blur (not during typing)
+    // Auto-round to parameter precision ONLY on blur (and only for numeric input).
+    // Empty input → clear intent, send through so backend writes NULL.
     var rawVal = input.value.replace(',', '.');
-    if (fromBlur && !isNaN(rawVal) && rawVal !== '') {
+    if (fromBlur && rawVal !== '' && !isNaN(rawVal)) {
         var prec = parseInt(input.dataset.precision || '2', 10);
         input.value = parseFloat(rawVal).toFixed(prec).replace('.', ',');
     }
@@ -3567,7 +3569,8 @@ function doSaveField(input, sekcja, kod, fromBlur) {
 
     input.style.outline = '2px solid var(--teal)';
 
-    return fetch('/laborant/ebr/' + _saveEbrId + '/save', {
+    window._pendingFieldSaves = window._pendingFieldSaves || [];
+    var promise = fetch('/laborant/ebr/' + _saveEbrId + '/save', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({sekcja: sekcja, values: values})
@@ -3614,6 +3617,12 @@ function doSaveField(input, sekcja, kod, fromBlur) {
         input.style.outline = '2px solid var(--red, #dc2626)';
         setTimeout(function() { input.style.outline = ''; }, 2000);
     });
+    window._pendingFieldSaves.push(promise);
+    promise.finally(function() {
+        var idx = window._pendingFieldSaves.indexOf(promise);
+        if (idx >= 0) window._pendingFieldSaves.splice(idx, 1);
+    });
+    return promise;
 }
 
 

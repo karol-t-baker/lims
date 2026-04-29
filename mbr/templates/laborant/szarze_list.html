@@ -611,11 +611,22 @@ function resetTopbar() {
 // ═══ SPA NAVIGATION ═══
 
 async function loadBatch(ebrId) {
+  // Force any debounced field-saves to fire NOW (1.5s timer would otherwise
+  // miss them when the user clicks "Zakończ edycję" mid-debounce).
+  if (typeof window.flushPendingSaves === 'function') {
+    try { await window.flushPendingSaves(); } catch (e) { /* ignore */ }
+  }
   // Flush any in-flight correction-field saves before we swap batches.
   // Ensures every saveKorektaField PUT lands in the DB for the CURRENT batch
   // before the UI renders another batch's data.
   if (window._pendingKorektaSaves && window._pendingKorektaSaves.length > 0) {
     try { await Promise.allSettled(window._pendingKorektaSaves.slice()); } catch (e) { /* ignore */ }
+  }
+  // Same for in-flight onblur/auto-save POSTs from doSaveField — without this
+  // await, GET /partial races the still-pending POST /save and renders stale
+  // values until the user hits F5.
+  if (window._pendingFieldSaves && window._pendingFieldSaves.length > 0) {
+    try { await Promise.allSettled(window._pendingFieldSaves.slice()); } catch (e) { /* ignore */ }
   }
 
   // Reset pipeline state only when switching to a different batch

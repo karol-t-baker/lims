@@ -755,8 +755,15 @@ def save_wyniki(
         # (neutral — not numerically evaluated). Used for FAU <1 and
         # similar analytical-chemistry conventions.
         raw_str = str(wartosc_raw).strip()
+        is_clear = raw_str == ""
         is_qualitative = bool(raw_str) and raw_str[0] in ("<", ">", "≤", "≥")
-        if is_qualitative:
+        if is_clear:
+            # Explicit clear — laborant deleted the digit. Persist NULL so the
+            # value disappears on refresh; otherwise the previous DB value would
+            # silently come back.
+            wartosc = None
+            wartosc_text = None
+        elif is_qualitative:
             wartosc = None
             wartosc_text = raw_str
         else:
@@ -855,7 +862,8 @@ def save_wyniki(
             diffs.append(diff_entry)
 
         # Compute w_limicie — only for numeric values
-        if wartosc_text is not None:
+        if wartosc_text is not None or wartosc is None:
+            # Qualitative or cleared — no numeric evaluation possible.
             w_limicie = None
         else:
             w_limicie = 1
