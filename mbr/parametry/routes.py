@@ -189,8 +189,8 @@ def api_parametry_usage_impact(param_id):
 
     Lists are shaped for direct UI consumption:
     - cert_products: distinct produkt rows from parametry_cert (with display_name JOIN)
-    - mbr_products: distinct produkt rows from parametry_etapy with stages array and formula_override from produkt_etap_limity
-    - mbr_bindings_count: total parametry_etapy rows (= produkt × stages combinations)
+    - mbr_products: distinct produkt rows from produkt_etap_limity with stages array and formula_override
+    - mbr_bindings_count: total produkt_etap_limity rows (= produkt × stages combinations)
     """
     with db_session() as db:
         exists = db.execute(
@@ -211,12 +211,15 @@ def api_parametry_usage_impact(param_id):
         ).fetchall()
         cert_products = [{"key": r["key"], "display_name": r["display_name"]} for r in cert_rows]
 
-        # MBR products with stages (group by produkt → stages list)
+        # MBR products with stages (group by produkt → stages list).
+        # Source: produkt_etap_limity (pipeline SSOT). Filters out ghost products
+        # that exist only in legacy parametry_etapy without a pipeline binding.
         mbr_rows = db.execute(
-            """SELECT pe.produkt AS key, pe.kontekst AS stage
-               FROM parametry_etapy pe
-               WHERE pe.parametr_id = ?
-               ORDER BY pe.produkt, pe.kontekst""",
+            """SELECT pel.produkt AS key, ea.kod AS stage
+               FROM produkt_etap_limity pel
+               JOIN etapy_analityczne ea ON ea.id = pel.etap_id
+               WHERE pel.parametr_id = ?
+               ORDER BY pel.produkt, ea.kod""",
             (param_id,),
         ).fetchall()
         mbr_grouped = {}
