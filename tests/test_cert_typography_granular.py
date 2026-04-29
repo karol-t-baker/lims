@@ -74,7 +74,7 @@ def test_load_cert_settings_returns_three_new_size_keys(db):
     assert settings["title_font_size_pt"] == 12
     assert settings["product_name_font_size_pt"] == 16
     assert settings["body_font_size_pt"] == 11
-    assert settings["body_font_family"] == "Bookman Old Style"
+    assert settings["body_font_family"] == "Source Serif 4"
 
 
 def _make_docx_bytes(xml_parts: dict) -> bytes:

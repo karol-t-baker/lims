@@ -1230,7 +1230,7 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     # Legacy header_font_size_pt kept for backward compatibility; new code uses
     # title_font_size_pt + product_name_font_size_pt + body_font_size_pt.
     _cert_settings_defaults = [
-        ("body_font_family", "Bookman Old Style"),
+        ("body_font_family", "Source Serif 4"),
         ("header_font_size_pt", "14"),
         ("body_font_size_pt", "11"),
     ]
@@ -1239,6 +1239,14 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             "INSERT OR IGNORE INTO cert_settings (key, value) VALUES (?, ?)",
             (k, v),
         )
+
+    # One-shot migration: legacy default fonts (Bookman Old Style, TeX Gyre Bonum)
+    # → Source Serif 4 (current default). Admin's custom fonts (any other value)
+    # are preserved. Idempotent — re-running has no effect.
+    db.execute(
+        "UPDATE cert_settings SET value='Source Serif 4' "
+        "WHERE key='body_font_family' AND value IN ('Bookman Old Style', 'TeX Gyre Bonum')"
+    )
 
     # Title + product-name sizes — use pre-existing legacy value if the admin
     # had one (preserves visual rendering across the deploy); otherwise use

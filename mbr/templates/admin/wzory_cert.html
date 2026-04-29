@@ -637,9 +637,10 @@
     </div>
     <div style="padding:16px 20px;">
       <label class="wc-lbl">Wybierz kod parametru z rejestru</label>
-      <select class="wc-sel" id="wc-add-param-code" style="width:100%;"></select>
+      <input class="wc-inp" id="wc-add-param-search" type="text" placeholder="Szukaj po kodzie lub nazwie..." oninput="filterAddParamCodes(this.value)" style="width:100%;margin-bottom:6px;">
+      <select class="wc-sel" id="wc-add-param-code" size="8" style="width:100%;"></select>
       <div style="font-size:11px;color:var(--text-dim);margin-top:6px;">
-        Wartości nazwy PL/EN i metody pochodzą z rejestru. Wymaganie i precyzję ustawisz w edytorze po dodaniu.
+        Wpisz w polu wyżej żeby zawęzić listę. Wartości nazwy PL/EN i metody pochodzą z rejestru. Wymaganie i precyzję ustawisz w edytorze po dodaniu.
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;">
         <button class="wc-btn wc-btn-o" onclick="closeAddParamModal()">Anuluj</button>
@@ -1064,7 +1065,28 @@ function openAddParamModal() {
     html += '<option value="" disabled>Brak dostępnych kodów (wszystkie już dodane?)</option>';
   }
   sel.innerHTML = html;
+  // Reset search field + auto-focus for fast keyboard entry
+  var searchInp = document.getElementById('wc-add-param-search');
+  if (searchInp) { searchInp.value = ''; }
   document.getElementById('wc-add-param-modal').classList.add('show');
+  if (searchInp) setTimeout(function() { searchInp.focus(); }, 60);
+}
+
+function filterAddParamCodes(query) {
+  var q = (query || '').trim().toLowerCase();
+  var sel = document.getElementById('wc-add-param-code');
+  if (!sel) return;
+  var optgroups = sel.querySelectorAll('optgroup');
+  optgroups.forEach(function(og) {
+    var visibleCount = 0;
+    og.querySelectorAll('option').forEach(function(opt) {
+      var text = (opt.textContent || '').toLowerCase();
+      var matches = !q || text.indexOf(q) !== -1;
+      opt.hidden = !matches;
+      if (matches) visibleCount++;
+    });
+    og.hidden = visibleCount === 0;
+  });
 }
 
 function closeAddParamModal() {

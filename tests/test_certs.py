@@ -149,7 +149,7 @@ def test_cert_settings_table_exists(db):
 def test_cert_settings_default_seed(db):
     """Defaults must be seeded on first init."""
     rows = dict(db.execute("SELECT key, value FROM cert_settings").fetchall())
-    assert rows["body_font_family"] == "Bookman Old Style"
+    assert rows["body_font_family"] == "Source Serif 4"
     assert rows["header_font_size_pt"] == "14"
 
 
@@ -166,7 +166,7 @@ def test_cert_settings_init_idempotent(db):
 def test_load_cert_settings_returns_seeded_defaults(db):
     from mbr.certs.generator import _load_cert_settings
     s = _load_cert_settings(db)
-    assert s["body_font_family"] == "Bookman Old Style"
+    assert s["body_font_family"] == "Source Serif 4"
     assert s["header_font_size_pt"] == 14  # int, parsed from "14"
 
 
