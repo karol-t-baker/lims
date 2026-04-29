@@ -248,12 +248,12 @@ def api_cert_config_products():
     """List all products that have cert variants defined (from DB)."""
     with db_session() as db:
         rows = db.execute("""
-            SELECT p.nazwa as key, p.display_name,
+            SELECT p.nazwa as key, p.display_name, p.aktywny,
                    (SELECT COUNT(*) FROM parametry_cert pc WHERE pc.produkt=p.nazwa AND pc.variant_id IS NULL) as params_count,
                    (SELECT COUNT(*) FROM cert_variants cv WHERE cv.produkt=p.nazwa) as variants_count
             FROM produkty p
             WHERE EXISTS (SELECT 1 FROM cert_variants cv WHERE cv.produkt=p.nazwa)
-            ORDER BY p.display_name
+            ORDER BY p.aktywny DESC, p.display_name
         """).fetchall()
     return jsonify({"ok": True, "products": [dict(r) for r in rows]})
 

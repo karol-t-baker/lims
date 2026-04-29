@@ -52,6 +52,9 @@
 .wc-card-stat { display: flex; align-items: center; gap: 3px; }
 .wc-card-stat svg { opacity: .6; }
 .wc-card-bottom { display: flex; justify-content: flex-end; gap: 6px; padding-top: 6px; border-top: 1px solid var(--border-subtle, #f0ece4); margin-top: 6px; }
+.wc-card.archived { opacity: .55; border-style: dashed; }
+.wc-card.archived:hover { opacity: .85; }
+.wc-card-arch-badge { position: absolute; top: 8px; right: 8px; font-size: 8px; font-weight: 700; letter-spacing: .5px; color: var(--text-dim); background: var(--surface-alt); padding: 2px 5px; border-radius: 3px; border: 1px solid var(--border); }
 
 /* ═══ Buttons ═══ */
 .wc-btn { padding: 7px 16px; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: var(--font); transition: opacity .15s; }
@@ -395,6 +398,9 @@
         <svg class="wc-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
         <input class="wc-search" id="wc-search" type="text" placeholder="Szukaj..." oninput="filterProducts()">
       </div>
+      <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-sec);margin-right:10px;cursor:pointer;user-select:none;">
+        <input type="checkbox" id="wc-show-archived" onchange="filterProducts()"> Pokaż archiwalne
+      </label>
       <button class="wc-btn wc-btn-o wc-btn-sm" onclick="openCertSettings()" style="margin-right:10px;">Ustawienia globalne</button>
       <button class="wc-btn wc-btn-p" onclick="showNewForm()">+ Nowy produkt</button>
     </div>
@@ -871,7 +877,7 @@ function loadProducts() {
   fetch('/api/cert/config/products').then(function(r) { return r.json(); }).then(function(data) {
     if (!data.ok) { flash('Błąd ładowania produktów', false); return; }
     _products = data.products;
-    renderProductList();
+    filterProducts();
   });
 }
 
@@ -879,7 +885,10 @@ function renderProductList(filtered) {
   var list = filtered || _products;
   var html = '';
   list.forEach(function(p) {
-    html += '<div class="wc-card" onclick="editProduct(\'' + _esc(p.key) + '\')">' +
+    var archived = (p.aktywny === 0 || p.aktywny === false);
+    var cls = 'wc-card' + (archived ? ' archived' : '');
+    html += '<div class="' + cls + '" onclick="editProduct(\'' + _esc(p.key) + '\')">' +
+      (archived ? '<div class="wc-card-arch-badge">ARCH</div>' : '') +
       '<div class="wc-card-top">' +
         '<div class="wc-card-name">' + _esc(p.display_name) + '</div>' +
         '<div class="wc-card-key">' + _esc(p.key) + '</div>' +
@@ -894,15 +903,26 @@ function renderProductList(filtered) {
       '</div>' +
     '</div>';
   });
-  if (!list.length && _products.length) html = '<div style="color:var(--text-dim);font-size:12px;grid-column:1/-1;">Brak wyników dla tego wyszukiwania.</div>';
-  else if (!_products.length) html = '<div style="color:var(--text-dim);font-size:12px;grid-column:1/-1;">Brak produktów. Kliknij „Nowy produkt" aby dodać.</div>';
+  var showArch = !!(document.getElementById('wc-show-archived') || {}).checked;
+  if (!list.length && _products.length) {
+    var hasArchive = _products.some(function(p) { return p.aktywny === 0 || p.aktywny === false; });
+    if (!showArch && hasArchive) {
+      html = '<div style="color:var(--text-dim);font-size:12px;grid-column:1/-1;">Brak aktywnych produktów dla tego wyszukiwania. Włącz „Pokaż archiwalne" aby zobaczyć więcej.</div>';
+    } else {
+      html = '<div style="color:var(--text-dim);font-size:12px;grid-column:1/-1;">Brak wyników dla tego wyszukiwania.</div>';
+    }
+  } else if (!_products.length) {
+    html = '<div style="color:var(--text-dim);font-size:12px;grid-column:1/-1;">Brak produktów. Kliknij „Nowy produkt" aby dodać.</div>';
+  }
   document.getElementById('wc-cards').innerHTML = html;
 }
 
 function filterProducts() {
   var q = (document.getElementById('wc-search').value || '').trim().toLowerCase();
-  if (!q) { renderProductList(); return; }
+  var showArch = !!(document.getElementById('wc-show-archived') || {}).checked;
   var filtered = _products.filter(function(p) {
+    if (!showArch && (p.aktywny === 0 || p.aktywny === false)) return false;
+    if (!q) return true;
     return (p.display_name || '').toLowerCase().indexOf(q) !== -1 ||
            (p.key || '').toLowerCase().indexOf(q) !== -1;
   });
