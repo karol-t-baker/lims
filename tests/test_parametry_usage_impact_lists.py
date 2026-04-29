@@ -85,3 +85,33 @@ def test_usage_impact_empty_lists_for_unused_param(monkeypatch, db):
     assert j["cert_products"] == []
     assert j["mbr_products"] == []
     assert j["mbr_bindings_count"] == 0
+
+
+def test_usage_impact_includes_formula_override(monkeypatch, db):
+    """mbr_products items have formula_override field reflecting parametry_etapy.formula
+    in analiza_koncowa kontekst (hardcoded for current obliczeniowy/srednia use case)."""
+    db.execute("DELETE FROM parametry_analityczne")
+    db.execute(
+        "INSERT INTO parametry_analityczne (id, kod, label, typ, formula) "
+        "VALUES (1, 'sa', 'SA', 'obliczeniowy', 'sm - nacl - sa_bias')"
+    )
+    db.execute("INSERT OR IGNORE INTO produkty (nazwa, display_name) VALUES ('Cheminox_K', 'Cheminox K')")
+    db.execute("INSERT OR IGNORE INTO produkty (nazwa, display_name) VALUES ('Chegina_K7', 'Chegina K7')")
+    # Cheminox_K has SA in analiza_koncowa with formula override
+    db.execute(
+        "INSERT INTO parametry_etapy (parametr_id, produkt, kontekst, kolejnosc, formula) "
+        "VALUES (1, 'Cheminox_K', 'analiza_koncowa', 0, 'sm')"
+    )
+    # Chegina_K7 has SA in analiza_koncowa WITHOUT override
+    db.execute(
+        "INSERT INTO parametry_etapy (parametr_id, produkt, kontekst, kolejnosc) "
+        "VALUES (1, 'Chegina_K7', 'analiza_koncowa', 0)"
+    )
+    db.commit()
+    client = _client(monkeypatch, db)
+
+    rv = client.get("/api/parametry/1/usage-impact")
+    j = rv.get_json()
+    by_key = {p["key"]: p for p in j["mbr_products"]}
+    assert by_key["Cheminox_K"]["formula_override"] == "sm"
+    assert by_key["Chegina_K7"]["formula_override"] is None

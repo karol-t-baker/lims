@@ -222,7 +222,22 @@ def api_parametry_usage_impact(param_id):
         mbr_grouped = {}
         for r in mbr_rows:
             mbr_grouped.setdefault(r["key"], []).append(r["stage"])
-        mbr_products = [{"key": k, "stages": v} for k, v in mbr_grouped.items()]
+
+        # Per-product formula override from analiza_koncowa kontekst
+        # (hardcoded per spec — all current obliczeniowy/srednia params live there).
+        # If product has no binding in analiza_koncowa, formula_override = None.
+        ovr_rows = db.execute(
+            """SELECT produkt, formula
+               FROM parametry_etapy
+               WHERE parametr_id = ? AND kontekst = 'analiza_koncowa'""",
+            (param_id,),
+        ).fetchall()
+        ovr_by_produkt = {r["produkt"]: r["formula"] for r in ovr_rows}
+
+        mbr_products = [
+            {"key": k, "stages": v, "formula_override": ovr_by_produkt.get(k)}
+            for k, v in mbr_grouped.items()
+        ]
         mbr_bindings_count = len(mbr_rows)
 
     return jsonify({
