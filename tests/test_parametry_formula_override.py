@@ -26,12 +26,28 @@ def _seed(db):
     db.execute("INSERT OR IGNORE INTO produkty (nazwa, display_name) VALUES ('Cheminox_K', 'Cheminox K')")
     db.execute("INSERT OR IGNORE INTO produkty (nazwa, display_name) VALUES ('Other', 'Other')")
     db.execute(
-        "INSERT INTO parametry_etapy (id, parametr_id, produkt, kontekst, kolejnosc, sa_bias) "
-        "VALUES (10, 1, 'Cheminox_K', 'analiza_koncowa', 0, 0.6)"
+        "INSERT INTO etapy_analityczne (id, kod, nazwa, typ_cyklu) "
+        "VALUES (10, 'analiza_koncowa', 'Analiza końcowa', 'jednorazowy')"
     )
     db.execute(
-        "INSERT INTO parametry_etapy (id, parametr_id, produkt, kontekst, kolejnosc) "
-        "VALUES (11, 1, 'Other', 'sulfonowanie', 0)"
+        "INSERT INTO etapy_analityczne (id, kod, nazwa, typ_cyklu) "
+        "VALUES (11, 'sulfonowanie', 'Sulfonowanie', 'cykliczny')"
+    )
+    db.execute(
+        "INSERT INTO etap_parametry (etap_id, parametr_id, kolejnosc) VALUES (10, 1, 0)"
+    )
+    db.execute(
+        "INSERT INTO etap_parametry (etap_id, parametr_id, kolejnosc) VALUES (11, 1, 0)"
+    )
+    # Cheminox_K has SA in analiza_koncowa with sa_bias=0.6 (no formula override yet)
+    db.execute(
+        "INSERT INTO produkt_etap_limity (id, produkt, etap_id, parametr_id, kolejnosc, sa_bias) "
+        "VALUES (100, 'Cheminox_K', 10, 1, 0, 0.6)"
+    )
+    # Other product: SA in sulfonowanie kontekst (different etap)
+    db.execute(
+        "INSERT INTO produkt_etap_limity (id, produkt, etap_id, parametr_id, kolejnosc) "
+        "VALUES (101, 'Other', 11, 1, 0)"
     )
     db.commit()
 
@@ -64,33 +80,33 @@ def test_set_formula_override(monkeypatch, db):
     assert j["produkt"] == "Cheminox_K"
     assert j["formula"] == "sm"
 
-    row = db.execute("SELECT formula FROM parametry_etapy WHERE id=10").fetchone()
+    row = db.execute("SELECT formula FROM produkt_etap_limity WHERE id=100").fetchone()
     assert row["formula"] == "sm"
 
 
 def test_clear_formula_override(monkeypatch, db):
     _seed(db)
-    db.execute("UPDATE parametry_etapy SET formula='sm' WHERE id=10")
+    db.execute("UPDATE produkt_etap_limity SET formula='sm' WHERE id=100")
     db.commit()
     client = _admin_client(monkeypatch, db)
 
     rv = client.put("/api/parametry/1/formula-override", json={"produkt": "Cheminox_K", "formula": None})
     assert rv.status_code == 200
 
-    row = db.execute("SELECT formula FROM parametry_etapy WHERE id=10").fetchone()
+    row = db.execute("SELECT formula FROM produkt_etap_limity WHERE id=100").fetchone()
     assert row["formula"] is None
 
 
 def test_clear_formula_override_via_empty_string(monkeypatch, db):
     _seed(db)
-    db.execute("UPDATE parametry_etapy SET formula='sm' WHERE id=10")
+    db.execute("UPDATE produkt_etap_limity SET formula='sm' WHERE id=100")
     db.commit()
     client = _admin_client(monkeypatch, db)
 
     rv = client.put("/api/parametry/1/formula-override", json={"produkt": "Cheminox_K", "formula": "   "})
     assert rv.status_code == 200
 
-    row = db.execute("SELECT formula FROM parametry_etapy WHERE id=10").fetchone()
+    row = db.execute("SELECT formula FROM produkt_etap_limity WHERE id=100").fetchone()
     assert row["formula"] is None
 
 
@@ -111,7 +127,7 @@ def test_kontekst_param_overrides_default(monkeypatch, db):
     })
     assert rv.status_code == 200
 
-    row = db.execute("SELECT formula FROM parametry_etapy WHERE id=11").fetchone()
+    row = db.execute("SELECT formula FROM produkt_etap_limity WHERE id=101").fetchone()
     assert row["formula"] == "sm * 2"
 
 
@@ -140,7 +156,7 @@ def test_audit_event_emitted(monkeypatch, db):
 
 def test_audit_clear_action(monkeypatch, db):
     _seed(db)
-    db.execute("UPDATE parametry_etapy SET formula='sm' WHERE id=10")
+    db.execute("UPDATE produkt_etap_limity SET formula='sm' WHERE id=100")
     db.commit()
     client = _admin_client(monkeypatch, db)
 
