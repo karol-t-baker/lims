@@ -272,6 +272,92 @@ def test_overrides_apply_body_and_header_fonts_independently():
     assert "Bookman Old Style" not in out_hdr
 
 
+def test_overrides_substitute_styles_xml_latin_default_fonts():
+    """word/styles.xml typically references "Times New Roman" (default serif)
+    and "Arial" (default sans) in <w:rFonts> for paragraph/character styles.
+    Without substitution these would render as LiberationSerif/Sans fallback in
+    Gotenberg (Times New Roman is proprietary, not in the image), clashing
+    with Noto used elsewhere. Replace Times New Roman → body_font, Arial →
+    header_font. Leave non-Latin script fonts (cs/eastAsia) and language
+    attributes untouched."""
+    from mbr.certs.generator import _apply_typography_overrides
+
+    styles_xml = (
+        '<?xml version="1.0"?><w:styles xmlns:w="x">'
+        '<w:docDefaults><w:rPrDefault><w:rPr>'
+        '<w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" '
+        'w:cs="Mangal" w:eastAsia="SimSun"/>'
+        '<w:lang w:val="pl-PL" w:eastAsia="zh-CN"/>'
+        '</w:rPr></w:rPrDefault></w:docDefaults>'
+        '<w:style w:styleId="Heading1"><w:rPr>'
+        '<w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Tahoma"/>'
+        '</w:rPr></w:style>'
+        '</w:styles>'
+    )
+    src = _make_docx_bytes({
+        "word/header1.xml":  '<?xml version="1.0"?><w:hdr xmlns:w="x"/>',
+        "word/styles.xml":   styles_xml,
+        "word/document.xml": '<?xml version="1.0"?><w:document xmlns:w="x"><w:body/></w:document>',
+    })
+
+    sizes = {"title_pt": 12, "product_name_pt": 16, "body_pt": 11}
+    out = _apply_typography_overrides(
+        src, body_font="Noto Serif", header_font="Noto Sans", sizes=sizes
+    )
+    out_styles = _read_docx_part(out, "word/styles.xml")
+
+    # Times New Roman → Noto Serif (body)
+    assert 'w:ascii="Noto Serif"' in out_styles
+    assert 'w:hAnsi="Noto Serif"' in out_styles
+    assert "Times New Roman" not in out_styles
+
+    # Arial → Noto Sans (header)
+    assert 'w:ascii="Noto Sans"' in out_styles
+    assert 'w:hAnsi="Noto Sans"' in out_styles
+    assert "Arial" not in out_styles
+
+    # Non-Latin script fallbacks UNTOUCHED
+    assert 'w:cs="Mangal"' in out_styles
+    assert 'w:eastAsia="SimSun"' in out_styles
+    assert 'w:cs="Tahoma"' in out_styles
+
+    # Language attributes UNTOUCHED (regex scoped to font values, not w:lang)
+    assert 'w:val="pl-PL"' in out_styles
+    assert 'w:eastAsia="zh-CN"' in out_styles
+
+
+def test_overrides_styles_xml_no_order_corruption_when_body_is_arial():
+    """If admin sets body_font='Arial' and header_font='Times New Roman',
+    naive sequential substitution (header first then body) would clobber the
+    just-replaced 'Times New Roman' in the second pass. Single-pass mapping
+    must keep them independent."""
+    from mbr.certs.generator import _apply_typography_overrides
+
+    styles_xml = (
+        '<?xml version="1.0"?><w:styles xmlns:w="x">'
+        '<w:style w:styleId="A"><w:rPr><w:rFonts w:ascii="Times New Roman"/></w:rPr></w:style>'
+        '<w:style w:styleId="B"><w:rPr><w:rFonts w:ascii="Arial"/></w:rPr></w:style>'
+        '</w:styles>'
+    )
+    src = _make_docx_bytes({
+        "word/header1.xml":  '<?xml version="1.0"?><w:hdr xmlns:w="x"/>',
+        "word/styles.xml":   styles_xml,
+        "word/document.xml": '<?xml version="1.0"?><w:document xmlns:w="x"><w:body/></w:document>',
+    })
+
+    sizes = {"title_pt": 12, "product_name_pt": 16, "body_pt": 11}
+    out = _apply_typography_overrides(
+        src, body_font="Arial", header_font="Times New Roman", sizes=sizes
+    )
+    out_styles = _read_docx_part(out, "word/styles.xml")
+
+    # Each source font maps to exactly one target — no chained substitution.
+    # styleId="A" was Times New Roman → body_font="Arial"
+    # styleId="B" was Arial          → header_font="Times New Roman"
+    assert out_styles.count('w:ascii="Arial"') == 1
+    assert out_styles.count('w:ascii="Times New Roman"') == 1
+
+
 from contextlib import contextmanager
 
 

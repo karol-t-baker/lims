@@ -843,6 +843,12 @@ def _fix_single_line_valign(doc) -> None:
 
 _BODY_FONT_LITERAL = "TeX Gyre Bonum"   # 298× in word/document.xml
 _HEADER_FONT_LITERAL = "Bookman Old Style"  # 12× in word/header1.xml
+# styles.xml carries LibreOffice's default Latin pair (used by paragraph styles
+# whose runs lack inline w:rFonts); without substitution Gotenberg falls back
+# to LiberationSerif/Sans, clashing with Noto applied via the body/header
+# sentinels above.
+_STYLES_BODY_LITERAL = "Times New Roman"
+_STYLES_HEADER_LITERAL = "Arial"
 
 
 def _docxtpl_render(context: dict) -> bytes:
@@ -932,6 +938,25 @@ def _apply_typography_overrides(docx_bytes: bytes, body_font: str, header_font: 
                 data = txt.encode("utf-8")
             elif item == "word/styles.xml":
                 txt = data.decode("utf-8")
+                # Single-pass font substitution — sequential would corrupt
+                # cases like body=Arial/header=Times where the second pass
+                # would rewrite values produced by the first.
+                styles_subs = {
+                    _STYLES_BODY_LITERAL:   body_font,
+                    _STYLES_HEADER_LITERAL: header_font,
+                }
+                styles_subs = {k: v for k, v in styles_subs.items() if v and v != k}
+                if styles_subs:
+                    pattern = (
+                        r'(w:ascii|w:hAnsi|w:cs|w:eastAsia)="('
+                        + "|".join(re.escape(k) for k in styles_subs)
+                        + r')"'
+                    )
+                    txt = re.sub(
+                        pattern,
+                        lambda m: f'{m.group(1)}="{styles_subs[m.group(2)]}"',
+                        txt,
+                    )
                 txt = txt.replace('w:sz w:val="996"', f'w:sz w:val="{t2}"')
                 txt = txt.replace('w:sz w:val="997"', f'w:sz w:val="{p2}"')
                 data = txt.encode("utf-8")
