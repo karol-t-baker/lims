@@ -4407,8 +4407,12 @@ window._panelFocusBridge = function(e) {
     // Computed field focused → show formula in calculator panel
     var ffComp = input.closest('.ff.computed');
     if (ffComp && input.dataset.formula) {
-        // Reset calc state so titr guard doesn't skip next open
-        if (window._calcState) window._calcState.fullMethod = false;
+        // Reset calc state so titr/srednia guards don't skip next open after we
+        // overwrite calc-container with custom obliczeniowy HTML below.
+        if (window._calcState) {
+            window._calcState.fullMethod = false;
+            window._calcState.sredniaMode = false;
+        }
         showRightPanel('calc');
         var calcContainer = document.getElementById('calc-container');
         if (calcContainer) {
