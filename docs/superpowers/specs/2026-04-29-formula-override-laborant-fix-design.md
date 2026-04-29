@@ -130,12 +130,16 @@ Idempotent. Skips rows where pel.formula already populated.
 Does NOT clear parametry_etapy.formula (legacy column, untouched).
 """
 
+import json
 import sqlite3
 import sys
+
+from mbr.parametry.registry import build_parametry_lab
 
 DB_PATH = sys.argv[1] if len(sys.argv) > 1 else "data/batch_db.sqlite"
 conn = sqlite3.connect(DB_PATH)
 conn.row_factory = sqlite3.Row
+conn.execute("PRAGMA foreign_keys = ON")
 
 rows = conn.execute("""
     SELECT pe.parametr_id, pe.produkt, pe.kontekst, pe.formula, pa.kod
@@ -146,6 +150,7 @@ rows = conn.execute("""
 
 migrated = 0
 skipped = 0
+products_to_rebuild = set()
 for r in rows:
     ea = conn.execute("SELECT id FROM etapy_analityczne WHERE kod = ?", (r["kontekst"],)).fetchone()
     if not ea:
@@ -169,13 +174,23 @@ for r in rows:
 
     conn.execute("UPDATE produkt_etap_limity SET formula = ? WHERE id = ?", (r["formula"], pel["id"]))
     print(f"OK: {r['kod']}/{r['produkt']}/{r['kontekst']} → formula='{r['formula']}'")
+    products_to_rebuild.add(r["produkt"])
     migrated += 1
 
+# Rebuild mbr_templates.parametry_lab snapshot for affected products
+for produkt in products_to_rebuild:
+    plab = build_parametry_lab(conn, produkt)
+    conn.execute(
+        "UPDATE mbr_templates SET parametry_lab=? WHERE produkt=? AND status='active'",
+        (json.dumps(plab, ensure_ascii=False), produkt),
+    )
+    print(f"REBUILT: parametry_lab for {produkt}")
+
 conn.commit()
-print(f"\nDone. Migrated: {migrated}, skipped: {skipped}")
+print(f"\nDone. Migrated: {migrated}, skipped: {skipped}, rebuilt snapshots: {len(products_to_rebuild)}")
 ```
 
-Po migracji ręcznie zrobić rebuild `mbr_templates.parametry_lab` dla affected products (najprościej: dotknąć override przez UI = trigger rebuild, lub osobny skrypt rebuild-all).
+Skrypt automatycznie rebuilduje `mbr_templates.parametry_lab` dla każdego dotkniętego produktu (idempotentny — nie-affected produkty pomijane).
 
 ### Frontend laboranta — change set
 
