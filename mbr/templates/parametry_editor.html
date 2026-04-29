@@ -11,8 +11,9 @@
 <style>
 /* ═══ PARAMETER EDITOR ═══ */
 
-/* Container — scrollable */
-.pe-wrap { padding: 20px 28px; max-width: 100%; overflow-y: auto; max-height: calc(100vh - 52px); }
+/* Workspace + container — full width, scrollable */
+.workspace { overflow: auto !important; display: block !important; }
+.pe-wrap { padding: 20px 28px; width: 100%; box-sizing: border-box; }
 .pe-section-label {
   font-size: 9px; font-weight: 800; color: var(--text-dim);
   text-transform: uppercase; letter-spacing: 1.2px;
