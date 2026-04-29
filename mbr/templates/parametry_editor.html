@@ -1010,8 +1010,74 @@ function _rejRenderTypConfig(p) {
       '<button onclick="rejOpisoweAdd()" style="background:var(--teal);color:#fff;border:none;padding:6px 14px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;">+ Dodaj</button>' +
     '</div>';
   }
+
+  // Sub-section: Override per produkt — only for obliczeniowy / srednia
+  if (typ === 'obliczeniowy' || typ === 'srednia') {
+    html += _rejRenderFormulaOverrides(p);
+  }
+
   return html;
 }
+
+function _rejRenderFormulaOverrides(p) {
+  // Async-rendered placeholder; real content fills in via _rejFetchUsage callback.
+  setTimeout(function() {
+    _rejFetchUsage(p.id).then(function(impact) {
+      if (_rejSelectedId !== p.id) return;  // user switched away
+      var section = document.getElementById('pe-rej-formula-overrides');
+      if (!section) return;
+
+      var mbrProducts = (impact && impact.mbr_products) || [];
+      var existingOverrides = mbrProducts.filter(function(mp) { return mp.formula_override !== null && mp.formula_override !== undefined; });
+      var availableProducts = mbrProducts.filter(function(mp) { return mp.formula_override === null || mp.formula_override === undefined; });
+      // Sort alphabetically per spec
+      existingOverrides.sort(function(a, b) { return a.key.localeCompare(b.key); });
+      availableProducts.sort(function(a, b) { return a.key.localeCompare(b.key); });
+
+      var html = '<div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border-subtle);">';
+      html += '<div style="font-size:9px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Override per produkt (opcjonalne)</div>';
+
+      if (mbrProducts.length === 0) {
+        html += '<div style="font-size:11px;color:var(--text-dim);font-style:italic;">Parametr nie jest jeszcze używany w żadnym produkcie MBR — najpierw dodaj go w zakładce Etapy.</div>';
+      } else {
+        // Existing overrides — rows with formula textarea + delete button
+        existingOverrides.forEach(function(mp) {
+          html += '<div class="pe-rej-fo-row" data-produkt="' + _rejEsc(mp.key) + '" style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border-subtle);">' +
+            '<span class="wc-md-item-bind" style="min-width:120px;flex-shrink:0;">' + _rejEsc(mp.key) + '</span>' +
+            '<input type="text" class="pe-rej-fo-input" data-produkt="' + _rejEsc(mp.key) + '" value="' + _rejEsc(mp.formula_override) + '" onblur="rejSetFormulaOverride(\'' + _rejEsc(mp.key) + '\', this.value)" style="flex:1;padding:5px 8px;font-family:var(--mono);font-size:11px;border:1.5px solid var(--border);border-radius:5px;">' +
+            '<span class="pe-rej-fo-status" data-produkt="' + _rejEsc(mp.key) + '" style="font-size:10px;color:var(--text-dim);min-width:80px;text-align:right;"></span>' +
+            '<button onclick="rejClearFormulaOverride(\'' + _rejEsc(mp.key) + '\')" style="background:none;border:none;color:var(--text-dim);cursor:pointer;padding:2px 8px;font-size:14px;" title="Usuń override (wróci do globalnej formuły)">×</button>' +
+          '</div>';
+        });
+
+        // Add new override row
+        if (availableProducts.length > 0) {
+          html += '<div style="display:flex;gap:6px;margin-top:10px;align-items:center;">';
+          html += '<input id="pe-rej-fo-add-produkt" list="pe-rej-fo-datalist" placeholder="Wpisz nazwę produktu..." style="flex:1;padding:6px 9px;border:1.5px solid var(--border);border-radius:5px;font-size:11.5px;">';
+          html += '<datalist id="pe-rej-fo-datalist">';
+          availableProducts.forEach(function(mp) {
+            html += '<option value="' + _rejEsc(mp.key) + '">';
+          });
+          html += '</datalist>';
+          html += '<button onclick="rejAddFormulaOverrideRow()" style="background:var(--teal);color:#fff;border:none;padding:6px 14px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;">+ Dodaj</button>';
+          html += '</div>';
+        } else if (existingOverrides.length === mbrProducts.length) {
+          html += '<div style="font-size:10px;color:var(--text-dim);font-style:italic;margin-top:8px;">Wszystkie produkty używające tego parametru mają już override.</div>';
+        }
+      }
+
+      html += '</div>';
+      section.innerHTML = html;
+    });
+  }, 0);
+
+  return '<div id="pe-rej-formula-overrides"><div style="font-size:11px;color:var(--text-dim);margin-top:14px;">Ładowanie override-ów…</div></div>';
+}
+
+function rejSetFormulaOverride(produkt, formula) { /* B2 */ }
+function rejClearFormulaOverride(produkt) { /* B2 */ }
+function rejAddFormulaOverrideRow() { /* B2 */ }
+function _rejFlashOverride(produkt, msg, ok) { /* B2 */ }
 
 function _rejRerenderTypConfig() {
   var p = _rejParams.find(function(x) { return x.id === _rejSelectedId; });
