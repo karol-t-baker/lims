@@ -486,12 +486,12 @@ def api_parametry_sa_bias():
 @parametry_bp.route("/api/parametry/<int:param_id>/formula-override", methods=["PUT"])
 @role_required("admin")
 def api_parametry_formula_override(param_id):
-    """Set or clear per-binding formula override in parametry_etapy.formula.
+    """Set or clear per-binding formula override in produkt_etap_limity.formula.
 
     Body: {produkt: <str>, formula: <str|null>, kontekst: <str|null>}
-    - kontekst defaults to 'analiza_koncowa'
+    - kontekst defaults to 'analiza_koncowa' (mapped to etapy_analityczne.kod)
     - formula='' or whitespace-only → treated as null (clear override)
-    - 404 if no binding exists for (parametr_id, produkt, kontekst)
+    - 404 if no binding exists for (parametr_id, produkt, etap)
 
     On success: rebuilds mbr_templates.parametry_lab snapshot for the produkt
     + emits parametr.updated audit with action='formula_override_set'/'formula_override_cleared'.
@@ -512,10 +512,11 @@ def api_parametry_formula_override(param_id):
 
     with db_session() as db:
         row = db.execute(
-            "SELECT pe.id, pe.formula AS formula_old, pa.kod "
-            "FROM parametry_etapy pe "
-            "JOIN parametry_analityczne pa ON pa.id = pe.parametr_id "
-            "WHERE pe.parametr_id=? AND pe.produkt=? AND pe.kontekst=?",
+            "SELECT pel.id, pel.formula AS formula_old, pa.kod "
+            "FROM produkt_etap_limity pel "
+            "JOIN parametry_analityczne pa ON pa.id = pel.parametr_id "
+            "JOIN etapy_analityczne ea ON ea.id = pel.etap_id "
+            "WHERE pel.parametr_id=? AND pel.produkt=? AND ea.kod=?",
             (param_id, produkt, kontekst),
         ).fetchone()
         if not row:
@@ -526,7 +527,7 @@ def api_parametry_formula_override(param_id):
             return jsonify({"ok": True, "produkt": produkt, "formula": new_formula})
 
         db.execute(
-            "UPDATE parametry_etapy SET formula=? WHERE id=?",
+            "UPDATE produkt_etap_limity SET formula=? WHERE id=?",
             (new_formula, row["id"]),
         )
 
