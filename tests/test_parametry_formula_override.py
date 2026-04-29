@@ -189,3 +189,36 @@ def test_admin_only(monkeypatch, db):
 
     rv = client.put("/api/parametry/1/formula-override", json={"produkt": "Cheminox_K", "formula": "sm"})
     assert rv.status_code == 403
+
+
+def test_override_propagates_to_parametry_lab(monkeypatch, db):
+    """End-to-end: PUT formula → rebuild widoczny w mbr_templates.parametry_lab.
+
+    Łapie regresję write-vs-read mismatch (endpoint pisze do tabeli A,
+    laborant czyta z tabeli B → override nie dociera).
+    """
+    _seed(db)
+    db.execute(
+        "INSERT INTO mbr_templates (produkt, status, parametry_lab, dt_utworzenia) "
+        "VALUES ('Cheminox_K', 'active', '{}', '2026-04-29T00:00:00')"
+    )
+    db.execute(
+        "INSERT INTO produkt_pipeline (produkt, etap_id, kolejnosc) VALUES ('Cheminox_K', 10, 1)"
+    )
+    db.commit()
+    client = _admin_client(monkeypatch, db)
+
+    rv = client.put(
+        "/api/parametry/1/formula-override",
+        json={"produkt": "Cheminox_K", "formula": "sm"},
+    )
+    assert rv.status_code == 200, rv.get_json()
+
+    plab_json = db.execute(
+        "SELECT parametry_lab FROM mbr_templates WHERE produkt='Cheminox_K'"
+    ).fetchone()[0]
+    plab = json.loads(plab_json)
+    assert "analiza_koncowa" in plab, f"snapshot missing analiza_koncowa: {plab}"
+    sa_pole = next((p for p in plab["analiza_koncowa"]["pola"] if p["kod"] == "sa"), None)
+    assert sa_pole is not None, f"'sa' not found in analiza_koncowa.pola: {plab['analiza_koncowa']['pola']}"
+    assert sa_pole["formula"] == "sm", f"expected formula='sm', got {sa_pole}"
