@@ -189,7 +189,7 @@ def api_parametry_usage_impact(param_id):
 
     Lists are shaped for direct UI consumption:
     - cert_products: distinct produkt rows from parametry_cert (with display_name JOIN)
-    - mbr_products: distinct produkt rows from parametry_etapy with stages array
+    - mbr_products: distinct produkt rows from parametry_etapy with stages array and formula_override from produkt_etap_limity
     - mbr_bindings_count: total parametry_etapy rows (= produkt × stages combinations)
     """
     with db_session() as db:
@@ -227,9 +227,10 @@ def api_parametry_usage_impact(param_id):
         # (hardcoded per spec — all current obliczeniowy/srednia params live there).
         # If product has no binding in analiza_koncowa, formula_override = None.
         ovr_rows = db.execute(
-            """SELECT produkt, formula
-               FROM parametry_etapy
-               WHERE parametr_id = ? AND kontekst = 'analiza_koncowa'""",
+            """SELECT pel.produkt, pel.formula
+               FROM produkt_etap_limity pel
+               JOIN etapy_analityczne ea ON ea.id = pel.etap_id
+               WHERE pel.parametr_id = ? AND ea.kod = 'analiza_koncowa'""",
             (param_id,),
         ).fetchall()
         ovr_by_produkt = {r["produkt"]: r["formula"] for r in ovr_rows}

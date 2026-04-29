@@ -97,15 +97,31 @@ def test_usage_impact_includes_formula_override(monkeypatch, db):
     )
     db.execute("INSERT OR IGNORE INTO produkty (nazwa, display_name) VALUES ('Cheminox_K', 'Cheminox K')")
     db.execute("INSERT OR IGNORE INTO produkty (nazwa, display_name) VALUES ('Chegina_K7', 'Chegina K7')")
-    # Cheminox_K has SA in analiza_koncowa with formula override
+    # mbr_products[] still reads from parametry_etapy (Task A5 will switch it to pel) —
+    # keep parametry_etapy seeds (without formula) so mbr_products list returns both products.
     db.execute(
-        "INSERT INTO parametry_etapy (parametr_id, produkt, kontekst, kolejnosc, formula) "
-        "VALUES (1, 'Cheminox_K', 'analiza_koncowa', 0, 'sm')"
+        "INSERT INTO parametry_etapy (parametr_id, produkt, kontekst, kolejnosc) "
+        "VALUES (1, 'Cheminox_K', 'analiza_koncowa', 0)"
     )
-    # Chegina_K7 has SA in analiza_koncowa WITHOUT override
     db.execute(
         "INSERT INTO parametry_etapy (parametr_id, produkt, kontekst, kolejnosc) "
         "VALUES (1, 'Chegina_K7', 'analiza_koncowa', 0)"
+    )
+    # ovr_rows now reads from produkt_etap_limity — seed via etapy_analityczne + pel.
+    db.execute(
+        "INSERT INTO etapy_analityczne (id, kod, nazwa) "
+        "VALUES (10, 'analiza_koncowa', 'AK')"
+    )
+    db.execute("INSERT INTO etap_parametry (etap_id, parametr_id, kolejnosc) VALUES (10, 1, 0)")
+    # Cheminox_K has SA in analiza_koncowa with formula override
+    db.execute(
+        "INSERT INTO produkt_etap_limity (produkt, etap_id, parametr_id, kolejnosc, formula) "
+        "VALUES ('Cheminox_K', 10, 1, 0, 'sm')"
+    )
+    # Chegina_K7 has SA in analiza_koncowa WITHOUT override
+    db.execute(
+        "INSERT INTO produkt_etap_limity (produkt, etap_id, parametr_id, kolejnosc) "
+        "VALUES ('Chegina_K7', 10, 1, 0)"
     )
     db.commit()
     client = _client(monkeypatch, db)
