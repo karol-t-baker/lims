@@ -1074,10 +1074,90 @@ function _rejRenderFormulaOverrides(p) {
   return '<div id="pe-rej-formula-overrides"><div style="font-size:11px;color:var(--text-dim);margin-top:14px;">Ładowanie override-ów…</div></div>';
 }
 
-function rejSetFormulaOverride(produkt, formula) { /* B2 */ }
-function rejClearFormulaOverride(produkt) { /* B2 */ }
-function rejAddFormulaOverrideRow() { /* B2 */ }
-function _rejFlashOverride(produkt, msg, ok) { /* B2 */ }
+function _rejFlashOverride(produkt, msg, ok) {
+  var statusEl = document.querySelector('.pe-rej-fo-status[data-produkt="' + produkt.replace(/"/g, '') + '"]');
+  if (!statusEl) return;
+  statusEl.textContent = msg;
+  statusEl.style.color = ok ? 'var(--green, #1a7a3a)' : 'var(--red, #b91c1c)';
+  setTimeout(function() {
+    if (statusEl) { statusEl.textContent = ''; statusEl.style.color = 'var(--text-dim)'; }
+  }, 3000);
+}
+
+function rejSetFormulaOverride(produkt, formula) {
+  if (_rejSelectedId == null) return;
+  fetch('/api/parametry/' + _rejSelectedId + '/formula-override', {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ produkt: produkt, formula: formula }),
+  }).then(function(r) {
+    return r.json().then(function(d) { return { status: r.status, data: d }; });
+  }).then(function(res) {
+    if (res.status === 200 && res.data.ok) {
+      _rejFlashOverride(produkt, 'Zapisano', true);
+      // Invalidate cache so next render fetches fresh formula_override values
+      delete _rejUsageCache[_rejSelectedId];
+    } else {
+      _rejFlashOverride(produkt, 'Błąd: ' + (res.data.error || 'zapis nieudany'), false);
+    }
+  }).catch(function(e) {
+    _rejFlashOverride(produkt, 'Błąd: ' + e.message, false);
+  });
+}
+
+function rejClearFormulaOverride(produkt) {
+  if (_rejSelectedId == null) return;
+  if (!confirm('Usunąć override formuły dla „' + produkt + '"? Wróci do globalnej formuły.')) return;
+
+  fetch('/api/parametry/' + _rejSelectedId + '/formula-override', {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ produkt: produkt, formula: null }),
+  }).then(function(r) {
+    return r.json().then(function(d) { return { status: r.status, data: d }; });
+  }).then(function(res) {
+    if (res.status === 200 && res.data.ok) {
+      // Re-render section: cache invalidate + force re-render of typ config
+      delete _rejUsageCache[_rejSelectedId];
+      _rejRerenderTypConfig();
+    } else {
+      alert('Błąd: ' + (res.data.error || 'nie udało się usunąć override'));
+    }
+  });
+}
+
+function rejAddFormulaOverrideRow() {
+  if (_rejSelectedId == null) return;
+  var inp = document.getElementById('pe-rej-fo-add-produkt');
+  if (!inp) return;
+  var produkt = (inp.value || '').trim();
+  if (!produkt) { alert('Wybierz produkt z listy lub wpisz nazwę.'); return; }
+
+  // Pre-fill with global formula (parametry_analityczne.formula)
+  var p = _rejParams.find(function(x) { return x.id === _rejSelectedId; });
+  if (!p) return;
+  var globalFormula = p.formula || '';
+
+  fetch('/api/parametry/' + _rejSelectedId + '/formula-override', {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ produkt: produkt, formula: globalFormula }),
+  }).then(function(r) {
+    return r.json().then(function(d) { return { status: r.status, data: d }; });
+  }).then(function(res) {
+    if (res.status === 200 && res.data.ok) {
+      delete _rejUsageCache[_rejSelectedId];
+      _rejRerenderTypConfig();
+      // Focus on the new row's formula input for immediate edit
+      setTimeout(function() {
+        var newInput = document.querySelector('.pe-rej-fo-input[data-produkt="' + produkt.replace(/"/g, '') + '"]');
+        if (newInput) { newInput.focus(); newInput.select(); }
+      }, 100);
+    } else {
+      alert('Błąd: ' + (res.data.error || 'nie udało się dodać override'));
+    }
+  });
+}
 
 function _rejRerenderTypConfig() {
   var p = _rejParams.find(function(x) { return x.id === _rejSelectedId; });
