@@ -2735,7 +2735,6 @@ function renderOneSection(container, opts) {
                     ' value="' + val + '"' +
                     ' class="' + inputClass.trim() + '"' +
                     (isReadonly ? ' readonly' : '') +
-                    (isObl && !isReadonly ? ' readonly' : '') +
                     ' placeholder="\u2014"' +
                     ' oninput="validateField(this); autoSaveField(this)" onblur="doSaveField(this, this.dataset.sekcja, this.dataset.kod, true)">' +
                 '<div class="ff-right">' +
@@ -4257,11 +4256,12 @@ function scrollToSection(sekcja) {
 
 
 function updateBiasPreview(val, kod) {
+    var saInp = document.querySelector('input[data-kod="' + kod + '"][data-formula]');
+    var oldFormula = saInp ? saInp.dataset.formula : '';
+    var b = parseFloat(val) || 0;
+    var preview = oldFormula.replace(/([+-]\s*)[0-9.]+\s*$/, '$1' + b);
     var el = document.getElementById('calc-bias-preview');
-    if (el) {
-        var b = parseFloat(val) || 0;
-        el.textContent = 'Formuła: sm - nacl - ' + b;
-    }
+    if (el) el.textContent = 'Formuła: ' + preview;
 }
 
 function saveBias(kod) {
@@ -4280,12 +4280,16 @@ function saveBias(kod) {
             var st = document.getElementById('calc-bias-status');
             if (st) { st.textContent = '✓ Zapisano'; st.style.opacity = '1'; setTimeout(function() { st.style.opacity = '0'; }, 2000); }
             // Update formula display in calculator panel
-            var formulaEl = document.querySelector('#calc-container .calc-formula');
-            if (formulaEl) formulaEl.textContent = 'sm - nacl - ' + bias;
-            // Update data-formula on the SA input and recompute immediately
-            var newFormula = 'sm - nacl - ' + bias;
+            // Substitute last numeric in each SA input's formula (preserves override prefix)
             document.querySelectorAll('input[data-kod="' + kod + '"][data-formula]').forEach(function(saInp) {
+                var oldFormula = saInp.dataset.formula || '';
+                var newFormula = oldFormula.replace(/([+-]\s*)[0-9.]+\s*$/, '$1' + bias);
                 saInp.dataset.formula = newFormula;
+                // Update calc-formula display in calc panel for the focused input
+                if (document.activeElement === saInp) {
+                    var formulaEl = document.querySelector('#calc-container .calc-formula');
+                    if (formulaEl) formulaEl.textContent = newFormula;
+                }
                 recomputeField(saInp);
                 // recomputeField sets .value programmatically — does NOT fire input/blur.
                 // Without dispatchEvent, autoSaveField never runs and the new SA never
@@ -4403,8 +4407,12 @@ window._panelFocusBridge = function(e) {
     // Computed field focused → show formula in calculator panel
     var ffComp = input.closest('.ff.computed');
     if (ffComp && input.dataset.formula) {
-        // Reset calc state so titr guard doesn't skip next open
-        if (window._calcState) window._calcState.fullMethod = false;
+        // Reset calc state so titr/srednia guards don't skip next open after we
+        // overwrite calc-container with custom obliczeniowy HTML below.
+        if (window._calcState) {
+            window._calcState.fullMethod = false;
+            window._calcState.sredniaMode = false;
+        }
         showRightPanel('calc');
         var calcContainer = document.getElementById('calc-container');
         if (calcContainer) {
@@ -4479,7 +4487,6 @@ function setupComputedFields() {
                 depInput.addEventListener('input', handler);
             }
         });
-        recomputeField(computedInput);
     });
 }
 
@@ -4514,7 +4521,6 @@ function recomputeField(computedInput) {
                 // recompute miało tę samą postać co po manualnym focus+blur.
                 var prec = parseInt(computedInput.dataset.precision || '2', 10);
                 var newVal = result.toFixed(prec).replace('.', ',');
-                computedInput.readOnly = true;
                 if (computedInput.value !== newVal) {
                     computedInput.value = newVal;
                     validateField(computedInput);

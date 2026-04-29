@@ -30,6 +30,11 @@ def _seed(db):
     # 2 distinct mbr products use parametr 1 in parametry_etapy
     db.execute("INSERT INTO parametry_etapy (parametr_id, produkt, kontekst, kolejnosc) VALUES (1, 'PROD_A', 'analiza_koncowa', 0)")
     db.execute("INSERT INTO parametry_etapy (parametr_id, produkt, kontekst, kolejnosc) VALUES (1, 'PROD_X', 'analiza_koncowa', 0)")
+    # Pipeline source-of-truth bindings (produkt_etap_limity) — what mbr_products[] reads from after Task A5.
+    db.execute("INSERT INTO etapy_analityczne (id, kod, nazwa) VALUES (10, 'analiza_koncowa', 'AK')")
+    db.execute("INSERT INTO etap_parametry (etap_id, parametr_id, kolejnosc) VALUES (10, 1, 0)")
+    db.execute("INSERT INTO produkt_etap_limity (produkt, etap_id, parametr_id, kolejnosc) VALUES ('PROD_A', 10, 1, 0)")
+    db.execute("INSERT INTO produkt_etap_limity (produkt, etap_id, parametr_id, kolejnosc) VALUES ('PROD_X', 10, 1, 0)")
     db.commit()
 
 

@@ -22,9 +22,18 @@ def _seed(db):
     for produkt, dn in [("PROD_A", "Produkt A"), ("PROD_B", "Produkt B")]:
         db.execute("INSERT INTO produkty (nazwa, display_name) VALUES (?, ?)", (produkt, dn))
         db.execute("INSERT INTO parametry_cert (produkt, parametr_id, kolejnosc, variant_id) VALUES (?, 1, 0, NULL)", (produkt,))
+    # Legacy parametry_etapy seeds — kept for backwards-compat asserts (e.g. cert+mbr counts elsewhere)
     db.execute("INSERT INTO parametry_etapy (parametr_id, produkt, kontekst, kolejnosc) VALUES (1, 'PROD_A', 'analiza_koncowa', 0)")
     db.execute("INSERT INTO parametry_etapy (parametr_id, produkt, kontekst, kolejnosc) VALUES (1, 'PROD_A', 'sulfonowanie', 1)")
     db.execute("INSERT INTO parametry_etapy (parametr_id, produkt, kontekst, kolejnosc) VALUES (1, 'PROD_C', 'analiza_koncowa', 0)")
+    # Pipeline source-of-truth bindings (produkt_etap_limity) — what mbr_products[] reads from after Task A5.
+    db.execute("INSERT INTO etapy_analityczne (id, kod, nazwa) VALUES (10, 'analiza_koncowa', 'AK')")
+    db.execute("INSERT INTO etapy_analityczne (id, kod, nazwa) VALUES (11, 'sulfonowanie', 'Sulf')")
+    db.execute("INSERT INTO etap_parametry (etap_id, parametr_id, kolejnosc) VALUES (10, 1, 0)")
+    db.execute("INSERT INTO etap_parametry (etap_id, parametr_id, kolejnosc) VALUES (11, 1, 0)")
+    db.execute("INSERT INTO produkt_etap_limity (produkt, etap_id, parametr_id, kolejnosc) VALUES ('PROD_A', 10, 1, 0)")
+    db.execute("INSERT INTO produkt_etap_limity (produkt, etap_id, parametr_id, kolejnosc) VALUES ('PROD_A', 11, 1, 1)")
+    db.execute("INSERT INTO produkt_etap_limity (produkt, etap_id, parametr_id, kolejnosc) VALUES ('PROD_C', 10, 1, 0)")
     db.commit()
 
 
@@ -85,3 +94,39 @@ def test_usage_impact_empty_lists_for_unused_param(monkeypatch, db):
     assert j["cert_products"] == []
     assert j["mbr_products"] == []
     assert j["mbr_bindings_count"] == 0
+
+
+def test_usage_impact_includes_formula_override(monkeypatch, db):
+    """mbr_products items have formula_override field reflecting produkt_etap_limity.formula
+    in analiza_koncowa kontekst (hardcoded for current obliczeniowy/srednia use case)."""
+    db.execute("DELETE FROM parametry_analityczne")
+    db.execute(
+        "INSERT INTO parametry_analityczne (id, kod, label, typ, formula) "
+        "VALUES (1, 'sa', 'SA', 'obliczeniowy', 'sm - nacl - sa_bias')"
+    )
+    db.execute("INSERT OR IGNORE INTO produkty (nazwa, display_name) VALUES ('Cheminox_K', 'Cheminox K')")
+    db.execute("INSERT OR IGNORE INTO produkty (nazwa, display_name) VALUES ('Chegina_K7', 'Chegina K7')")
+    # ovr_rows now reads from produkt_etap_limity — seed via etapy_analityczne + pel.
+    db.execute(
+        "INSERT INTO etapy_analityczne (id, kod, nazwa) "
+        "VALUES (10, 'analiza_koncowa', 'AK')"
+    )
+    db.execute("INSERT INTO etap_parametry (etap_id, parametr_id, kolejnosc) VALUES (10, 1, 0)")
+    # Cheminox_K has SA in analiza_koncowa with formula override
+    db.execute(
+        "INSERT INTO produkt_etap_limity (produkt, etap_id, parametr_id, kolejnosc, formula) "
+        "VALUES ('Cheminox_K', 10, 1, 0, 'sm')"
+    )
+    # Chegina_K7 has SA in analiza_koncowa WITHOUT override
+    db.execute(
+        "INSERT INTO produkt_etap_limity (produkt, etap_id, parametr_id, kolejnosc) "
+        "VALUES ('Chegina_K7', 10, 1, 0)"
+    )
+    db.commit()
+    client = _client(monkeypatch, db)
+
+    rv = client.get("/api/parametry/1/usage-impact")
+    j = rv.get_json()
+    by_key = {p["key"]: p for p in j["mbr_products"]}
+    assert by_key["Cheminox_K"]["formula_override"] == "sm"
+    assert by_key["Chegina_K7"]["formula_override"] is None
