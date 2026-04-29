@@ -468,6 +468,82 @@ def api_parametry_sa_bias():
     return jsonify({"ok": True})
 
 
+@parametry_bp.route("/api/parametry/<int:param_id>/formula-override", methods=["PUT"])
+@role_required("admin")
+def api_parametry_formula_override(param_id):
+    """Set or clear per-binding formula override in parametry_etapy.formula.
+
+    Body: {produkt: <str>, formula: <str|null>, kontekst: <str|null>}
+    - kontekst defaults to 'analiza_koncowa'
+    - formula='' or whitespace-only → treated as null (clear override)
+    - 404 if no binding exists for (parametr_id, produkt, kontekst)
+
+    On success: rebuilds mbr_templates.parametry_lab snapshot for the produkt
+    + emits parametr.updated audit with action='formula_override_set'/'formula_override_cleared'.
+    """
+    data = request.get_json(silent=True) or {}
+    produkt = (data.get("produkt") or "").strip()
+    kontekst = (data.get("kontekst") or "analiza_koncowa").strip()
+    if not produkt:
+        return jsonify({"error": "produkt required"}), 400
+
+    raw_formula = data.get("formula")
+    if raw_formula is None:
+        new_formula = None
+    elif isinstance(raw_formula, str) and raw_formula.strip() == "":
+        new_formula = None
+    else:
+        new_formula = raw_formula.strip() if isinstance(raw_formula, str) else raw_formula
+
+    with db_session() as db:
+        row = db.execute(
+            "SELECT pe.id, pe.formula AS formula_old, pa.kod "
+            "FROM parametry_etapy pe "
+            "JOIN parametry_analityczne pa ON pa.id = pe.parametr_id "
+            "WHERE pe.parametr_id=? AND pe.produkt=? AND pe.kontekst=?",
+            (param_id, produkt, kontekst),
+        ).fetchone()
+        if not row:
+            return jsonify({"error": "Binding not found"}), 404
+
+        # Skip no-op writes (idempotent)
+        if row["formula_old"] == new_formula:
+            return jsonify({"ok": True, "produkt": produkt, "formula": new_formula})
+
+        db.execute(
+            "UPDATE parametry_etapy SET formula=? WHERE id=?",
+            (new_formula, row["id"]),
+        )
+
+        # Rebuild parametry_lab snapshot
+        plab = build_parametry_lab(db, produkt)
+        db.execute(
+            "UPDATE mbr_templates SET parametry_lab=? WHERE produkt=? AND status='active'",
+            (_json.dumps(plab, ensure_ascii=False), produkt),
+        )
+
+        action = "formula_override_set" if new_formula is not None else "formula_override_cleared"
+        log_event(
+            EVENT_PARAMETR_UPDATED,
+            entity_type="parametr",
+            entity_id=param_id,
+            entity_label=row["kod"],
+            payload={
+                "parametr_id": param_id,
+                "kod": row["kod"],
+                "produkt": produkt,
+                "kontekst": kontekst,
+                "action": action,
+                "formula_old": row["formula_old"],
+                "formula_new": new_formula,
+            },
+            db=db,
+        )
+        db.commit()
+
+    return jsonify({"ok": True, "produkt": produkt, "formula": new_formula})
+
+
 @parametry_bp.route("/api/parametry/available")
 @login_required
 def api_parametry_available():
