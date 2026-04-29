@@ -78,12 +78,13 @@ Frontend: sekcja override formuły **pokazuje czystą formułę** (z `parametry_
 
 #### `PUT /api/parametry/<int:param_id>/formula-override`
 
-**Body**: `{produkt: "Cheminox_K", formula: "sm"}` lub `{produkt: "Cheminox_K", formula: null}` (= usuń override).
+**Body**: `{produkt: "Cheminox_K", formula: "sm"}` lub `{produkt: "Cheminox_K", formula: null}` (= usuń override). Opcjonalnie `kontekst: "<etap_kod>"` — default `"analiza_koncowa"` jeśli nie podany.
 
 **Wymaga roli**: `admin` (`@role_required("admin")`).
 
 **Logika**:
-1. Szuka istniejącego `parametry_etapy` wiersza dla `(parametr_id, produkt, kontekst='analiza_koncowa')`. Jeśli brak → 404 z `{"error": "Binding not found"}` (admin nie może override-ować dla produktu który nie używa parametru w MBR).
+1. `kontekst = data.get('kontekst', 'analiza_koncowa')` — backward-compat default. Frontend dziś nie wysyła kontekstu (wszystkie obliczeniowy/srednia params żyją w `analiza_koncowa`); jeśli w przyszłości admin doda taki param w innym etapie, endpoint już obsługuje.
+2. Szuka istniejącego `parametry_etapy` wiersza dla `(parametr_id, produkt, kontekst)`. Jeśli brak → 404 z `{"error": "Binding not found"}` (admin nie może override-ować dla produktu który nie używa parametru w danym etapie MBR).
 2. Jeśli `formula == null` LUB `formula == ""` (empty string po `.strip()`) → `UPDATE parametry_etapy SET formula = NULL WHERE id = ?` (= clear). Pusty string traktowany jako „brak override" — frontend nie powinien wysyłać empty, ale backend bezpiecznie obsługuje.
 3. Jeśli `formula = "<non-empty string>"` → `UPDATE parametry_etapy SET formula = ? WHERE id = ?` (zapisuje po `.strip()`). Bez walidacji syntactic — admin odpowiedzialny.
 4. **`sa_bias` field zostaje nietknięty** — separate mechanism.
@@ -136,7 +137,9 @@ Frontend używa `formula_override`:
 - Render listy istniejących overrides (`formula_override !== null`)
 - Filtrowanie dropdown-a autocomplete (`formula_override === null` → produkt dostępny do dodania)
 
-Implementacja: rozszerzenie SQL w `api_parametry_usage_impact` — JOIN z `parametry_etapy` po `(parametr_id, produkt, kontekst='analiza_koncowa')`, projekcja `pe.formula AS formula_override`. Jeśli wiele etapów per produkt, bierze formula z `analiza_koncowa` (gdzie SA żyje).
+Implementacja: rozszerzenie SQL w `api_parametry_usage_impact` — JOIN z `parametry_etapy` po `(parametr_id, produkt, kontekst='analiza_koncowa')` **hardcoded**, projekcja `pe.formula AS formula_override`. Jeśli wiele etapów per produkt, bierze formula z `analiza_koncowa` (gdzie obecnie żyje SA).
+
+**Pragmatyczna decyzja**: hardcoded `analiza_koncowa` w usage-impact backend. Spójne z obecnym stanem danych (wszystkie 41 obliczeniowy/srednia bindings są w `analiza_koncowa`). Endpoint override (sekcja 5) jest już generalized przez parametr `kontekst` w body. Jeśli w przyszłości admin doda obliczeniowy param w innym kontekście, refactor usage-impact = jedna linia (`WHERE pe.kontekst = ?` z param). YAGNI dla obecnego use case.
 
 Dla parametrów typu `bezposredni`/`titracja`/`jakosciowy` pole `formula_override` zawsze obecne ale w praktyce zawsze `null` (nie używane przez UI). Backward compat — istniejące use case A3 (Powiązania accordion) ignoruje to pole.
 
@@ -177,6 +180,10 @@ Po każdym set/clear → invalidate `_rejUsageCache[p.id]` → następny render 
 - **`sa_bias` placeholder w override formule**: jeśli admin wpisze `sm - sa_bias` jako override, `get_parametry_for_kontekst:102-103` substytuuje `sa_bias` per existing logic. Zachowuje istniejącą funkcjonalność.
 - **Concurrent edit**: dwóch adminów edytuje override tego samego produktu — ostatni wygrywa. Brak optimistic locking.
 - **Variant params (cert)**: poza scope. Formula override żyje wyłącznie w `parametry_etapy` (MBR-level), nie w `parametry_cert`. Variants w cert config nie mają own formula.
+- **Sort order overrides na liście**: alfabetycznie po nazwie produktu. W praktyce rzadko będzie > 5 overrides, kolejność mało istotna.
+- **Empty state — parametr bez bindings MBR**: gdy `mbr_products[]` puste (parametr typu obliczeniowy/srednia ale jeszcze nieużywany), sekcja override pokazuje komunikat: „Parametr nie jest jeszcze używany w żadnym produkcie MBR — najpierw dodaj go w zakładce Etapy". Dropdown autocomplete + przycisk Dodaj nie renderują się.
+- **Non-existent kod w formule override**: jeśli admin wpisze np. `sm + foo` gdzie `foo` nie istnieje w produktach bindings, `setupComputedFields` w fast-entry parsuje formułę → znajduje `sm` (existing) i `foo` (missing) → `allPresent = false` → SA stays unset. Backward-compatible z obecnym fallback behavior. Brak walidacji syntactic — admin odpowiedzialny.
+- **Concurrent edit (dwóch adminów)**: brak optimistic locking. Last-writer-wins. Akceptowalne dla obecnego setupu single-admin. Audit log pokazuje obu, kto kiedy edytował.
 
 ### 9. Testy backend
 
