@@ -182,7 +182,7 @@ for r in rows:
         skipped += 1
         continue
 
-    if pel["formula"]:
+    if pel["formula"] is not None:
         print(f"SKIP: pel already has formula='{pel['formula']}' for {r['kod']}/{r['produkt']}")
         skipped += 1
         continue
@@ -195,11 +195,14 @@ for r in rows:
 # Rebuild mbr_templates.parametry_lab snapshot for affected products
 for produkt in products_to_rebuild:
     plab = build_parametry_lab(conn, produkt)
-    conn.execute(
+    cur = conn.execute(
         "UPDATE mbr_templates SET parametry_lab=? WHERE produkt=? AND status='active'",
         (json.dumps(plab, ensure_ascii=False), produkt),
     )
-    print(f"REBUILT: parametry_lab for {produkt}")
+    if cur.rowcount == 0:
+        print(f"WARN: no active mbr_template for {produkt} — snapshot not rebuilt")
+    else:
+        print(f"REBUILT: parametry_lab for {produkt} ({cur.rowcount} row)")
 
 conn.commit()
 print(f"\nDone. Migrated: {migrated}, skipped: {skipped}, rebuilt snapshots: {len(products_to_rebuild)}")
@@ -338,7 +341,7 @@ Laborant zmienia SM = 35.8 → input event → recompute → SA = 35.8 (manual e
 
 ### Backend — `tests/test_parametry_formula_override.py`
 
-8 istniejących testów (commit 164a1a5) — adaptacja fixture `_seed`:
+8 istniejących testów (commit 164a1a5, **na branchu `formula-override`** — nie na main) — adaptacja fixture `_seed`:
 
 ```python
 def _seed(db):
@@ -387,7 +390,12 @@ Ten test złapałby cały bug — write-vs-read mismatch. Bez niego sytuacja mo�
 
 ### Backend — `tests/test_parametry_usage_impact_lists.py`
 
-Adaptacja istniejącego `test_usage_impact_includes_formula_override` (commit 10729c7). Fixture pisze do `produkt_etap_limity.formula` zamiast `parametry_etapy.formula`. Asercje shape response bez zmian.
+Adaptacja **dwóch** testów (oba istnieją na branchu `formula-override`):
+
+1. **`test_usage_impact_includes_mbr_products_list_with_stages`** — fixture seed-uje `PROD_C` tylko do `parametry_etapy`. Po zmianie źródła `mbr_products[]` na `produkt_etap_limity` (sekcja 6.1), `PROD_C` zniknie z response. Adaptacja: dodać `produkt_etap_limity` insert dla `PROD_C` w fixture.
+2. **`test_usage_impact_includes_formula_override`** (commit 10729c7) — fixture pisze do `produkt_etap_limity.formula` zamiast `parametry_etapy.formula`. Asercje shape bez zmian.
+
+> **Uwaga:** te testy istnieją tylko w worktree `.worktrees/formula-override` (commit 10729c7), nie na main. Implementacja kontynuuje ten branch, więc fixture diff jest wprost.
 
 ### Frontend — manual verify checklist (PR2)
 
