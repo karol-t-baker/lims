@@ -1053,13 +1053,14 @@ function _rejRenderFormulaOverrides(p) {
         // Add new override row
         if (availableProducts.length > 0) {
           html += '<div style="display:flex;gap:6px;margin-top:10px;align-items:center;">';
-          html += '<input id="pe-rej-fo-add-produkt" list="pe-rej-fo-datalist" placeholder="Wpisz nazwę produktu..." style="flex:1;padding:6px 9px;border:1.5px solid var(--border);border-radius:5px;font-size:11.5px;">';
+          html += '<input id="pe-rej-fo-add-produkt" list="pe-rej-fo-datalist" placeholder="Wpisz nazwę produktu..." onkeydown="if(event.key===\'Enter\'){event.preventDefault();rejAddFormulaOverrideRow();}" style="flex:1;padding:6px 9px;border:1.5px solid var(--border);border-radius:5px;font-size:11.5px;">';
           html += '<datalist id="pe-rej-fo-datalist">';
           availableProducts.forEach(function(mp) {
             html += '<option value="' + _rejEsc(mp.key) + '">';
           });
           html += '</datalist>';
           html += '<button onclick="rejAddFormulaOverrideRow()" style="background:var(--teal);color:#fff;border:none;padding:6px 14px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;">+ Dodaj</button>';
+          html += '<span id="pe-rej-fo-add-status" style="font-size:10px;color:var(--text-dim);min-width:90px;text-align:left;"></span>';
           html += '</div>';
         } else if (existingOverrides.length === mbrProducts.length) {
           html += '<div style="font-size:10px;color:var(--text-dim);font-style:italic;margin-top:8px;">Wszystkie produkty używające tego parametru mają już override.</div>';
@@ -1126,17 +1127,39 @@ function rejClearFormulaOverride(produkt) {
   });
 }
 
+function _rejFlashAddStatus(msg, ok) {
+  var el = document.getElementById('pe-rej-fo-add-status');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = ok ? 'var(--green, #1a7a3a)' : 'var(--red, #b91c1c)';
+  setTimeout(function() {
+    if (el) { el.textContent = ''; el.style.color = 'var(--text-dim)'; }
+  }, 3500);
+}
+
 function rejAddFormulaOverrideRow() {
-  if (_rejSelectedId == null) return;
+  if (_rejSelectedId == null) { _rejFlashAddStatus('Brak zaznaczonego parametru', false); return; }
   var inp = document.getElementById('pe-rej-fo-add-produkt');
   if (!inp) return;
   var produkt = (inp.value || '').trim();
-  if (!produkt) { alert('Wybierz produkt z listy lub wpisz nazwę.'); return; }
+  if (!produkt) { _rejFlashAddStatus('Wybierz produkt z listy', false); inp.focus(); return; }
 
-  // Pre-fill with global formula (parametry_analityczne.formula)
   var p = _rejParams.find(function(x) { return x.id === _rejSelectedId; });
-  if (!p) return;
-  var globalFormula = p.formula || '';
+  if (!p) { _rejFlashAddStatus('Brak parametru', false); return; }
+
+  var globalFormula = (p.formula || '').trim();
+
+  // If there's no global formula (typ=srednia), we can't auto-PUT something
+  // meaningful — backend treats whitespace-only as clear, so the row would
+  // never appear. Append the row optimistically with empty input; user
+  // types + blur triggers rejSetFormulaOverride which actually saves.
+  if (!globalFormula) {
+    _rejAppendOverrideRowOptimistic(produkt, '');
+    _rejFlashAddStatus('Wpisz formułę i Tab', true);
+    return;
+  }
+
+  _rejFlashAddStatus('Zapisywanie…', true);
 
   fetch('/api/parametry/' + _rejSelectedId + '/formula-override', {
     method: 'PUT',
@@ -1146,17 +1169,63 @@ function rejAddFormulaOverrideRow() {
     return r.json().then(function(d) { return { status: r.status, data: d }; });
   }).then(function(res) {
     if (res.status === 200 && res.data.ok) {
+      _rejFlashAddStatus('Dodano', true);
       delete _rejUsageCache[_rejSelectedId];
       _rejRerenderTypConfig();
-      // Focus on the new row's formula input for immediate edit
-      setTimeout(function() {
-        var newInput = document.querySelector('.pe-rej-fo-input[data-produkt="' + produkt.replace(/"/g, '') + '"]');
-        if (newInput) { newInput.focus(); newInput.select(); }
-      }, 100);
+      // Re-render is async (waits on fetch); poll briefly to focus new input
+      var deadline = Date.now() + 2000;
+      var tryFocus = function() {
+        var newInput = document.querySelector('.pe-rej-fo-input[data-produkt="' + produkt.replace(/"/g, '\\"') + '"]');
+        if (newInput) { newInput.focus(); newInput.select(); return; }
+        if (Date.now() < deadline) setTimeout(tryFocus, 80);
+      };
+      setTimeout(tryFocus, 50);
     } else {
-      alert('Błąd: ' + (res.data.error || 'nie udało się dodać override'));
+      _rejFlashAddStatus('Błąd: ' + (res.data.error || 'zapis nieudany'), false);
     }
+  }).catch(function(e) {
+    _rejFlashAddStatus('Błąd sieci: ' + e.message, false);
   });
+}
+
+// Optimistic append: insert override row into DOM without server roundtrip.
+// Blur on the formula input fires rejSetFormulaOverride which actually persists.
+function _rejAppendOverrideRowOptimistic(produkt, formula) {
+  var section = document.getElementById('pe-rej-formula-overrides');
+  if (!section) return;
+  var inner = section.querySelector('div');
+  if (!inner) return;
+
+  var safeKey = _rejEsc(produkt);
+  var safeFormula = _rejEsc(formula);
+  var rowHtml = '<div class="pe-rej-fo-row" data-produkt="' + safeKey + '" style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border-subtle);">' +
+    '<span class="wc-md-item-bind" style="min-width:120px;flex-shrink:0;">' + safeKey + '</span>' +
+    '<input type="text" class="pe-rej-fo-input" data-produkt="' + safeKey + '" value="' + safeFormula + '" onblur="rejSetFormulaOverride(\'' + safeKey + '\', this.value)" placeholder="np. sm" style="flex:1;padding:5px 8px;font-family:var(--mono);font-size:11px;border:1.5px solid var(--border);border-radius:5px;">' +
+    '<span class="pe-rej-fo-status" data-produkt="' + safeKey + '" style="font-size:10px;color:var(--text-dim);min-width:80px;text-align:right;"></span>' +
+    '<button onclick="rejClearFormulaOverride(\'' + safeKey + '\')" style="background:none;border:none;color:var(--text-dim);cursor:pointer;padding:2px 8px;font-size:14px;" title="Usuń override">×</button>' +
+  '</div>';
+
+  // Insert before the "Add new" row (which is the last flex container in inner)
+  var addRow = inner.querySelector('div[style*="margin-top:10px"]');
+  if (addRow) {
+    addRow.insertAdjacentHTML('beforebegin', rowHtml);
+  } else {
+    inner.insertAdjacentHTML('beforeend', rowHtml);
+  }
+
+  // Clear the add input + remove product from datalist
+  var addInp = document.getElementById('pe-rej-fo-add-produkt');
+  if (addInp) addInp.value = '';
+  var dl = document.getElementById('pe-rej-fo-datalist');
+  if (dl) {
+    Array.prototype.slice.call(dl.querySelectorAll('option')).forEach(function(o) {
+      if (o.value === produkt) o.remove();
+    });
+  }
+
+  // Focus + select new input so user types right away
+  var newInput = document.querySelector('.pe-rej-fo-input[data-produkt="' + produkt.replace(/"/g, '\\"') + '"]');
+  if (newInput) { newInput.focus(); newInput.select(); }
 }
 
 function _rejRerenderTypConfig() {
