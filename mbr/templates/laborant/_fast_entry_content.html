@@ -2732,7 +2732,7 @@ function renderOneSection(container, opts) {
                                 ' data-rozklad-idx="' + i + '"' +
                                 ' value="' + safeVal + '"' +
                                 disabledAttr +
-                                ' onchange="autoSaveRozkladRow(this)"' +
+                                ' oninput="autoSaveRozkladRow(this)"' +
                                 ' onblur="saveRozkladRow(this, true)">' +
                         '</div>';
                 }
@@ -2883,10 +2883,94 @@ var _saveTimers = window._saveTimers;
 var _saveEbrId = ebrId; // capture at script init time
 
 // === Rozkład kwasów handlers (composite 9-chain saver) ===
-// Implemented in Task 4. Stubs for now to prevent ReferenceError if the
-// template loads before that task lands.
-function autoSaveRozkladRow(input) { /* impl in Task 4 */ }
-function saveRozkladRow(input, fromBlur) { /* impl in Task 4 */ }
+
+function autoSaveRozkladRow(input) {
+    // Debounced save — joins all 9 inputs and posts once.
+    var sekcja = input.dataset.sekcja;
+    var kod = input.dataset.kod;
+    if (!sekcja || !kod) return;
+    var key = sekcja + '__' + kod;
+    if (_saveTimers[key]) clearTimeout(_saveTimers[key].tid || _saveTimers[key]);
+    _saveTimers[key] = {
+        input: input, sekcja: sekcja, kod: kod, isRozklad: true,
+        tid: setTimeout(function() {
+            saveRozkladRow(input, false);
+        }, 1500),
+    };
+}
+
+function saveRozkladRow(input, fromBlur) {
+    var sekcja = input.dataset.sekcja;
+    var kod = input.dataset.kod;
+    if (!sekcja || !kod) return;
+    var key = sekcja + '__' + kod;
+    if (_saveTimers[key]) {
+        clearTimeout(_saveTimers[key].tid || _saveTimers[key]);
+        delete _saveTimers[key];
+    }
+
+    // Section may have been re-rendered between debounce trigger and timeout
+    // fire (e.g. gate banner update). Try a live DOM lookup before giving up.
+    var container = input.closest('.ff-rozklad');
+    if (!container) {
+        container = document.querySelector(
+            '.ff-rozklad[data-kod="' + kod + '"][data-sekcja="' + sekcja + '"]'
+        );
+    }
+    if (!container) {
+        console.warn('[rozkład] container not found for kod=' + kod + ' sekcja=' + sekcja + ' — save dropped');
+        return;
+    }
+
+    var raw = [];
+    for (var i = 0; i < 9; i++) {
+        var inp = container.querySelector('[data-rozklad-idx="' + i + '"]');
+        raw.push(inp ? (inp.value || '').trim() : '');
+    }
+    var anyFilled = raw.some(function(v) { return v.length > 0; });
+
+    var values = {};
+    if (anyFilled) {
+        values[kod] = { wartosc_text: raw.join('|'), komentarz: '' };
+    } else {
+        values[kod] = { wartosc: '', komentarz: '' };
+    }
+
+    input.style.outline = '2px solid var(--teal)';
+
+    window._pendingFieldSaves = window._pendingFieldSaves || [];
+    var promise = fetch('/laborant/ebr/' + _saveEbrId + '/save', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({sekcja: sekcja, values: values}),
+    }).then(async function(resp) {
+        if (await _handleShiftRequired(resp)) return;
+        if (resp.ok) {
+            input.style.outline = '2px solid var(--green, #16a34a)';
+            setTimeout(function() { input.style.outline = ''; }, 800);
+            if (!wyniki[sekcja]) wyniki[sekcja] = {};
+            wyniki[sekcja][kod] = {
+                wartosc: null,
+                wartosc_text: anyFilled ? raw.join('|') : null,
+                komentarz: '',
+                w_limicie: null,
+                tag: kod,
+            };
+        } else {
+            input.style.outline = '2px solid var(--red, #dc2626)';
+            setTimeout(function() { input.style.outline = ''; }, 2000);
+        }
+    }).catch(function() {
+        input.style.outline = '2px solid var(--red, #dc2626)';
+        setTimeout(function() { input.style.outline = ''; }, 2000);
+    });
+    window._pendingFieldSaves.push(promise);
+    promise.finally(function() {
+        var idx = window._pendingFieldSaves.indexOf(promise);
+        if (idx >= 0) window._pendingFieldSaves.splice(idx, 1);
+    });
+    return promise;
+}
 
 function autoSaveField(input) {
     var sekcja = input.dataset.sekcja;
@@ -2920,9 +3004,14 @@ async function flushPendingSaves() {
     entries.forEach(function(e) {
         clearTimeout(e.tid);
         if (e.input) {
-            // Empty values flow through too — backend persists NULL so the
-            // user-intended clear doesn't get reverted to the prior DB value.
-            var p = doSaveField(e.input, e.sekcja, e.kod, false);
+            var p;
+            if (e.isRozklad) {
+                p = saveRozkladRow(e.input, false);
+            } else {
+                // Empty values flow through too — backend persists NULL so the
+                // user-intended clear doesn't get reverted to the prior DB value.
+                p = doSaveField(e.input, e.sekcja, e.kod, false);
+            }
             if (p && typeof p.then === 'function') promises.push(p);
         }
     });
