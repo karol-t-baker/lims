@@ -392,7 +392,7 @@ def build_context(
                 "kod": kod,
                 "name_pl": _md_to_richtext(name_pl, font=_settings["body_font_family"]),
                 "name_en": _md_to_richtext(f"/{name_en}", font=_settings["body_font_family"]) if name_en else None,
-                "requirement": r["requirement"],
+                "requirement": _md_to_richtext(r["requirement"] or "", font=_settings["body_font_family"]),
                 "method": method,
                 "result": _md_to_richtext(result, font=_settings["body_font_family"]),
             })
@@ -551,7 +551,7 @@ def build_preview_context(product_json: dict, variant_id: str) -> dict:
         rows.append({
             "name_pl": _md_to_richtext(name_pl_eff, font=_settings["body_font_family"]),
             "name_en": _md_to_richtext(f"/{_ne}", font=_settings["body_font_family"]) if _ne else None,
-            "requirement": param.get("requirement", ""),
+            "requirement": _md_to_richtext(param.get("requirement", "") or "", font=_settings["body_font_family"]),
             "method": method_eff,
             "result": _md_to_richtext(result, font=_settings["body_font_family"]),
         })
