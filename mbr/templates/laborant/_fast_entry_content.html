@@ -1084,6 +1084,35 @@
 }
 
 /* PR3: jakosciowy select */
+/* Rozkład kwasów: 3×3 grid of small text inputs */
+.ff-rozklad .ff-rozklad-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px 12px;
+    flex: 1;
+    max-width: 540px;
+}
+.ff-rozklad-cell {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.ff-rozklad-chain {
+    font-size: 12px;
+    color: var(--text-dim, #6b7280);
+    min-width: 44px;
+    text-align: right;
+}
+.ff-rozklad-input {
+    width: 80px;
+    padding: 3px 6px;
+    border: 1px solid var(--border, #d1d5db);
+    border-radius: 4px;
+    font-size: 13px;
+}
+.ff-rozklad-input:focus {
+    outline: 2px solid var(--teal);
+}
 .ff-select {
   width: 100%; padding: 5px 8px;
   border: 1px solid var(--border-subtle); border-radius: 6px;
@@ -2679,6 +2708,44 @@ function renderOneSection(container, opts) {
                     '</div>' +
                 '</div>';
         } else if (pole.typ_analityczny === 'jakosciowy') {
+            // Special case: 9-chain composite (rozkład kwasów). Renders 3×3 grid.
+            if (pole.kod === ROZKLAD_KOD) {
+                var stored = (existing && existing.wartosc_text != null) ? String(existing.wartosc_text) : '';
+                var parts = stored.split('|');
+                while (parts.length < 9) parts.push('');
+                if (parts.length > 9) parts.length = 9;
+                var disabledAttr = isReadonly ? ' disabled' : '';
+                var labelHtml = rtHtml(pole.skrot || pole.label);
+                if (pole.grupa === 'zewn') {
+                    labelHtml += ' <span class="pe-badge-zewn" title="Lab zewnętrzny">lab zewn.</span>';
+                }
+                var cellsHtml = '';
+                for (var i = 0; i < 9; i++) {
+                    var chainLabel = ROZKLAD_CHAINS[i];
+                    var safeVal = String(parts[i]).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                    cellsHtml +=
+                        '<div class="ff-rozklad-cell">' +
+                            '<span class="ff-rozklad-chain">' + chainLabel + '</span>' +
+                            '<input type="text" class="ff-rozklad-input"' +
+                                ' data-kod="' + esc(pole.kod) + '"' +
+                                ' data-sekcja="' + esc(sekcja) + '"' +
+                                ' data-rozklad-idx="' + i + '"' +
+                                ' value="' + safeVal + '"' +
+                                disabledAttr +
+                                ' onchange="autoSaveRozkladRow(this)"' +
+                                ' onblur="saveRozkladRow(this, true)">' +
+                        '</div>';
+                }
+                fieldsHtml +=
+                    '<div class="ff ff-rozklad' + highlightCls + '"' +
+                        ' data-kod="' + esc(pole.kod) + '"' +
+                        ' data-sekcja="' + esc(sekcja) + '">' +
+                        '<div class="status-dot"></div>' +
+                        '<label>' + labelHtml + '</label>' +
+                        '<div class="ff-rozklad-grid">' + cellsHtml + '</div>' +
+                    '</div>';
+                return; // skip the default <select> branch below
+            }
             // PR3-T2: jakosciowy — dropdown from pole.opisowe_wartosci
             var cur = (existing && existing.wartosc_text != null) ? String(existing.wartosc_text) : '';
             var values = Array.isArray(pole.opisowe_wartosci) ? pole.opisowe_wartosci : [];
@@ -2797,6 +2864,16 @@ async function saveSection(sekcja) {
 }
 
 
+// Special-case composite parameter: rozkład kwasów tłuszczowych (9 carbon chains).
+// Renders as 3×3 grid of inputs whose values are joined with '|' into wartosc_text.
+// See docs/superpowers/specs/2026-04-30-laborant-rozklad-kwasow-input-design.md
+const ROZKLAD_KOD = 'cert_qual_rozklad_kwasow';
+const ROZKLAD_CHAINS = [
+  '≤C6:0', 'C8:0', 'C10:0',
+  'C12:0', 'C14:0', 'C16:0',
+  'C18:0', 'C18:1', 'C18:2',
+];
+
 // Clear stale timers from previous batch load
 if (window._saveTimers) {
     Object.values(window._saveTimers).forEach(function(t) { clearTimeout(t && t.tid ? t.tid : t); });
@@ -2804,6 +2881,12 @@ if (window._saveTimers) {
 window._saveTimers = {};
 var _saveTimers = window._saveTimers;
 var _saveEbrId = ebrId; // capture at script init time
+
+// === Rozkład kwasów handlers (composite 9-chain saver) ===
+// Implemented in Task 4. Stubs for now to prevent ReferenceError if the
+// template loads before that task lands.
+function autoSaveRozkladRow(input) { /* impl in Task 4 */ }
+function saveRozkladRow(input, fromBlur) { /* impl in Task 4 */ }
 
 function autoSaveField(input) {
     var sekcja = input.dataset.sekcja;
