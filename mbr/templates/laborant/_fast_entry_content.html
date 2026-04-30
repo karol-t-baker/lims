@@ -1907,7 +1907,7 @@ function renderCompletedView() {
                                 ' data-sekcja="' + esc(editSekcja) + '"' +
                                 ' data-rozklad-idx="' + rzI + '"' +
                                 ' value="' + rzSafeVal + '"' +
-                                rzDisabledAttr +
+                                ' readonly' + rzDisabledAttr +
                                 ' oninput="autoSaveRozkladRow(this)"' +
                                 ' onblur="saveRozkladRow(this, true)">' +
                         '</div>';
@@ -2044,6 +2044,10 @@ function startEditParams() {
         var g = inp.dataset.grupa || 'lab';
         if (!editableGrupas || editableGrupas.indexOf(g) !== -1) inp.readOnly = false;
     });
+    // Rozkład kwasów grid inputs — always editable when entering edit mode.
+    document.querySelectorAll('.ff-rozklad-input').forEach(function(inp) {
+        inp.readOnly = false;
+    });
     document.getElementById('cv-edit-toggle').style.display = 'none';
     document.getElementById('cv-save-toggle').style.display = '';
     var first = Array.from(inputs).find(function(i) { return !i.readOnly; });
@@ -2062,9 +2066,17 @@ function startEditParams() {
     }
 }
 
-function finishEditParams() {
+async function finishEditParams() {
     var inputs = document.querySelectorAll('.cv-p-input');
     inputs.forEach(function(inp) { inp.readOnly = true; });
+    document.querySelectorAll('.ff-rozklad-input').forEach(function(inp) {
+        inp.readOnly = true;
+    });
+    // Wait for in-flight saves to settle before reloading the batch,
+    // otherwise loadBatch() reads stale DB and loses the user's last edit.
+    if (typeof flushPendingSaves === 'function') {
+        await flushPendingSaves();
+    }
     // Reload to refresh dots + certs status
     if (typeof loadBatch === 'function') loadBatch(ebrId);
 }
