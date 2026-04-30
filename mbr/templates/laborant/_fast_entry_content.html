@@ -1085,7 +1085,7 @@
 
 /* PR3: jakosciowy select */
 /* Rozkład kwasów: 3×3 grid of small text inputs */
-.ff-rozklad .ff-rozklad-grid {
+.ff-rozklad-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 6px 12px;
@@ -1883,6 +1883,45 @@ function renderCompletedView() {
 
         s.pola.forEach(function(pole) {
             var r = s.wyniki[pole.kod];
+
+            // Special case: 9-chain composite (rozkład kwasów). Renders 3×3 grid.
+            if (pole.typ_analityczny === 'jakosciowy' && pole.kod === ROZKLAD_KOD) {
+                var rzStored = (r && r.wartosc_text != null) ? String(r.wartosc_text) : '';
+                var rzParts = rzStored.split('|');
+                while (rzParts.length < 9) rzParts.push('');
+                if (rzParts.length > 9) rzParts.length = 9;
+                var rzDisabledAttr = canEdit ? '' : ' disabled';
+                var rzLabelHtml = rtHtml(pole.label || pole.skrot);
+                if (pole.grupa === 'zewn') {
+                    rzLabelHtml += ' <span class="pe-badge-zewn" title="Lab zewnętrzny">lab zewn.</span>';
+                }
+                var rzCellsHtml = '';
+                for (var rzI = 0; rzI < 9; rzI++) {
+                    var rzChainLabel = ROZKLAD_CHAINS[rzI];
+                    var rzSafeVal = String(rzParts[rzI]).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                    rzCellsHtml +=
+                        '<div class="ff-rozklad-cell">' +
+                            '<span class="ff-rozklad-chain">' + rzChainLabel + '</span>' +
+                            '<input type="text" class="ff-rozklad-input"' +
+                                ' data-kod="' + esc(pole.kod) + '"' +
+                                ' data-sekcja="' + esc(editSekcja) + '"' +
+                                ' data-rozklad-idx="' + rzI + '"' +
+                                ' value="' + rzSafeVal + '"' +
+                                rzDisabledAttr +
+                                ' oninput="autoSaveRozkladRow(this)"' +
+                                ' onblur="saveRozkladRow(this, true)">' +
+                        '</div>';
+                }
+                paramsHtml +=
+                    '<div class="cv-param ff-rozklad"' +
+                        ' data-kod="' + esc(pole.kod) + '"' +
+                        ' data-sekcja="' + esc(editSekcja) + '">' +
+                        '<span class="cv-p-label">' + rzLabelHtml + '</span>' +
+                        '<div class="ff-rozklad-grid">' + rzCellsHtml + '</div>' +
+                    '</div>';
+                return; // skip default cv-param render below
+            }
+
             var val = r ? r.wartosc : '';
             var valText = r ? r.wartosc_text : null;
             var ok = r ? r.w_limicie === 1 : true;
