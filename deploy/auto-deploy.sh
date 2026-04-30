@@ -43,7 +43,13 @@ git pull origin main --quiet
 # inside the script, so subsequent cron runs are no-op).
 /opt/lims/venv/bin/python scripts/backfill_audit_legacy_to_ebr.py --db data/batch_db.sqlite
 /opt/lims/venv/bin/python scripts/migrate_uwagi_to_audit.py --db data/batch_db.sqlite
-/opt/lims/venv/bin/python scripts/backfill_cert_name_en.py --db data/batch_db.sqlite
+# backfill_cert_name_en.py removed 2026-04-30 — it cross-filled name_en from
+# data/cert_extraction_report.json on every deploy, which silently re-introduced
+# name_en overrides the user had cleared in the cert editor. The original
+# one-shot migration already populated parametry_analityczne.name_en, so the
+# rejestr is the SSOT now. If a parameter ever needs a name_en, set it once on
+# parametry_analityczne (Admin → Parametry) and let parametry_cert.name_en stay
+# NULL (= inherit). Re-running this skrypt is harmful, not idempotent in spirit.
 /opt/lims/venv/bin/python -m scripts.backfill_jakosciowe_values --db data/batch_db.sqlite
 /opt/lims/venv/bin/python scripts/migrate_cert_to_etapy.py
 
