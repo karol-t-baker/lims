@@ -394,7 +394,7 @@ def build_context(
                 "name_en": _md_to_richtext(f"/{name_en}", font=_settings["body_font_family"]) if name_en else None,
                 "requirement": r["requirement"],
                 "method": method,
-                "result": result,
+                "result": _md_to_richtext(result, font=_settings["body_font_family"]),
             })
 
     # Calculate dates
@@ -553,7 +553,7 @@ def build_preview_context(product_json: dict, variant_id: str) -> dict:
             "name_en": _md_to_richtext(f"/{_ne}", font=_settings["body_font_family"]) if _ne else None,
             "requirement": param.get("requirement", ""),
             "method": method_eff,
-            "result": result,
+            "result": _md_to_richtext(result, font=_settings["body_font_family"]),
         })
 
     # 7. Generate test dates
