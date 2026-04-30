@@ -6,6 +6,54 @@
 
 {% block head %}
 <style>
+  /* Registry: rozkład kwasów composite cell — status badge + hover popup */
+  .td-rozklad { position: relative; }
+  .td-rozklad-empty { color: var(--text-dim); }
+  .rk-status {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--green, #16a34a);
+    background: var(--green-bg, #dcfce7);
+    padding: 2px 8px;
+    border-radius: 10px;
+    white-space: nowrap;
+    cursor: help;
+  }
+  .rk-popup {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 1000;
+    margin-top: 4px;
+    padding: 10px 12px;
+    background: var(--surface, #fff);
+    border: 1px solid var(--border, #d1d5db);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    min-width: 220px;
+  }
+  .td-rozklad-filled:hover .rk-popup { display: block; }
+  .rk-popup-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-sec);
+    margin-bottom: 6px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--border, #e5e7eb);
+  }
+  .rk-popup-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 16px;
+    row-gap: 3px;
+    grid-auto-flow: column;
+    grid-template-rows: repeat(5, auto);
+  }
+  .rk-pair { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; }
+  .rk-pair .rk-ch { color: var(--text-dim); }
+  .rk-pair .rk-v  { font-family: var(--mono, monospace); font-weight: 500; }
+
   .tp-breadcrumb { color: var(--text-dim); text-decoration: none; font-size: 13px; }
   .tp-breadcrumb:hover { color: var(--text-sec); }
   .tp-sep { color: var(--text-dim); margin: 0 6px; }
@@ -1495,6 +1543,33 @@ function _buildRegistryRow(columns, b) {
       return;
     }
     var w = b.wyniki[col.kod];
+    // Rozkład kwasów: composite param. Cell shows status badge; hover
+    // reveals 9 chain values laid out in 2 columns for readable scanning.
+    if (col.kod === 'cert_qual_rozklad_kwasow') {
+      var stored = (w && w.wartosc_text) ? String(w.wartosc_text) : '';
+      if (!stored) {
+        html += '<td class="td-rozklad td-rozklad-empty">\u2014</td>';
+      } else {
+        var chains = ['\u2264C6:0','C8:0','C10:0','C12:0','C14:0','C16:0','C18:0','C18:1','C18:2'];
+        var parts = stored.split('|');
+        while (parts.length < 9) parts.push('');
+        if (parts.length > 9) parts.length = 9;
+        var pairs = chains.map(function(ch, i) {
+          var v = (parts[i] && parts[i].trim()) ? parts[i] : '\u2014';
+          return '<div class="rk-pair"><span class="rk-ch">' + _htmlEsc(ch) + '</span>' +
+                 '<span class="rk-v">' + _htmlEsc(v) + '</span></div>';
+        });
+        var popup = '<div class="rk-popup">' +
+                      '<div class="rk-popup-title">Rozkład kwasów [%]</div>' +
+                      '<div class="rk-popup-grid">' + pairs.join('') + '</div>' +
+                    '</div>';
+        html += '<td class="td-rozklad td-rozklad-filled">' +
+                  '<span class="rk-status">\u2713 uzupełniony</span>' +
+                  popup +
+                '</td>';
+      }
+      return;
+    }
     if (w && w.wartosc != null) {
       var cls = w.w_limicie ? 'val-ok' : 'val-err';
       html += '<td class="' + cls + '">' + String(w.wartosc).replace('.', ',') + '</td>';
