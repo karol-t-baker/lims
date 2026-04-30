@@ -81,6 +81,15 @@
   transition: all 0.15s;
 }
 .adm-bk-del:hover { background: var(--red-bg, #fef2f2); color: var(--red); }
+.adm-bk-dl {
+  background: none; border: none; cursor: pointer; text-decoration: none;
+  width: 24px; height: 24px; border-radius: 6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--text-dim);
+  transition: all 0.15s;
+}
+.adm-bk-dl:hover { background: var(--teal-bg, #ecfeff); color: var(--teal); }
+.adm-bk-dl svg { width: 14px; height: 14px; }
 
 /* Status flash */
 .adm-flash {
@@ -217,6 +226,9 @@
             <div class="adm-bk-name">{{ b.name }}</div>
             <div class="adm-bk-meta">{{ b.size_mb }} MB</div>
             <div class="adm-bk-meta">{{ b.json_count }} JSON</div>
+            <a class="adm-bk-dl" href="/api/admin/backup/{{ b.name }}/download" title="Pobierz na ten komputer (.zip)" download>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </a>
             <button class="adm-bk-del" onclick="deleteBackup('{{ b.name }}', 'bk-{{ loop.index }}')" title="Usuń">&times;</button>
           </div>
           {% endfor %}

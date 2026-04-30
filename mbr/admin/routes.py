@@ -1,11 +1,13 @@
 """Admin panel — backup + feedback management."""
 
+import io
 import os
 import shutil
+import zipfile
 from datetime import datetime
 from pathlib import Path
 
-from flask import jsonify, render_template, request
+from flask import jsonify, render_template, request, send_file
 
 from mbr.shared.timezone import app_now
 
@@ -171,6 +173,34 @@ def api_delete_backup(name):
         return jsonify({"ok": False, "error": "Nie znaleziono"}), 404
     shutil.rmtree(target)
     return jsonify({"ok": True})
+
+
+@admin_bp.route("/api/admin/backup/<name>/download", methods=["GET"])
+@role_required("admin")
+def api_download_backup(name):
+    """Stream a backup folder as a ZIP to the browser. No server-side temp file."""
+    # name validation prevents path traversal — same guard as delete
+    if not name.startswith("lims_backup_") or "/" in name or ".." in name:
+        return jsonify({"ok": False, "error": "Invalid backup name"}), 400
+    with db_session() as db:
+        backup_dir = _get_backup_dir(db)
+    src = backup_dir / name
+    if not src.exists() or not src.is_dir():
+        return jsonify({"ok": False, "error": "Nie znaleziono"}), 404
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for p in src.rglob("*"):
+            if p.is_file():
+                zf.write(p, p.relative_to(src))
+    buf.seek(0)
+
+    return send_file(
+        buf,
+        mimetype="application/zip",
+        as_attachment=True,
+        download_name=f"{name}.zip",
+    )
 
 
 # ---------------------------------------------------------------------------
