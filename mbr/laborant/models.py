@@ -692,7 +692,10 @@ def save_wyniki(
                     allowed = json.loads(meta["opisowe_wartosci"])
                 except Exception:
                     allowed = []
-            w_limicie_val = 1 if text_val in allowed else 0
+            if not allowed:
+                w_limicie_val = None  # No spec list → neutral (cannot judge in/out)
+            else:
+                w_limicie_val = 1 if text_val in allowed else 0
 
             tag = pole.get("tag", "")
             min_limit = pole.get("min")
