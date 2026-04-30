@@ -86,7 +86,11 @@ def test_backfill_fills_null_but_preserves_empty_string(tmp_path):
     assert row_null["name_en"] == "Acid value", (
         f"NULL name_en should be backfilled, got: {row_null['name_en']!r}"
     )
-    assert row_null["method"] == "ISO 660"
+    # Method must NOT be touched — this is a name_en backfill. Historically the
+    # script also rewrote method, silently restoring overrides the user cleared.
+    assert row_null["method"] is None, (
+        f"method should be untouched (was NULL in seed), got: {row_null['method']!r}"
+    )
 
     # '' → preserved (this is the regression check)
     assert row_empty["name_en"] == "", (

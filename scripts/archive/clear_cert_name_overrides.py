@@ -12,12 +12,18 @@ method_* and format_* overrides are NOT touched.
 Idempotent: prints "no overrides to clear" when re-run on a clean DB.
 Audit: one cert.config.updated event per distinct (produkt, variant_id).
 
-Run: python clear_cert_name_overrides.py
+Run: python -m scripts.archive.clear_cert_name_overrides
+
+ARCHIVED 2026-04-30 — accidentally invoking this from repo root wiped all
+name_pl + name_en overrides on 2026-04-29 (bulk data loss). Prefer
+`clear_cert_all_overrides.py` (same dir) which has --dry-run by default and
+supports per-field selection.
 """
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(__file__))
+# Was scripts/archive/ → repo root is two levels up
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from mbr.db import get_db
 from mbr.shared import audit

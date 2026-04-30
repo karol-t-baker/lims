@@ -1,10 +1,15 @@
-"""Backfill name_en + method for parametry_cert from extraction report + cross-fill.
+"""Backfill name_en for parametry_cert from extraction report + cross-fill.
 
 Idempotent — only updates rows where name_en IS NULL (truly unset).
 
 Empty string in parametry_cert.name_en is an explicit user choice meaning
 "no English name on this cert" (see mbr/certs/routes.py load path). Backfill
 MUST NOT treat '' as a gap, or it will overwrite that choice on every deploy.
+
+This script intentionally does NOT touch parametry_cert.method — the WHERE
+condition only checks name_en, but historically the UPDATE also rewrote
+method, silently restoring method overrides the user had cleared. A method
+backfill belongs in its own script with its own NULL-check.
 """
 import json
 import sqlite3
@@ -34,14 +39,14 @@ def backfill(db_path=None):
 
     # 2. Cross-fill from DB (products that already have name_en)
     for row in db.execute("""
-        SELECT pa.kod, pc.name_en, pc.method
+        SELECT pa.kod, pc.name_en
         FROM parametry_cert pc
         JOIN parametry_analityczne pa ON pa.id = pc.parametr_id
         WHERE pc.name_en IS NOT NULL AND pc.name_en != ''
     """).fetchall():
         k = row["kod"]
         if k not in kod_lookup:
-            kod_lookup[k] = {"name_en": row["name_en"], "method": row["method"] or ""}
+            kod_lookup[k] = {"name_en": row["name_en"]}
 
     # 3. Update parametry_cert gaps (NULL only — '' means user explicitly hid EN name)
     gaps = db.execute("""
@@ -55,8 +60,8 @@ def backfill(db_path=None):
     for row in gaps:
         info = kod_lookup.get(row["kod"])
         if info:
-            db.execute("UPDATE parametry_cert SET name_en=?, method=? WHERE rowid=?",
-                       (info["name_en"], info["method"], row["rid"]))
+            db.execute("UPDATE parametry_cert SET name_en=? WHERE rowid=?",
+                       (info["name_en"], row["rid"]))
             updated += 1
 
     # 4. Update parametry_analityczne gaps (NULL only, same rationale as above)
@@ -69,8 +74,8 @@ def backfill(db_path=None):
     for row in pa_gaps:
         info = kod_lookup.get(row["kod"])
         if info:
-            db.execute("UPDATE parametry_analityczne SET name_en=?, method_code=? WHERE id=?",
-                       (info["name_en"], info["method"], row["id"]))
+            db.execute("UPDATE parametry_analityczne SET name_en=? WHERE id=?",
+                       (info["name_en"], row["id"]))
             pa_updated += 1
 
     db.commit()
