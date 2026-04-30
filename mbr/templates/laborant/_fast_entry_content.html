@@ -2915,8 +2915,8 @@ async function saveSection(sekcja) {
 // Special-case composite parameter: rozkład kwasów tłuszczowych (9 carbon chains).
 // Renders as 3×3 grid of inputs whose values are joined with '|' into wartosc_text.
 // See docs/superpowers/specs/2026-04-30-laborant-rozklad-kwasow-input-design.md
-const ROZKLAD_KOD = 'cert_qual_rozklad_kwasow';
-const ROZKLAD_CHAINS = [
+var ROZKLAD_KOD = 'cert_qual_rozklad_kwasow';
+var ROZKLAD_CHAINS = [
   '≤C6:0', 'C8:0', 'C10:0',
   'C12:0', 'C14:0', 'C16:0',
   'C18:0', 'C18:1', 'C18:2',
