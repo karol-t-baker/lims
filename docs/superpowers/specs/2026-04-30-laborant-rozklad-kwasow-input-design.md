@@ -22,9 +22,12 @@ Zmiana dotyczy **wyłącznie** parametru o `kod='cert_qual_rozklad_kwasow'`. Nie
 | Plik | Charakter zmiany |
 |---|---|
 | `mbr/templates/laborant/_fast_entry_content.html` | nowa gałąź renderująca dla `kod === ROZKLAD_KOD`, custom save/load handler |
-| `tests/test_laborant_rozklad_kwasow.py` | nowy plik z 3 testami pytest |
+| `mbr/laborant/models.py` | fix `w_limicie` gdy `opisowe_wartosci` puste/NULL (set NULL zamiast 0) |
+| `scripts/migrate_rozklad_kwasow_seed.py` | one-shot idempotentny SQL: wyczyszczenie seedu + zmiana `grupa` na `'zewn'` |
+| `tests/test_laborant_rozklad_kwasow.py` | nowy plik z testami pytest |
+| `tests/test_jakosciowy_w_limicie.py` | regresja dla zmiany `w_limicie` semantics |
 
-Po stronie backendu **nic nie zmieniamy**. Istniejący flow zapisu `wartosc_text` przez endpoint laborant save działa bez ingerencji — łączymy 9 inputów w jeden string `|`-rozdzielony i wysyłamy jak każdą inną wartość jakościową.
+Backend save flow ma jedną zmianę (`w_limicie` semantics — patrz Backend fix niżej). Cała reszta logiki zapisu zostaje, tylko frontend musi wysyłać `wartosc_text` jawnie i `wartosc=""` w przypadku clear-all.
 
 ### Stałe (top of JS module w template)
 
@@ -87,8 +90,11 @@ Wiersz w fast-entry po wykryciu `pole.kod === ROZKLAD_KOD` zamiast `<select>` re
      return (inp.value || '').trim();
    });
    ```
-3. **Special case**: jeśli wszystkie 9 puste → `wartosc_text = ''` (nie `||||||||`).
-   W przeciwnym razie → `values.join('|')` (puste segmenty zachowane, żeby alignment z label-kolumną w cert był poprawny).
+3. **Dwa odrębne special-case'y zależne od stanu inputów:**
+
+   - **Wszystkie 9 puste (clear-all)** → wysyłamy `{wartosc: ""}` (NIE `wartosc_text: ""`). Powód: backend dla pustego `wartosc_text` w explicit-text branch robi `continue` (`models.py:680-682`) — nie czyści, tylko skip → stara wartość zostaje w bazie. Natomiast pusty `wartosc` trafia do gałęzi `is_clear` (`models.py:758-765`) która ustawia `wartosc=NULL` i `wartosc_text=NULL`. To jest właściwa droga clear.
+   - **≥1 wartość wpisana** → wysyłamy `{wartosc_text: values.join('|')}` (puste segmenty zachowane, alignment z label-kolumną).
+
 4. **Custom save path** (nie reuse'ujemy `doSaveField` — patrz niżej). POST na `/laborant/ebr/{ebr_id}/save` z body:
    ```json
    {
@@ -96,18 +102,103 @@ Wiersz w fast-entry po wykryciu `pole.kod === ROZKLAD_KOD` zamiast `<select>` re
      "values": {
        "cert_qual_rozklad_kwasow": {
          "wartosc_text": "<joined>",
-         "komentarz": "<from textarea, jeśli istnieje>"
+         "komentarz": ""
        }
      }
    }
    ```
-   **Wartość musi iść w polu `wartosc_text` jawnie**, nie w `wartosc`. Backend (`mbr/laborant/models.py:678`) ma jawną gałąź dla `entry.wartosc_text`. Jeśli wyślemy tylko `wartosc: "45|22|18|..."`, backend spróbuje `float()` (line 770), zfailuje i zrobi `continue` (cichy skip — żaden write).
+   (Lub `{"wartosc": ""}` przy clear-all.) **Wartość musi iść w polu `wartosc_text` jawnie**, nie w `wartosc`. Backend (`mbr/laborant/models.py:678`) ma jawną gałąź dla `entry.wartosc_text`. Jeśli wyślemy tylko `wartosc: "45|22|18|..."`, backend spróbuje `float()` (line 770), zfailuje i zrobi `continue` (cichy skip — żaden write).
+
 5. **Dlaczego nie reuse `doSaveField`**: ten helper wysyła wyłącznie `wartosc`, i polega na tym, że backend wykryje prefix `<>≤≥` żeby zapisać jako wartosc_text. Dla rozkładu pierwszy łańcuch ma czasem `<1`, ale pozostałe to czyste liczby. Złączony string `<1|45|22|...` zaczyna się od `<` — więc trafiłby do path qualitative i przeszedłby. ALE jeśli laborant wpisze samych liczb (lab raportuje 0 dla detection limit zamiast `<1`), `45|22|18|...` nie ma prefiksu → fail. Ergo: jawny `wartosc_text` jest jedynym solidnym path.
+
 6. **Debounce 1500ms wspólny dla całej grupy** (matching istniejący `_saveTimers` w `autoSaveField`) — szybkie wpisanie 9 wartości daje 1 zapis. Implementacja: pojedynczy `setTimeout` per `(sekcja, kod)`, klucz `sekcja__kod`. Reuse'ujemy `_saveTimers` mapę z istniejącego kodu, żeby `flushPendingSaves()` (wywoływane przed `/complete`) podchwyciło i wywołało nasz handler.
 
 ### Audit
 
 Bez zmian — istniejący `update_wartosc_text` w `mbr/laborant/models.py` loguje zmianę `wartosc_text` w `audit_log`. String `|`-rozdzielony jest dla audytu nieprzezroczysty (jeden field), ale to OK — granularność per-łańcuch nie jest wymagana.
+
+## Backend fix — `w_limicie` semantics
+
+W `mbr/laborant/models.py:684-695` jest path zapisu `jakosciowy` przez `explicit_text`. Obecny kod:
+
+```python
+allowed = []
+if meta and meta["opisowe_wartosci"]:
+    try: allowed = json.loads(meta["opisowe_wartosci"])
+    except: allowed = []
+w_limicie_val = 1 if text_val in allowed else 0
+```
+
+**Bug**: gdy `opisowe_wartosci` jest puste/NULL (jak dla wszystkich 8 obecnych `jakosciowy` params), `allowed=[]` → text_val nigdy nie jest w `[]` → `w_limicie=0` (czerwony, "out of spec"). To latent bug — w praktyce nikt nie przechodzi tym path-em bo dropdown z pustym `opisowe_wartosci` nie pozwala na ręczny zapis. Po naszej zmianie laborant będzie ręcznie zapisywał (nasz custom save) → bug surface'uje.
+
+**Fix**: jeśli nie ma listy dozwolonych wartości, semantyka "in/out limits" jest niezdefiniowana → `w_limicie = NULL` (neutralne).
+
+```python
+if not allowed:
+    w_limicie_val = None
+else:
+    w_limicie_val = 1 if text_val in allowed else 0
+```
+
+Naprawia również istniejące 7 jakosciowy params (zapach, wygląd, glicerol, postać, %C16, %C18, %C14:0) — przy ich ewentualnym ręcznym zapisie nie będą fałszywie podświetlone na czerwono.
+
+Test regresyjny w `tests/test_jakosciowy_w_limicie.py`.
+
+## Cert alignment (świadome ograniczenie)
+
+Po implementacji świadectwo Avon dla Monamid_KO będzie wyglądać tak:
+
+| Komórka Nazwa (11 linii)                | Komórka Wynik (9 linii) |
+|-----------------------------------------|--------------------------|
+| Rozkład kwasów tłuszczowych [%]         |                          |
+| /Fatty acid distribution [%]            |                          |
+| ≤C6:0                                   | <1                       |
+| C8:0                                    | 45                       |
+| C10:0                                   | 22                       |
+| C12:0                                   | 18                       |
+| C14:0                                   | 10                       |
+| C16:0                                   | 3                        |
+| C18:0                                   | 1                        |
+| C18:1                                   | 0                        |
+| C18:2                                   | 0                        |
+
+Wartości wyjadą o 2 linie wyżej niż łańcuchy (Word `vAlign="center"` centruje pionowo całą zawartość komórki, ale liczba linii się różni). To jest **świadome ograniczenie**:
+
+- User request brzmiał "values formatted one below the other" — to dostajemy.
+- Pełne alignment wymagałoby albo per-line label w kolumnie Wynik (`≤C6:0: <1\n...`), albo restrukturyzacji name col — oba poza zakresem v1.
+- Odbiorca świadectwa Avon zna kolejność łańcuchów (C6 → C18) z metody analitycznej.
+- Jeśli okaże się faktycznie mylące — osobny ticket na "self-labeled result lines".
+
+## Migration — `scripts/migrate_rozklad_kwasow_seed.py`
+
+One-shot idempotentny script, dorzucany do listy `auto-deploy.sh` (przy najbliższym pull odpali na prodzie). Wykonuje 4 SQL-e z guardami:
+
+```sql
+-- 1. Wyczyszczenie stalego seedu (powód: stara semantyka jakosciowy → composite)
+UPDATE parametry_etapy SET cert_qualitative_result = NULL
+ WHERE parametr_id = 59
+   AND cert_qualitative_result = '≤1,0';
+
+-- 2. Zmiana grupy w registry: lab → zewn (wartości z lab zewnętrznego)
+UPDATE parametry_analityczne SET grupa = 'zewn'
+ WHERE id = 59 AND grupa = 'lab';
+
+-- 3. Zmiana grupy w parametry_etapy (oba kontekst-y dla Monamid_KO)
+UPDATE parametry_etapy SET grupa = 'zewn'
+ WHERE parametr_id = 59 AND grupa = 'lab';
+
+-- 4. Cleanup orphan ebr_wyniki rows ze starym seedem
+--    (tylko wartości BEZ pipe — czyli niewypełnione przez laboranta)
+DELETE FROM ebr_wyniki
+ WHERE kod_parametru = 'cert_qual_rozklad_kwasow'
+   AND wartosc_text = '≤1,0'
+   AND wartosc_text NOT LIKE '%|%';
+```
+
+Każdy guard zapewnia idempotencję — drugie odpalenie to no-op. Script loguje liczbę dotkniętych rzędów per operacja (przykład output: "UPDATE 1, UPDATE 1, UPDATE 2, DELETE 0").
+
+Lokalnie: `python scripts/migrate_rozklad_kwasow_seed.py` raz.
+Prod: auto-deploy podczepi do listy migracji (analogicznie do `migrate_audit_log_v2.py` w `auto-deploy.sh`).
 
 ## Edge cases
 
@@ -130,13 +221,21 @@ Bez zmian — istniejący `update_wartosc_text` w `mbr/laborant/models.py` loguj
 
 ## Testy
 
-### Automatyczne (pytest, `tests/test_laborant_rozklad_kwasow.py`)
+### Automatyczne (pytest)
+
+**`tests/test_laborant_rozklad_kwasow.py`** — 3 testy:
 
 1. **`test_rozklad_template_constants_present`** — czyta `_fast_entry_content.html`, sprawdza że zawiera `'cert_qual_rozklad_kwasow'` i wszystkie 9 chain labels (`'≤C6:0'`, `'C8:0'`, …, `'C18:2'`). Smoke test — łapie regresje gdy ktoś usunie albo zrefaktoruje hardcode.
 
 2. **`test_wartosc_text_roundtrip_with_pipes`** — insert do `ebr_wyniki` z `wartosc_text='<1|45|22|18|10|3|1|0|0'`, read przez `get_ebr_wyniki`, sprawdź string identyczny. Pilnuje że `|` nie jest mangle'owane przez SQLite/serializację po drodze.
 
 3. **`test_cert_renders_pipes_as_line_breaks_for_rozklad`** — render świadectwa Monamid_KO/avon z `wartosc_text` 9-elementowym dla `cert_qual_rozklad_kwasow` → XML wyniku świadectwa zawiera 8 `<w:br/>` w komórce result (i 8 w komórce name_en). Defense-in-depth dla istniejącej zmiany d17a08f.
+
+**`tests/test_jakosciowy_w_limicie.py`** — 2 testy regresyjne dla zmiany w_limicie semantics:
+
+4. **`test_w_limicie_null_when_opisowe_wartosci_empty`** — zapisuje `wartosc_text` dla parametru `jakosciowy` z `opisowe_wartosci=NULL` (lub `[]`). Asercja: `ebr_wyniki.w_limicie IS NULL` (nie `0`).
+
+5. **`test_w_limicie_set_when_opisowe_wartosci_present`** — kontrolnie: dla parametru z `opisowe_wartosci=["OK","nieOK"]`, zapis "OK" daje `w_limicie=1`, zapis "nieZdefiniowane" daje `w_limicie=0`. Pilnuje że istniejąca semantyka dla "valid" jakosciowy się nie zmienia.
 
 ### Manualne (test plan dla developera)
 
