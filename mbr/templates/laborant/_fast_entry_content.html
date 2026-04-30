@@ -2066,18 +2066,15 @@ function startEditParams() {
     }
 }
 
-async function finishEditParams() {
+function finishEditParams() {
     var inputs = document.querySelectorAll('.cv-p-input');
     inputs.forEach(function(inp) { inp.readOnly = true; });
     document.querySelectorAll('.ff-rozklad-input').forEach(function(inp) {
         inp.readOnly = true;
     });
-    // Wait for in-flight saves to settle before reloading the batch,
-    // otherwise loadBatch() reads stale DB and loses the user's last edit.
-    if (typeof flushPendingSaves === 'function') {
-        await flushPendingSaves();
-    }
-    // Reload to refresh dots + certs status
+    // Reload to refresh dots + certs status. loadBatch() internally awaits
+    // flushPendingSaves + _pendingFieldSaves before fetching /partial, so
+    // in-flight rozkład saves are guaranteed to land before re-render.
     if (typeof loadBatch === 'function') loadBatch(ebrId);
 }
 
