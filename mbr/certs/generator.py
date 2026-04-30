@@ -851,6 +851,36 @@ _STYLES_BODY_LITERAL = "Times New Roman"
 _STYLES_HEADER_LITERAL = "Arial"
 
 
+def _align_multiline_cells_to_bottom(doc) -> None:
+    """Post-render: any param-table cell containing a <w:br/> (= line break)
+    gets its vAlign flipped from center to bottom.
+
+    Rationale: multi-line result/requirement cells (e.g. rozkład kwasów with
+    9 stacked values) need to align to the bottom of the row so each line
+    pairs visually with the chain label sitting at the same height in the
+    name column. Single-line cells stay centered (default), avoiding the
+    visual shift the user noticed when bottom-align was applied uniformly.
+    """
+    from lxml import etree
+    WNS = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+
+    if not doc.tables:
+        return
+    table = doc.tables[0]
+    for row in table.rows[1:]:  # skip header
+        for cell in row.cells:
+            tcEl = cell._element
+            # Only patch cells that contain at least one <w:br/>
+            if tcEl.find(f'.//{{{WNS}}}br') is None:
+                continue
+            tcPr = tcEl.find(f'{{{WNS}}}tcPr')
+            if tcPr is None:
+                continue
+            vAlign = tcPr.find(f'{{{WNS}}}vAlign')
+            if vAlign is not None:
+                vAlign.set(f'{{{WNS}}}val', 'bottom')
+
+
 def _docxtpl_render(context: dict) -> bytes:
     """Render the master .docx template with context, return .docx bytes.
 
@@ -862,6 +892,7 @@ def _docxtpl_render(context: dict) -> bytes:
     tpl = DocxTemplate(str(_TEMPLATE_PATH))
     tpl.render(_escape_xml_chars(context))
     _fix_single_line_valign(tpl.docx)
+    _align_multiline_cells_to_bottom(tpl.docx)
     buf = io.BytesIO()
     tpl.save(buf)
     docx_bytes = buf.getvalue()
