@@ -7,6 +7,15 @@ from contextlib import contextmanager
 from mbr.models import init_mbr_tables
 
 
+def _result_text(rt_or_str):
+    """Extract text from a docxtpl RichText or plain string."""
+    if rt_or_str is None or rt_or_str == "":
+        return ""
+    if hasattr(rt_or_str, "xml"):
+        return rt_or_str.xml
+    return str(rt_or_str)
+
+
 @pytest.fixture
 def db():
     conn = sqlite3.connect(":memory:")
@@ -102,6 +111,6 @@ def test_build_context_empty_value_for_zewn_param(monkeypatch, db):
     rows = ctx.get("rows") or []
     tpc_rows = [r for r in rows if "Total plate count" in str(r.get("name_pl", ""))]
     assert tpc_rows, "tpc row must still appear on cert even without value"
-    assert tpc_rows[0].get("result") == "\u2212", (
+    assert "−" in _result_text(tpc_rows[0].get("result")), (
         f"Expected '−' (U+2212) for empty zewn, got: {tpc_rows[0].get('result')!r}"
     )

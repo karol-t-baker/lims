@@ -9,6 +9,15 @@ import pytest
 from mbr.models import init_mbr_tables
 
 
+def _result_text(rt_or_str):
+    """Extract text from a docxtpl RichText or plain string."""
+    if rt_or_str is None or rt_or_str == "":
+        return ""
+    if hasattr(rt_or_str, "xml"):
+        return rt_or_str.xml
+    return str(rt_or_str)
+
+
 @pytest.fixture
 def db():
     conn = sqlite3.connect(":memory:")
@@ -65,7 +74,7 @@ def test_build_context_uses_wartosc_text_for_jakosciowy(monkeypatch, db):
     ctx = build_context("CP", "base", "1/2026", "2026-04-20", wyniki_flat, {}, "wystawil")
     row = _find_row(ctx, "zapach")
     assert row is not None
-    assert row["result"] == "obcy"
+    assert "obcy" in _result_text(row["result"])
 
 
 def test_build_context_falls_back_to_qualitative_result_when_wartosc_text_empty(monkeypatch, db):
@@ -76,7 +85,7 @@ def test_build_context_falls_back_to_qualitative_result_when_wartosc_text_empty(
     ctx = build_context("CP", "base", "1/2026", "2026-04-20", wyniki_flat, {}, "wystawil")
     row = _find_row(ctx, "zapach")
     assert row is not None
-    assert row["result"] == "charakterystyczny"
+    assert "charakterystyczny" in _result_text(row["result"])
 
 
 def test_build_context_renders_minus_for_empty_zewn(monkeypatch, db):
@@ -87,7 +96,7 @@ def test_build_context_renders_minus_for_empty_zewn(monkeypatch, db):
     ctx = build_context("CP", "base", "1/2026", "2026-04-20", wyniki_flat, {}, "wystawil")
     row = _find_row(ctx, "siarka")
     assert row is not None
-    assert row["result"] == "\u2212"
+    assert "−" in _result_text(row["result"])
 
 
 def test_build_context_lab_numeric_unchanged(monkeypatch, db):
@@ -99,4 +108,5 @@ def test_build_context_lab_numeric_unchanged(monkeypatch, db):
     ctx = build_context("CP", "base", "1/2026", "2026-04-20", wyniki_flat, {}, "wystawil")
     row = _find_row(ctx, "gestosc")
     assert row is not None
-    assert row["result"] not in ("", "\u2212")
+    text = _result_text(row["result"])
+    assert text != "" and "−" not in text
