@@ -339,8 +339,9 @@ def _seed_jakosciowy_param(db, kod, opisowe_wartosci):
     )
     db.execute("INSERT INTO produkty (nazwa, display_name) VALUES ('P', 'P')")
     db.execute(
-        "INSERT INTO mbr_templates (mbr_id, produkt, wersja, aktywna, "
-        "etapy_json, parametry_lab) VALUES (1, 'P', 1, 1, '[]', '{}')"
+        "INSERT INTO mbr_templates (mbr_id, produkt, wersja, status, "
+        "dt_utworzenia, etapy_json, parametry_lab) "
+        "VALUES (1, 'P', 1, 'active', '2026-01-01', '[]', '{}')"
     )
     db.execute(
         "INSERT INTO ebr_batches (ebr_id, mbr_id, batch_id, nr_partii, dt_start) "
@@ -807,8 +808,9 @@ def test_wartosc_text_roundtrip_with_pipes(db):
     ).lastrowid
     db.execute("INSERT INTO produkty (nazwa, display_name) VALUES ('Monamid_KO', 'Monamid KO')")
     db.execute(
-        "INSERT INTO mbr_templates (mbr_id, produkt, wersja, aktywna, etapy_json, parametry_lab) "
-        "VALUES (1, 'Monamid_KO', 1, 1, '[]', '{}')"
+        "INSERT INTO mbr_templates (mbr_id, produkt, wersja, status, dt_utworzenia, "
+        "etapy_json, parametry_lab) "
+        "VALUES (1, 'Monamid_KO', 1, 'active', '2026-01-01', '[]', '{}')"
     )
     db.execute(
         "INSERT INTO ebr_batches (ebr_id, mbr_id, batch_id, nr_partii, dt_start) "
