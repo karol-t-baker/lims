@@ -56,10 +56,10 @@ Wprowadzić **deklaratywny mechanizm pól dodatkowych** per produkt lub per wari
 | `scope_id` | INTEGER NOT NULL | logiczny FK → `produkty.id` lub `cert_variants.id` (zależnie od `scope`); SQLite nie egzekwuje, walidacja w warstwie aplikacji |
 | `kod` | TEXT NOT NULL | snake_case, np. `nr_zamowienia` |
 | `label_pl` | TEXT NOT NULL | etykieta wyświetlana użytkownikowi |
-| `typ_danych` | TEXT NOT NULL DEFAULT `'text'` | `'text'`, `'number'`, `'date'` (whitelist w aplikacji) |
+| `typ_danych` | TEXT NOT NULL DEFAULT `'text'` | `'text'`, `'number'`, `'date'` (whitelist w aplikacji). Dla scope=cert_variant **zawsze `'text'`** (wymuszane backendem); UI admina nie eksponuje wyboru typu. |
 | `jednostka` | TEXT | NULL lub np. `'kg'`, `'%'` (relewantne dla `typ_danych='number'`) |
-| `domyslna_wartosc` | TEXT | dla scope=produkt → pre-fill formularza; dla scope=cert_variant → wartość stała propagowana na świadectwo |
-| `obowiazkowe` | INTEGER NOT NULL DEFAULT 0 | 0/1; egzekwowane przy zatwierdzaniu szarży. Ignorowane dla scope=cert_variant. |
+| `wartosc_stala` | TEXT | tylko dla scope=cert_variant — stała wartość propagowana na świadectwo. Dla scope=produkt zawsze NULL (pole startuje puste). |
+| `obowiazkowe` | INTEGER NOT NULL DEFAULT 0 | 0/1; **tylko UI hint** (gwiazdka + czerwona ramka jeśli puste). Niczego nie blokuje — ani modalu, ani zatwierdzania szarży, ani generacji świadectwa. Ignorowane dla scope=cert_variant. |
 | `miejsca` | TEXT NOT NULL DEFAULT `'[]'` | JSON array, subset `['modal','hero','ukonczone','cert']`. Ignorowane dla scope=cert_variant. |
 | `typy_rejestracji` | TEXT | NULL = wszystkie typy; lub JSON array, subset `['szarza','zbiornik','platkowanie']`. Ignorowane dla scope=cert_variant. |
 | `kolejnosc` | INTEGER NOT NULL DEFAULT 0 | sortowanie w UI |
@@ -101,14 +101,14 @@ Funkcje:
 - `get_wartosci_for_ebr(db, ebr_id) -> dict[str, str]` — zwraca słownik `kod → wartosc` (LEFT JOIN po `pole_id`, tylko aktywne pola scope=produkt produktu szarży).
 - `set_wartosc(db, ebr_id, pole_id, wartosc, user_id) -> None` — UPSERT z auditem (`audit` event `ebr_pola.value_set` z before/after).
 - `create_pole(db, payload, user_id)`, `update_pole(db, pole_id, payload, user_id)`, `deactivate_pole(db, pole_id, user_id)` — CRUD definicji z auditem.
-- `validate_required_fields(db, ebr_id) -> list[str]` — zwraca listę `kod` obowiązkowych pól bez wartości; wywoływane z gate'a zatwierdzenia szarży.
+- (brak `validate_required_fields` — `obowiazkowe` jest UI hintem, nie gate'em; patrz schema).
 
-DAO walidują `typ_danych`:
-- `number` → `float()` (akceptujemy też pusty string jako NULL),
-- `date` → ISO format `YYYY-MM-DD`,
-- `text` → bez ograniczenia.
+DAO walidują `typ_danych` przy `set_wartosc()`:
+- `number` — akceptujemy zarówno kropkę jak przecinek (polski separator dziesiętny). Walidacja: replace `,` → `.`, próba `float(...)`. Jeśli OK, **zapisujemy z powrotem z przecinkiem** (polska konwencja wyświetlania); jeśli `float` rzuca → `ValueError`. Pusty string / NULL → zapisujemy NULL.
+- `date` — akceptujemy ISO `YYYY-MM-DD` lub formaty rozpoznawalne (np. `01-04-2026`, `1.4.2026`); normalizujemy do ISO `YYYY-MM-DD` w bazie. Niezgodny → `ValueError`.
+- `text` — bez ograniczenia, zapisujemy raw.
 
-Niezgodny typ → `ValueError`.
+**Konsekwencja dla eksportu ML** (`ml_export_long_format`): przy ekstrakcji wartości typu `number` z `ebr_pola_wartosci` należy zamienić przecinek na kropkę przed cast'em do float. To jest do dopisania w pipeline eksportu (lub w helperze `coerce_number()` współdzielonym między `set_wartosc()` a eksportem).
 
 #### 2. Schema migration
 
@@ -120,7 +120,7 @@ Niezgodny typ → `ValueError`.
 
 Endpointy definicji (rola `technolog` lub `admin`):
 - `GET /api/produkt-pola?scope=<>&scope_id=<>` — lista pól dla scope.
-- `POST /api/produkt-pola` — utworzenie. Body: `{scope, scope_id, kod, label_pl, typ_danych, jednostka?, domyslna_wartosc?, obowiazkowe?, miejsca, typy_rejestracji?, kolejnosc?}`.
+- `POST /api/produkt-pola` — utworzenie. Body: `{scope, scope_id, kod, label_pl, typ_danych, jednostka?, wartosc_stala?, obowiazkowe?, miejsca, typy_rejestracji?, kolejnosc?}`. `wartosc_stala` ignorowane dla scope=produkt; wymagane (NOT NULL) dla scope=cert_variant.
 - `PUT /api/produkt-pola/<id>` — edycja (uwaga: `kod` nie jest edytowalny po utworzeniu — patrz Edge cases).
 - `DELETE /api/produkt-pola/<id>` — soft-delete (`aktywne=0`).
 - `GET /api/produkt-pola/<id>/audit` — historia zmian definicji (z `audit`).
@@ -134,7 +134,7 @@ Walidacja w API:
 - `scope_id` istnieje w odpowiedniej tabeli (`produkty` / `cert_variants`).
 - `kod` zgodny z regexem `^[a-z][a-z0-9_]*$`.
 - `kod` unikalny w obrębie (scope, scope_id) (DB constraint + 409 z czytelnym message).
-- `kod` **nie koliduje** z reserved set kluczy generatora certów (lista zebrana z `mbr/certs/generator.py::build_context` przy implementacji; dotyczy scope=cert_variant primarily, ale stosujemy też do scope=produkt na wypadek przyszłej eskalacji do `cert`).
+- `kod` zgodny z regexem `^[a-z][a-z0-9_]*$` — wystarczy. Dzięki sub-namespace `pola.<kod>` (patrz §8 Generator) **nie ma potrzeby** utrzymywać blacklist reserved keys ani Jinja keywords; każde poprawne snake_case jest bezpieczne.
 - `typ_danych ∈ {text, number, date}`.
 - `miejsca` — JSON array, każdy element ∈ `{modal, hero, ukonczone, cert}`.
 - `typy_rejestracji` — JSON array lub null; każdy element ∈ `{szarza, zbiornik, platkowanie}`.
@@ -150,18 +150,18 @@ Walidacja w API:
 **b) Pola scope=cert_variant** — nowa zakładka "Stałe pola" w edytorze wariantu świadectwa.
 
 - **File:** `mbr/templates/admin/wzory_cert.html` (istniejący edytor wariantów). Dodajemy panel "Stałe pola" obok istniejących paneli per wariant.
-- Modal CRUD ze zredukowanym formularzem: `kod`, `label_pl`, `typ_danych`, `domyslna_wartosc` (czyli faktyczna wartość stała), `kolejnosc`, `aktywne`. Pola `obowiazkowe`, `miejsca`, `typy_rejestracji` ukryte (zerowe wartości).
+- Modal CRUD ze zredukowanym formularzem: `kod`, `label_pl`, `wartosc_stala` (faktyczna wartość stała, zawsze tekst), `kolejnosc`, `aktywne`. Pola `typ_danych`, `jednostka`, `obowiazkowe`, `miejsca`, `typy_rejestracji` ukryte — backend wymusza `typ_danych='text'`, resztę domyślnymi.
 
 #### 5. Integracja — modal tworzenia EBR
 
 **Files:** `mbr/templates/laborant/_modal_nowa_szarza.html` + endpoint creating EBR (`mbr/laborant/routes.py` lub `mbr/laborant/models.py::create_ebr`).
 
 Frontend:
-- Po wybraniu produktu i typu rejestracji JS pobiera definicje: `GET /api/produkt-pola?scope=produkt&scope_id=<produkt_id>` (cache w sesji).
+- Po wybraniu produktu i typu rejestracji JS pobiera definicje: `GET /api/produkt-pola?scope=produkt&scope_id=<produkt_id>` przy **każdym otwarciu modalu** (bez cache — request lekki, modal otwierany rzadko).
 - Filtruje po stronie JS: `aktywne=1 AND 'modal' in miejsca AND (typy_rejestracji is null or typ in typy_rejestracji)`.
 - Renderuje pola w sekcji "Pola dodatkowe" pod istniejącymi polami modalu, sortowane po `kolejnosc`.
-- Każde pole renderowane wg `typ_danych` (`<input type="text|number|date">`). Pre-fill z `domyslna_wartosc` jeśli niepuste.
-- `obowiazkowe=1` → atrybut `required` w HTML + gwiazdka, walidacja JS-em. Backend NIE blokuje submisji modalu na podstawie `obowiazkowe` — egzekucja przy zatwierdzaniu szarży.
+- Każde pole renderowane wg `typ_danych` (`<input type="text|number|date">`). **Bez pre-fill** — pole zawsze startuje puste, laborant albo wpisuje wartość, albo zostawia puste.
+- `obowiazkowe=1` → wizualna gwiazdka + czerwona ramka jeśli puste. Niczego nie blokuje (ani submisji modalu, ani późniejszego flow). To tylko UI hint dla laboranta.
 
 Backend:
 - Endpoint create EBR przyjmuje opcjonalne `pola: {<pole_id>: <wartosc>}` w body.
@@ -173,7 +173,7 @@ Backend:
 
 - Sekcja "Pola dodatkowe" z polami filtrowanymi: `aktywne=1 AND 'hero' in miejsca AND (typy_rejestracji is null or typ in typy_rejestracji)` dla produktu szarży, sortowane po `kolejnosc`.
 - Każde pole edytowalne inline (klik → input → blur/save). Save → `PUT /api/ebr/<ebr_id>/pola/<pole_id>`.
-- Pre-fill: aktualna wartość z `ebr_pola_wartosci`, fallback `domyslna_wartosc`.
+- Render: aktualna wartość z `ebr_pola_wartosci` lub puste (NULL → "—" w trybie odczytu, pusty input w trybie edycji). Brak pre-fill / podpowiedzi.
 - Read-only zgodnie z istniejącą logiką Hero (rola, status szarży).
 
 #### 7. Integracja — widok Ukończone
@@ -185,7 +185,7 @@ Zmiana w `list_completed_registry()`:
 
 Zmiana w `get_registry_columns()`:
 - Dla zbioru produktów występujących w wynikach, agregujemy unikalne pola spełniające `aktywne=1 AND 'ukonczone' in miejsca`.
-- Każda kolumna: `label = label_pl`, `key = "pola." + kod` (prefix odróżnia od istniejących wyników/skrótów parametrów).
+- Każda kolumna: `key = "pola." + kod` (prefix odróżnia od istniejących wyników/skrótów parametrów). Nagłówek = `label_pl` + (jeśli `jednostka` niepusta) ` [` + `jednostka` + `]` (spójne z istniejącymi kolumnami parametrów typu "Skrót [%]").
 
 Zmiana w template tabeli rejestru:
 - Render path `pola.<kod>` analogicznie do istniejących dynamicznych kolumn (np. `__surowce__`).
@@ -198,10 +198,22 @@ Edge case: pole skonfigurowane dla produktu A, w wynikach też produkt B bez teg
 
 Po zbudowaniu standardowego kontekstu:
 - Czytamy `produkt_pola` dla `scope='cert_variant' AND scope_id=<aktywny variant_id> AND aktywne=1`.
-- Dla każdego pola wstawiamy do kontekstu DOCX klucz `kod` → wartość `domyslna_wartosc`.
-- Szablon DOCX (`cert_master_template.docx` lub wariantowy) używa placeholdera `{{ <kod> }}` w odpowiednim miejscu (technolog/admin edytuje DOCX raz).
+- Dodajemy do kontekstu sub-namespace: `context["pola"] = {kod: wartosc_stala for ...}`.
+- **Klucze są dodawane TYLKO dla aktywnego wariantu**. Dla pozostałych wariantów `context["pola"]` zawiera inny zestaw kluczy (lub jest pusty, jeśli wariant nie ma żadnego pola).
 
-Konflikt z istniejącymi kluczami: walidacja przy `create_pole` / `update_pole` rzuca 400 jeśli `kod` koliduje z reserved set. Lista reserved → stała `CONTEXT_RESERVED_KEYS` w `mbr/certs/generator.py`, eksportowana do walidacji backendu pól. Lista do skompletowania w czasie implementacji (dziś używane top-level klucze typu `produkt`, `szarza`, `data_produkcji`, `expiry`, etc.).
+**Namespace `pola.<kod>` w master DOCX:** szablon `cert_master_template.docx` jest jeden, wspólny dla wszystkich wariantów. Admin wkleja placeholdery wewnątrz `{% if %}` block z prefiksem `pola.`:
+
+```jinja
+{% if pola.nr_zamowienia_kosmepol %}Nr zamówienia: {{ pola.nr_zamowienia_kosmepol }}{% endif %}
+```
+
+Dla wariantów bez tego pola klucz nie istnieje w `pola` → conditional jest fałszywe → blok pomijany → PDF nic nie zawiera. Dla wariantu Kosmepol klucz ma wartość → blok się renderuje.
+
+**Dlaczego sub-namespace `pola.` zamiast top-level:** unika kolizji z istniejącymi top-level kluczami generatora (`produkt`, `szarza`, `expiry`, `avon_code` itd.) oraz z Jinja keywords (`if`, `for`, `in`, `not`...). Eliminuje potrzebę utrzymywania `CONTEXT_RESERVED_KEYS` blacklist. Jest też spójny z prefiksem `pola.<kod>` używanym w widoku Ukończone (kolumny). Walidacja `kod` ogranicza się do regexu `^[a-z][a-z0-9_]*$` — dowolne snake_case słowo jest OK.
+
+**Dezaktywacja pola scope=cert_variant** → klucz znika z `pola` → conditional pomija blok → PDF nic nie zawiera. Nie ma "pustej linii", nie ma literalnego `{{ pola.kod }}` w wyrenderowanym PDF.
+
+**Out-of-scope (na przyszłość):** migracja istniejących Avon-kolumn (`avon_code`, `avon_name`) do `produkt_pola scope=cert_variant`. Ten sam mechanizm jest tam zastosowalny — można pozbyć się dedykowanych kolumn i flag `has_avon_code`/`has_avon_name`. Wymaga jednorazowej zmiany placeholderów w master DOCX (z `{{ avon_code }}` na `{{ pola.avon_code }}`). Osobny spec.
 
 #### 9. Audit
 
@@ -230,10 +242,10 @@ Spójne ze wzorcem `cert_settings.updated`.
 
 ## Data flow — przykład Kosmepol stały nr zamówienia
 
-1. **Admin** w `/admin/wzory-cert/<variant_id_kosmepol>`, zakładka "Stałe pola" dodaje: `kod=nr_zamowienia_kosmepol, label_pl="Nr zamówienia (Kosmepol)", typ_danych=text, domyslna_wartosc="KSM/2026/STALY/001"`.
-2. **Admin** edytuje DOCX `cert_master_template.docx` (lub szablon wariantu Kosmepol), wstawia `{{ nr_zamowienia_kosmepol }}` w nagłówku.
+1. **Admin** w `/admin/wzory-cert/<variant_id_kosmepol>`, zakładka "Stałe pola" dodaje: `kod=nr_zamowienia_kosmepol, label_pl="Nr zamówienia (Kosmepol)", typ_danych=text, wartosc_stala="KSM/2026/STALY/001"`.
+2. **Admin** edytuje master DOCX `cert_master_template.docx` (jeden szablon dla wszystkich wariantów), wstawia w nagłówku conditional: `{% if pola.nr_zamowienia_kosmepol %}Nr zamówienia: {{ pola.nr_zamowienia_kosmepol }}{% endif %}`. Dla wariantów innych niż Kosmepol klucz nie istnieje w `pola`, blok się nie renderuje.
 3. **Laborant** generuje świadectwo dla szarży Chegina K40GLOLMB z wybranym wariantem "Kosmepol". Generator dodaje do kontekstu `nr_zamowienia_kosmepol="KSM/2026/STALY/001"`. Renderowane PDF zawiera wartość w nagłówku.
-4. Zmiana wartości → admin edytuje `domyslna_wartosc`, kolejne generacje używają nowej wartości. Historyczne PDF-y pozostają (są na dysku).
+4. Zmiana wartości → admin edytuje `wartosc_stala`, kolejne generacje używają nowej wartości. Historyczne PDF-y pozostają (są na dysku).
 
 ## Edge cases
 
@@ -241,11 +253,12 @@ Spójne ze wzorcem `cert_settings.updated`.
 - **Pole dezaktywowane (`aktywne=0`)**: nie renderowane w nowych formularzach (modal/Hero/Ukończone). Historyczne wartości pozostają w `ebr_pola_wartosci`. Ponowna aktywacja przywraca pole z historycznymi wartościami.
 - **Zmiana `typ_danych` po wpisaniu wartości**: ostrzeżenie w UI ("Zmiana typu może spowodować błędy walidacji historycznych wartości"). Wartości NIE są re-walidowane retroaktywnie. Render w UI używa aktualnego `typ_danych` — niezgodne wartości historyczne wyświetlamy raw text z badge "⚠ niezgodne".
 - **Zmiana `kod`**: zabronione. Kod jest stabilnym identyfikatorem (klucz placeholderów DOCX, klucz `pola.<kod>` w widoku Ukończone). UI nie pozwala edytować po utworzeniu. Workaround: dezaktywuj stare, utwórz nowe.
-- **Pole `obowiazkowe=1` dodane retroaktywnie**: szarże już zatwierdzone nie są blokowane (gate jest tylko przy zatwierdzaniu). Szarże w trakcie zatwierdzenia muszą uzupełnić, inaczej `validate_required_fields()` zwraca błąd. Akceptowalne.
-- **Kolizja `kod` z reserved set generatora certów**: backend rzuca 400 przy create/update z czytelnym komunikatem. Lista reserved keys jest zebrana i zamrożona w `CONTEXT_RESERVED_KEYS`.
-- **Cascade delete produktu**: rzadkie. Kasują się też pola scope=produkt z tym `scope_id` (logiczny FK egzekwowany w warstwie aplikacji — sprzątamy wraz z produktem). Wartości w `ebr_pola_wartosci` znikają przez ON DELETE CASCADE od `produkt_pola.id`.
+- **Pole `obowiazkowe=1` dodane retroaktywnie**: nie blokuje niczego (UI hint only). Stare szarże pokazują pustą czerwoną ramkę w Hero, ale nie wymuszają wpisu.
+- **Kolizja `kod` z innymi nazwami w systemie**: nie jest problemem dzięki sub-namespace `pola.<kod>` w kontekście DOCX (patrz §8). Walidacja sprowadza się do regexu snake_case + UNIQUE per `(scope, scope_id)`.
+- **Hard-delete produktu / cert_variant**: nie kasujemy `produkt_pola` ani `ebr_pola_wartosci`. Rekordy zostają jako sieroty bez logicznej referencji — niewidoczne w UI (widoki Ukończone / modal / Hero filtrują po produkcie aktywnej szarży, więc sierot nie zobaczą). Wartości pozostają dla compliance/audytu. Zaleta: zero modyfikacji istniejących endpointów kasujących produkt/cert_variant. Wada: drobne "śmieci" w bazie po rzadkim hard-delete — pomijalne.
 - **Wpis tej samej wartości pola dla zbiornika i jego szarży źródłowej**: model nie ma relacji szarża↔zbiornik na poziomie pól. Każda szarża/zbiornik ma własne `ebr_id` i własne wartości. Konfiguracja `typy_rejestracji=[zbiornik]` ogranicza pole do zbiorników; `typy_rejestracji=null` pokazuje wszędzie (ale wartości i tak są niezależne per `ebr_id`).
-- **Pre-fill z `domyslna_wartosc` po skasowaniu przez laboranta**: pre-fill stosuje się tylko przy initial render formularza. Po skasowaniu pole pozostaje puste. Re-load formularza ponownie pre-fill'uje (bo nie ma jeszcze wartości w `ebr_pola_wartosci` — null).
+- **Pole scope=cert_variant z `wartosc_stala=NULL` lub pustym**: walidacja przy `create_pole`/`update_pole` dla scope=cert_variant z `aktywne=1` **wymusza** niepustą `wartosc_stala` (NOT NULL + length>0). Z `aktywne=0` wartość nie ma znaczenia — i tak klucz nie trafia do kontekstu generatora.
+- **Dezaktywacja pola scope=cert_variant + placeholder `{% if kod %}` w DOCX zostaje**: klucz nie trafia do kontekstu, conditional pomija blok, PDF czysty. Admin może bezpiecznie zostawić nieużywany conditional w DOCX.
 
 ## Tests
 
@@ -258,7 +271,7 @@ Spójne ze wzorcem `cert_settings.updated`.
 - Audit eventy emitowane.
 
 `tests/test_produkt_pola_api.py`:
-- POST `/api/produkt-pola` — happy path, walidacja kodu (regex, reserved keys), walidacja unique.
+- POST `/api/produkt-pola` — happy path, walidacja kodu (regex `^[a-z][a-z0-9_]*$`), walidacja unique.
 - PUT — happy path, brak edycji `kod`.
 - DELETE — soft-delete.
 - PUT `/api/ebr/<ebr_id>/pola/<pole_id>` — happy path + walidacja wartości wg `typ_danych`.
@@ -270,8 +283,8 @@ Spójne ze wzorcem `cert_settings.updated`.
 
 `tests/test_certs_pola_variant.py`:
 - `build_context()` dla wariantu Kosmepol zawiera klucze pól scope=cert_variant.
-- Stała wartość `domyslna_wartosc` propaguje się do kontekstu.
-- Kolizja `kod` z reserved key → odrzucenie przy create.
+- Stała wartość `wartosc_stala` propaguje się do kontekstu.
+- `context["pola"]` zawiera tylko klucze z aktywnego wariantu (inne warianty dają inny `context["pola"]`).
 
 Smoke test ręczny:
 - Modal Monamid KO → wpis pól → szarża → Hero edycja → Ukończone widok → kolumny.
