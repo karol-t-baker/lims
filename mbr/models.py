@@ -512,6 +512,48 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
             UNIQUE(produkt, kontekst, parametr_id)
         )
     """)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS produkt_pola (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            scope           TEXT NOT NULL CHECK(scope IN ('produkt','cert_variant')),
+            scope_id        INTEGER NOT NULL,
+            kod             TEXT NOT NULL,
+            label_pl        TEXT NOT NULL,
+            typ_danych      TEXT NOT NULL DEFAULT 'text' CHECK(typ_danych IN ('text','number','date')),
+            jednostka       TEXT,
+            wartosc_stala   TEXT,
+            obowiazkowe     INTEGER NOT NULL DEFAULT 0,
+            miejsca         TEXT NOT NULL DEFAULT '[]',
+            typy_rejestracji TEXT,
+            kolejnosc       INTEGER NOT NULL DEFAULT 0,
+            aktywne         INTEGER NOT NULL DEFAULT 1,
+            created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+            created_by      INTEGER,
+            updated_at      DATETIME,
+            updated_by      INTEGER,
+            UNIQUE(scope, scope_id, kod)
+        )
+    """)
+    db.execute("CREATE INDEX IF NOT EXISTS idx_produkt_pola_scope "
+               "ON produkt_pola(scope, scope_id, aktywne)")
+
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS ebr_pola_wartosci (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            ebr_id      INTEGER NOT NULL,
+            pole_id     INTEGER NOT NULL,
+            wartosc     TEXT,
+            created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+            created_by  INTEGER,
+            updated_at  DATETIME,
+            updated_by  INTEGER,
+            UNIQUE(ebr_id, pole_id),
+            FOREIGN KEY(ebr_id) REFERENCES ebr_batches(ebr_id) ON DELETE CASCADE,
+            FOREIGN KEY(pole_id) REFERENCES produkt_pola(id) ON DELETE CASCADE
+        )
+    """)
+    db.execute("CREATE INDEX IF NOT EXISTS idx_ebr_pola_wartosci_ebr "
+               "ON ebr_pola_wartosci(ebr_id)")
     # --- Pipeline builder tables (analytical stages) ---
     db.execute("""
         CREATE TABLE IF NOT EXISTS etapy_analityczne (
