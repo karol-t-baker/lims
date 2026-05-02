@@ -306,3 +306,91 @@ def test_get_wartosci_for_ebr_returns_dict(db_with_produkt):
     db_with_produkt.commit()
     result = pp.get_wartosci_for_ebr(db_with_produkt, ebr_id=9001, produkt_id=9001)
     assert result == {"nr_zam": "ZAM/1", "nr_dop": "DOP/2"}
+
+
+# ---------------------------------------------------------------------------
+# DAO tests for list_pola_for_produkt / list_pola_for_cert_variant (Task 5)
+# ---------------------------------------------------------------------------
+
+
+def test_list_pola_for_produkt_filters_miejsce(db_with_produkt):
+    pp.create_pole(db_with_produkt, {
+        "scope": "produkt", "scope_id": 9001, "kod": "modal_only",
+        "label_pl": "M", "typ_danych": "text", "miejsca": ["modal"],
+    }, user_id=9001)
+    pp.create_pole(db_with_produkt, {
+        "scope": "produkt", "scope_id": 9001, "kod": "hero_modal",
+        "label_pl": "HM", "typ_danych": "text", "miejsca": ["modal", "hero"],
+    }, user_id=9001)
+    pp.create_pole(db_with_produkt, {
+        "scope": "produkt", "scope_id": 9001, "kod": "ukonczone_only",
+        "label_pl": "U", "typ_danych": "text", "miejsca": ["ukonczone"],
+    }, user_id=9001)
+    db_with_produkt.commit()
+    modal = pp.list_pola_for_produkt(db_with_produkt, 9001, miejsce="modal")
+    assert {p["kod"] for p in modal} == {"modal_only", "hero_modal"}
+
+
+def test_list_pola_for_produkt_filters_typ_rejestracji(db_with_produkt):
+    pp.create_pole(db_with_produkt, {
+        "scope": "produkt", "scope_id": 9001, "kod": "wszystkie",
+        "label_pl": "W", "typ_danych": "text", "miejsca": ["hero"],
+        # typy_rejestracji NULL = wszystkie
+    }, user_id=9001)
+    pp.create_pole(db_with_produkt, {
+        "scope": "produkt", "scope_id": 9001, "kod": "tylko_zbiornik",
+        "label_pl": "Z", "typ_danych": "number", "miejsca": ["hero"],
+        "typy_rejestracji": ["zbiornik"],
+    }, user_id=9001)
+    db_with_produkt.commit()
+    for_szarza = pp.list_pola_for_produkt(db_with_produkt, 9001, typ_rejestracji="szarza")
+    assert {p["kod"] for p in for_szarza} == {"wszystkie"}
+    for_zbiornik = pp.list_pola_for_produkt(db_with_produkt, 9001, typ_rejestracji="zbiornik")
+    assert {p["kod"] for p in for_zbiornik} == {"wszystkie", "tylko_zbiornik"}
+
+
+def test_list_pola_for_produkt_excludes_inactive(db_with_produkt):
+    p1 = pp.create_pole(db_with_produkt, {
+        "scope": "produkt", "scope_id": 9001, "kod": "aktywne",
+        "label_pl": "A", "typ_danych": "text", "miejsca": ["hero"],
+    }, user_id=9001)
+    p2 = pp.create_pole(db_with_produkt, {
+        "scope": "produkt", "scope_id": 9001, "kod": "wylaczone",
+        "label_pl": "W", "typ_danych": "text", "miejsca": ["hero"],
+    }, user_id=9001)
+    pp.deactivate_pole(db_with_produkt, p2, user_id=9001)
+    db_with_produkt.commit()
+    pola = pp.list_pola_for_produkt(db_with_produkt, 9001)
+    assert {p["kod"] for p in pola} == {"aktywne"}
+
+
+def test_list_pola_for_produkt_sorted_by_kolejnosc(db_with_produkt):
+    pp.create_pole(db_with_produkt, {
+        "scope": "produkt", "scope_id": 9001, "kod": "drugie",
+        "label_pl": "D", "typ_danych": "text", "miejsca": ["hero"],
+        "kolejnosc": 20,
+    }, user_id=9001)
+    pp.create_pole(db_with_produkt, {
+        "scope": "produkt", "scope_id": 9001, "kod": "pierwsze",
+        "label_pl": "P", "typ_danych": "text", "miejsca": ["hero"],
+        "kolejnosc": 10,
+    }, user_id=9001)
+    db_with_produkt.commit()
+    pola = pp.list_pola_for_produkt(db_with_produkt, 9001)
+    assert [p["kod"] for p in pola] == ["pierwsze", "drugie"]
+
+
+def test_list_pola_for_cert_variant(db_with_produkt):
+    db_with_produkt.execute("INSERT INTO cert_variants (id, produkt, variant_id, label) "
+                            "VALUES (9010, 'Chegina_K40GLOLMB', 'kosmepol_t5', 'Kosmepol')")
+    db_with_produkt.commit()
+    pp.create_pole(db_with_produkt, {
+        "scope": "cert_variant", "scope_id": 9010, "kod": "nr_zam_kosmepol",
+        "label_pl": "Nr zam.", "typ_danych": "text",
+        "wartosc_stala": "KSM/2026/STALY/001",
+    }, user_id=9001)
+    db_with_produkt.commit()
+    pola = pp.list_pola_for_cert_variant(db_with_produkt, 9010)
+    assert len(pola) == 1
+    assert pola[0]["kod"] == "nr_zam_kosmepol"
+    assert pola[0]["wartosc_stala"] == "KSM/2026/STALY/001"

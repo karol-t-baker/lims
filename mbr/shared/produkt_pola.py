@@ -343,6 +343,48 @@ def set_wartosc(db, ebr_id: int, pole_id: int, wartosc, user_id: int) -> None:
     )
 
 
+def _row_to_dict(row) -> dict:
+    d = {k: row[k] for k in row.keys()}
+    d["miejsca"] = json.loads(d.get("miejsca") or "[]")
+    if d.get("typy_rejestracji"):
+        d["typy_rejestracji"] = json.loads(d["typy_rejestracji"])
+    else:
+        d["typy_rejestracji"] = None
+    d["obowiazkowe"] = bool(d.get("obowiazkowe"))
+    d["aktywne"] = bool(d.get("aktywne"))
+    return d
+
+
+def list_pola_for_produkt(db, produkt_id: int, *,
+                           miejsce: str | None = None,
+                           typ_rejestracji: str | None = None,
+                           only_active: bool = True) -> list[dict]:
+    """List pola scope='produkt'. Filtruje po miejscu / typie rejestracji."""
+    sql = "SELECT * FROM produkt_pola WHERE scope='produkt' AND scope_id=?"
+    params: list = [produkt_id]
+    if only_active:
+        sql += " AND aktywne=1"
+    sql += " ORDER BY kolejnosc, id"
+    rows = [_row_to_dict(r) for r in db.execute(sql, params).fetchall()]
+    if miejsce is not None:
+        rows = [r for r in rows if miejsce in r["miejsca"]]
+    if typ_rejestracji is not None:
+        rows = [r for r in rows
+                if r["typy_rejestracji"] is None or typ_rejestracji in r["typy_rejestracji"]]
+    return rows
+
+
+def list_pola_for_cert_variant(db, variant_id: int, *,
+                                only_active: bool = True) -> list[dict]:
+    """List pola scope='cert_variant'."""
+    sql = "SELECT * FROM produkt_pola WHERE scope='cert_variant' AND scope_id=?"
+    params: list = [variant_id]
+    if only_active:
+        sql += " AND aktywne=1"
+    sql += " ORDER BY kolejnosc, id"
+    return [_row_to_dict(r) for r in db.execute(sql, params).fetchall()]
+
+
 def get_wartosci_for_ebr(db, ebr_id: int, produkt_id: int) -> dict:
     """Return ``{kod: wartosc}`` for all active produkt-scoped pola.
 
