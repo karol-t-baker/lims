@@ -1,7 +1,9 @@
 """Tests for produkt_pola DAO and schema."""
+import json
 import sqlite3
 import pytest
 from mbr.models import init_mbr_tables
+from mbr.shared import produkt_pola as pp
 
 
 @pytest.fixture
@@ -69,3 +71,131 @@ def test_cascade_delete_pole_removes_wartosci(db):
     db.commit()
     cnt = db.execute("SELECT COUNT(*) FROM ebr_pola_wartosci").fetchone()[0]
     assert cnt == 0
+
+
+# ---------------------------------------------------------------------------
+# DAO tests (Task 3)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def db_with_produkt(db):
+    db.execute("INSERT INTO produkty (id, nazwa, kod, aktywny) VALUES (9001, 'Monamid_KO_test', 'MKO_T', 1)")
+    db.execute("INSERT INTO workers (id, imie, nazwisko, inicjaly, nickname, aktywny) "
+               "VALUES (9001, 'Test', 'User', 'TU_t', 'TU_t', 1)")
+    db.commit()
+    return db
+
+
+def test_create_pole_minimal(db_with_produkt):
+    pole_id = pp.create_pole(db_with_produkt, {
+        "scope": "produkt",
+        "scope_id": 9001,
+        "kod": "nr_zamowienia",
+        "label_pl": "Nr zamówienia",
+        "typ_danych": "text",
+        "miejsca": ["modal", "hero", "ukonczone"],
+    }, user_id=9001)
+    db_with_produkt.commit()
+    row = db_with_produkt.execute("SELECT * FROM produkt_pola WHERE id=?", (pole_id,)).fetchone()
+    assert row["kod"] == "nr_zamowienia"
+    assert row["label_pl"] == "Nr zamówienia"
+    assert row["aktywne"] == 1
+    assert json.loads(row["miejsca"]) == ["modal", "hero", "ukonczone"]
+    assert row["typy_rejestracji"] is None
+
+
+def test_create_pole_with_typy_rejestracji(db_with_produkt):
+    pole_id = pp.create_pole(db_with_produkt, {
+        "scope": "produkt",
+        "scope_id": 9001,
+        "kod": "ilosc_konserwantuna",
+        "label_pl": "Ilość konserwantuna",
+        "typ_danych": "number",
+        "jednostka": "kg",
+        "miejsca": ["hero", "ukonczone"],
+        "typy_rejestracji": ["zbiornik"],
+    }, user_id=9001)
+    db_with_produkt.commit()
+    row = db_with_produkt.execute("SELECT * FROM produkt_pola WHERE id=?", (pole_id,)).fetchone()
+    assert json.loads(row["typy_rejestracji"]) == ["zbiornik"]
+    assert row["jednostka"] == "kg"
+
+
+def test_create_pole_invalid_kod_regex(db_with_produkt):
+    with pytest.raises(ValueError, match="kod"):
+        pp.create_pole(db_with_produkt, {
+            "scope": "produkt", "scope_id": 9001,
+            "kod": "Nr Zamówienia",  # spaces, uppercase, special chars
+            "label_pl": "X", "typ_danych": "text", "miejsca": [],
+        }, user_id=9001)
+
+
+def test_create_pole_cert_variant_requires_wartosc_stala(db_with_produkt):
+    db_with_produkt.execute(
+        "INSERT INTO cert_variants (id, produkt, variant_id, label) "
+        "VALUES (9010, 'Chegina_K40GLOLMB', 'kosmepol_test', 'Kosmepol')"
+    )
+    db_with_produkt.commit()
+    with pytest.raises(ValueError, match="wartosc_stala"):
+        pp.create_pole(db_with_produkt, {
+            "scope": "cert_variant", "scope_id": 9010,
+            "kod": "nr_zam_kosmepol", "label_pl": "Nr zam. Kosmepol",
+            "typ_danych": "text",
+            # wartosc_stala missing → for active scope=cert_variant must error
+            "aktywne": 1,
+        }, user_id=9001)
+
+
+def test_update_pole(db_with_produkt):
+    pid = pp.create_pole(db_with_produkt, {
+        "scope": "produkt", "scope_id": 9001, "kod": "k1",
+        "label_pl": "Stary", "typ_danych": "text", "miejsca": ["hero"],
+    }, user_id=9001)
+    db_with_produkt.commit()
+    pp.update_pole(db_with_produkt, pid, {"label_pl": "Nowy", "kolejnosc": 5}, user_id=9001)
+    db_with_produkt.commit()
+    row = db_with_produkt.execute("SELECT label_pl, kolejnosc FROM produkt_pola WHERE id=?", (pid,)).fetchone()
+    assert row["label_pl"] == "Nowy"
+    assert row["kolejnosc"] == 5
+
+
+def test_update_pole_kod_immutable(db_with_produkt):
+    pid = pp.create_pole(db_with_produkt, {
+        "scope": "produkt", "scope_id": 9001, "kod": "stary_kod",
+        "label_pl": "L", "typ_danych": "text", "miejsca": [],
+    }, user_id=9001)
+    db_with_produkt.commit()
+    with pytest.raises(ValueError, match="kod.*immutable"):
+        pp.update_pole(db_with_produkt, pid, {"kod": "nowy_kod"}, user_id=9001)
+
+
+def test_deactivate_pole(db_with_produkt):
+    pid = pp.create_pole(db_with_produkt, {
+        "scope": "produkt", "scope_id": 9001, "kod": "k1",
+        "label_pl": "L", "typ_danych": "text", "miejsca": [],
+    }, user_id=9001)
+    db_with_produkt.commit()
+    pp.deactivate_pole(db_with_produkt, pid, user_id=9001)
+    db_with_produkt.commit()
+    row = db_with_produkt.execute("SELECT aktywne FROM produkt_pola WHERE id=?", (pid,)).fetchone()
+    assert row["aktywne"] == 0
+
+
+def test_audit_event_emitted_on_create(db_with_produkt, monkeypatch):
+    captured = []
+    from mbr.shared import audit
+    real_log = audit.log_event
+
+    def fake_log(event_type, **kwargs):
+        captured.append((event_type, kwargs))
+        return real_log(event_type, **kwargs)
+
+    monkeypatch.setattr(audit, "log_event", fake_log)
+    # Re-bind in DAO module too — DAO imported `audit` then calls audit.log_event,
+    # so monkeypatching the audit module attribute is sufficient.
+    pp.create_pole(db_with_produkt, {
+        "scope": "produkt", "scope_id": 9001, "kod": "k1",
+        "label_pl": "L", "typ_danych": "text", "miejsca": [],
+    }, user_id=9001)
+    assert any(et == audit.EVENT_PRODUKT_POLA_CREATED for et, _ in captured)
