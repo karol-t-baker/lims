@@ -199,3 +199,110 @@ def test_audit_event_emitted_on_create(db_with_produkt, monkeypatch):
         "label_pl": "L", "typ_danych": "text", "miejsca": [],
     }, user_id=9001)
     assert any(et == audit.EVENT_PRODUKT_POLA_CREATED for et, _ in captured)
+
+
+# ---------------------------------------------------------------------------
+# DAO tests for set_wartosc / get_wartosci_for_ebr (Task 4)
+# ---------------------------------------------------------------------------
+
+
+def test_set_wartosc_text(db_with_produkt):
+    db_with_produkt.execute("INSERT INTO mbr_templates (mbr_id, produkt, wersja, status, etapy_json, "
+                            "parametry_lab, utworzony_przez, dt_utworzenia) "
+                            "VALUES (9001, 'Monamid_KO_test', 1, 'active', '[]', '{}', 'tester', '2026-05-02')")
+    db_with_produkt.execute("INSERT INTO ebr_batches (ebr_id, batch_id, mbr_id, nr_partii, dt_start, status) "
+                            "VALUES (9001, 'B1_t', 9001, '001_t', '2026-05-02', 'open')")
+    pid = pp.create_pole(db_with_produkt, {
+        "scope": "produkt", "scope_id": 9001, "kod": "nr_zam",
+        "label_pl": "Nr", "typ_danych": "text", "miejsca": ["hero"],
+    }, user_id=9001)
+    db_with_produkt.commit()
+    pp.set_wartosc(db_with_produkt, ebr_id=9001, pole_id=pid, wartosc="ZAM/123", user_id=9001)
+    db_with_produkt.commit()
+    row = db_with_produkt.execute(
+        "SELECT wartosc FROM ebr_pola_wartosci WHERE ebr_id=9001 AND pole_id=?", (pid,)
+    ).fetchone()
+    assert row["wartosc"] == "ZAM/123"
+
+
+def test_set_wartosc_number_normalizes_comma(db_with_produkt):
+    db_with_produkt.execute("INSERT INTO mbr_templates (mbr_id, produkt, wersja, status, etapy_json, "
+                            "parametry_lab, utworzony_przez, dt_utworzenia) "
+                            "VALUES (9001, 'Monamid_KO_test', 1, 'active', '[]', '{}', 'tester', '2026-05-02')")
+    db_with_produkt.execute("INSERT INTO ebr_batches (ebr_id, batch_id, mbr_id, nr_partii, dt_start, status) "
+                            "VALUES (9001, 'B1_t', 9001, '001_t', '2026-05-02', 'open')")
+    pid = pp.create_pole(db_with_produkt, {
+        "scope": "produkt", "scope_id": 9001, "kod": "ilosc",
+        "label_pl": "I", "typ_danych": "number", "miejsca": ["hero"],
+    }, user_id=9001)
+    db_with_produkt.commit()
+    pp.set_wartosc(db_with_produkt, ebr_id=9001, pole_id=pid, wartosc="12.5", user_id=9001)
+    db_with_produkt.commit()
+    val = db_with_produkt.execute(
+        "SELECT wartosc FROM ebr_pola_wartosci WHERE ebr_id=9001 AND pole_id=?", (pid,)
+    ).fetchone()["wartosc"]
+    # Polish convention: storage uses comma
+    assert val == "12,5"
+    # accept comma input too
+    pp.set_wartosc(db_with_produkt, ebr_id=9001, pole_id=pid, wartosc="14,75", user_id=9001)
+    db_with_produkt.commit()
+    val = db_with_produkt.execute(
+        "SELECT wartosc FROM ebr_pola_wartosci WHERE ebr_id=9001 AND pole_id=?", (pid,)
+    ).fetchone()["wartosc"]
+    assert val == "14,75"
+
+
+def test_set_wartosc_number_invalid(db_with_produkt):
+    db_with_produkt.execute("INSERT INTO mbr_templates (mbr_id, produkt, wersja, status, etapy_json, "
+                            "parametry_lab, utworzony_przez, dt_utworzenia) "
+                            "VALUES (9001, 'Monamid_KO_test', 1, 'active', '[]', '{}', 'tester', '2026-05-02')")
+    db_with_produkt.execute("INSERT INTO ebr_batches (ebr_id, batch_id, mbr_id, nr_partii, dt_start, status) "
+                            "VALUES (9001, 'B1_t', 9001, '001_t', '2026-05-02', 'open')")
+    pid = pp.create_pole(db_with_produkt, {
+        "scope": "produkt", "scope_id": 9001, "kod": "ilosc",
+        "label_pl": "I", "typ_danych": "number", "miejsca": ["hero"],
+    }, user_id=9001)
+    db_with_produkt.commit()
+    with pytest.raises(ValueError):
+        pp.set_wartosc(db_with_produkt, ebr_id=9001, pole_id=pid, wartosc="abc", user_id=9001)
+
+
+def test_set_wartosc_null_clears(db_with_produkt):
+    db_with_produkt.execute("INSERT INTO mbr_templates (mbr_id, produkt, wersja, status, etapy_json, "
+                            "parametry_lab, utworzony_przez, dt_utworzenia) "
+                            "VALUES (9001, 'X_t', 1, 'active', '[]', '{}', 'tester', '2026-05-02')")
+    db_with_produkt.execute("INSERT INTO ebr_batches (ebr_id, batch_id, mbr_id, nr_partii, dt_start, status) "
+                            "VALUES (9001, 'B1_t', 9001, '001_t', '2026-05-02', 'open')")
+    pid = pp.create_pole(db_with_produkt, {
+        "scope": "produkt", "scope_id": 9001, "kod": "k",
+        "label_pl": "L", "typ_danych": "text", "miejsca": ["hero"],
+    }, user_id=9001)
+    db_with_produkt.commit()
+    pp.set_wartosc(db_with_produkt, 9001, pid, "X", user_id=9001)
+    pp.set_wartosc(db_with_produkt, 9001, pid, None, user_id=9001)
+    db_with_produkt.commit()
+    val = db_with_produkt.execute(
+        "SELECT wartosc FROM ebr_pola_wartosci WHERE ebr_id=9001 AND pole_id=?", (pid,)
+    ).fetchone()["wartosc"]
+    assert val is None
+
+
+def test_get_wartosci_for_ebr_returns_dict(db_with_produkt):
+    db_with_produkt.execute("INSERT INTO mbr_templates (mbr_id, produkt, wersja, status, etapy_json, "
+                            "parametry_lab, utworzony_przez, dt_utworzenia) "
+                            "VALUES (9001, 'Monamid_KO_test', 1, 'active', '[]', '{}', 'tester', '2026-05-02')")
+    db_with_produkt.execute("INSERT INTO ebr_batches (ebr_id, batch_id, mbr_id, nr_partii, dt_start, status) "
+                            "VALUES (9001, 'B1_t', 9001, '001_t', '2026-05-02', 'open')")
+    p1 = pp.create_pole(db_with_produkt, {
+        "scope": "produkt", "scope_id": 9001, "kod": "nr_zam",
+        "label_pl": "Nr", "typ_danych": "text", "miejsca": ["hero"],
+    }, user_id=9001)
+    p2 = pp.create_pole(db_with_produkt, {
+        "scope": "produkt", "scope_id": 9001, "kod": "nr_dop",
+        "label_pl": "Dop", "typ_danych": "text", "miejsca": ["hero"],
+    }, user_id=9001)
+    pp.set_wartosc(db_with_produkt, 9001, p1, "ZAM/1", user_id=9001)
+    pp.set_wartosc(db_with_produkt, 9001, p2, "DOP/2", user_id=9001)
+    db_with_produkt.commit()
+    result = pp.get_wartosci_for_ebr(db_with_produkt, ebr_id=9001, produkt_id=9001)
+    assert result == {"nr_zam": "ZAM/1", "nr_dop": "DOP/2"}

@@ -12,6 +12,7 @@ worker cannot be matched (e.g. ``user_id=None`` or unknown id).
 
 import json
 import re
+from datetime import datetime
 from typing import Any
 
 from mbr.shared import audit
@@ -251,3 +252,111 @@ def deactivate_pole(db, pole_id: int, user_id: int) -> None:
         actors=actors,
         db=db,
     )
+
+
+# ---------------------------------------------------------------------------
+# Wartości (ebr_pola_wartosci) — set / get
+# ---------------------------------------------------------------------------
+
+
+def _coerce_value(typ_danych: str, raw) -> str | None:
+    """Validate & normalize a value according to ``typ_danych``.
+
+    NULL or empty-string input → ``None`` (clears the field).
+
+    - ``text``: returned as-is.
+    - ``number``: accepts dot or comma decimal separator, validates via
+      ``float()``, stores in Polish convention with comma.
+    - ``date``: accepts ``YYYY-MM-DD``, ``DD-MM-YYYY``, ``D.M.YYYY`` and
+      normalizes to ISO ``YYYY-MM-DD``.
+    """
+    if raw is None or raw == "":
+        return None
+    if typ_danych == "text":
+        return raw
+    if typ_danych == "number":
+        normalized = raw.replace(",", ".")
+        try:
+            float(normalized)
+        except ValueError:
+            raise ValueError(f"invalid number: {raw!r}")
+        # Storage convention: Polish comma
+        return normalized.replace(".", ",")
+    if typ_danych == "date":
+        # Accept ISO YYYY-MM-DD or DD-MM-YYYY / D.M.YYYY → normalize to ISO.
+        for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%d.%m.%Y"):
+            try:
+                d = datetime.strptime(raw, fmt)
+                return d.strftime("%Y-%m-%d")
+            except ValueError:
+                continue
+        raise ValueError(f"invalid date (use YYYY-MM-DD): {raw!r}")
+    raise ValueError(f"unknown typ_danych: {typ_danych}")
+
+
+def set_wartosc(db, ebr_id: int, pole_id: int, wartosc, user_id: int) -> None:
+    """Upsert value for ``(ebr_id, pole_id)``.
+
+    Validates the input against the pole's ``typ_danych`` and emits an
+    audit event with before/after diff. Caller is responsible for
+    committing the transaction.
+    """
+    pole = db.execute(
+        "SELECT kod, typ_danych FROM produkt_pola WHERE id=?", (pole_id,)
+    ).fetchone()
+    if pole is None:
+        raise ValueError(f"pole id={pole_id} not found")
+    coerced = _coerce_value(pole["typ_danych"], wartosc)
+    existing = db.execute(
+        "SELECT wartosc FROM ebr_pola_wartosci WHERE ebr_id=? AND pole_id=?",
+        (ebr_id, pole_id),
+    ).fetchone()
+    before = existing["wartosc"] if existing else None
+    now = _now_iso()
+    if existing is None:
+        db.execute(
+            """
+            INSERT INTO ebr_pola_wartosci
+            (ebr_id, pole_id, wartosc, created_at, created_by, updated_at, updated_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (ebr_id, pole_id, coerced, now, user_id, now, user_id),
+        )
+    else:
+        db.execute(
+            """
+            UPDATE ebr_pola_wartosci SET wartosc=?, updated_at=?, updated_by=?
+            WHERE ebr_id=? AND pole_id=?
+            """,
+            (coerced, now, user_id, ebr_id, pole_id),
+        )
+
+    actors = _resolve_actors(db, user_id)
+    audit.log_event(
+        audit.EVENT_EBR_POLA_VALUE_SET,
+        entity_type="ebr_pola",
+        entity_id=ebr_id,
+        diff=[{"pole": pole["kod"], "stara": before, "nowa": coerced}],
+        context={"ebr_id": ebr_id, "pole_id": pole_id, "kod": pole["kod"]},
+        actors=actors,
+        db=db,
+    )
+
+
+def get_wartosci_for_ebr(db, ebr_id: int, produkt_id: int) -> dict:
+    """Return ``{kod: wartosc}`` for all active produkt-scoped pola.
+
+    Only fields ``scope='produkt'`` and ``scope_id=produkt_id`` with
+    ``aktywne=1`` are returned. Fields without a stored value (or with
+    ``NULL`` value) are skipped.
+    """
+    rows = db.execute(
+        """
+        SELECT pp.kod, ev.wartosc
+        FROM produkt_pola pp
+        LEFT JOIN ebr_pola_wartosci ev ON ev.pole_id = pp.id AND ev.ebr_id = ?
+        WHERE pp.scope='produkt' AND pp.scope_id=? AND pp.aktywne=1
+        """,
+        (ebr_id, produkt_id),
+    ).fetchall()
+    return {r["kod"]: r["wartosc"] for r in rows if r["wartosc"] is not None}
