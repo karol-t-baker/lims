@@ -59,7 +59,7 @@ Wprowadzić **deklaratywny mechanizm pól dodatkowych** per produkt lub per wari
 | `typ_danych` | TEXT NOT NULL DEFAULT `'text'` | `'text'`, `'number'`, `'date'` (whitelist w aplikacji). Dla scope=cert_variant **zawsze `'text'`** (wymuszane backendem); UI admina nie eksponuje wyboru typu. |
 | `jednostka` | TEXT | NULL lub np. `'kg'`, `'%'` (relewantne dla `typ_danych='number'`) |
 | `wartosc_stala` | TEXT | tylko dla scope=cert_variant — stała wartość propagowana na świadectwo. Dla scope=produkt zawsze NULL (pole startuje puste). |
-| `obowiazkowe` | INTEGER NOT NULL DEFAULT 0 | 0/1; **tylko UI hint** (gwiazdka + czerwona ramka jeśli puste). Niczego nie blokuje — ani modalu, ani zatwierdzania szarży, ani generacji świadectwa. Ignorowane dla scope=cert_variant. |
+| `obowiazkowe` | INTEGER NOT NULL DEFAULT 0 | 0/1; **tylko UI hint** — gwiazdka przy etykiecie (`Nr zamówienia *`). Bez czerwonej ramki, bez blokowania submisji. Niczego nie egzekwuje. Ignorowane dla scope=cert_variant. |
 | `miejsca` | TEXT NOT NULL DEFAULT `'[]'` | JSON array, subset `['modal','hero','ukonczone','cert']`. Ignorowane dla scope=cert_variant. |
 | `typy_rejestracji` | TEXT | NULL = wszystkie typy; lub JSON array, subset `['szarza','zbiornik','platkowanie']`. Ignorowane dla scope=cert_variant. |
 | `kolejnosc` | INTEGER NOT NULL DEFAULT 0 | sortowanie w UI |
@@ -159,9 +159,9 @@ Walidacja w API:
 Frontend:
 - Po wybraniu produktu i typu rejestracji JS pobiera definicje: `GET /api/produkt-pola?scope=produkt&scope_id=<produkt_id>` przy **każdym otwarciu modalu** (bez cache — request lekki, modal otwierany rzadko).
 - Filtruje po stronie JS: `aktywne=1 AND 'modal' in miejsca AND (typy_rejestracji is null or typ in typy_rejestracji)`.
-- Renderuje pola w sekcji "Pola dodatkowe" pod istniejącymi polami modalu, sortowane po `kolejnosc`.
+- Renderuje pola w **osobnej sekcji** "Pola dodatkowe" z wizualnym headerem/separatorem **na końcu** modalu (tuż przed przyciskiem "Utwórz szarżę"), sortowane po `kolejnosc`. Czysta separacja od hardkodowanych pól modalu — zero regresji w istniejącym layoucie.
 - Każde pole renderowane wg `typ_danych` (`<input type="text|number|date">`). **Bez pre-fill** — pole zawsze startuje puste, laborant albo wpisuje wartość, albo zostawia puste.
-- `obowiazkowe=1` → wizualna gwiazdka + czerwona ramka jeśli puste. Niczego nie blokuje (ani submisji modalu, ani późniejszego flow). To tylko UI hint dla laboranta.
+- `obowiazkowe=1` → gwiazdka przy etykiecie (`Nr zamówienia *`). Bez czerwonej ramki, bez blokady submisji. Czysty visual hint.
 
 Backend:
 - Endpoint create EBR przyjmuje opcjonalne `pola: {<pole_id>: <wartosc>}` w body.
@@ -171,7 +171,7 @@ Backend:
 
 **Files:** Hero żyje w `mbr/templates/laborant/szarze_list.html` (sekcja `_heroObserver` ~linie 638+) wraz z `mbr/templates/laborant/_fast_entry_content.html` (sekcja `cv-hero` ~linie 414+). Dodajemy renderowanie sekcji "Pola dodatkowe" do widoku Hero. Endpoint PUT wartości — patrz §3.
 
-- Sekcja "Pola dodatkowe" z polami filtrowanymi: `aktywne=1 AND 'hero' in miejsca AND (typy_rejestracji is null or typ in typy_rejestracji)` dla produktu szarży, sortowane po `kolejnosc`.
+- **Osobna sekcja** "Pola dodatkowe" pod istniejącymi blokami Hero (z wizualnym headerem/separatorem). Pola filtrowane: `aktywne=1 AND 'hero' in miejsca AND (typy_rejestracji is null or typ in typy_rejestracji)` dla produktu szarży, sortowane po `kolejnosc`.
 - Każde pole edytowalne inline (klik → input → blur/save). Save → `PUT /api/ebr/<ebr_id>/pola/<pole_id>`.
 - Render: aktualna wartość z `ebr_pola_wartosci` lub puste (NULL → "—" w trybie odczytu, pusty input w trybie edycji). Brak pre-fill / podpowiedzi.
 - Read-only zgodnie z istniejącą logiką Hero (rola, status szarży).
@@ -186,6 +186,7 @@ Zmiana w `list_completed_registry()`:
 Zmiana w `get_registry_columns()`:
 - Dla zbioru produktów występujących w wynikach, agregujemy unikalne pola spełniające `aktywne=1 AND 'ukonczone' in miejsca`.
 - Każda kolumna: `key = "pola." + kod` (prefix odróżnia od istniejących wyników/skrótów parametrów). Nagłówek = `label_pl` + (jeśli `jednostka` niepusta) ` [` + `jednostka` + `]` (spójne z istniejącymi kolumnami parametrów typu "Skrót [%]").
+- **Pozycja w tabeli:** dynamiczne kolumny wstawiane **tuż przed kolumną "Uwagi"** (`uwagi_koncowe`), po wszystkich istniejących kolumnach merytorycznych. Wymaga modyfikacji renderera tabeli w `mbr/templates/laborant/szarze_list.html` (`th-uwagi` ~linia 1488, `td-uwagi` ~linia 1610) — przed tymi elementami iterujemy po dynamicznych kolumnach.
 
 Zmiana w template tabeli rejestru:
 - Render path `pola.<kod>` analogicznie do istniejących dynamicznych kolumn (np. `__surowce__`).
@@ -253,8 +254,9 @@ Spójne ze wzorcem `cert_settings.updated`.
 - **Pole dezaktywowane (`aktywne=0`)**: nie renderowane w nowych formularzach (modal/Hero/Ukończone). Historyczne wartości pozostają w `ebr_pola_wartosci`. Ponowna aktywacja przywraca pole z historycznymi wartościami.
 - **Zmiana `typ_danych` po wpisaniu wartości**: ostrzeżenie w UI ("Zmiana typu może spowodować błędy walidacji historycznych wartości"). Wartości NIE są re-walidowane retroaktywnie. Render w UI używa aktualnego `typ_danych` — niezgodne wartości historyczne wyświetlamy raw text z badge "⚠ niezgodne".
 - **Zmiana `kod`**: zabronione. Kod jest stabilnym identyfikatorem (klucz placeholderów DOCX, klucz `pola.<kod>` w widoku Ukończone). UI nie pozwala edytować po utworzeniu. Workaround: dezaktywuj stare, utwórz nowe.
-- **Pole `obowiazkowe=1` dodane retroaktywnie**: nie blokuje niczego (UI hint only). Stare szarże pokazują pustą czerwoną ramkę w Hero, ale nie wymuszają wpisu.
+- **Pole `obowiazkowe=1` dodane retroaktywnie**: nie blokuje niczego (UI hint only). Stare szarże w Hero pokazują pole z gwiazdką w etykiecie, ale nie wymuszają wpisu.
 - **Kolizja `kod` z innymi nazwami w systemie**: nie jest problemem dzięki sub-namespace `pola.<kod>` w kontekście DOCX (patrz §8). Walidacja sprowadza się do regexu snake_case + UNIQUE per `(scope, scope_id)`.
+- **Concurrency**: dwóch laborantów edytujących tę samą wartość pola — last-write-wins. UPSERT przez `set_wartosc()` po prostu nadpisuje; audit log zachowuje pełną historię (`before` / `after` w `ebr_pola.value_set`). Bez tokenów, bez lockingu. LIMS ma niewielką liczbę jednoczesnych edycji, koszt overengineeringu nieuzasadniony.
 - **Hard-delete produktu / cert_variant**: nie kasujemy `produkt_pola` ani `ebr_pola_wartosci`. Rekordy zostają jako sieroty bez logicznej referencji — niewidoczne w UI (widoki Ukończone / modal / Hero filtrują po produkcie aktywnej szarży, więc sierot nie zobaczą). Wartości pozostają dla compliance/audytu. Zaleta: zero modyfikacji istniejących endpointów kasujących produkt/cert_variant. Wada: drobne "śmieci" w bazie po rzadkim hard-delete — pomijalne.
 - **Wpis tej samej wartości pola dla zbiornika i jego szarży źródłowej**: model nie ma relacji szarża↔zbiornik na poziomie pól. Każda szarża/zbiornik ma własne `ebr_id` i własne wartości. Konfiguracja `typy_rejestracji=[zbiornik]` ogranicza pole do zbiorników; `typy_rejestracji=null` pokazuje wszędzie (ale wartości i tak są niezależne per `ebr_id`).
 - **Pole scope=cert_variant z `wartosc_stala=NULL` lub pustym**: walidacja przy `create_pole`/`update_pole` dla scope=cert_variant z `aktywne=1` **wymusza** niepustą `wartosc_stala` (NOT NULL + length>0). Z `aktywne=0` wartość nie ma znaczenia — i tak klucz nie trafia do kontekstu generatora.
