@@ -98,6 +98,27 @@ def deactivate_pole_endpoint(pole_id: int):
     return jsonify({"ok": True})
 
 
+@produkt_pola_bp.route("/api/ebr/<int:ebr_id>/pola/<int:pole_id>", methods=["PUT"])
+@role_required("lab", "kj", "cert", "admin")
+def set_ebr_pola_value(ebr_id: int, pole_id: int):
+    payload = request.get_json(silent=True) or {}
+    if "wartosc" not in payload:
+        return jsonify({"error": "wartosc required (string|null)"}), 400
+    user_id = _current_user_id()
+    with db_session() as db:
+        ebr = get_ebr(db, ebr_id)
+        if ebr is None:
+            return jsonify({"error": "ebr not found"}), 404
+        try:
+            pp.set_wartosc(
+                db, ebr_id, pole_id, payload["wartosc"], user_id=user_id
+            )
+            db.commit()
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+    return jsonify({"ok": True})
+
+
 @produkt_pola_bp.route("/api/ebr/<int:ebr_id>/pola", methods=["GET"])
 @login_required
 def list_ebr_pola_values(ebr_id: int):

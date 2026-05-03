@@ -155,6 +155,65 @@ def test_delete_produkt_pola_soft(monkeypatch, db):
     assert row["aktywne"] == 0
 
 
+@pytest.fixture
+def db_with_ebr(db):
+    db.execute(
+        "INSERT INTO mbr_templates (mbr_id, produkt, wersja, status, etapy_json, "
+        "parametry_lab, utworzony_przez, dt_utworzenia) "
+        "VALUES (9001, 'Monamid_KO_a', 1, 'active', '[]', '{}', 'tester', '2026-05-02')"
+    )
+    db.execute(
+        "INSERT INTO ebr_batches (ebr_id, batch_id, mbr_id, nr_partii, dt_start, status) "
+        "VALUES (9001, 'B1_a', 9001, '001_a', '2026-05-02', 'open')"
+    )
+    db.commit()
+    return db
+
+
+def test_put_ebr_pola_value(monkeypatch, db_with_ebr):
+    pid = pp.create_pole(db_with_ebr, {
+        "scope": "produkt", "scope_id": 9001, "kod": "nr_zam",
+        "label_pl": "Nr", "typ_danych": "text", "miejsca": ["hero"],
+    }, user_id=9001)
+    db_with_ebr.commit()
+    c = _client(monkeypatch, db_with_ebr, rola="lab")
+    r = c.put(f"/api/ebr/9001/pola/{pid}", json={"wartosc": "ZAM/1"})
+    assert r.status_code == 200
+    row = db_with_ebr.execute(
+        "SELECT wartosc FROM ebr_pola_wartosci WHERE ebr_id=9001 AND pole_id=?",
+        (pid,),
+    ).fetchone()
+    assert row["wartosc"] == "ZAM/1"
+
+
+def test_put_ebr_pola_clear_to_null(monkeypatch, db_with_ebr):
+    pid = pp.create_pole(db_with_ebr, {
+        "scope": "produkt", "scope_id": 9001, "kod": "k",
+        "label_pl": "L", "typ_danych": "text", "miejsca": ["hero"],
+    }, user_id=9001)
+    pp.set_wartosc(db_with_ebr, 9001, pid, "X", user_id=9001)
+    db_with_ebr.commit()
+    c = _client(monkeypatch, db_with_ebr, rola="lab")
+    r = c.put(f"/api/ebr/9001/pola/{pid}", json={"wartosc": None})
+    assert r.status_code == 200
+    row = db_with_ebr.execute(
+        "SELECT wartosc FROM ebr_pola_wartosci WHERE ebr_id=9001 AND pole_id=?",
+        (pid,),
+    ).fetchone()
+    assert row["wartosc"] is None
+
+
+def test_put_ebr_pola_invalid_number(monkeypatch, db_with_ebr):
+    pid = pp.create_pole(db_with_ebr, {
+        "scope": "produkt", "scope_id": 9001, "kod": "i",
+        "label_pl": "I", "typ_danych": "number", "miejsca": ["hero"],
+    }, user_id=9001)
+    db_with_ebr.commit()
+    c = _client(monkeypatch, db_with_ebr, rola="lab")
+    r = c.put(f"/api/ebr/9001/pola/{pid}", json={"wartosc": "abc"})
+    assert r.status_code == 400
+
+
 def test_get_ebr_pola_returns_values(monkeypatch, db):
     db.execute(
         "INSERT INTO mbr_templates (mbr_id, produkt, wersja, status, etapy_json, "
