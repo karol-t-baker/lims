@@ -1476,6 +1476,12 @@ function renderRegistryTable(columns, batches, append) {
   html += '<th class="th-nr">Nr partii</th>';
   html += '<th class="th-date">Data</th>';
   columns.forEach(function(col) {
+    if (col.is_pola) {
+      html += '<th class="th-pola th-param" style="min-width:120px;"><div class="th-param-name">' +
+              rtHtml(col.label || col.kod) + '</div>' +
+              '<div class="th-param-limit">&nbsp;</div></th>';
+      return;
+    }
     var limitStr = '';
     if (col.min != null && col.max != null) limitStr = String(col.min).replace('.', ',') + ' \u2013 ' + String(col.max).replace('.', ',');
     else if (col.min != null) limitStr = '> ' + String(col.min).replace('.', ',');
@@ -1542,6 +1548,18 @@ function _buildRegistryRow(columns, b) {
   }
   html += '<td class="td-date">' + dtStr + '</td>';
   columns.forEach(function(col) {
+    if (col.is_pola) {
+      // Dynamic produkt_pola column. Kod has 'pola.' prefix; strip for value lookup.
+      var poleKod = (col.kod || '').replace(/^pola\./, '');
+      var poleVal = (b.pola && b.pola[poleKod]) || '';
+      if (poleVal === '' || poleVal == null) {
+        html += '<td class="td-pola" style="color:var(--text-dim);font-size:12px;">\u2014</td>';
+      } else {
+        html += '<td class="td-pola" style="font-size:12px;color:var(--text-sec);">' +
+                _htmlEsc(String(poleVal)) + '</td>';
+      }
+      return;
+    }
     if (col.kod === '__surowce__') {
       var list = b.surowce || [];
       if (list.length === 0) {
