@@ -453,43 +453,219 @@
     font-family: inherit;
     font-style: italic;
 }
-/* Edit modal */
+/* ── Edit modal — warm scientific-paper aesthetic ─────────────────────── */
 .cv-extra-modal {
     position: fixed; inset: 0;
-    background: rgba(0,0,0,0.5);
+    background: radial-gradient(ellipse at center,
+                rgba(20, 35, 45, 0.42) 0%,
+                rgba(10, 20, 28, 0.62) 100%);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
     z-index: 9999;
     display: flex; align-items: center; justify-content: center;
+    animation: cv-modal-fade 220ms ease-out;
+}
+@keyframes cv-modal-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 .cv-extra-modal-inner {
-    background: var(--surface, #fff);
-    max-width: 480px;
-    width: 90%;
-    border-radius: 10px;
+    position: relative;
+    background: var(--surface);
+    width: min(540px, calc(100vw - 32px));
     border: 1px solid var(--border);
-    padding: 20px;
-    box-sizing: border-box;
+    border-radius: 14px;
+    box-shadow:
+        0 28px 56px -16px rgba(13, 78, 82, 0.22),
+        0 12px 24px -10px rgba(0, 0, 0, 0.16),
+        0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+    overflow: hidden;
+    animation: cv-modal-rise 320ms cubic-bezier(0.16, 1, 0.3, 1);
 }
-.cv-extra-modal-inner h3 { margin: 0 0 14px; font-size: 14px; font-weight: 600; }
-.cv-extra-modal-inner label {
-    display: block;
-    margin: 10px 0 4px;
+@keyframes cv-modal-rise {
+    from { opacity: 0; transform: translateY(20px) scale(0.96); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+/* Top accent stripe — lab-notebook tab */
+.cv-extra-modal-inner::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg,
+                var(--teal) 0%, var(--teal-dark) 60%, var(--teal) 100%);
+}
+/* Subtle paper texture in body via overlapping radials */
+.cv-extra-modal-inner::after {
+    content: '';
+    position: absolute; inset: 3px 0 0 0;
+    pointer-events: none;
+    background:
+        radial-gradient(circle at 0% 0%, rgba(13, 115, 119, 0.04), transparent 40%),
+        radial-gradient(circle at 100% 100%, rgba(180, 83, 9, 0.03), transparent 50%);
+}
+
+.cv-extra-modal-header {
+    padding: 24px 28px 18px;
+    border-bottom: 1px dashed var(--border);
+    position: relative;
+    z-index: 1;
+}
+.cv-extra-modal-eyebrow {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--teal);
+    margin-bottom: 8px;
+    display: flex; align-items: center; gap: 9px;
+}
+.cv-extra-modal-eyebrow::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--teal);
+    box-shadow: 0 0 0 3px var(--teal-bg);
+    flex-shrink: 0;
+}
+.cv-extra-modal-title {
+    font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
+    font-weight: 700;
+    font-size: 24px;
+    font-variation-settings: 'opsz' 36;
+    line-height: 1.12;
+    color: var(--text);
+    margin: 0;
+    letter-spacing: -0.015em;
+}
+.cv-extra-modal-subtitle {
+    margin-top: 8px;
     font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-dim);
+    max-width: 42ch;
+}
+
+.cv-extra-modal-body {
+    padding: 22px 28px 8px;
+    max-height: 60vh;
+    overflow-y: auto;
+    position: relative;
+    z-index: 1;
+}
+
+.cv-extra-modal-field {
+    margin-bottom: 22px;
+    animation: cv-field-in 380ms ease-out backwards;
+}
+.cv-extra-modal-field:nth-child(1) { animation-delay: 70ms; }
+.cv-extra-modal-field:nth-child(2) { animation-delay: 130ms; }
+.cv-extra-modal-field:nth-child(3) { animation-delay: 190ms; }
+.cv-extra-modal-field:nth-child(4) { animation-delay: 250ms; }
+.cv-extra-modal-field:nth-child(5) { animation-delay: 310ms; }
+.cv-extra-modal-field:nth-child(n+6) { animation-delay: 370ms; }
+@keyframes cv-field-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.cv-extra-modal-label {
+    display: flex; align-items: baseline; gap: 10px;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-sec);
+    margin-bottom: 6px;
+}
+.cv-extra-modal-num {
+    color: var(--teal);
+    font-weight: 700;
+    opacity: 0.85;
+    font-feature-settings: 'tnum';
+}
+.cv-extra-modal-label-text {
+    flex: 1;
     color: var(--text-sec);
 }
-.cv-extra-modal-inner input {
+.cv-extra-modal-input {
     width: 100%;
     box-sizing: border-box;
-    padding: 6px 8px;
-    font-size: 13px;
-    border: 1px solid var(--border);
-    border-radius: 4px;
+    padding: 8px 0 10px;
     font-family: var(--mono);
+    font-size: 14.5px;
+    color: var(--text);
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    transition: border-color 180ms ease, padding-bottom 180ms ease;
+    border-radius: 0;
 }
+.cv-extra-modal-input:hover { border-bottom-color: var(--text-dim); }
+.cv-extra-modal-input:focus {
+    outline: none;
+    border-bottom: 2px solid var(--teal);
+    padding-bottom: 9px;
+}
+.cv-extra-modal-input::placeholder {
+    color: var(--text-dim);
+    opacity: 0.5;
+    font-style: italic;
+}
+
 .cv-extra-modal-actions {
-    margin-top: 16px;
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
+    padding: 14px 24px 18px;
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: flex-end;
+    gap: 4px;
+    background: var(--surface-alt);
+    position: relative;
+    z-index: 1;
+}
+.cv-extra-modal-btn {
+    font-family: var(--font);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 9px 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 160ms ease;
+    border: 1px solid transparent;
+}
+.cv-extra-modal-btn-secondary {
+    background: transparent;
+    color: var(--text-sec);
+}
+.cv-extra-modal-btn-secondary:hover {
+    background: var(--bg);
+    color: var(--text);
+}
+.cv-extra-modal-btn-primary {
+    background: var(--teal);
+    color: #fff;
+    box-shadow:
+        0 1px 0 var(--teal-dark) inset,
+        0 2px 6px -1px rgba(13, 115, 119, 0.4);
+    display: inline-flex; align-items: center; gap: 8px;
+}
+.cv-extra-modal-btn-primary::after {
+    content: '→';
+    font-family: var(--mono);
+    transition: transform 160ms ease;
+}
+.cv-extra-modal-btn-primary:hover {
+    background: var(--teal-dark);
+    transform: translateY(-1px);
+    box-shadow:
+        0 1px 0 rgba(0, 0, 0, 0.18) inset,
+        0 6px 14px -3px rgba(13, 115, 119, 0.5);
+}
+.cv-extra-modal-btn-primary:hover::after {
+    transform: translateX(2px);
+}
+.cv-extra-modal-btn-primary:active {
+    transform: translateY(0);
 }
 /* Hero sticker card — exact mockup V2 */
 .cv-h2-card {
@@ -1347,32 +1523,54 @@ async function editHeroExtras() {
             .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
     var fieldsHtml = '';
-    s.defs.forEach(function(pole) {
+    s.defs.forEach(function(pole, idx) {
         var unit = pole.jednostka ? ' [' + _esc(pole.jednostka) + ']' : '';
         var star = pole.obowiazkowe ? ' <span style="color:var(--red);">*</span>' : '';
         var inputType = pole.typ_danych === 'date' ? 'date' : 'text';
         var initVal = s.values[pole.kod] != null ? s.values[pole.kod] : '';
+        var num = String(idx + 1).padStart(2, '0');
         fieldsHtml +=
-            '<label>' + _esc(pole.label_pl || pole.kod) + unit + star + '</label>' +
-            '<input type="' + inputType + '"' +
-            ' data-pole-id="' + pole.id + '"' +
-            ' data-kod="' + _esc(pole.kod) + '"' +
-            ' value="' + _esc(initVal) + '">';
+            '<div class="cv-extra-modal-field">' +
+                '<label class="cv-extra-modal-label">' +
+                    '<span class="cv-extra-modal-num">#' + num + '</span>' +
+                    '<span class="cv-extra-modal-label-text">' + _esc(pole.label_pl || pole.kod) + unit + star + '</span>' +
+                '</label>' +
+                '<input type="' + inputType + '" class="cv-extra-modal-input"' +
+                ' data-pole-id="' + pole.id + '"' +
+                ' data-kod="' + _esc(pole.kod) + '"' +
+                ' value="' + _esc(initVal) + '"' +
+                ' placeholder="—">' +
+            '</div>';
     });
+    var produktNice = String(window._batchProdukt || '').replace(/_/g, ' ');
+    var nrPartiiSafe = (typeof window._batchNrPartii !== 'undefined' && window._batchNrPartii)
+        ? ' · partia ' + _esc(window._batchNrPartii) : '';
     var modalHtml =
         '<div class="cv-extra-modal" id="cv-extra-modal-overlay" onclick="if(event.target===this)closeHeroExtrasModal()">' +
             '<div class="cv-extra-modal-inner">' +
-                '<h3>Pola dodatkowe</h3>' +
-                '<div id="cv-extra-modal-fields">' + fieldsHtml + '</div>' +
+                '<div class="cv-extra-modal-header">' +
+                    '<div class="cv-extra-modal-eyebrow">' + _esc(produktNice) + nrPartiiSafe + '</div>' +
+                    '<h3 class="cv-extra-modal-title">Pola dodatkowe</h3>' +
+                    '<div class="cv-extra-modal-subtitle">Metadane szarży — uzupełnij lub zostaw puste. Zmiany zapisują się po kliknięciu &bdquo;Zapisz&rdquo;.</div>' +
+                '</div>' +
+                '<div class="cv-extra-modal-body" id="cv-extra-modal-fields">' + fieldsHtml + '</div>' +
                 '<div class="cv-extra-modal-actions">' +
-                    '<button type="button" class="btn-secondary" onclick="closeHeroExtrasModal()">Anuluj</button>' +
-                    '<button type="button" class="btn-primary" onclick="saveHeroExtrasModal()">Zapisz</button>' +
+                    '<button type="button" class="cv-extra-modal-btn cv-extra-modal-btn-secondary" onclick="closeHeroExtrasModal()">Anuluj</button>' +
+                    '<button type="button" class="cv-extra-modal-btn cv-extra-modal-btn-primary" onclick="saveHeroExtrasModal()">Zapisz</button>' +
                 '</div>' +
             '</div>' +
         '</div>';
     var wrap = document.createElement('div');
     wrap.innerHTML = modalHtml;
     document.body.appendChild(wrap.firstChild);
+    // Auto-focus first empty input after entry animation
+    setTimeout(function() {
+        var inputs = document.querySelectorAll('#cv-extra-modal-fields input');
+        for (var i = 0; i < inputs.length; i++) {
+            if (!inputs[i].value) { inputs[i].focus(); return; }
+        }
+        if (inputs[0]) inputs[0].focus();
+    }, 280);
 }
 
 function closeHeroExtrasModal() {
@@ -1454,28 +1652,49 @@ async function editPlatkowanieSubstraty() {
     var byId = {};
     (current || []).forEach(function(c) { byId[c.substrat_id] = c.nr_partii_substratu || ''; });
     var fieldsHtml = '';
-    available.forEach(function(s) {
-        var initVal = byId[s.id] || '';
+    available.forEach(function(sub, idx) {
+        var initVal = byId[sub.id] || '';
+        var num = String(idx + 1).padStart(2, '0');
+        var skrotChip = sub.skrot
+            ? ' <span style="font-family:var(--mono);font-size:9px;color:var(--text-dim);background:var(--bg);padding:1px 6px;border-radius:3px;border:1px solid var(--border);margin-left:6px;">' + _esc(sub.skrot) + '</span>'
+            : '';
         fieldsHtml +=
-            '<label>' + _esc(s.nazwa) + '</label>' +
-            '<input type="text" data-substrat-id="' + s.id + '"' +
-            ' placeholder="nr partii"' +
-            ' value="' + _esc(initVal) + '">';
+            '<div class="cv-extra-modal-field">' +
+                '<label class="cv-extra-modal-label">' +
+                    '<span class="cv-extra-modal-num">#' + num + '</span>' +
+                    '<span class="cv-extra-modal-label-text">' + _esc(sub.nazwa) + skrotChip + '</span>' +
+                '</label>' +
+                '<input type="text" class="cv-extra-modal-input" data-substrat-id="' + sub.id + '"' +
+                ' placeholder="nr partii substratu"' +
+                ' value="' + _esc(initVal) + '">' +
+            '</div>';
     });
+    var produktNice = String(window._batchProdukt || '').replace(/_/g, ' ');
     var modalHtml =
         '<div class="cv-extra-modal" id="cv-substraty-modal-overlay" onclick="if(event.target===this)closePlatkowanieSubstratyModal()">' +
             '<div class="cv-extra-modal-inner">' +
-                '<h3>Substraty (numery partii)</h3>' +
-                '<div id="cv-substraty-modal-fields">' + fieldsHtml + '</div>' +
+                '<div class="cv-extra-modal-header">' +
+                    '<div class="cv-extra-modal-eyebrow">Płatkowanie · ' + _esc(produktNice) + '</div>' +
+                    '<h3 class="cv-extra-modal-title">Numery partii substratów</h3>' +
+                    '<div class="cv-extra-modal-subtitle">Wprowadź numery partii substratów użytych w tej szarży. Pozostawione puste = brak rejestracji.</div>' +
+                '</div>' +
+                '<div class="cv-extra-modal-body" id="cv-substraty-modal-fields">' + fieldsHtml + '</div>' +
                 '<div class="cv-extra-modal-actions">' +
-                    '<button type="button" class="btn-secondary" onclick="closePlatkowanieSubstratyModal()">Anuluj</button>' +
-                    '<button type="button" class="btn-primary" onclick="savePlatkowanieSubstratyModal()">Zapisz</button>' +
+                    '<button type="button" class="cv-extra-modal-btn cv-extra-modal-btn-secondary" onclick="closePlatkowanieSubstratyModal()">Anuluj</button>' +
+                    '<button type="button" class="cv-extra-modal-btn cv-extra-modal-btn-primary" onclick="savePlatkowanieSubstratyModal()">Zapisz</button>' +
                 '</div>' +
             '</div>' +
         '</div>';
     var wrap = document.createElement('div');
     wrap.innerHTML = modalHtml;
     document.body.appendChild(wrap.firstChild);
+    setTimeout(function() {
+        var inputs = document.querySelectorAll('#cv-substraty-modal-fields input');
+        for (var i = 0; i < inputs.length; i++) {
+            if (!inputs[i].value) { inputs[i].focus(); return; }
+        }
+        if (inputs[0]) inputs[0].focus();
+    }, 280);
 }
 
 function closePlatkowanieSubstratyModal() {
