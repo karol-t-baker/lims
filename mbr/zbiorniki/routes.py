@@ -101,6 +101,43 @@ def api_platkowanie_substraty(ebr_id):
     return jsonify([dict(r) for r in rows])
 
 
+@zbiorniki_bp.route("/api/platkowanie-substraty/<int:ebr_id>", methods=["PUT"])
+@login_required
+def api_platkowanie_substraty_update(ebr_id):
+    """Replace substraty for a platkowanie batch.
+
+    Body: {"substraty": [{"substrat_id": int, "nr_partii": str|""}, ...]}
+    Replaces the full set: rows for the given ebr_id are deleted and re-inserted.
+    Empty/missing nr_partii is preserved as empty string.
+    """
+    payload = request.get_json(silent=True) or {}
+    items = payload.get("substraty") or []
+    if not isinstance(items, list):
+        return jsonify({"error": "substraty must be a list"}), 400
+    with db_session() as db:
+        # Verify batch exists and is platkowanie
+        ebr = db.execute(
+            "SELECT typ FROM ebr_batches WHERE ebr_id=?", (ebr_id,)
+        ).fetchone()
+        if ebr is None:
+            return jsonify({"error": "ebr not found"}), 404
+        if ebr["typ"] != "platkowanie":
+            return jsonify({"error": "not a platkowanie batch"}), 400
+        db.execute("DELETE FROM platkowanie_substraty WHERE ebr_id=?", (ebr_id,))
+        for it in items:
+            sid = it.get("substrat_id")
+            nr = (it.get("nr_partii") or "").strip()
+            if not sid:
+                continue
+            db.execute(
+                "INSERT INTO platkowanie_substraty (ebr_id, substrat_id, nr_partii_substratu) "
+                "VALUES (?, ?, ?)",
+                (ebr_id, int(sid), nr),
+            )
+        db.commit()
+    return jsonify({"ok": True})
+
+
 # ── Substraty API ──
 
 @zbiorniki_bp.route("/api/substraty")

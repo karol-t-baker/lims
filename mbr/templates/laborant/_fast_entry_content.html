@@ -32,6 +32,19 @@
       <button class="zb-assign-add" onclick="openZbAssignModal()" type="button" title="Dodaj zbiornik">+</button>
     </span>
     {% endif %}
+    {# Pola dodatkowe edytowalne (mid-batch) — inline in topbar, dowolny typ + open. JS toggluje visibility gdy są pola. #}
+    {% if ebr.status == 'open' %}
+    <span class="zb-assign-inline" id="pola-assign-section" data-ebr-id="{{ ebr.ebr_id }}" style="display:none;">
+      <span class="zb-assign-label">Pola:</span>
+      <button class="zb-assign-add" onclick="editHeroExtras()" type="button" title="Edytuj pola dodatkowe">✎</button>
+    </span>
+    {% if ebr.typ == 'platkowanie' %}
+    <span class="zb-assign-inline" id="substraty-assign-section" data-ebr-id="{{ ebr.ebr_id }}" style="display:none;">
+      <span class="zb-assign-label">Substraty:</span>
+      <button class="zb-assign-add" onclick="editPlatkowanieSubstraty()" type="button" title="Edytuj substraty">✎</button>
+    </span>
+    {% endif %}
+    {% endif %}
     {% if ebr.status == 'open' %}
       <span class="en-badge b-wait">otwarta</span>
     {% else %}
@@ -1299,11 +1312,35 @@ async function loadHeroExtras(ebrIdLocal, typ) {
     grid.innerHTML = html;
 }
 
-function editHeroExtras() {
+async function editHeroExtras() {
     var s = _heroExtrasState;
-    if (!s.defs.length) return;
     var canEdit = (typeof userRola !== 'undefined' && userRola !== 'technolog');
     if (!canEdit) { alert('Brak uprawnień do edycji.'); return; }
+    // If we don't have state yet (open-status view, no Hero section rendered),
+    // fetch defs+values now using ebrId + ebrTyp + _batchProdukt.
+    if (!s.defs.length) {
+        var produktName = window._batchProdukt || '';
+        try {
+            var pr = await fetch('/api/produkty');
+            var produkty = await pr.json();
+            var p = produkty.find(function(x) { return x.nazwa === produktName; });
+            if (!p) return;
+            var defR = await fetch('/api/produkt-pola?scope=produkt&scope_id=' + p.id);
+            var defResp = await defR.json();
+            var valR = await fetch('/api/ebr/' + ebrId + '/pola');
+            var valResp = await valR.json();
+            var pola = (defResp.pola || []).filter(function(pole) {
+                if (!pole.miejsca || pole.miejsca.indexOf('hero') < 0) return false;
+                if (pole.typy_rejestracji && pole.typy_rejestracji.length
+                    && pole.typy_rejestracji.indexOf(ebrTyp) < 0) return false;
+                return true;
+            });
+            if (!pola.length) { alert('Brak skonfigurowanych pól dodatkowych dla tego produktu.'); return; }
+            _heroExtrasState = { ebrId: ebrId, typ: ebrTyp, produktId: p.id, defs: pola,
+                                 values: (valResp && valResp.wartosci) || {} };
+            s = _heroExtrasState;
+        } catch (e) { alert('Błąd ładowania pól: ' + e); return; }
+    }
     function _esc(str) {
         return String(str == null ? '' : str)
             .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -1375,7 +1412,14 @@ async function saveHeroExtrasModal() {
         return;
     }
     closeHeroExtrasModal();
-    loadHeroExtras(s.ebrId, s.typ);
+    // Refetch authoritative values so state is in sync (server may normalize, e.g. number 12.5 → "12,5")
+    try {
+        var fresh = await fetch('/api/ebr/' + s.ebrId + '/pola');
+        var data = await fresh.json();
+        _heroExtrasState.values = (data && data.wartosci) || {};
+    } catch (e) { /* fall through */ }
+    // If Hero section exists (completed view), re-render it
+    if (document.getElementById('cv-extra-section')) loadHeroExtras(s.ebrId, s.typ);
 }
 
 window.loadHeroExtras = loadHeroExtras;
@@ -1384,6 +1428,94 @@ window.closeHeroExtrasModal = closeHeroExtrasModal;
 window.saveHeroExtrasModal = saveHeroExtrasModal;
 // Backwards-compat alias for any old callers.
 window.renderHeroExtras = loadHeroExtras;
+
+// ── Substraty edit modal (platkowanie) ────────────────────────────────────
+async function editPlatkowanieSubstraty() {
+    var produktName = window._batchProdukt || '';
+    if (!produktName) return;
+    var canEdit = (typeof userRola !== 'undefined' && userRola !== 'technolog');
+    if (!canEdit) { alert('Brak uprawnień do edycji.'); return; }
+    var available, current;
+    try {
+        var aR = await fetch('/api/substraty?produkt=' + encodeURIComponent(produktName));
+        available = await aR.json();
+        var cR = await fetch('/api/platkowanie-substraty/' + ebrId);
+        current = await cR.json();
+    } catch (e) { alert('Błąd ładowania substratów: ' + e); return; }
+    if (!Array.isArray(available) || available.length === 0) {
+        alert('Produkt nie ma skonfigurowanych substratów.');
+        return;
+    }
+    function _esc(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+    var byId = {};
+    (current || []).forEach(function(c) { byId[c.substrat_id] = c.nr_partii_substratu || ''; });
+    var fieldsHtml = '';
+    available.forEach(function(s) {
+        var initVal = byId[s.id] || '';
+        fieldsHtml +=
+            '<label>' + _esc(s.nazwa) + '</label>' +
+            '<input type="text" data-substrat-id="' + s.id + '"' +
+            ' placeholder="nr partii"' +
+            ' value="' + _esc(initVal) + '">';
+    });
+    var modalHtml =
+        '<div class="cv-extra-modal" id="cv-substraty-modal-overlay" onclick="if(event.target===this)closePlatkowanieSubstratyModal()">' +
+            '<div class="cv-extra-modal-inner">' +
+                '<h3>Substraty (numery partii)</h3>' +
+                '<div id="cv-substraty-modal-fields">' + fieldsHtml + '</div>' +
+                '<div class="cv-extra-modal-actions">' +
+                    '<button type="button" class="btn-secondary" onclick="closePlatkowanieSubstratyModal()">Anuluj</button>' +
+                    '<button type="button" class="btn-primary" onclick="savePlatkowanieSubstratyModal()">Zapisz</button>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+    var wrap = document.createElement('div');
+    wrap.innerHTML = modalHtml;
+    document.body.appendChild(wrap.firstChild);
+}
+
+function closePlatkowanieSubstratyModal() {
+    var m = document.getElementById('cv-substraty-modal-overlay');
+    if (m) m.remove();
+}
+
+async function savePlatkowanieSubstratyModal() {
+    var inputs = document.querySelectorAll('#cv-substraty-modal-fields input');
+    var arr = [];
+    inputs.forEach(function(inp) {
+        arr.push({substrat_id: parseInt(inp.dataset.substratId, 10), nr_partii: inp.value});
+    });
+    try {
+        var r = await fetch('/api/platkowanie-substraty/' + ebrId, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({substraty: arr}),
+        });
+        if (!r.ok) {
+            var d = {};
+            try { d = await r.json(); } catch (e) {}
+            alert('Błąd zapisu: ' + (d.error || r.status));
+            return;
+        }
+    } catch (e) {
+        alert('Błąd sieci: ' + e);
+        return;
+    }
+    closePlatkowanieSubstratyModal();
+    // Reload Hero substraty section if visible (completed view)
+    if (typeof loadCompletedSubstraty === 'function'
+        && document.getElementById('cv-substraty-list')) {
+        loadCompletedSubstraty();
+    }
+}
+
+window.editPlatkowanieSubstraty = editPlatkowanieSubstraty;
+window.closePlatkowanieSubstratyModal = closePlatkowanieSubstratyModal;
+window.savePlatkowanieSubstratyModal = savePlatkowanieSubstratyModal;
 
 function getPola(sekcja, grupaFilter, fromAll) {
     var source = fromAll ? parametryAll : parametry;
@@ -2215,11 +2347,12 @@ function renderCompletedView() {
     // Substraty section for platkowanie
     if (isPlatkowanie) {
     html += '<div class="cv-params" id="cv-substraty">' +
-        '<div class="cv-params-head">' +
+        '<div class="cv-params-head" style="display:flex;align-items:center;justify-content:space-between;">' +
             '<span style="display:flex;align-items:center;gap:6px;">' +
                 '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;opacity:0.5;"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>' +
                 'Substraty' +
             '</span>' +
+            '<button class="cv-edit-btn" onclick="editPlatkowanieSubstraty()" style="font-size:10px;">edytuj</button>' +
         '</div>' +
         '<div id="cv-substraty-list" style="padding:14px 16px;color:var(--text-dim);font-size:12px;">Ładowanie...</div>' +
     '</div>';
@@ -6339,6 +6472,43 @@ renderSections();
 setupComputedFields();
 loadBatchZbiorniki();
 updateSpecPanel();
+initOpenBatchExtras();
+
+async function initOpenBatchExtras() {
+  // Show "Pola: ✎" / "Substraty: ✎" inline buttons in topbar when produkt has them.
+  var polaSection = document.getElementById('pola-assign-section');
+  var substratySection = document.getElementById('substraty-assign-section');
+  if (!polaSection && !substratySection) return;  // not in open status
+  var produktName = window._batchProdukt || '';
+  if (!produktName) return;
+  // 1) Pola dodatkowe — show if produkt has any hero-pola for current ebrTyp
+  if (polaSection) {
+    try {
+      var pr = await fetch('/api/produkty');
+      var produkty = await pr.json();
+      var p = produkty.find(function(x) { return x.nazwa === produktName; });
+      if (p) {
+        var defR = await fetch('/api/produkt-pola?scope=produkt&scope_id=' + p.id);
+        var defResp = await defR.json();
+        var hasHeroPola = (defResp.pola || []).some(function(pole) {
+          if (!pole.miejsca || pole.miejsca.indexOf('hero') < 0) return false;
+          if (pole.typy_rejestracji && pole.typy_rejestracji.length
+              && pole.typy_rejestracji.indexOf(ebrTyp) < 0) return false;
+          return true;
+        });
+        if (hasHeroPola) polaSection.style.display = '';
+      }
+    } catch (e) { /* hidden by default */ }
+  }
+  // 2) Substraty (tylko platkowanie) — show if produkt has any
+  if (substratySection) {
+    try {
+      var sR = await fetch('/api/substraty?produkt=' + encodeURIComponent(produktName));
+      var subs = await sR.json();
+      if (Array.isArray(subs) && subs.length > 0) substratySection.style.display = '';
+    } catch (e) { /* hidden by default */ }
+  }
+}
 
 window.saveReceptNa2so3 = async function() {
     var input = document.getElementById('recept-na2so3-kg');
