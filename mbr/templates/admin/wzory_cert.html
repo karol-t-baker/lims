@@ -517,6 +517,29 @@
           </div>
         </div>
 
+        <!-- Stałe pola wariantu (scope=cert_variant) -->
+        <div id="wc-static-fields-section" data-variant-id="" style="margin-top:18px;">
+          <div class="wc-sub">Stałe pola wariantu</div>
+          <p style="font-size:11px;color:var(--text-dim);margin:4px 0 10px;">
+            Wartości podstawiane do świadectwa przez <code>{% raw %}{{ pola.&lt;kod&gt; }}{% endraw %}</code> w master DOCX.
+          </p>
+          <table class="wc-tbl" id="wc-static-table" style="width:100%;">
+            <thead>
+              <tr>
+                <th style="width:160px;">Kod</th>
+                <th>Etykieta</th>
+                <th>Wartość</th>
+                <th style="width:50px;text-align:center;">Kol.</th>
+                <th style="width:160px;"></th>
+              </tr>
+            </thead>
+            <tbody id="wc-static-tbody"></tbody>
+          </table>
+          <div style="margin-top:10px;">
+            <button id="wc-static-add" type="button" class="wc-btn wc-btn-o wc-btn-sm">+ Dodaj stałe pole</button>
+          </div>
+        </div>
+
         <div class="wc-sub" style="margin-top:18px;">Parametry świadectwa w wariancie</div>
         <p style="font-size:11px;color:var(--text-dim);margin:4px 0 10px;">
           Bazowe parametry (z zakładki „Parametry świadectwa") możesz <strong>ukryć</strong> w tym wariancie. Możesz też <strong>dodać</strong> parametry występujące tylko w tym wariancie.
@@ -655,6 +678,38 @@
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;">
         <button class="wc-btn wc-btn-o" onclick="closeAddParamModal()">Anuluj</button>
         <button class="wc-btn wc-btn-p" onclick="confirmAddParam()">Dodaj</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: stałe pole wariantu (scope=cert_variant) -->
+<div class="wc-modal" id="wc-static-modal" onclick="if(event.target===this)wcStaticCloseModal()">
+  <div class="wc-modal-box" style="max-width:520px;height:auto;">
+    <div class="wc-modal-head">
+      <span id="wc-static-modal-title" style="font-weight:700;">Nowe stałe pole</span>
+      <button class="wc-modal-close" onclick="wcStaticCloseModal()">&times;</button>
+    </div>
+    <div style="padding:16px 20px;">
+      <input type="hidden" id="wc-static-id" value="">
+      <input type="hidden" id="wc-static-variant-id" value="">
+
+      <label class="wc-lbl">Kod (snake_case) *</label>
+      <input class="wc-inp" id="wc-static-kod" type="text" pattern="^[a-z][a-z0-9_]*$" placeholder="np. nazwa_klienta" style="width:100%;margin-bottom:4px;font-family:var(--mono);">
+      <div style="font-size:10px;color:var(--text-dim);margin-bottom:12px;">Litery a-z, cyfry, podkreślnik. Read-only po utworzeniu.</div>
+
+      <label class="wc-lbl">Etykieta *</label>
+      <input class="wc-inp" id="wc-static-label" type="text" placeholder="np. Nazwa klienta" style="width:100%;margin-bottom:12px;">
+
+      <label class="wc-lbl">Wartość stała</label>
+      <input class="wc-inp" id="wc-static-val" type="text" placeholder="np. Avon Sp. z o.o." style="width:100%;margin-bottom:12px;">
+
+      <label class="wc-lbl">Kolejność</label>
+      <input class="wc-inp" id="wc-static-kol" type="number" value="0" style="width:100px;margin-bottom:12px;">
+
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;">
+        <button class="wc-btn wc-btn-o" id="wc-static-cancel" onclick="wcStaticCloseModal()">Anuluj</button>
+        <button class="wc-btn wc-btn-p" id="wc-static-save">Zapisz</button>
       </div>
     </div>
   </div>
@@ -2117,6 +2172,9 @@ function showVariant(vi) {
   if (mdWrap) mdWrap.style.display = isBase ? 'none' : '';
   renderVariantParamList();
   renderVariantParamDetail();
+
+  // Stałe pola wariantu (scope=cert_variant) — wymaga zapisanego wariantu (db_id)
+  if (typeof wcStaticOnVariant === 'function') wcStaticOnVariant(v);
 }
 
 function addVariant() {
@@ -2438,6 +2496,140 @@ async function wcAliasAdd() {
     document.getElementById('wc-alias-tgt').value = '';
     wcAliasLoad();
 }
+
+/* ═══ Stałe pola wariantu (scope=cert_variant) — produkt_pola CRUD ═══ */
+
+function wcStaticOnVariant(v) {
+  var sec = document.getElementById('wc-static-fields-section');
+  if (!sec) return;
+  // Wymaga zapisanego wariantu z numerycznym db_id. Nowo dodane (jeszcze nie save) nie mają.
+  var dbId = v && v.db_id ? parseInt(v.db_id, 10) : 0;
+  if (!dbId) {
+    sec.dataset.variantId = '';
+    sec.style.display = 'none';
+    return;
+  }
+  sec.dataset.variantId = String(dbId);
+  sec.style.display = '';
+  wcStaticRefresh(dbId);
+}
+
+function wcStaticFetchPola(variantId) {
+  return fetch('/api/produkt-pola?scope=cert_variant&scope_id=' + encodeURIComponent(variantId) + '&only_active=0')
+    .then(function(r){ return r.json(); }).then(function(d){ return d.pola || []; });
+}
+
+function wcStaticRow(p) {
+  var actions = '<button type="button" class="wc-static-edit wc-btn wc-btn-o wc-btn-sm" data-id="' + p.id + '">Edytuj</button>';
+  if (p.aktywne) {
+    actions += ' <button type="button" class="wc-static-deact wc-btn wc-btn-d wc-btn-sm" data-id="' + p.id + '" style="margin-left:4px;">Wyłącz</button>';
+  } else {
+    actions += ' <span style="font-size:10px;color:var(--text-dim);margin-left:6px;font-style:italic;">(nieaktywne)</span>';
+  }
+  var rowStyle = p.aktywne ? '' : ' style="opacity:0.5;"';
+  return '<tr data-id="' + p.id + '"' + rowStyle + '>' +
+    '<td style="font-family:var(--mono);font-size:11px;font-weight:600;">' + _esc(p.kod || '') + '</td>' +
+    '<td>' + _esc(p.label_pl || '') + '</td>' +
+    '<td style="font-size:11px;color:var(--text-sec);">' + _esc(p.wartosc_stala == null ? '' : String(p.wartosc_stala)) + '</td>' +
+    '<td style="text-align:center;font-family:var(--mono);font-size:11px;">' + (p.kolejnosc || 0) + '</td>' +
+    '<td>' + actions + '</td>' +
+  '</tr>';
+}
+
+function wcStaticRefresh(variantId) {
+  var tbody = document.getElementById('wc-static-tbody');
+  if (!tbody) return;
+  wcStaticFetchPola(variantId).then(function(pola) {
+    if (!pola.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-dim);padding:14px;font-style:italic;font-size:11px;">Brak stałych pól. Dodaj pierwsze przyciskiem poniżej.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = pola.map(wcStaticRow).join('');
+  });
+}
+
+function wcStaticOpenModal(variantId, existing) {
+  document.getElementById('wc-static-modal-title').textContent = existing ? 'Edytuj stałe pole' : 'Nowe stałe pole';
+  document.getElementById('wc-static-id').value = existing ? existing.id : '';
+  document.getElementById('wc-static-variant-id').value = String(variantId);
+  var kodInp = document.getElementById('wc-static-kod');
+  kodInp.value = existing ? existing.kod : '';
+  kodInp.disabled = !!existing;
+  document.getElementById('wc-static-label').value = existing ? existing.label_pl : '';
+  document.getElementById('wc-static-val').value = existing ? (existing.wartosc_stala == null ? '' : String(existing.wartosc_stala)) : '';
+  document.getElementById('wc-static-kol').value = existing ? (existing.kolejnosc || 0) : 0;
+  document.getElementById('wc-static-modal').classList.add('show');
+}
+
+function wcStaticCloseModal() {
+  var modal = document.getElementById('wc-static-modal');
+  if (modal) modal.classList.remove('show');
+}
+
+function wcStaticCollectPayload() {
+  return {
+    scope: 'cert_variant',
+    scope_id: parseInt(document.getElementById('wc-static-variant-id').value, 10),
+    kod: document.getElementById('wc-static-kod').value.trim(),
+    label_pl: document.getElementById('wc-static-label').value.trim(),
+    typ_danych: 'text',
+    wartosc_stala: document.getElementById('wc-static-val').value,
+    kolejnosc: parseInt(document.getElementById('wc-static-kol').value, 10) || 0,
+    miejsca: [],
+  };
+}
+
+document.addEventListener('click', function(e) {
+  var sec = document.getElementById('wc-static-fields-section');
+  if (!sec) return;
+  var variantId = parseInt(sec.dataset.variantId || '0', 10);
+  if (e.target && e.target.id === 'wc-static-add') {
+    if (!variantId) { alert('Najpierw zapisz wariant, potem dodawaj stałe pola.'); return; }
+    wcStaticOpenModal(variantId, null);
+    return;
+  }
+  if (e.target && e.target.classList && e.target.classList.contains('wc-static-edit')) {
+    var pid = parseInt(e.target.dataset.id, 10);
+    if (!variantId || !pid) return;
+    wcStaticFetchPola(variantId).then(function(pola) {
+      var existing = pola.filter(function(p) { return p.id === pid; })[0];
+      if (existing) wcStaticOpenModal(variantId, existing);
+    });
+    return;
+  }
+  if (e.target && e.target.classList && e.target.classList.contains('wc-static-deact')) {
+    var pid2 = parseInt(e.target.dataset.id, 10);
+    if (!variantId || !pid2) return;
+    if (!confirm('Wyłączyć to pole? (soft-delete — można reaktywować)')) return;
+    fetch('/api/produkt-pola/' + pid2, {method: 'DELETE'})
+      .then(function(r) { return r.json().then(function(d){ return {status: r.status, body: d}; }); })
+      .then(function(res) {
+        if (res.status >= 400) { alert('Błąd: ' + (res.body.error || 'unknown')); return; }
+        wcStaticRefresh(variantId);
+      });
+    return;
+  }
+  if (e.target && e.target.id === 'wc-static-save') {
+    var payload = wcStaticCollectPayload();
+    if (!payload.kod || !payload.label_pl) { alert('Kod i etykieta są wymagane.'); return; }
+    var poleId = document.getElementById('wc-static-id').value;
+    var url = poleId ? ('/api/produkt-pola/' + poleId) : '/api/produkt-pola';
+    var method = poleId ? 'PUT' : 'POST';
+    fetch(url, {
+      method: method,
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    })
+      .then(function(r) { return r.json().then(function(d){ return {status: r.status, body: d}; }); })
+      .then(function(res) {
+        if (res.status >= 400) { alert('Błąd: ' + (res.body.error || 'unknown')); return; }
+        wcStaticCloseModal();
+        var vid = parseInt(document.getElementById('wc-static-fields-section').dataset.variantId || '0', 10);
+        if (vid) wcStaticRefresh(vid);
+      });
+    return;
+  }
+});
 
 /* ═══ Init ═══ */
 var _copyInp = document.getElementById('wc-copy-name');

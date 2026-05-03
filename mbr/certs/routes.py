@@ -407,6 +407,7 @@ def api_cert_config_product_get(key):
         for vr in variants_db:
             variant_obj = {
                 "id": vr["variant_id"],
+                "db_id": vr["id"],  # numeric PK — used by produkt_pola UI (scope=cert_variant)
                 "label": vr["label"],
                 "flags": _json.loads(vr["flags"] or "[]"),
             }
