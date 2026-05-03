@@ -35,7 +35,7 @@
     {# Pola dodatkowe edytowalne (mid-batch) — inline in topbar, dowolny typ + open. JS toggluje visibility gdy są pola. #}
     {% if ebr.status == 'open' %}
     <span class="zb-assign-inline" id="pola-assign-section" data-ebr-id="{{ ebr.ebr_id }}" style="display:none;">
-      <span class="zb-assign-label">Pola:</span>
+      <span class="zb-assign-label" id="pola-assign-label">Dodatkowe:</span>
       <button class="zb-assign-add" onclick="editHeroExtras()" type="button" title="Edytuj pola dodatkowe">✎</button>
     </span>
     {% if ebr.typ == 'platkowanie' %}
@@ -6481,7 +6481,8 @@ async function initOpenBatchExtras() {
   if (!polaSection && !substratySection) return;  // not in open status
   var produktName = window._batchProdukt || '';
   if (!produktName) return;
-  // 1) Pola dodatkowe — show if produkt has any hero-pola for current ebrTyp
+  // 1) Pola dodatkowe — show if produkt has any hero-pola for current ebrTyp;
+  //    label = single field's label_pl, fallback "Dodatkowe:" when 0 or 2+
   if (polaSection) {
     try {
       var pr = await fetch('/api/produkty');
@@ -6490,13 +6491,19 @@ async function initOpenBatchExtras() {
       if (p) {
         var defR = await fetch('/api/produkt-pola?scope=produkt&scope_id=' + p.id);
         var defResp = await defR.json();
-        var hasHeroPola = (defResp.pola || []).some(function(pole) {
+        var heroPola = (defResp.pola || []).filter(function(pole) {
           if (!pole.miejsca || pole.miejsca.indexOf('hero') < 0) return false;
           if (pole.typy_rejestracji && pole.typy_rejestracji.length
               && pole.typy_rejestracji.indexOf(ebrTyp) < 0) return false;
           return true;
         });
-        if (hasHeroPola) polaSection.style.display = '';
+        if (heroPola.length > 0) {
+          var label = document.getElementById('pola-assign-label');
+          if (label) {
+            label.textContent = (heroPola.length === 1 ? heroPola[0].label_pl : 'Dodatkowe') + ':';
+          }
+          polaSection.style.display = '';
+        }
       }
     } catch (e) { /* hidden by default */ }
   }
