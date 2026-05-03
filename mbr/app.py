@@ -73,6 +73,7 @@ def create_app():
     from mbr.pipeline import pipeline_bp
     from mbr.ml_export import ml_export_bp
     from mbr.chzt import chzt_bp
+    from mbr.produkt_pola import produkt_pola_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(workers_bp)
@@ -88,6 +89,7 @@ def create_app():
     app.register_blueprint(pipeline_bp)
     app.register_blueprint(ml_export_bp)
     app.register_blueprint(chzt_bp)
+    app.register_blueprint(produkt_pola_bp)
 
     # Initialize database tables
     from mbr.db import db_session
