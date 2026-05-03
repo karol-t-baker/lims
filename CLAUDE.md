@@ -100,3 +100,15 @@ Single SQLite file, FK enforcement on (`PRAGMA foreign_keys=ON`). Schema in `sch
 - Raw `sqlite3` everywhere, no SQLAlchemy. Queries use `?` placeholders and `Row` factory; prefer adding helpers to the blueprint's `models.py` over inlining SQL in routes.
 - JSON blobs in columns (`etapy_json`, `surowce_json`, `parametry_lab`, `przepompowanie_json`) are load-bearing — treat them as schemas even though SQLite won't enforce them.
 - Static-asset cache busting: append `?v=<something>` to URLs in templates; the global `Cache-Control: immutable` rule relies on it.
+
+### Pola dodatkowe per produkt / per wariant świadectwa
+
+Deklaratywny mechanizm pól metadanych (zamiast hardkodowanych kolumn na `ebr_batches` jak `nr_zbiornika` czy flag `has_avon_code`).
+
+- **Tabele:** `produkt_pola` (definicje, `scope ∈ {produkt, cert_variant}`) + `ebr_pola_wartosci` (wartości per szarża).
+- **DAO:** `mbr/shared/produkt_pola.py` (`create_pole`, `update_pole`, `deactivate_pole`, `set_wartosc`, `get_wartosci_for_ebr`, `list_pola_for_produkt`, `list_pola_for_cert_variant`).
+- **API:** `GET/POST/PUT/DELETE /api/produkt-pola[/<id>]`, `GET /api/ebr/<id>/pola`, `PUT /api/ebr/<id>/pola/<pole_id>`.
+- **UI definicji:** `parametry_editor.html` (zakładka "Pola dodatkowe", scope=produkt), `wzory_cert.html` (sekcja "Stałe pola wariantu", scope=cert_variant).
+- **Integracja:** modal "Nowa szarża" (sekcja "Pola dodatkowe" na końcu), Hero (`cv-extra-section` z inline edit), `/registry/ukonczone` (kolumny dynamiczne tuż przed "Uwagi"), generator certów (sub-namespace `pola.<kod>` w kontekście DOCX — placeholder `{% if pola.<kod> %}{{ pola.<kod> }}{% endif %}`).
+- **Konwencje:** `kod` = snake_case (`^[a-z][a-z0-9_]*$`); `obowiazkowe` = tylko gwiazdka w UI (nie blokuje); `wartosc_stala` tylko dla scope=cert_variant; wartości typu `number` przechowywane z polskim przecinkiem (eksport ML normalizuje na kropkę).
+- **Spec:** `docs/superpowers/specs/2026-05-01-produkt-pola-uniwersalne-design.md`. **Plan:** `docs/superpowers/plans/2026-05-02-produkt-pola-uniwersalne.md`.
