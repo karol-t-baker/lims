@@ -223,6 +223,23 @@ def _format_value(value: float, fmt: str) -> str:
     return formatted.replace(".", ",")
 
 
+def build_pola_context(db, *, variant_id) -> dict:
+    """Return ``{kod: wartosc_stala}`` for active pola scope='cert_variant'.
+
+    Used as sub-namespace ``pola.<kod>`` in DOCX context to avoid colliding
+    with top-level keys (e.g. ``order_number``). Returns an empty dict when
+    ``variant_id`` is None or no active fields exist for the variant.
+    """
+    if variant_id is None:
+        return {}
+    from mbr.shared.produkt_pola import list_pola_for_cert_variant
+    try:
+        pola = list_pola_for_cert_variant(db, variant_id)
+    except Exception:
+        return {}
+    return {p["kod"]: (p.get("wartosc_stala") or "") for p in pola}
+
+
 # ---------------------------------------------------------------------------
 # 5. build_context
 # ---------------------------------------------------------------------------
@@ -397,6 +414,10 @@ def build_context(
                 "result": _md_to_richtext(result, font=_settings["body_font_family"]),
             })
 
+        # 7. Sub-namespace `pola.<kod>` — declarative cert_variant fields.
+        # Stored as static values via produkt_pola DAO (scope='cert_variant').
+        pola_namespace = build_pola_context(db, variant_id=var_row["id"])
+
     # Calculate dates
     dt_produkcji = ""
     dt_waznosci = ""
@@ -458,6 +479,7 @@ def build_context(
         "avon_code": avon_code,
         "avon_name": avon_name,
         "wystawil": wystawil,
+        "pola": pola_namespace,
         "body_font_family":          _settings["body_font_family"],
         "header_font_family":        _settings["header_font_family"],
         "header_font_size_pt":       _settings["header_font_size_pt"],       # legacy
