@@ -413,6 +413,37 @@
 
 /* ═══ COMPLETED VIEW (hero style) ═══ */
 .cv-hero { border-radius: 10px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 14px; }
+/* Dynamic produkt_pola fields (after hero, before params) */
+.cv-extra-section {
+    background: var(--surface, #fff);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 14px;
+}
+.cv-extra-section .cv-params-head {
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-sec);
+}
+.cv-extra-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 18px; }
+.cv-extra-grid .cv-extra-row {
+    display: flex; flex-direction: column; gap: 3px;
+    font-size: 12px;
+}
+.cv-extra-grid label { font-size: 11px; color: var(--text-sec); }
+.cv-extra-grid input {
+    width: 100%;
+    padding: 5px 8px;
+    font-size: 13px;
+    font-family: var(--mono);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    box-sizing: border-box;
+    background: #fff;
+}
+.cv-extra-grid input:disabled { background: #f5f5f5; color: var(--text-dim); }
+.cv-extra-grid input.cv-extra-saved { border-color: var(--green, #22c55e); }
+.cv-extra-grid input.cv-extra-error { border-color: var(--red, #ef4444); }
 /* Hero sticker card — exact mockup V2 */
 .cv-h2-card {
     background: var(--surface-alt); border: 1.5px solid var(--border);
@@ -1175,6 +1206,97 @@ var _etapyConfig = {{ etapy_config | default({}, true) | tojson }};
 window._etapyStatus = _etapyStatus;
 
 var TITR_TAGS_LEGACY = ['procent_sa', 'procent_nacl', 'procent_aa', 'procent_so3', 'procent_h2o2', 'lk', 'le_liczba_kwasowa'];
+
+// ── Dynamic produkt_pola (scope=produkt, miejsca=hero) ─────────────────────
+async function renderHeroExtras(ebrIdLocal, typ) {
+    var section = document.getElementById('cv-extra-section');
+    var grid = document.getElementById('cv-extra-fields');
+    if (!section || !grid) return;
+    grid.innerHTML = '';
+    section.style.display = 'none';
+    if (!ebrIdLocal) return;
+    var produktName = window._batchProdukt || '';
+    var produktId = null;
+    try {
+        var pr = await fetch('/api/produkty');
+        var produkty = await pr.json();
+        var p = produkty.find(function(x) { return x.nazwa === produktName; });
+        if (!p) return;
+        produktId = p.id;
+    } catch (e) { return; }
+    var defResp, valResp;
+    try {
+        var defR = await fetch('/api/produkt-pola?scope=produkt&scope_id=' + encodeURIComponent(produktId));
+        defResp = await defR.json();
+        var valR = await fetch('/api/ebr/' + ebrIdLocal + '/pola');
+        valResp = await valR.json();
+    } catch (e) { return; }
+    var pola = (defResp.pola || []).filter(function(pole) {
+        if (!pole.miejsca || pole.miejsca.indexOf('hero') < 0) return false;
+        if (pole.typy_rejestracji && pole.typy_rejestracji.length
+            && pole.typy_rejestracji.indexOf(typ) < 0) return false;
+        return true;
+    });
+    if (!pola.length) return;
+    section.style.display = 'block';
+    var wartosci = (valResp && valResp.wartosci) || {};
+    var canEdit = (typeof userRola !== 'undefined' && userRola !== 'technolog');
+    function _esc(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+    pola.forEach(function(pole) {
+        var wrap = document.createElement('div');
+        wrap.className = 'cv-extra-row';
+        var unit = pole.jednostka ? ' [' + _esc(pole.jednostka) + ']' : '';
+        var star = pole.obowiazkowe ? ' <span style="color:var(--red);">*</span>' : '';
+        var inputType = pole.typ_danych === 'date' ? 'date' : 'text';
+        var initVal = wartosci[pole.kod] != null ? wartosci[pole.kod] : '';
+        wrap.innerHTML =
+            '<label>' + _esc(pole.label_pl || pole.kod) + unit + star + '</label>' +
+            '<input type="' + inputType + '"' +
+            ' data-pole-id="' + pole.id + '"' +
+            ' data-kod="' + _esc(pole.kod) + '"' +
+            ' data-typ="' + _esc(pole.typ_danych || 'text') + '"' +
+            ' value="' + _esc(initVal) + '"' +
+            (canEdit ? '' : ' disabled') + '>';
+        grid.appendChild(wrap);
+    });
+    if (canEdit) {
+        grid.querySelectorAll('input').forEach(function(inp) {
+            inp.addEventListener('blur', function() { saveHeroPole(ebrIdLocal, inp); });
+        });
+    }
+}
+
+async function saveHeroPole(ebrIdLocal, inp) {
+    var poleId = inp.dataset.poleId;
+    var raw = inp.value;
+    var val = raw === '' ? null : raw;
+    inp.classList.remove('cv-extra-error');
+    inp.classList.remove('cv-extra-saved');
+    try {
+        var r = await fetch('/api/ebr/' + ebrIdLocal + '/pola/' + poleId, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({wartosc: val}),
+        });
+        if (!r.ok) {
+            var d = {};
+            try { d = await r.json(); } catch (e) {}
+            alert('Błąd zapisu pola "' + (inp.dataset.kod || '') + '": ' + (d.error || r.status));
+            inp.classList.add('cv-extra-error');
+            return;
+        }
+        inp.classList.add('cv-extra-saved');
+        setTimeout(function() { inp.classList.remove('cv-extra-saved'); }, 1500);
+    } catch (e) {
+        alert('Błąd sieci przy zapisie pola dodatkowego.');
+        inp.classList.add('cv-extra-error');
+    }
+}
+window.renderHeroExtras = renderHeroExtras;
 
 function getPola(sekcja, grupaFilter, fromAll) {
     var source = fromAll ? parametryAll : parametry;
@@ -1962,7 +2084,14 @@ function renderCompletedView() {
     });
     paramsHtml += '</div>';
 
-    var html = heroHtml + paramsHtml;
+    // Dynamic produkt_pola section (rendered async after container mount)
+    var heroExtrasHtml = '<div id="cv-extra-section" class="cv-extra-section" style="display:none;">' +
+        '<div class="cv-params-head" style="display:flex;align-items:center;justify-content:space-between;">' +
+            '<span>Pola dodatkowe</span>' +
+        '</div>' +
+        '<div id="cv-extra-fields" class="cv-extra-grid" style="padding:10px 14px;"></div>' +
+    '</div>';
+    var html = heroHtml + heroExtrasHtml + paramsHtml;
 
     // Render uwagi_koncowe block if loaded
     if (_uwagiState !== null) {
@@ -2009,6 +2138,8 @@ function renderCompletedView() {
     setTimeout(loadCompletedZbiorniki, 100);
     if (isPlatkowanie) loadCompletedSubstraty();
     if (canIssueCert) loadCompletedCerts();
+    // Dynamic produkt_pola — fetch defs + values + render with inline edit
+    if (typeof renderHeroExtras === 'function') renderHeroExtras(ebrId, ebrTyp);
 
     // Dynamic topbar — hide when hero visible, show on scroll past hero
     var topbar = document.getElementById('topbar');
