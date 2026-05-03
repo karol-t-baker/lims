@@ -114,6 +114,47 @@ def test_post_produkt_pola_requires_admin_or_technolog(monkeypatch, db):
     assert r.status_code == 403
 
 
+def test_put_produkt_pola_update_label(monkeypatch, db):
+    pid = pp.create_pole(db, {
+        "scope": "produkt", "scope_id": 9001, "kod": "k",
+        "label_pl": "Stary", "typ_danych": "text", "miejsca": [],
+    }, user_id=9001)
+    db.commit()
+    c = _client(monkeypatch, db)
+    r = c.put(f"/api/produkt-pola/{pid}", json={"label_pl": "Nowy"})
+    assert r.status_code == 200
+    row = db.execute(
+        "SELECT label_pl FROM produkt_pola WHERE id=?", (pid,)
+    ).fetchone()
+    assert row["label_pl"] == "Nowy"
+
+
+def test_put_produkt_pola_kod_immutable(monkeypatch, db):
+    pid = pp.create_pole(db, {
+        "scope": "produkt", "scope_id": 9001, "kod": "k",
+        "label_pl": "L", "typ_danych": "text", "miejsca": [],
+    }, user_id=9001)
+    db.commit()
+    c = _client(monkeypatch, db)
+    r = c.put(f"/api/produkt-pola/{pid}", json={"kod": "inny"})
+    assert r.status_code == 400
+
+
+def test_delete_produkt_pola_soft(monkeypatch, db):
+    pid = pp.create_pole(db, {
+        "scope": "produkt", "scope_id": 9001, "kod": "k",
+        "label_pl": "L", "typ_danych": "text", "miejsca": [],
+    }, user_id=9001)
+    db.commit()
+    c = _client(monkeypatch, db)
+    r = c.delete(f"/api/produkt-pola/{pid}")
+    assert r.status_code == 200
+    row = db.execute(
+        "SELECT aktywne FROM produkt_pola WHERE id=?", (pid,)
+    ).fetchone()
+    assert row["aktywne"] == 0
+
+
 def test_get_ebr_pola_returns_values(monkeypatch, db):
     db.execute(
         "INSERT INTO mbr_templates (mbr_id, produkt, wersja, status, etapy_json, "

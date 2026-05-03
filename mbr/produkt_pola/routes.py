@@ -71,6 +71,33 @@ def create_pole_endpoint():
     return jsonify({"pole_id": pole_id}), 201
 
 
+@produkt_pola_bp.route("/api/produkt-pola/<int:pole_id>", methods=["PUT"])
+@role_required("admin", "technolog")
+def update_pole_endpoint(pole_id: int):
+    patch = request.get_json(silent=True) or {}
+    user_id = _current_user_id()
+    with db_session() as db:
+        try:
+            pp.update_pole(db, pole_id, patch, user_id=user_id)
+            db.commit()
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+    return jsonify({"ok": True})
+
+
+@produkt_pola_bp.route("/api/produkt-pola/<int:pole_id>", methods=["DELETE"])
+@role_required("admin", "technolog")
+def deactivate_pole_endpoint(pole_id: int):
+    user_id = _current_user_id()
+    with db_session() as db:
+        try:
+            pp.deactivate_pole(db, pole_id, user_id=user_id)
+            db.commit()
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 404
+    return jsonify({"ok": True})
+
+
 @produkt_pola_bp.route("/api/ebr/<int:ebr_id>/pola", methods=["GET"])
 @login_required
 def list_ebr_pola_values(ebr_id: int):
