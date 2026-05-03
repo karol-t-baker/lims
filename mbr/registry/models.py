@@ -47,6 +47,20 @@ def list_completed_registry(
         d["cert_count"] = cert["cnt"] if cert else 0
         result.append(d)
 
+    # Attach dynamic produkt_pola values per batch (scope=produkt, miejsca='ukonczone')
+    if result:
+        from mbr.shared.produkt_pola import get_wartosci_for_ebr
+        produkt_id_cache: dict = {}
+        for r in result:
+            prod_name = r.get("produkt")
+            if prod_name not in produkt_id_cache:
+                row = db.execute(
+                    "SELECT id FROM produkty WHERE nazwa=?", (prod_name,)
+                ).fetchone()
+                produkt_id_cache[prod_name] = row["id"] if row else None
+            pid = produkt_id_cache[prod_name]
+            r["pola"] = get_wartosci_for_ebr(db, r["ebr_id"], pid) if pid else {}
+
     # Attach zbiorniki links
     if result:
         from mbr.zbiorniki.models import get_zbiorniki_for_batch_ids
@@ -167,6 +181,32 @@ def get_registry_columns(db: sqlite3.Connection, produkt: str) -> list:
         ).fetchone() is not None
         if has_surowce:
             pola.append({"kod": "__surowce__", "label": "Surowce", "is_surowce": True})
+    except Exception:
+        pass
+
+    # Dynamic produkt_pola columns: scope=produkt, miejsca contains 'ukonczone'.
+    # Only fields defined for THIS produkt and currently active are included.
+    try:
+        prod_row = db.execute(
+            "SELECT id FROM produkty WHERE nazwa=?", (produkt,)
+        ).fetchone()
+        if prod_row is not None:
+            pola_rows = db.execute(
+                "SELECT kod, label_pl, jednostka, kolejnosc FROM produkt_pola "
+                "WHERE scope='produkt' AND scope_id=? AND aktywne=1 "
+                "  AND miejsca LIKE '%\"ukonczone\"%' "
+                "ORDER BY kolejnosc, id",
+                (prod_row["id"],),
+            ).fetchall()
+            for r in pola_rows:
+                label = r["label_pl"] or r["kod"]
+                if r["jednostka"]:
+                    label = f"{label} [{r['jednostka']}]"
+                pola.append({
+                    "kod": f"pola.{r['kod']}",
+                    "label": label,
+                    "is_pola": True,
+                })
     except Exception:
         pass
 
