@@ -49,6 +49,28 @@ def list_pola():
     return jsonify({"pola": pola})
 
 
+@produkt_pola_bp.route("/api/produkt-pola", methods=["POST"])
+@role_required("admin", "technolog")
+def create_pole_endpoint():
+    payload = request.get_json(silent=True) or {}
+    user_id = _current_user_id()
+    with db_session() as db:
+        try:
+            pole_id = pp.create_pole(db, payload, user_id=user_id)
+            db.commit()
+        except ValueError as e:
+            return jsonify({"error": str(e)}), 400
+        except Exception as e:
+            # UNIQUE constraint -> conflict
+            msg = str(e)
+            if "UNIQUE" in msg or "constraint" in msg.lower():
+                return jsonify({
+                    "error": "kod already exists for this scope+scope_id"
+                }), 409
+            raise
+    return jsonify({"pole_id": pole_id}), 201
+
+
 @produkt_pola_bp.route("/api/ebr/<int:ebr_id>/pola", methods=["GET"])
 @login_required
 def list_ebr_pola_values(ebr_id: int):

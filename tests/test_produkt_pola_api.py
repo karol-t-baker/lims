@@ -67,6 +67,53 @@ def test_get_produkt_pola_returns_active_fields(monkeypatch, db):
     assert pola[0]["miejsca"] == ["modal"]
 
 
+def test_post_produkt_pola_create(monkeypatch, db):
+    c = _client(monkeypatch, db)
+    r = c.post("/api/produkt-pola", json={
+        "scope": "produkt", "scope_id": 9001, "kod": "nr_zam",
+        "label_pl": "Nr zamowienia", "typ_danych": "text",
+        "miejsca": ["modal", "hero", "ukonczone"],
+        "kolejnosc": 10,
+    })
+    assert r.status_code == 201, r.json
+    pid = r.json["pole_id"]
+    row = db.execute("SELECT * FROM produkt_pola WHERE id=?", (pid,)).fetchone()
+    assert row["kod"] == "nr_zam"
+
+
+def test_post_produkt_pola_invalid_kod(monkeypatch, db):
+    c = _client(monkeypatch, db)
+    r = c.post("/api/produkt-pola", json={
+        "scope": "produkt", "scope_id": 9001,
+        "kod": "Bad Kod!", "label_pl": "L", "typ_danych": "text", "miejsca": [],
+    })
+    assert r.status_code == 400
+    assert "kod" in (r.json.get("error") or "")
+
+
+def test_post_produkt_pola_duplicate_409(monkeypatch, db):
+    pp.create_pole(db, {
+        "scope": "produkt", "scope_id": 9001, "kod": "dupl",
+        "label_pl": "L", "typ_danych": "text", "miejsca": [],
+    }, user_id=9001)
+    db.commit()
+    c = _client(monkeypatch, db)
+    r = c.post("/api/produkt-pola", json={
+        "scope": "produkt", "scope_id": 9001, "kod": "dupl",
+        "label_pl": "L2", "typ_danych": "text", "miejsca": [],
+    })
+    assert r.status_code == 409
+
+
+def test_post_produkt_pola_requires_admin_or_technolog(monkeypatch, db):
+    c = _client(monkeypatch, db, rola="lab")
+    r = c.post("/api/produkt-pola", json={
+        "scope": "produkt", "scope_id": 9001, "kod": "k", "label_pl": "L",
+        "typ_danych": "text", "miejsca": [],
+    })
+    assert r.status_code == 403
+
+
 def test_get_ebr_pola_returns_values(monkeypatch, db):
     db.execute(
         "INSERT INTO mbr_templates (mbr_id, produkt, wersja, status, etapy_json, "
