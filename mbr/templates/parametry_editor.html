@@ -375,6 +375,7 @@
     {% if is_admin %}
     <button class="pe-tab" id="tab-prod" onclick="switchTab('prod')">Produkty</button>
     {% endif %}
+    <button class="pe-tab" id="tab-pola" onclick="switchTab('pola')">Pola dodatkowe</button>
   </div>
 
   <!-- Panel: Etapy (bindings editor) -->
@@ -491,6 +492,110 @@
     </div>
   </div>
   {% endif %}
+
+  <!-- Panel: Pola dodatkowe (per produkt) -->
+  <div id="panel-pola" style="display:none;">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;">
+      <label style="font-size:11px;font-weight:700;color:var(--text-sec);">Produkt:</label>
+      <select id="pp-produkt-sel" class="pa-select" style="border-color:var(--border);min-width:240px;" onchange="ppOnProduktChange()">
+        <option value="">— wybierz —</option>
+      </select>
+    </div>
+    <div id="pp-section-produkt" data-produkt-id="" style="display:none;">
+      <p style="font-size:11px;color:var(--text-dim);margin:4px 0 12px;">
+        Pola wpisywane przez laboranta w modalu / Hero, widoczne w widoku Ukończone.
+      </p>
+      <table class="pa-table" id="pp-table">
+        <thead>
+          <tr>
+            <th>Kod</th>
+            <th>Etykieta</th>
+            <th style="width:90px;">Typ</th>
+            <th>Miejsca</th>
+            <th>Typy rejestracji</th>
+            <th style="width:50px;text-align:center;">Obow.</th>
+            <th style="width:50px;text-align:center;">Kol.</th>
+            <th style="width:160px;"></th>
+          </tr>
+        </thead>
+        <tbody id="pp-tbody-produkt"></tbody>
+      </table>
+      <div class="pa-add" style="margin-top:12px;">
+        <button id="pp-add-produkt" type="button">+ Dodaj pole</button>
+      </div>
+    </div>
+    <div id="pp-empty" style="font-size:12px;color:var(--text-dim);padding:20px;text-align:center;">
+      Wybierz produkt z listy powyżej.
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Modal: Dodaj/Edytuj pole produkt_pola ═══ -->
+<div id="pp-modal" style="position:fixed;inset:0;z-index:600;background:rgba(15,12,8,0.45);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;" onclick="if(event.target===this)ppCloseModal()">
+  <div style="background:var(--surface);border-radius:8px;width:90vw;max-width:520px;box-shadow:0 8px 32px rgba(0,0,0,.2);">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);">
+      <span id="pp-modal-title" style="font-weight:700;">Nowe pole</span>
+      <button onclick="ppCloseModal()" style="background:none;border:none;font-size:20px;color:var(--text-dim);cursor:pointer;">×</button>
+    </div>
+    <div style="padding:18px 22px;">
+      <input type="hidden" id="pp-pole-id" value="">
+      <input type="hidden" id="pp-scope" value="">
+      <input type="hidden" id="pp-scope-id" value="">
+
+      <div style="margin-bottom:12px;">
+        <label style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px;">Kod (snake_case) *</label>
+        <input id="pp-kod" type="text" pattern="^[a-z][a-z0-9_]*$" placeholder="np. nr_zamowienia" style="width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:5px;font-family:var(--mono);font-size:12px;box-sizing:border-box;">
+        <div style="font-size:10px;color:var(--text-dim);margin-top:3px;">Litery a-z, cyfry, podkreślnik. Read-only po utworzeniu.</div>
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <label style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px;">Etykieta PL *</label>
+        <input id="pp-label" type="text" placeholder="np. Numer zamówienia" style="width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;box-sizing:border-box;">
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+        <div>
+          <label style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px;">Typ danych *</label>
+          <select id="pp-typ" style="width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;box-sizing:border-box;">
+            <option value="text">text</option>
+            <option value="number">number</option>
+            <option value="date">date</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px;">Jednostka</label>
+          <input id="pp-jedn" type="text" placeholder="np. kg, %" style="width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;box-sizing:border-box;">
+        </div>
+      </div>
+
+      <fieldset style="margin-bottom:12px;padding:10px 12px;border:1px solid var(--border);border-radius:5px;">
+        <legend style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;padding:0 6px;">Miejsca</legend>
+        <label style="display:inline-block;margin-right:14px;font-size:12px;"><input type="checkbox" class="pp-miejsce" value="modal"> Modal tworzenia</label>
+        <label style="display:inline-block;margin-right:14px;font-size:12px;"><input type="checkbox" class="pp-miejsce" value="hero"> Hero (edycja)</label>
+        <label style="display:inline-block;font-size:12px;"><input type="checkbox" class="pp-miejsce" value="ukonczone"> Widok Ukończone</label>
+      </fieldset>
+
+      <fieldset style="margin-bottom:12px;padding:10px 12px;border:1px solid var(--border);border-radius:5px;">
+        <legend style="font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;padding:0 6px;">Typy rejestracji (puste = wszystkie)</legend>
+        <label style="display:inline-block;margin-right:14px;font-size:12px;"><input type="checkbox" class="pp-typ-rej" value="szarza"> Szarża</label>
+        <label style="display:inline-block;margin-right:14px;font-size:12px;"><input type="checkbox" class="pp-typ-rej" value="zbiornik"> Zbiornik</label>
+        <label style="display:inline-block;font-size:12px;"><input type="checkbox" class="pp-typ-rej" value="platkowanie"> Płatkowanie</label>
+      </fieldset>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+        <label style="font-size:12px;display:flex;align-items:center;gap:6px;"><input type="checkbox" id="pp-obow"> Obowiązkowe (gwiazdka, bez blokady)</label>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px;">Kolejność</label>
+          <input id="pp-kol" type="number" value="0" style="width:100%;padding:7px 10px;border:1.5px solid var(--border);border-radius:5px;font-size:12px;box-sizing:border-box;">
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px;">
+        <button id="pp-cancel" type="button" onclick="ppCloseModal()" style="padding:7px 14px;background:var(--surface-alt);color:var(--text);border:1px solid var(--border);border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;">Anuluj</button>
+        <button id="pp-save" type="button" style="padding:7px 16px;background:var(--teal);color:#fff;border:none;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;">Zapisz</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- ═══ Add Parameter Modal (Rejestr) ═══ -->
@@ -1708,7 +1813,7 @@ function rejRefreshBanner() {
 // ═══ TAB SWITCHING ═══
 
 function switchTab(which) {
-  ['bind', 'def', 'prod'].forEach(function(t) {
+  ['bind', 'def', 'prod', 'pola'].forEach(function(t) {
     var tab = document.getElementById('tab-' + t);
     var panel = document.getElementById('panel-' + t);
     if (tab) tab.classList.toggle('pe-tab-active', t === which);
@@ -1716,6 +1821,7 @@ function switchTab(which) {
   });
   if (which === 'def' && _rejParams.length === 0) rejLoadParams();
   if (which === 'prod' && !_prodLoaded) loadProdukty();
+  if (which === 'pola' && !_ppProdSelLoaded) ppLoadProduktSel();
 }
 
 // ═══ PRODUKTY TAB ═══
@@ -1803,6 +1909,194 @@ function addProdukt() {
     } else { alert(d.error || 'Błąd'); }
   });
 }
+
+// ═══ POLA DODATKOWE TAB (produkt_pola CRUD) ═══
+
+var _ppProdSelLoaded = false;
+
+function ppLoadProduktSel() {
+  fetch('/api/produkty?all=1').then(function(r){return r.json();}).then(function(data){
+    var sel = document.getElementById('pp-produkt-sel');
+    var html = '<option value="">— wybierz —</option>';
+    (data || []).forEach(function(p) {
+      if (!p.aktywny) return;
+      var label = (p.display_name || p.nazwa || '').replace(/_/g, ' ');
+      html += '<option value="' + p.id + '">' + esc(label) + '</option>';
+    });
+    sel.innerHTML = html;
+    _ppProdSelLoaded = true;
+  });
+}
+
+function ppOnProduktChange() {
+  var sel = document.getElementById('pp-produkt-sel');
+  var produktId = parseInt(sel.value, 10);
+  var sec = document.getElementById('pp-section-produkt');
+  var empty = document.getElementById('pp-empty');
+  if (!produktId) {
+    sec.style.display = 'none';
+    sec.dataset.produktId = '';
+    empty.style.display = '';
+    return;
+  }
+  sec.dataset.produktId = String(produktId);
+  sec.style.display = '';
+  empty.style.display = 'none';
+  ppRefreshTable(produktId);
+}
+
+function ppFetchPola(produktId) {
+  return fetch('/api/produkt-pola?scope=produkt&scope_id=' + encodeURIComponent(produktId) + '&only_active=0')
+    .then(function(r){return r.json();}).then(function(d){ return d.pola || []; });
+}
+
+function ppRenderRow(p) {
+  var miejsca = (p.miejsca || []).join(', ') || '—';
+  var typy = (p.typy_rejestracji && p.typy_rejestracji.length) ? p.typy_rejestracji.join(', ') : '(wszystkie)';
+  var typLabel = p.typ_danych + (p.jednostka ? ' [' + esc(p.jednostka) + ']' : '');
+  var actions = '<button type="button" class="pp-edit" data-id="' + p.id + '" style="padding:3px 10px;background:var(--surface-alt);color:var(--text);border:1px solid var(--border);border-radius:4px;font-size:10px;cursor:pointer;">Edytuj</button>';
+  if (p.aktywne) {
+    actions += ' <button type="button" class="pp-deact" data-id="' + p.id + '" style="padding:3px 10px;background:var(--surface-alt);color:var(--red,#dc2626);border:1px solid var(--border);border-radius:4px;font-size:10px;cursor:pointer;margin-left:4px;">Wyłącz</button>';
+  } else {
+    actions += ' <span style="font-size:10px;color:var(--text-dim);margin-left:4px;font-style:italic;">(nieaktywne)</span>';
+  }
+  var rowStyle = p.aktywne ? '' : ' style="opacity:0.5;"';
+  return '<tr data-id="' + p.id + '"' + rowStyle + '>' +
+    '<td><span class="pa-kod">' + esc(p.kod) + '</span></td>' +
+    '<td>' + esc(p.label_pl) + (p.obowiazkowe ? ' <span style="color:var(--red,#dc2626);" title="obowiązkowe">*</span>' : '') + '</td>' +
+    '<td style="font-size:11px;">' + esc(typLabel) + '</td>' +
+    '<td style="font-size:11px;color:var(--text-sec);">' + esc(miejsca) + '</td>' +
+    '<td style="font-size:11px;color:var(--text-sec);">' + esc(typy) + '</td>' +
+    '<td style="text-align:center;">' + (p.obowiazkowe ? '✓' : '') + '</td>' +
+    '<td style="text-align:center;font-family:var(--mono);font-size:11px;">' + (p.kolejnosc || 0) + '</td>' +
+    '<td>' + actions + '</td>' +
+  '</tr>';
+}
+
+function ppRefreshTable(produktId) {
+  ppFetchPola(produktId).then(function(pola) {
+    var tbody = document.getElementById('pp-tbody-produkt');
+    if (!pola.length) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:18px;font-style:italic;">Brak pól dla tego produktu. Dodaj pierwsze pole przyciskiem poniżej.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = pola.map(ppRenderRow).join('');
+  });
+}
+
+function ppOpenModal(scope, scopeId, existing) {
+  var title = document.getElementById('pp-modal-title');
+  title.textContent = existing ? 'Edytuj pole' : 'Nowe pole';
+  document.getElementById('pp-pole-id').value = existing ? existing.id : '';
+  document.getElementById('pp-scope').value = scope;
+  document.getElementById('pp-scope-id').value = scopeId;
+  var kodInp = document.getElementById('pp-kod');
+  kodInp.value = existing ? existing.kod : '';
+  kodInp.disabled = !!existing;
+  document.getElementById('pp-label').value = existing ? existing.label_pl : '';
+  document.getElementById('pp-typ').value = existing ? existing.typ_danych : 'text';
+  document.getElementById('pp-jedn').value = existing ? (existing.jednostka || '') : '';
+  document.querySelectorAll('.pp-miejsce').forEach(function(cb) {
+    cb.checked = existing ? (existing.miejsca || []).indexOf(cb.value) >= 0 : false;
+  });
+  document.querySelectorAll('.pp-typ-rej').forEach(function(cb) {
+    var tr = existing ? existing.typy_rejestracji : null;
+    cb.checked = !!(tr && tr.indexOf(cb.value) >= 0);
+  });
+  document.getElementById('pp-obow').checked = existing ? !!existing.obowiazkowe : false;
+  document.getElementById('pp-kol').value = existing ? (existing.kolejnosc || 0) : 0;
+  var modal = document.getElementById('pp-modal');
+  modal.style.display = 'flex';
+}
+
+function ppCloseModal() {
+  document.getElementById('pp-modal').style.display = 'none';
+}
+
+function ppCollectPayload() {
+  var miejsca = [];
+  document.querySelectorAll('.pp-miejsce:checked').forEach(function(cb) { miejsca.push(cb.value); });
+  var typy = [];
+  document.querySelectorAll('.pp-typ-rej:checked').forEach(function(cb) { typy.push(cb.value); });
+  var jed = document.getElementById('pp-jedn').value.trim();
+  return {
+    scope: document.getElementById('pp-scope').value,
+    scope_id: parseInt(document.getElementById('pp-scope-id').value, 10),
+    kod: document.getElementById('pp-kod').value.trim(),
+    label_pl: document.getElementById('pp-label').value.trim(),
+    typ_danych: document.getElementById('pp-typ').value,
+    jednostka: jed || null,
+    miejsca: miejsca,
+    typy_rejestracji: typy.length ? typy : null,
+    obowiazkowe: document.getElementById('pp-obow').checked,
+    kolejnosc: parseInt(document.getElementById('pp-kol').value, 10) || 0,
+  };
+}
+
+// Delegate clicks for the pola section
+document.addEventListener('click', function(e) {
+  var sec = document.getElementById('pp-section-produkt');
+  if (!sec) return;
+  // Add new pole button
+  if (e.target && e.target.id === 'pp-add-produkt') {
+    var pid = parseInt(sec.dataset.produktId, 10);
+    if (!pid) { alert('Najpierw wybierz produkt.'); return; }
+    ppOpenModal('produkt', pid, null);
+    return;
+  }
+  // Edit existing pole
+  if (e.target && e.target.classList && e.target.classList.contains('pp-edit')) {
+    var pid2 = parseInt(sec.dataset.produktId, 10);
+    var poleId = parseInt(e.target.dataset.id, 10);
+    if (!pid2 || !poleId) return;
+    ppFetchPola(pid2).then(function(pola) {
+      var existing = pola.filter(function(p) { return p.id === poleId; })[0];
+      if (existing) ppOpenModal('produkt', pid2, existing);
+    });
+    return;
+  }
+  // Deactivate (soft-delete)
+  if (e.target && e.target.classList && e.target.classList.contains('pp-deact')) {
+    var pid3 = parseInt(sec.dataset.produktId, 10);
+    var poleId2 = parseInt(e.target.dataset.id, 10);
+    if (!pid3 || !poleId2) return;
+    if (!confirm('Wyłączyć to pole? (soft-delete — można reaktywować)')) return;
+    fetch('/api/produkt-pola/' + poleId2, {method: 'DELETE'})
+      .then(function(r) { return r.json().then(function(d){ return {status: r.status, body: d}; }); })
+      .then(function(res) {
+        if (res.status >= 400) { alert('Błąd: ' + (res.body.error || 'unknown')); return; }
+        ppRefreshTable(pid3);
+      });
+    return;
+  }
+  // Save (create or update)
+  if (e.target && e.target.id === 'pp-save') {
+    var payload = ppCollectPayload();
+    if (!payload.kod || !payload.label_pl) {
+      alert('Kod i etykieta są wymagane.');
+      return;
+    }
+    var poleId3 = document.getElementById('pp-pole-id').value;
+    var url = poleId3 ? ('/api/produkt-pola/' + poleId3) : '/api/produkt-pola';
+    var method = poleId3 ? 'PUT' : 'POST';
+    fetch(url, {
+      method: method,
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    })
+      .then(function(r) { return r.json().then(function(d){ return {status: r.status, body: d}; }); })
+      .then(function(res) {
+        if (res.status >= 400) {
+          alert('Błąd: ' + (res.body.error || 'unknown'));
+          return;
+        }
+        ppCloseModal();
+        var pid4 = parseInt(document.getElementById('pp-section-produkt').dataset.produktId, 10);
+        if (pid4) ppRefreshTable(pid4);
+      });
+    return;
+  }
+});
 
 // Init — no eager loading needed; tabs load on demand
 </script>
