@@ -255,6 +255,14 @@
           </div>
         </div>
 
+        {# Pola dodatkowe (dynamiczne z produkt_pola, scope=produkt, miejsca='modal') #}
+        <div class="ns-extra-section" id="ns-extra-section" style="display:none;">
+          <div class="form-row" style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px;">
+            <div class="form-label">Pola dodatkowe</div>
+            <div id="ns-extra-fields"></div>
+          </div>
+        </div>
+
         {# Footer #}
         <div class="modal-footer" id="modal-footer" style="display:none;">
           <button type="button" class="m-btn-back" onclick="backToStep1()">
@@ -500,6 +508,57 @@ async function _onProductSelected(produktName) {
     } else if (currentTyp === 'platkowanie') {
         await _loadSubstraty(produktName);
     }
+    _renderModalExtras(produktName, currentTyp);
+}
+
+function _htmlEscModal(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+async function _renderModalExtras(produktName, typ) {
+    var section = document.getElementById('ns-extra-section');
+    var fields = document.getElementById('ns-extra-fields');
+    if (!section || !fields) return;
+    fields.innerHTML = '';
+    section.style.display = 'none';
+    var list = window._modalProdukty || [];
+    var p = list.find(function(pr) { return pr.nazwa === produktName; });
+    if (!p || p.id == null) return;
+    try {
+        var r = await fetch('/api/produkt-pola?scope=produkt&scope_id=' + encodeURIComponent(p.id));
+        var d = await r.json();
+        var pola = (d.pola || []).filter(function(pole) {
+            if (!pole.miejsca || pole.miejsca.indexOf('modal') < 0) return false;
+            if (pole.typy_rejestracji && pole.typy_rejestracji.length
+                && pole.typy_rejestracji.indexOf(typ) < 0) return false;
+            return true;
+        });
+        if (!pola.length) return;
+        section.style.display = 'block';
+        pola.forEach(function(pole) {
+            var wrap = document.createElement('div');
+            wrap.className = 'ns-extra-row';
+            wrap.style.cssText = 'margin:6px 0;display:flex;flex-direction:column;gap:3px;';
+            var label = _htmlEscModal(pole.label_pl || pole.kod);
+            var unit = pole.jednostka ? ' [' + _htmlEscModal(pole.jednostka) + ']' : '';
+            var star = pole.obowiazkowe ? ' <span style="color:var(--red);">*</span>' : '';
+            var inputType = pole.typ_danych === 'date' ? 'date' : 'text';
+            var inputmode = pole.typ_danych === 'number' ? 'decimal' : 'text';
+            wrap.innerHTML =
+                '<label style="font-size:12px;color:var(--text-sec);">' + label + unit + star + '</label>' +
+                '<input class="form-input ns-extra-input" type="' + inputType + '"' +
+                ' name="pola[' + pole.id + ']"' +
+                ' inputmode="' + inputmode + '"' +
+                ' data-pole-id="' + pole.id + '"' +
+                ' data-obowiazkowe="' + (pole.obowiazkowe ? '1' : '0') + '">';
+            fields.appendChild(wrap);
+        });
+    } catch (e) {
+        // Silently ignore — modal still works without dynamic fields
+        section.style.display = 'none';
+    }
 }
 
 function openNewBatchModal() {
@@ -644,6 +703,11 @@ function clearProduct(context) {
   if (selected) selected.style.display = 'none';
   var qp = step.querySelector('[id^="quick-pick-"]');
   if (qp) qp.querySelectorAll('.qp-btn').forEach(function(p) { p.classList.remove('active'); });
+  // Reset dynamic produkt_pola section when product is cleared
+  var extraSection = document.getElementById('ns-extra-section');
+  var extraFields = document.getElementById('ns-extra-fields');
+  if (extraSection) extraSection.style.display = 'none';
+  if (extraFields) extraFields.innerHTML = '';
   if (context === 'szarza') {
     document.getElementById('nr-partii-input').value = '';
     document.getElementById('auto-nr-szarza').style.display = 'none';

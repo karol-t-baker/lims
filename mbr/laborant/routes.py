@@ -23,6 +23,23 @@ from mbr.laborant.models import (
 )
 
 
+def _resolve_current_user_id(db) -> int | None:
+    """Resolve the current user's worker.id from session login (nickname/inicjaly).
+
+    Used by produkt_pola DAO calls (which expect a numeric user_id for audit
+    actor resolution). Falls back to ``None`` when no match is found.
+    """
+    user = session.get("user") or {}
+    login = user.get("login")
+    if not login:
+        return None
+    row = db.execute(
+        "SELECT id FROM workers WHERE nickname=? OR inicjaly=?",
+        (login, login),
+    ).fetchone()
+    return row["id"] if row else None
+
+
 def _resolve_actor_label(db, override: str = None) -> str:
     """Resolve a human-readable actor string for write operations.
 
@@ -140,6 +157,30 @@ def szarze_new():
                             (ebr_id, sub_id, nr),
                         )
             except Exception:
+                pass
+
+            # Persist dynamic produkt_pola values from modal (form keys: pola[<id>])
+            try:
+                from mbr.shared import produkt_pola as _pp
+                pola_payload = {}
+                for k, v in request.form.items():
+                    if k.startswith("pola[") and k.endswith("]"):
+                        try:
+                            pid = int(k[5:-1])
+                        except ValueError:
+                            continue
+                        if v:
+                            pola_payload[pid] = v
+                if pola_payload:
+                    user_id = _resolve_current_user_id(db)
+                    for pid, val in pola_payload.items():
+                        try:
+                            _pp.set_wartosc(db, ebr_id, pid, val, user_id=user_id)
+                        except ValueError:
+                            # Invalid value silently skipped — modal validation should catch
+                            pass
+            except Exception:
+                # Pola persistence is non-critical for batch creation
                 pass
 
             # Initialize pipeline session (first analytical stage)
