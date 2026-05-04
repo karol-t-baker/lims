@@ -506,8 +506,16 @@
         <input type="checkbox" id="wc-show-archived-variants" onchange="reloadVariantList()">
         Pokaż archiwalne warianty
       </label>
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
         <select class="wc-sel" id="wc-var-sel" onchange="onVariantSelect()" style="max-width:300px;"></select>
+        <button id="wc-var-archive-btn" class="wc-btn wc-btn-o wc-btn-sm" onclick="openArchiveModal()"
+                style="display:none;" title="Archiwizuj wybrany wariant">
+          Archiwizuj
+        </button>
+        <button id="wc-var-unarchive-btn" class="wc-btn wc-btn-o wc-btn-sm" onclick="unarchiveCurrentVariant()"
+                style="display:none;" title="Przywróć wariant z archiwum">
+          Przywróć
+        </button>
         <button class="wc-btn wc-btn-o wc-btn-sm" onclick="addVariant()">+ Nowy wariant</button>
         <button class="wc-btn wc-btn-d wc-btn-sm" id="wc-var-del" onclick="removeCurrentVariant()" style="display:none;">Usuń wariant</button>
       </div>
@@ -691,6 +699,34 @@
       <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;">
         <button class="wc-btn wc-btn-o" onclick="closeAddParamModal()">Anuluj</button>
         <button class="wc-btn wc-btn-p" onclick="confirmAddParam()">Dodaj</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Archive Variant Modal ═══ -->
+<div class="wc-modal" id="wc-archive-modal" onclick="if(event.target===this)closeArchiveModal()">
+  <div class="wc-modal-box" style="max-width:520px;height:auto;">
+    <div class="wc-modal-head">
+      <span id="wc-archive-modal-title" style="font-weight:700;">Archiwizuj wariant</span>
+      <button class="wc-modal-close" onclick="closeArchiveModal()">&times;</button>
+    </div>
+    <div style="padding:16px 20px;">
+      <p id="wc-archive-modal-count" style="font-size:12px;color:var(--text-sec);margin:0 0 12px;"></p>
+      <p style="font-size:12px;color:var(--text-sec);margin:0 0 8px;">
+        Możesz wpisać nazwę odbiorcy by uzupełnić ją wstecznie w starych
+        świadectwach tego wariantu — ułatwi to autocomplete przy przyszłych
+        certach.
+      </p>
+      <label class="wc-lbl">Recipient (opcjonalny)</label>
+      <input class="wc-inp" type="text" id="wc-archive-modal-recipient" autocomplete="off" placeholder="np. Avon Operations Sp. z o.o.">
+      <div style="font-size:10px;color:var(--text-dim);margin-top:4px;">
+        Propozycja sparsowana z label'a wariantu — możesz edytować lub usunąć.
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap;">
+        <button class="wc-btn wc-btn-o" onclick="closeArchiveModal()">Anuluj</button>
+        <button class="wc-btn wc-btn-o" onclick="submitArchive(false)">Archiwizuj bez backfill</button>
+        <button class="wc-btn wc-btn-p" onclick="submitArchive(true)">Archiwizuj + backfill</button>
       </div>
     </div>
   </div>
@@ -2188,6 +2224,106 @@ function onVariantSelect() {
       ? 'max-width:300px;border-style:dashed;opacity:.75;'
       : 'max-width:300px;';
   }
+  updateArchiveButtonsVisibility();
+}
+
+/* Toggle Archiwizuj / Przywróć buttons next to the variant select based on
+ * the currently-selected variant's archived flag. Hides both for the base
+ * variant (idx 0) and for variants without a numeric DB id (i.e. created in
+ * the editor but not yet saved). */
+function updateArchiveButtonsVisibility() {
+  var archBtn = document.getElementById('wc-var-archive-btn');
+  var unarchBtn = document.getElementById('wc-var-unarchive-btn');
+  if (!archBtn || !unarchBtn) return;
+  var v = _variantsData[_currentVarIdx];
+  var isBase = (_currentVarIdx === 0);
+  // Base variant cannot be archived; nor can unsaved variants (no db_id).
+  if (!v || isBase || !v.db_id) {
+    archBtn.style.display = 'none';
+    unarchBtn.style.display = 'none';
+    return;
+  }
+  archBtn.style.display = v.archived ? 'none' : 'inline-block';
+  unarchBtn.style.display = v.archived ? 'inline-block' : 'none';
+}
+
+/* ═══ Archive variant modal ═══ */
+
+var _archivePending = {variantId: null};
+
+function openArchiveModal() {
+  var v = _variantsData[_currentVarIdx];
+  if (!v || !v.db_id) {
+    alert('Wariant musi być zapisany przed archiwizacją.');
+    return;
+  }
+  var dbId = parseInt(v.db_id, 10);
+  if (!dbId) {
+    alert('Wariant musi być zapisany przed archiwizacją.');
+    return;
+  }
+  _archivePending.variantId = dbId;
+  // Pre-fill modal with placeholders while preview loads.
+  document.getElementById('wc-archive-modal-title').textContent =
+    'Archiwizuj wariant: ' + (v.label || v.id || '');
+  document.getElementById('wc-archive-modal-count').textContent = 'Ładowanie…';
+  document.getElementById('wc-archive-modal-recipient').value = '';
+  document.getElementById('wc-archive-modal').classList.add('show');
+  fetch('/api/cert/variants/' + dbId + '/archive-preview')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var n = (data && typeof data.swiadectwa_count === 'number') ? data.swiadectwa_count : 0;
+      document.getElementById('wc-archive-modal-count').textContent =
+        'Znaleziono ' + n + ' świadectw wystawionych z tego wariantu z pustym polem recipient_name.';
+      document.getElementById('wc-archive-modal-recipient').value =
+        (data && data.suggested_recipient) || '';
+    })
+    .catch(function(e) {
+      document.getElementById('wc-archive-modal-count').textContent =
+        'Nie udało się pobrać podglądu: ' + e;
+    });
+}
+
+function closeArchiveModal() {
+  document.getElementById('wc-archive-modal').classList.remove('show');
+  _archivePending.variantId = null;
+}
+
+function submitArchive(withBackfill) {
+  var variantId = _archivePending.variantId;
+  if (!variantId) return;
+  var body = {archived: true};
+  if (withBackfill) {
+    var rec = document.getElementById('wc-archive-modal-recipient').value.trim();
+    if (rec) body.backfill_recipient = rec;
+  }
+  fetch('/api/cert/variants/' + variantId + '/archive', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body),
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    closeArchiveModal();
+    reloadVariantList();
+  })
+  .catch(function(e) { alert('Błąd archiwizacji: ' + e); });
+}
+
+function unarchiveCurrentVariant() {
+  var v = _variantsData[_currentVarIdx];
+  if (!v || !v.db_id) return;
+  var dbId = parseInt(v.db_id, 10);
+  if (!dbId) return;
+  if (!confirm('Przywrócić wariant „' + (v.label || v.id || '') + '" z archiwum?')) return;
+  fetch('/api/cert/variants/' + dbId + '/archive', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({archived: false}),
+  })
+  .then(function(r) { return r.json(); })
+  .then(function() { reloadVariantList(); })
+  .catch(function(e) { alert('Błąd przywracania: ' + e); });
 }
 
 function showVariant(vi) {
@@ -2239,6 +2375,9 @@ function showVariant(vi) {
 
   // Stałe pola wariantu (scope=cert_variant) — wymaga zapisanego wariantu (db_id)
   if (typeof wcStaticOnVariant === 'function') wcStaticOnVariant(v);
+
+  // Archiwizuj / Przywróć buttons next to <select> reflect this variant.
+  if (typeof updateArchiveButtonsVisibility === 'function') updateArchiveButtonsVisibility();
 }
 
 function addVariant() {
