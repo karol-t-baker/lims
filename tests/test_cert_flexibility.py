@@ -87,3 +87,57 @@ def test_sanitize_empty_returns_empty():
 def test_sanitize_keeps_polish_chars_and_ampersand():
     from mbr.certs.generator import _sanitize_filename_segment
     assert _sanitize_filename_segment("Łódź & Co.") == "Łódź & Co."
+
+
+# ===========================================================================
+# Task 4: _cert_names with recipient + has_order_number
+# ===========================================================================
+
+def test_cert_names_baseline_unchanged():
+    """Old signature still works (legacy callers)."""
+    from mbr.certs.generator import _cert_names
+    folder, pdf, nr = _cert_names("Chegina_K7", "Chegina K7", "4/2026")
+    assert folder == "Chegina K7"
+    assert pdf == "Chegina K7 4.pdf"
+    assert nr == "4"
+
+
+def test_cert_names_with_recipient():
+    from mbr.certs.generator import _cert_names
+    _, pdf, _ = _cert_names("Chegina_K7", "Chegina K7", "4/2026",
+                            recipient_name="ADAM&PARTNER")
+    assert pdf == "Chegina K7 — ADAM&PARTNER 4.pdf"
+
+
+def test_cert_names_with_recipient_and_mb_variant():
+    from mbr.certs.generator import _cert_names
+    _, pdf, _ = _cert_names("Chegina_K7", "Chegina K7 — MB", "4/2026",
+                            recipient_name="ADAM&PARTNER")
+    assert pdf == "Chegina K7 MB — ADAM&PARTNER 4.pdf"
+
+
+def test_cert_names_recipient_with_slash_sanitized():
+    from mbr.certs.generator import _cert_names
+    _, pdf, _ = _cert_names("Chegina_K7", "Chegina K7", "4/2026",
+                            recipient_name="ADAM/Partner")
+    assert pdf == "Chegina K7 — ADAMPartner 4.pdf"
+
+
+def test_cert_names_empty_recipient_omitted():
+    from mbr.certs.generator import _cert_names
+    _, pdf, _ = _cert_names("Chegina_K7", "Chegina K7", "4/2026", recipient_name="   ")
+    assert pdf == "Chegina K7 4.pdf"
+
+
+def test_cert_names_with_order_number_suffix():
+    from mbr.certs.generator import _cert_names
+    _, pdf, _ = _cert_names("Chegina_K7", "Chegina K7", "4/2026",
+                            has_order_number=True)
+    assert pdf == "Chegina K7 4 (NRZAM).pdf"
+
+
+def test_cert_names_with_recipient_and_order_number():
+    from mbr.certs.generator import _cert_names
+    _, pdf, _ = _cert_names("Chegina_K7", "Chegina K7", "4/2026",
+                            recipient_name="ADAM", has_order_number=True)
+    assert pdf == "Chegina K7 — ADAM 4 (NRZAM).pdf"

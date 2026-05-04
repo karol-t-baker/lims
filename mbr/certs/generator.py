@@ -1067,34 +1067,45 @@ def _sanitize_filename_segment(s: str | None) -> str:
     return cleaned[:40]
 
 
-def _cert_names(produkt: str, variant_label: str, nr_partii: str) -> tuple[str, str, str]:
+def _cert_names(
+    produkt: str,
+    variant_label: str,
+    nr_partii: str,
+    recipient_name: str | None = None,
+    has_order_number: bool = False,
+) -> tuple[str, str, str]:
     """Derive product folder name, PDF filename, and batch number from inputs.
 
-    variant_label examples: "Chegina K40GL", "Chegina K40GL — MB", "Chegina K7 — ADAM&PARTNER"
+    variant_label examples: "Chegina K40GL", "Chegina K40GL — MB"
     nr_partii examples: "4/2026", "124/2026"
+    recipient_name: free-text customer name (sanitized before use).
+    has_order_number: if True, append "(NRZAM)" suffix.
 
     Returns:
         (product_folder, pdf_name, nr_only)
-        e.g. ("Chegina K40GL", "Chegina K40GL MB 4.pdf", "4")
+        e.g. ("Chegina K40GL", "Chegina K40GL MB — ADAM 4 (NRZAM).pdf", "4")
     """
-    # Product folder = produkt with spaces (e.g. "Chegina K40GL")
     product_folder = produkt.replace("_", " ")
 
-    # Extract variant suffix (part after " — " dash)
     variant_suffix = ""
-    if "\u2014" in variant_label:  # em dash
-        variant_suffix = variant_label.split("\u2014", 1)[1].strip()
+    if "—" in variant_label:  # em dash
+        variant_suffix = variant_label.split("—", 1)[1].strip()
     elif " - " in variant_label:
         variant_suffix = variant_label.split(" - ", 1)[1].strip()
 
-    # Nr only = number before slash (e.g. "4" from "4/2026")
     nr_only = nr_partii.split("/")[0].strip()
 
-    # Build PDF name: "Chegina K40GL MB 4.pdf" or "Chegina K7 4.pdf" (no suffix for base)
     parts = [product_folder]
     if variant_suffix:
         parts.append(variant_suffix)
+    if recipient_name:
+        sanitized = _sanitize_filename_segment(recipient_name)
+        if sanitized:
+            parts.append("—")  # em dash
+            parts.append(sanitized)
     parts.append(nr_only)
+    if has_order_number:
+        parts.append("(NRZAM)")
     pdf_name = " ".join(parts) + ".pdf"
 
     return product_folder, pdf_name, nr_only
