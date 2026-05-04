@@ -1180,8 +1180,41 @@
 
 <div class="cv-popup-overlay" id="cv-popup-overlay">
   <div class="cv-popup">
-    <h3>Dodatkowe dane świadectwa</h3>
-    <div id="cv-popup-fields"></div>
+    <h3>Wystaw świadectwo</h3>
+
+    <!-- Always-visible runtime fields -->
+    <div class="cv-popup-section">
+      <div class="cv-popup-field">
+        <label>Odbiorca (opcjonalny)</label>
+        <div class="cv-recipient-wrap" style="position:relative;">
+          <input type="text" id="cv-field-recipient_name" data-key="recipient_name"
+                 autocomplete="off" placeholder="Wpisz aby wyszukać poprzednie...">
+          <div id="cv-recipient-suggestions" class="cv-suggestions"
+               style="display:none; position:absolute; left:0; right:0; top:100%;
+                      background:#fff; border:1px solid #ccc; max-height:200px;
+                      overflow-y:auto; z-index:100;"></div>
+        </div>
+      </div>
+      <div class="cv-popup-field">
+        <label>Ważność (miesięcy)</label>
+        <input type="number" id="cv-field-expiry_months" data-key="expiry_months"
+               min="1" max="30" step="1">
+      </div>
+      <div class="cv-popup-field">
+        <label>Numer zamówienia (opcjonalny)</label>
+        <input type="text" id="cv-field-order_number" data-key="order_number">
+      </div>
+    </div>
+
+    <!-- Variant-driven flag fields (rendered dynamically by issueCert) -->
+    <div id="cv-popup-flag-fields-wrap" style="border-top:1px solid #eee;
+         margin-top:10px; padding-top:10px; display:none;">
+      <div style="font-size:11px; color:#888; margin-bottom:6px;">
+        Pola wymagane przez wariant
+      </div>
+      <div id="cv-popup-fields"><!-- dynamic --></div>
+    </div>
+
     <div class="cv-popup-actions">
       <button class="cv-popup-btn" onclick="closeCertPopup()">Anuluj</button>
       <button class="cv-popup-btn cv-popup-btn-ok" onclick="confirmCertPopup()">Wystaw</button>
@@ -2503,7 +2536,7 @@ async function loadCompletedCerts() {
             html += '<div class="cv-row cv-row-tmpl">' +
                 '<div class="cv-row-dot tmpl"></div>' +
                 '<span class="cv-row-name">' + t.display + '</span>' +
-                '<button class="cv-row-btn-issue" onclick=\'issueCert(this,"' + t.filename.replace(/"/g, '\\"') + '","' + ownerEsc + '",' + rf + ')\'>+ Wystaw</button>' +
+                '<button class="cv-row-btn-issue" onclick=\'issueCert(this,"' + t.filename.replace(/"/g, '\\"') + '","' + ownerEsc + '",' + rf + ',' + (t.default_expiry_months || 12) + ')\'>+ Wystaw</button>' +
             '</div>';
         });
     }
@@ -2569,32 +2602,42 @@ function deleteCert(certId, btn) {
 
 var _pendingCert = {btn: null, variantId: null, targetProdukt: null};
 
-function issueCert(btn, variantId, targetProdukt, requiredFields) {
-    if (!requiredFields || requiredFields.length === 0) {
-        doGenerateCert(btn, variantId, targetProdukt, {});
-        return;
-    }
+function issueCert(btn, variantId, targetProdukt, requiredFields, defaultExpiryMonths) {
     _pendingCert = {btn: btn, variantId: variantId, targetProdukt: targetProdukt};
+
+    // Reset always-visible fields.
+    document.getElementById('cv-field-recipient_name').value = '';
+    document.getElementById('cv-field-expiry_months').value =
+        (defaultExpiryMonths != null) ? defaultExpiryMonths : 12;
+    document.getElementById('cv-field-order_number').value = '';
+    document.getElementById('cv-recipient-suggestions').style.display = 'none';
+
+    // Render variant-driven flag fields (excluding has_order_number — now always-on).
     var fieldsHtml = '';
     var fieldDefs = {
-        'has_order_number': {label: 'Numer zamówienia / Order No.', key: 'order_number'},
         'has_certificate_number': {label: 'Numer certyfikatu / Certificate No.', key: 'certificate_number'},
         'has_avon_code': {label: 'Kod AVON / AVON code', key: 'avon_code'},
         'has_avon_name': {label: 'Nazwa AVON / AVON name (INCI)', key: 'avon_name'},
     };
-    requiredFields.forEach(function(flag) {
+    var hasAny = false;
+    (requiredFields || []).forEach(function(flag) {
         var def = fieldDefs[flag];
         if (def) {
+            hasAny = true;
             fieldsHtml += '<div class="cv-popup-field">' +
-                '<label>' + def.label + '</label>' +
+                '<label>' + def.label + ' *</label>' +
                 '<input type="text" id="cv-field-' + def.key + '" data-key="' + def.key + '">' +
                 '</div>';
         }
     });
     document.getElementById('cv-popup-fields').innerHTML = fieldsHtml;
+    document.getElementById('cv-popup-flag-fields-wrap').style.display =
+        hasAny ? 'block' : 'none';
+
     document.getElementById('cv-popup-overlay').classList.add('active');
-    var first = document.querySelector('#cv-popup-fields input');
-    if (first) setTimeout(function() { first.focus(); }, 100);
+    setTimeout(function() {
+        document.getElementById('cv-field-recipient_name').focus();
+    }, 100);
 }
 
 function closeCertPopup() {
@@ -2604,16 +2647,35 @@ function closeCertPopup() {
 
 function confirmCertPopup() {
     var extra = {};
-    var inputs = document.querySelectorAll('#cv-popup-fields input');
     var valid = true;
-    inputs.forEach(function(inp) {
-        var val = inp.value.trim();
-        if (!val) { inp.style.borderColor = '#ef4444'; valid = false; }
-        else { inp.style.borderColor = ''; }
-        extra[inp.dataset.key] = val;
+
+    // Always-visible fields.
+    var rec = document.getElementById('cv-field-recipient_name').value.trim();
+    if (rec) extra.recipient_name = rec;
+
+    var expEl = document.getElementById('cv-field-expiry_months');
+    var expVal = parseInt(expEl.value, 10);
+    if (!Number.isFinite(expVal) || expVal < 1 || expVal > 30) {
+        expEl.style.borderColor = '#ef4444';
+        valid = false;
+    } else {
+        expEl.style.borderColor = '';
+        extra.expiry_months = expVal;
+    }
+
+    var ord = document.getElementById('cv-field-order_number').value.trim();
+    if (ord) extra.order_number = ord;
+
+    // Required (flag-driven) fields.
+    var flagInputs = document.querySelectorAll('#cv-popup-fields input');
+    flagInputs.forEach(function(inp) {
+        var v = inp.value.trim();
+        if (!v) { inp.style.borderColor = '#ef4444'; valid = false; }
+        else { inp.style.borderColor = ''; extra[inp.dataset.key] = v; }
     });
+
     if (!valid) return;
-    // Save refs before closing (closeCertPopup resets _pendingCert)
+
     var btn = _pendingCert.btn;
     var variantId = _pendingCert.variantId;
     var targetProdukt = _pendingCert.targetProdukt;
