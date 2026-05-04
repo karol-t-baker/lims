@@ -21,26 +21,39 @@ from mbr.shared.decorators import login_required, role_required
 @login_required
 def api_cert_templates():
     produkt = request.args.get("produkt", "")
+    include_archived = request.args.get("include_archived") == "1"
     if not produkt:
         return jsonify({"templates": []})
 
-    # Collect own variants + aliased target's variants
     from mbr.certs.generator import get_cert_aliases
-    variants = list(get_variants(produkt))
+    variants = list(get_variants(produkt, include_archived=include_archived))
     with db_session() as db:
         aliases = get_cert_aliases(db, produkt)
-    for target_produkt in aliases:
-        variants.extend(get_variants(target_produkt))
+        for target_produkt in aliases:
+            variants.extend(get_variants(target_produkt, include_archived=include_archived))
 
-    templates = []
-    for v in variants:
-        templates.append({
-            "filename": v["id"],
-            "display": v["label"],
-            "flags": v["flags"],
-            "owner_produkt": v["owner_produkt"],
-            "required_fields": get_required_fields(v["owner_produkt"], v["id"]),
-        })
+        # Resolve default_expiry_months once per owner_produkt.
+        expiry_cache: dict = {}
+        def _expiry_for(p: str) -> int:
+            if p in expiry_cache:
+                return expiry_cache[p]
+            row = db.execute(
+                "SELECT expiry_months FROM produkty WHERE nazwa=?", (p,)
+            ).fetchone()
+            val = (row["expiry_months"] if row else None) or 12
+            expiry_cache[p] = val
+            return val
+
+        templates = []
+        for v in variants:
+            templates.append({
+                "filename": v["id"],
+                "display": v["label"],
+                "flags": v["flags"],
+                "owner_produkt": v["owner_produkt"],
+                "required_fields": get_required_fields(v["owner_produkt"], v["id"]),
+                "default_expiry_months": _expiry_for(v["owner_produkt"]),
+            })
     return jsonify({"templates": templates})
 
 

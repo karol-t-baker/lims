@@ -432,3 +432,65 @@ def test_recipient_suggestions_excludes_null(monkeypatch, db):
     _seed_swiadectwa_recipients(db, ["ADAM&PARTNER", None, None])
     r = c.get("/api/cert/recipient-suggestions?q=ad")
     assert r.get_json()["suggestions"] == ["ADAM&PARTNER"]
+
+
+# ===========================================================================
+# Task 10: api_cert_templates default_expiry_months + include_archived
+# ===========================================================================
+
+def _seed_product_with_variants(db, produkt="TestProd", expiry_months=12,
+                                 variants=(("base", "TestProd", 0),
+                                          ("mb", "TestProd MB", 0))):
+    """Variants: tuples of (variant_id, label, archived)."""
+    db.execute(
+        "INSERT INTO produkty (nazwa, display_name, expiry_months) VALUES (?, ?, ?)",
+        (produkt, produkt, expiry_months),
+    )
+    for vid, label, arch in variants:
+        db.execute(
+            "INSERT INTO cert_variants (produkt, variant_id, label, archived) "
+            "VALUES (?, ?, ?, ?)",
+            (produkt, vid, label, arch),
+        )
+    db.commit()
+
+
+def test_templates_returns_default_expiry_months(monkeypatch, db):
+    c = _make_client(monkeypatch, db)
+    _seed_product_with_variants(db, expiry_months=18)
+    r = c.get("/api/cert/templates?produkt=TestProd")
+    out = r.get_json()["templates"]
+    assert all(t["default_expiry_months"] == 18 for t in out)
+
+
+def test_templates_default_expiry_fallback_when_null(monkeypatch, db):
+    c = _make_client(monkeypatch, db)
+    db.execute("INSERT INTO produkty (nazwa, display_name, expiry_months) VALUES ('X', 'X', NULL)")
+    db.execute("INSERT INTO cert_variants (produkt, variant_id, label) VALUES ('X', 'base', 'X')")
+    db.commit()
+    r = c.get("/api/cert/templates?produkt=X")
+    assert r.get_json()["templates"][0]["default_expiry_months"] == 12
+
+
+def test_templates_filters_archived_by_default(monkeypatch, db):
+    c = _make_client(monkeypatch, db)
+    _seed_product_with_variants(db, variants=(
+        ("base", "TestProd", 0),
+        ("legacy", "TestProd — LEGACY", 1),  # archived
+    ))
+    r = c.get("/api/cert/templates?produkt=TestProd")
+    ids = [t["filename"] for t in r.get_json()["templates"]]
+    assert "base" in ids
+    assert "legacy" not in ids
+
+
+def test_templates_include_archived_param(monkeypatch, db):
+    c = _make_client(monkeypatch, db)
+    _seed_product_with_variants(db, variants=(
+        ("base", "TestProd", 0),
+        ("legacy", "TestProd — LEGACY", 1),
+    ))
+    r = c.get("/api/cert/templates?produkt=TestProd&include_archived=1")
+    ids = [t["filename"] for t in r.get_json()["templates"]]
+    assert "base" in ids
+    assert "legacy" in ids
