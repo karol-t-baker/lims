@@ -104,6 +104,72 @@ def api_cert_variant_archive_preview(variant_id):
     return jsonify({"swiadectwa_count": count, "suggested_recipient": suggested})
 
 
+@certs_bp.route("/api/cert/variants/<int:variant_id>/archive", methods=["POST"])
+@role_required("admin")
+def api_cert_variant_archive(variant_id):
+    """Soft-archive a cert variant; optionally backfill recipient_name on old certs.
+
+    Payload:
+        archived: bool (true → archive, false → unarchive)
+        backfill_recipient: str | null (only honored when archived=true;
+            sanitized via _sanitize_filename_segment before UPDATE)
+
+    Idempotent: backfill UPDATEs rows WHERE recipient_name IS NULL only,
+    so existing non-null values are never overwritten.
+    """
+    from mbr.shared import audit
+    from mbr.certs.generator import _sanitize_filename_segment as _sanitize
+
+    payload = request.get_json(silent=True) or {}
+    archived = bool(payload.get("archived", True))
+    backfill = payload.get("backfill_recipient")
+
+    backfill_count = 0
+    with db_session() as db:
+        vrow = db.execute(
+            "SELECT variant_id, label FROM cert_variants WHERE id=?",
+            (variant_id,)).fetchone()
+        if not vrow:
+            abort(404)
+
+        db.execute("UPDATE cert_variants SET archived=? WHERE id=?",
+                   (1 if archived else 0, variant_id))
+        audit.log_event(
+            audit.EVENT_CERT_VARIANT_ARCHIVED if archived else audit.EVENT_CERT_VARIANT_UNARCHIVED,
+            entity_type="cert_variant",
+            entity_id=variant_id,
+            entity_label=vrow["label"],
+            payload={"variant_id": vrow["variant_id"]},
+            db=db,
+        )
+
+        if archived and backfill:
+            cleaned = _sanitize(backfill)
+            if cleaned:
+                cur = db.execute(
+                    "UPDATE swiadectwa SET recipient_name=? "
+                    "WHERE template_name=? AND recipient_name IS NULL",
+                    (cleaned, vrow["variant_id"]))
+                backfill_count = cur.rowcount
+                if backfill_count > 0:
+                    audit.log_event(
+                        audit.EVENT_CERT_RECIPIENT_BACKFILLED,
+                        entity_type="cert_variant",
+                        entity_id=variant_id,
+                        entity_label=vrow["label"],
+                        payload={
+                            "variant_id": vrow["variant_id"],
+                            "recipient_name": cleaned,
+                            "count": backfill_count,
+                        },
+                        db=db,
+                    )
+        db.commit()
+
+    return jsonify({"ok": True, "archived": archived,
+                    "backfill_count": backfill_count})
+
+
 @certs_bp.route("/api/cert/generate", methods=["POST"])
 @login_required
 def api_cert_generate():

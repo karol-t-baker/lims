@@ -569,3 +569,85 @@ def test_archive_preview_requires_admin(monkeypatch, db):
     cv_id = _seed_variant_with_history(db)
     r = c.get(f"/api/cert/variants/{cv_id}/archive-preview")
     assert r.status_code == 403
+
+
+# ===========================================================================
+# Task 12: POST /api/cert/variants/<id>/archive
+# ===========================================================================
+
+def test_archive_sets_archived_flag(monkeypatch, db):
+    c = _make_client(monkeypatch, db, rola="admin")
+    cv_id = _seed_variant_with_history(db, cert_count=0)
+    r = c.post(f"/api/cert/variants/{cv_id}/archive", json={"archived": True})
+    assert r.status_code == 200
+    assert r.get_json()["archived"] is True
+    row = db.execute("SELECT archived FROM cert_variants WHERE id=?", (cv_id,)).fetchone()
+    assert row["archived"] == 1
+
+
+def test_unarchive_clears_archived_flag(monkeypatch, db):
+    c = _make_client(monkeypatch, db, rola="admin")
+    cv_id = _seed_variant_with_history(db, cert_count=0)
+    db.execute("UPDATE cert_variants SET archived=1 WHERE id=?", (cv_id,))
+    db.commit()
+    r = c.post(f"/api/cert/variants/{cv_id}/archive", json={"archived": False})
+    assert r.get_json()["archived"] is False
+    row = db.execute("SELECT archived FROM cert_variants WHERE id=?", (cv_id,)).fetchone()
+    assert row["archived"] == 0
+
+
+def test_archive_with_backfill_updates_old_certs(monkeypatch, db):
+    c = _make_client(monkeypatch, db, rola="admin")
+    cv_id = _seed_variant_with_history(db, cert_count=3)
+    r = c.post(f"/api/cert/variants/{cv_id}/archive",
+               json={"archived": True, "backfill_recipient": "ADAM&PARTNER"})
+    assert r.get_json()["backfill_count"] == 3
+    rows = db.execute(
+        "SELECT recipient_name FROM swiadectwa WHERE template_name='adam_partner'"
+    ).fetchall()
+    assert all(r["recipient_name"] == "ADAM&PARTNER" for r in rows)
+
+
+def test_archive_backfill_skips_already_set(monkeypatch, db):
+    c = _make_client(monkeypatch, db, rola="admin")
+    cv_id = _seed_variant_with_history(db, cert_count=3, with_recipient=True)
+    r = c.post(f"/api/cert/variants/{cv_id}/archive",
+               json={"archived": True, "backfill_recipient": "NEW"})
+    assert r.get_json()["backfill_count"] == 0
+    rows = db.execute(
+        "SELECT recipient_name FROM swiadectwa WHERE template_name='adam_partner'"
+    ).fetchall()
+    assert all(r["recipient_name"] == "Pre-existing" for r in rows)
+
+
+def test_archive_sanitizes_backfill_value(monkeypatch, db):
+    c = _make_client(monkeypatch, db, rola="admin")
+    cv_id = _seed_variant_with_history(db, cert_count=2)
+    r = c.post(f"/api/cert/variants/{cv_id}/archive",
+               json={"archived": True, "backfill_recipient": "AB/CD"})
+    assert r.get_json()["backfill_count"] == 2
+    rows = db.execute(
+        "SELECT recipient_name FROM swiadectwa WHERE template_name='adam_partner'"
+    ).fetchall()
+    assert all(r["recipient_name"] == "ABCD" for r in rows)
+
+
+def test_unarchive_ignores_backfill_param(monkeypatch, db):
+    c = _make_client(monkeypatch, db, rola="admin")
+    cv_id = _seed_variant_with_history(db, cert_count=3)
+    db.execute("UPDATE cert_variants SET archived=1 WHERE id=?", (cv_id,))
+    db.commit()
+    r = c.post(f"/api/cert/variants/{cv_id}/archive",
+               json={"archived": False, "backfill_recipient": "SHOULD_NOT_APPLY"})
+    assert r.get_json()["backfill_count"] == 0
+    rows = db.execute(
+        "SELECT recipient_name FROM swiadectwa WHERE template_name='adam_partner'"
+    ).fetchall()
+    assert all(r["recipient_name"] is None for r in rows)
+
+
+def test_archive_requires_admin_role(monkeypatch, db):
+    c = _make_client(monkeypatch, db, rola="lab")
+    cv_id = _seed_variant_with_history(db, cert_count=0)
+    r = c.post(f"/api/cert/variants/{cv_id}/archive", json={"archived": True})
+    assert r.status_code == 403
