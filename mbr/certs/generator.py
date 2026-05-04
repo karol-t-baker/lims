@@ -1142,22 +1142,40 @@ def save_certificate_pdf(
     variant_label: str,
     nr_partii: str,
     output_dir: str | None = None,
+    recipient_name: str | None = None,
+    has_order_number: bool = False,
 ) -> str:
-    """Save PDF to user-configured path.
+    """Save PDF to user-configured path, with collision-aware suffix.
 
     Structure: {output_dir}/{year}/{product_folder}/{pdf_name}
     Fallback: ~/Desktop/{year}/{product_folder}/{pdf_name}
 
+    Collision: if filename exists, append " (2)", " (3)", ... before .pdf
+    until a free slot is found. Original files NEVER overwritten.
+
     Returns: absolute path to saved PDF.
     """
     year = date.today().year
-    product_folder, pdf_name, _ = _cert_names(produkt, variant_label, nr_partii)
+    product_folder, pdf_name, _ = _cert_names(
+        produkt, variant_label, nr_partii,
+        recipient_name=recipient_name, has_order_number=has_order_number,
+    )
 
     base_dir = Path(output_dir) if output_dir else Path.home() / "Desktop"
     target_dir = base_dir / str(year) / product_folder
     target_dir.mkdir(parents=True, exist_ok=True)
 
     full_path = target_dir / pdf_name
-    full_path.write_bytes(pdf_bytes)
+    if full_path.exists():
+        stem = full_path.stem
+        suffix = full_path.suffix
+        i = 2
+        while True:
+            candidate = target_dir / f"{stem} ({i}){suffix}"
+            if not candidate.exists():
+                full_path = candidate
+                break
+            i += 1
 
+    full_path.write_bytes(pdf_bytes)
     return str(full_path)

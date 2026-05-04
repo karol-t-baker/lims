@@ -141,3 +141,56 @@ def test_cert_names_with_recipient_and_order_number():
     _, pdf, _ = _cert_names("Chegina_K7", "Chegina K7", "4/2026",
                             recipient_name="ADAM", has_order_number=True)
     assert pdf == "Chegina K7 — ADAM 4 (NRZAM).pdf"
+
+
+# ===========================================================================
+# Task 5: save_certificate_pdf collision-aware + new params
+# ===========================================================================
+
+def test_save_pdf_first_call_no_suffix(tmp_path):
+    from mbr.certs.generator import save_certificate_pdf
+    path = save_certificate_pdf(
+        b"PDF1", "Chegina_K7", "Chegina K7", "4/2026",
+        output_dir=str(tmp_path),
+    )
+    from pathlib import Path
+    p = Path(path)
+    assert p.name == "Chegina K7 4.pdf"
+    assert p.read_bytes() == b"PDF1"
+
+
+def test_save_pdf_collision_appends_suffix(tmp_path):
+    from mbr.certs.generator import save_certificate_pdf
+    p1 = save_certificate_pdf(b"PDF1", "Chegina_K7", "Chegina K7", "4/2026",
+                              output_dir=str(tmp_path))
+    p2 = save_certificate_pdf(b"PDF2", "Chegina_K7", "Chegina K7", "4/2026",
+                              output_dir=str(tmp_path))
+    p3 = save_certificate_pdf(b"PDF3", "Chegina_K7", "Chegina K7", "4/2026",
+                              output_dir=str(tmp_path))
+    from pathlib import Path
+    assert Path(p1).name == "Chegina K7 4.pdf"
+    assert Path(p2).name == "Chegina K7 4 (2).pdf"
+    assert Path(p3).name == "Chegina K7 4 (3).pdf"
+    # Original is preserved.
+    assert Path(p1).read_bytes() == b"PDF1"
+    assert Path(p2).read_bytes() == b"PDF2"
+
+
+def test_save_pdf_with_recipient_in_filename(tmp_path):
+    from mbr.certs.generator import save_certificate_pdf
+    path = save_certificate_pdf(
+        b"PDF", "Chegina_K7", "Chegina K7", "4/2026",
+        output_dir=str(tmp_path), recipient_name="ADAM&PARTNER",
+    )
+    from pathlib import Path
+    assert Path(path).name == "Chegina K7 — ADAM&PARTNER 4.pdf"
+
+
+def test_save_pdf_with_order_number_suffix(tmp_path):
+    from mbr.certs.generator import save_certificate_pdf
+    path = save_certificate_pdf(
+        b"PDF", "Chegina_K7", "Chegina K7", "4/2026",
+        output_dir=str(tmp_path), has_order_number=True,
+    )
+    from pathlib import Path
+    assert Path(path).name == "Chegina K7 4 (NRZAM).pdf"
