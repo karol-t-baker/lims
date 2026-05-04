@@ -224,3 +224,85 @@ def test_save_data_collision_appends_suffix(tmp_path, monkeypatch):
     from pathlib import Path
     assert Path(p1).name == "Chegina K7 4.json"
     assert Path(p2).name == "Chegina K7 4 (2).json"
+
+
+# ===========================================================================
+# Task 7: build_context expiry_months override
+# ===========================================================================
+
+def _seed_minimal_product(db, key="TestProd", expiry_months=12):
+    """Insert minimal data for build_context to succeed."""
+    db.execute(
+        "INSERT INTO produkty (nazwa, display_name, expiry_months) VALUES (?, ?, ?)",
+        (key, key, expiry_months),
+    )
+    db.execute(
+        "INSERT INTO cert_variants (produkt, variant_id, label) VALUES (?, ?, ?)",
+        (key, "base", key),
+    )
+    db.commit()
+
+
+def test_build_context_default_expiry_from_product(db, monkeypatch):
+    import mbr.certs.generator as gen
+    @contextmanager
+    def fake_db_session():
+        yield db
+    monkeypatch.setattr("mbr.db.db_session", fake_db_session)
+    _seed_minimal_product(db, expiry_months=12)
+    from datetime import date
+    ctx = gen.build_context("TestProd", "base", "1/2026", date(2026, 1, 1),
+                            wyniki_flat={}, extra_fields={})
+    assert ctx["dt_waznosci"] == "01.01.2027"  # +12mc
+
+
+def test_build_context_override_expiry_24mc(db, monkeypatch):
+    import mbr.certs.generator as gen
+    @contextmanager
+    def fake_db_session():
+        yield db
+    monkeypatch.setattr("mbr.db.db_session", fake_db_session)
+    _seed_minimal_product(db, expiry_months=12)
+    from datetime import date
+    ctx = gen.build_context("TestProd", "base", "1/2026", date(2026, 1, 1),
+                            wyniki_flat={}, extra_fields={"expiry_months": 24})
+    assert ctx["dt_waznosci"] == "01.01.2028"  # +24mc
+
+
+def test_build_context_override_zero_raises(db, monkeypatch):
+    import mbr.certs.generator as gen
+    @contextmanager
+    def fake_db_session():
+        yield db
+    monkeypatch.setattr("mbr.db.db_session", fake_db_session)
+    _seed_minimal_product(db)
+    from datetime import date
+    with pytest.raises(ValueError, match="out of range"):
+        gen.build_context("TestProd", "base", "1/2026", date(2026, 1, 1),
+                          wyniki_flat={}, extra_fields={"expiry_months": 0})
+
+
+def test_build_context_override_too_high_raises(db, monkeypatch):
+    import mbr.certs.generator as gen
+    @contextmanager
+    def fake_db_session():
+        yield db
+    monkeypatch.setattr("mbr.db.db_session", fake_db_session)
+    _seed_minimal_product(db)
+    from datetime import date
+    with pytest.raises(ValueError, match="out of range"):
+        gen.build_context("TestProd", "base", "1/2026", date(2026, 1, 1),
+                          wyniki_flat={}, extra_fields={"expiry_months": 31})
+
+
+def test_build_context_override_non_numeric_raises(db, monkeypatch):
+    import mbr.certs.generator as gen
+    @contextmanager
+    def fake_db_session():
+        yield db
+    monkeypatch.setattr("mbr.db.db_session", fake_db_session)
+    _seed_minimal_product(db)
+    from datetime import date
+    with pytest.raises(ValueError, match="Invalid expiry_months"):
+        gen.build_context("TestProd", "base", "1/2026", date(2026, 1, 1),
+                          wyniki_flat={}, extra_fields={"expiry_months": "abc"})

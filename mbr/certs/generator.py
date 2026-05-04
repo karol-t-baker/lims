@@ -436,7 +436,19 @@ def build_context(
 
         if dt_obj:
             dt_produkcji = dt_obj.strftime("%d.%m.%Y")
-            expiry_months = _expiry_months
+            # Resolve expiry: extra_fields override (if valid) > produkty.expiry_months.
+            override = (extra_fields or {}).get("expiry_months")
+            if override is not None and str(override).strip():
+                try:
+                    expiry_months = int(override)
+                except (ValueError, TypeError):
+                    raise ValueError(f"Invalid expiry_months: {override!r}")
+                if not (1 <= expiry_months <= 30):
+                    raise ValueError(
+                        f"expiry_months out of range 1..30: {expiry_months}"
+                    )
+            else:
+                expiry_months = _expiry_months
             # Add expiry_months
             year = dt_obj.year + (dt_obj.month - 1 + expiry_months) // 12
             month = (dt_obj.month - 1 + expiry_months) % 12 + 1
