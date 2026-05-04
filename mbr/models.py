@@ -1633,6 +1633,27 @@ def init_mbr_tables(db: sqlite3.Connection) -> None:
     except Exception:
         pass  # column already exists
 
+    # Migration: add recipient_name to swiadectwa (cert flexibility — runtime field)
+    try:
+        db.execute("ALTER TABLE swiadectwa ADD COLUMN recipient_name TEXT")
+        db.commit()
+    except Exception:
+        pass  # column already exists
+
+    # Migration: add expiry_months_used to swiadectwa (snapshot of effective expiry)
+    try:
+        db.execute("ALTER TABLE swiadectwa ADD COLUMN expiry_months_used INTEGER")
+        db.commit()
+    except Exception:
+        pass  # column already exists
+
+    # Migration: add archived to cert_variants (soft-archive for deprecated variants)
+    try:
+        db.execute("ALTER TABLE cert_variants ADD COLUMN archived INTEGER DEFAULT 0")
+        db.commit()
+    except Exception:
+        pass  # column already exists
+
 # ---------------------------------------------------------------------------
 # Auto-numbering — moved to mbr.laborant.models, re-exported for backward compat
 # ---------------------------------------------------------------------------
