@@ -72,6 +72,9 @@ EVENT_CERT_VALUES_EDITED = "cert.values.edited"
 EVENT_CERT_CANCELLED = "cert.cancelled"
 EVENT_CERT_CONFIG_UPDATED = "cert.config.updated"
 EVENT_CERT_SETTINGS_UPDATED = "cert.settings.updated"
+EVENT_CERT_VARIANT_ARCHIVED = "cert.variant.archived"
+EVENT_CERT_VARIANT_UNARCHIVED = "cert.variant.unarchived"
+EVENT_CERT_RECIPIENT_BACKFILLED = "cert.swiadectwa.recipient_backfilled"
 
 # paliwo
 EVENT_PALIWO_WNIOSEK_CREATED = "paliwo.wniosek.created"
