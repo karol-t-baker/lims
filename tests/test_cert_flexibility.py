@@ -494,3 +494,78 @@ def test_templates_include_archived_param(monkeypatch, db):
     ids = [t["filename"] for t in r.get_json()["templates"]]
     assert "base" in ids
     assert "legacy" in ids
+
+
+# ===========================================================================
+# Task 11: GET /api/cert/variants/<id>/archive-preview
+# ===========================================================================
+
+def _seed_variant_with_history(db, produkt="TestProd",
+                                variant_id="adam_partner",
+                                label="TestProd — ADAM&PARTNER",
+                                cert_count=3, with_recipient=False):
+    """Insert a variant and N swiadectwa rows for it."""
+    db.execute(
+        "INSERT INTO produkty (nazwa, display_name, expiry_months) VALUES (?, ?, 12)",
+        (produkt, produkt),
+    )
+    cur = db.execute(
+        "INSERT INTO cert_variants (produkt, variant_id, label) VALUES (?, ?, ?)",
+        (produkt, variant_id, label),
+    )
+    cv_id = cur.lastrowid
+    db.execute(
+        "INSERT INTO mbr_templates (produkt, wersja, status, etapy_json, parametry_lab, dt_utworzenia) "
+        "VALUES (?, 1, 'active', '[]', '{}', datetime('now'))",
+        (produkt,),
+    )
+    db.execute(
+        "INSERT INTO ebr_batches (mbr_id, batch_id, nr_partii, dt_start, status) "
+        "VALUES (1, 'B', '1/2026', datetime('now'), 'completed')"
+    )
+    for i in range(cert_count):
+        db.execute(
+            "INSERT INTO swiadectwa (ebr_id, template_name, nr_partii, pdf_path, "
+            "dt_wystawienia, wystawil, recipient_name) "
+            "VALUES (1, ?, '1/2026', '/x.pdf', datetime('now'), 't', ?)",
+            (variant_id, "Pre-existing" if with_recipient else None),
+        )
+    db.commit()
+    return cv_id
+
+
+def test_archive_preview_counts_null_recipient_certs(monkeypatch, db):
+    c = _make_client(monkeypatch, db, rola="admin")
+    cv_id = _seed_variant_with_history(db, cert_count=5)
+    r = c.get(f"/api/cert/variants/{cv_id}/archive-preview")
+    assert r.status_code == 200
+    out = r.get_json()
+    assert out["swiadectwa_count"] == 5
+    assert out["suggested_recipient"] == "ADAM&PARTNER"
+
+
+def test_archive_preview_label_no_emdash_returns_empty_suggested(monkeypatch, db):
+    c = _make_client(monkeypatch, db, rola="admin")
+    cv_id = _seed_variant_with_history(db, label="TestProd")
+    r = c.get(f"/api/cert/variants/{cv_id}/archive-preview")
+    assert r.get_json()["suggested_recipient"] == ""
+
+
+def test_archive_preview_excludes_certs_with_recipient(monkeypatch, db):
+    c = _make_client(monkeypatch, db, rola="admin")
+    cv_id = _seed_variant_with_history(db, cert_count=3, with_recipient=True)
+    r = c.get(f"/api/cert/variants/{cv_id}/archive-preview")
+    assert r.get_json()["swiadectwa_count"] == 0
+
+
+def test_archive_preview_404_for_missing_variant(monkeypatch, db):
+    c = _make_client(monkeypatch, db, rola="admin")
+    r = c.get("/api/cert/variants/9999/archive-preview")
+    assert r.status_code == 404
+
+
+def test_archive_preview_requires_admin(monkeypatch, db):
+    c = _make_client(monkeypatch, db, rola="lab")
+    cv_id = _seed_variant_with_history(db)
+    r = c.get(f"/api/cert/variants/{cv_id}/archive-preview")
+    assert r.status_code == 403

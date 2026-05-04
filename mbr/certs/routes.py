@@ -79,6 +79,31 @@ def api_cert_recipient_suggestions():
     return jsonify({"suggestions": [r["recipient_name"] for r in rows]})
 
 
+@certs_bp.route("/api/cert/variants/<int:variant_id>/archive-preview")
+@role_required("admin")
+def api_cert_variant_archive_preview(variant_id):
+    """Stats for the archive-with-backfill modal in cert editor.
+
+    Returns count of swiadectwa rows that would be touched by backfill
+    (those with template_name=variant_id AND recipient_name IS NULL),
+    plus a parsed suggestion derived from the variant label after em-dash.
+    """
+    with db_session() as db:
+        vrow = db.execute(
+            "SELECT variant_id, label FROM cert_variants WHERE id=?",
+            (variant_id,)).fetchone()
+        if not vrow:
+            abort(404)
+        count = db.execute(
+            "SELECT COUNT(*) c FROM swiadectwa "
+            "WHERE template_name=? AND recipient_name IS NULL",
+            (vrow["variant_id"],)).fetchone()["c"]
+    suggested = ""
+    if "—" in (vrow["label"] or ""):
+        suggested = vrow["label"].split("—", 1)[1].strip()
+    return jsonify({"swiadectwa_count": count, "suggested_recipient": suggested})
+
+
 @certs_bp.route("/api/cert/generate", methods=["POST"])
 @login_required
 def api_cert_generate():
