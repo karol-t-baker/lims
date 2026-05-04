@@ -2683,6 +2683,66 @@ function confirmCertPopup() {
     doGenerateCert(btn, variantId, targetProdukt, extra);
 }
 
+(function() {
+    var input = document.getElementById('cv-field-recipient_name');
+    var dropdown = document.getElementById('cv-recipient-suggestions');
+    if (!input || !dropdown) return;
+
+    var debounceTimer = null;
+    var lastQuery = '';
+
+    function fetchSuggestions(q) {
+        if (q.length < 2) {
+            dropdown.style.display = 'none';
+            return;
+        }
+        if (q === lastQuery) return;
+        lastQuery = q;
+        fetch('/api/cert/recipient-suggestions?q=' + encodeURIComponent(q))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (input.value.trim() !== q) return;  // user moved on
+                renderDropdown(data.suggestions || []);
+            })
+            .catch(function() { dropdown.style.display = 'none'; });
+    }
+
+    function renderDropdown(suggestions) {
+        if (!suggestions.length) {
+            dropdown.style.display = 'none';
+            return;
+        }
+        dropdown.innerHTML = suggestions.map(function(s) {
+            var safe = s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return '<div class="cv-suggestion-item" style="padding:6px 10px; cursor:pointer;"' +
+                   ' onmouseover="this.style.background=\'#f0f0f0\';"' +
+                   ' onmouseout="this.style.background=\'\';"' +
+                   ' onclick="document.getElementById(\'cv-field-recipient_name\').value=' +
+                   JSON.stringify(s) + '; document.getElementById(\'cv-recipient-suggestions\').style.display=\'none\';"' +
+                   '>' + safe + '</div>';
+        }).join('');
+        dropdown.style.display = 'block';
+    }
+
+    input.addEventListener('input', function() {
+        clearTimeout(debounceTimer);
+        var q = input.value.trim();
+        debounceTimer = setTimeout(function() { fetchSuggestions(q); }, 200);
+    });
+
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            dropdown.style.display = 'none';
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.style.display = 'none';
+        }
+    });
+})();
+
 var _certGenerating = false;
 async function doGenerateCert(btn, variantId, targetProdukt, extraFields) {
     if (_certGenerating) return;
