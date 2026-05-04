@@ -651,3 +651,103 @@ def test_archive_requires_admin_role(monkeypatch, db):
     cv_id = _seed_variant_with_history(db, cert_count=0)
     r = c.post(f"/api/cert/variants/{cv_id}/archive", json={"archived": True})
     assert r.status_code == 403
+
+
+# ===========================================================================
+# Task 13: api_cert_generate propagation
+# ===========================================================================
+
+def _seed_minimal_for_generate(db, produkt="TestProd"):
+    """Seed product + variant + mbr_template + ebr (typ='zbiornik' so route allows cert).
+
+    Note: produkt is on mbr_templates, NOT ebr_batches. get_ebr() resolves it
+    via JOIN. This won't produce a valid PDF (no Gotenberg in tests), so the
+    docx/gotenberg pipeline is monkeypatched in _patch_pdf_pipeline.
+    """
+    db.execute(
+        "INSERT INTO produkty (nazwa, display_name, expiry_months) VALUES (?, ?, 12)",
+        (produkt, produkt),
+    )
+    db.execute(
+        "INSERT INTO cert_variants (produkt, variant_id, label) VALUES (?, ?, ?)",
+        (produkt, "base", produkt),
+    )
+    db.execute(
+        "INSERT INTO mbr_templates (produkt, wersja, status, etapy_json, parametry_lab, dt_utworzenia) "
+        "VALUES (?, 1, 'active', '[]', '{}', datetime('now'))",
+        (produkt,),
+    )
+    db.execute(
+        "INSERT INTO ebr_batches (mbr_id, batch_id, nr_partii, dt_start, status, typ) "
+        "VALUES (1, 'B001', '1/2026', datetime('now'), 'completed', 'zbiornik')"
+    )
+    db.commit()
+
+
+def _patch_pdf_pipeline(monkeypatch, tmp_path):
+    """Replace docxtpl/Gotenberg with stubs and redirect output to tmp_path."""
+    import mbr.certs.generator as gen
+    monkeypatch.setattr(gen, "_docxtpl_render", lambda ctx: b"DOCXBYTES")
+    monkeypatch.setattr(gen, "_gotenberg_convert", lambda b: b"PDFBYTES")
+    monkeypatch.setattr(gen, "OUTPUT_DIR", tmp_path / "data" / "swiadectwa")
+    monkeypatch.setattr(gen, "_PROJECT_ROOT", tmp_path)
+    # Route uses Path.home() / "Desktop" if no output_dir is set; redirect.
+    monkeypatch.setenv("HOME", str(tmp_path))
+
+
+def test_generate_persists_recipient_and_expiry(monkeypatch, db, tmp_path):
+    c = _make_client(monkeypatch, db)
+    _seed_minimal_for_generate(db)
+    _patch_pdf_pipeline(monkeypatch, tmp_path)
+    r = c.post("/api/cert/generate", json={
+        "ebr_id": 1, "variant_id": "base", "wystawil": "tester",
+        "extra_fields": {"recipient_name": "ADAM&PARTNER", "expiry_months": 18},
+    })
+    assert r.status_code == 200, r.get_data(as_text=True)
+    row = db.execute(
+        "SELECT recipient_name, expiry_months_used FROM swiadectwa "
+        "ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    assert row["recipient_name"] == "ADAM&PARTNER"
+    assert row["expiry_months_used"] == 18
+
+
+def test_generate_default_expiry_when_no_override(monkeypatch, db, tmp_path):
+    c = _make_client(monkeypatch, db)
+    _seed_minimal_for_generate(db)
+    _patch_pdf_pipeline(monkeypatch, tmp_path)
+    r = c.post("/api/cert/generate", json={
+        "ebr_id": 1, "variant_id": "base", "wystawil": "t",
+        "extra_fields": {},
+    })
+    assert r.status_code == 200, r.get_data(as_text=True)
+    row = db.execute(
+        "SELECT expiry_months_used FROM swiadectwa ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    assert row["expiry_months_used"] == 12  # from produkty.expiry_months
+
+
+def test_generate_400_on_invalid_expiry(monkeypatch, db, tmp_path):
+    c = _make_client(monkeypatch, db)
+    _seed_minimal_for_generate(db)
+    _patch_pdf_pipeline(monkeypatch, tmp_path)
+    r = c.post("/api/cert/generate", json={
+        "ebr_id": 1, "variant_id": "base", "wystawil": "t",
+        "extra_fields": {"expiry_months": 50},
+    })
+    assert r.status_code == 400
+
+
+def test_generate_recipient_sanitized_in_db(monkeypatch, db, tmp_path):
+    c = _make_client(monkeypatch, db)
+    _seed_minimal_for_generate(db)
+    _patch_pdf_pipeline(monkeypatch, tmp_path)
+    r = c.post("/api/cert/generate", json={
+        "ebr_id": 1, "variant_id": "base", "wystawil": "t",
+        "extra_fields": {"recipient_name": "AB/CD"},
+    })
+    assert r.status_code == 200
+    row = db.execute(
+        "SELECT recipient_name FROM swiadectwa ORDER BY id DESC LIMIT 1"
+    ).fetchone()
+    assert row["recipient_name"] == "ABCD"

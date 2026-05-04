@@ -230,12 +230,46 @@ def api_cert_generate():
                 variant_label = v["label"]
                 break
 
+        # --- Resolve & sanitize runtime fields. ---
+        from mbr.certs.generator import _sanitize_filename_segment
+        recipient_raw = (extra_fields or {}).get("recipient_name", "")
+        recipient_clean = _sanitize_filename_segment(recipient_raw) or None
+
+        # Effective expiry: override (validated by build_context) or product default.
+        expiry_override = (extra_fields or {}).get("expiry_months")
+        if expiry_override is not None and str(expiry_override).strip() != "":
+            try:
+                effective_expiry = int(expiry_override)
+            except (ValueError, TypeError):
+                return jsonify({"ok": False,
+                                "error": f"invalid expiry_months: {expiry_override!r}"}), 400
+            if not (1 <= effective_expiry <= 30):
+                return jsonify({"ok": False,
+                                "error": "expiry_months out of range 1..30"}), 400
+        else:
+            prod_row = db.execute(
+                "SELECT expiry_months FROM produkty WHERE nazwa=?", (target_produkt,)
+            ).fetchone()
+            effective_expiry = (prod_row["expiry_months"] if prod_row else None) or 12
+
+        order_number = (extra_fields or {}).get("order_number", "") or ""
+        has_order_number = bool(order_number.strip())
+
+        # Mirror sanitized recipient back into extra_fields so build_context /
+        # generate_certificate_pdf get the cleaned value (no template uses it,
+        # but downstream snapshot in data_json does).
+        if extra_fields is None:
+            extra_fields = {}
+        extra_fields["recipient_name"] = recipient_clean or ""
+
         try:
             pdf_bytes = generate_certificate_pdf(
                 target_produkt, variant_id, ebr["nr_partii"],
                 ebr.get("dt_start"), wyniki_flat, extra_fields,
                 wystawil=wystawil,
             )
+        except ValueError as e:
+            return jsonify({"ok": False, "error": str(e)}), 400
         except Exception as e:
             return jsonify({"ok": False, "error": str(e)}), 500
 
@@ -251,8 +285,13 @@ def api_cert_generate():
             "wyniki_flat": {k: {"wartosc": v.get("wartosc"), "wartosc_text": v.get("wartosc_text"), "w_limicie": v.get("w_limicie")} for k, v in wyniki_flat.items()},
             "extra_fields": extra_fields,
             "wystawil": wystawil,
+            "recipient_name": recipient_clean,
+            "expiry_months_used": effective_expiry,
         }
-        save_certificate_data(target_produkt, variant_label, ebr["nr_partii"], generation_data)
+        save_certificate_data(
+            target_produkt, variant_label, ebr["nr_partii"], generation_data,
+            recipient_name=recipient_clean, has_order_number=has_order_number,
+        )
 
         # Persist target_produkt ONLY when it differs from ebr.produkt — NULL otherwise
         persist_target = target_produkt if target_produkt != ebr["produkt"] else None
@@ -260,6 +299,8 @@ def api_cert_generate():
             db, ebr_id, variant_label, ebr["nr_partii"], "regenerate", wystawil,
             data_json=_json.dumps(generation_data, ensure_ascii=False),
             target_produkt=persist_target,
+            recipient_name=recipient_clean,
+            expiry_months_used=effective_expiry,
         )
         db.commit()
 
