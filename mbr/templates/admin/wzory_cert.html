@@ -493,6 +493,19 @@
 
     <!-- Tab 3: Warianty -->
     <div class="wc-panel" id="panel-warianty" style="display:none;">
+      <div class="wc-info-box" style="margin-bottom:14px; padding:10px 14px;
+           background:#fef9e7; border:1px solid #f5d76e; border-radius:6px;
+           font-size:12px; color:#7e6500;">
+        <strong>Warianty per-odbiorca są deprecjonowane.</strong>
+        Używaj pola „Odbiorca" przy generowaniu świadectwa zamiast tworzenia
+        osobnego wariantu. Definiuj warianty tylko gdy parametry / wymagania /
+        opinie / flagi rzeczywiście się różnią.
+      </div>
+      <label style="display:inline-flex; gap:6px; align-items:center;
+             font-size:12px; cursor:pointer; margin-bottom:10px;">
+        <input type="checkbox" id="wc-show-archived-variants" onchange="reloadVariantList()">
+        Pokaż archiwalne warianty
+      </label>
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
         <select class="wc-sel" id="wc-var-sel" onchange="onVariantSelect()" style="max-width:300px;"></select>
         <button class="wc-btn wc-btn-o wc-btn-sm" onclick="addVariant()">+ Nowy wariant</button>
@@ -1229,8 +1242,12 @@ function confirmAddParam() {
 /* ═══ Editor ═══ */
 function editProduct(key) {
   _currentKey = key;
+  // Append include_archived=1 when the "Pokaż archiwalne warianty" toggle is
+  // on so the GET endpoint surfaces archived variants alongside active ones.
+  // The toggle lives in the Variants tab; on initial load it's unchecked.
+  var archQS = (typeof wcArchivedQS === 'function') ? wcArchivedQS('?') : '';
   Promise.all([
-    fetch('/api/cert/config/product/' + encodeURIComponent(key)).then(function(r) { return r.json(); }),
+    fetch('/api/cert/config/product/' + encodeURIComponent(key) + archQS).then(function(r) { return r.json(); }),
     fetch('/api/parametry/available?produkt=' + encodeURIComponent(key)).then(function(r) { return r.json(); })
   ]).then(function(results) {
     var data = results[0];
@@ -2094,9 +2111,11 @@ function openAddVariantParamModal() {
 }
 
 /* ═══ Variants ═══ */
+// has_order_number deprecated (Task 13: order_number is always-on in laborant
+// modal) — hidden from admin UI. Existing variants keep the flag in DB; the
+// renderer in showVariant() preserves it through round-trips.
 var _allFlags = [
   {key:'has_rspo', label:'Numer RSPO'},
-  {key:'has_order_number', label:'Numer zamówienia'},
   {key:'has_certificate_number', label:'Numer certyfikatu'},
   {key:'has_avon_code', label:'Kod Avon'},
   {key:'has_avon_name', label:'Nazwa Avon'}
@@ -2115,15 +2134,60 @@ function renderVariants(variants) {
 function renderVariantSelector() {
   var sel = document.getElementById('wc-var-sel');
   sel.innerHTML = _variantsData.map(function(v, i) {
-    return '<option value="' + i + '">' + _esc(v.label || v.id) + (i === 0 ? ' (bazowy)' : '') + '</option>';
+    var label = _esc(v.label || v.id);
+    var suffix = '';
+    if (i === 0) suffix = ' (bazowy)';
+    if (v.archived) suffix += ' (archiwalny)';
+    return '<option value="' + i + '">' + label + suffix + '</option>';
   }).join('');
   sel.value = _currentVarIdx;
+  // Visual cue when the currently shown variant is archived.
+  var current = _variantsData[_currentVarIdx];
+  if (current && current.archived) {
+    sel.style.cssText = 'max-width:300px;border-style:dashed;opacity:.75;';
+  } else {
+    sel.style.cssText = 'max-width:300px;';
+  }
+}
+
+/* Reload the current product so the variants list refreshes against the
+ * "Pokaż archiwalne warianty" toggle. Re-uses editProduct() which re-fetches
+ * /api/cert/config/product/<key>; the GET endpoint reads the
+ * include_archived URL param via wcArchivedQS() injected on the fetch. */
+function reloadVariantList() {
+  if (!_currentKey) return;
+  if (_dirty && !confirm('Masz niezapisane zmiany. Przeładować i porzucić?')) {
+    // Revert the toggle if the user backed out
+    var t = document.getElementById('wc-show-archived-variants');
+    if (t) t.checked = !t.checked;
+    return;
+  }
+  _setDirty(false);
+  editProduct(_currentKey);
+}
+
+/* Build the include_archived query-string suffix from the toggle state.
+ * `prefix` is the separator to use ('?' for fresh URL, '&' if URL already
+ * has params). Returns empty string when the toggle is off. */
+function wcArchivedQS(prefix) {
+  var t = document.getElementById('wc-show-archived-variants');
+  if (!t || !t.checked) return '';
+  return (prefix || '?') + 'include_archived=1';
 }
 
 function onVariantSelect() {
   saveCurrentVariantToData();
   _currentVarIdx = parseInt(document.getElementById('wc-var-sel').value);
   showVariant(_currentVarIdx);
+  // Refresh the dropdown's archived-variant dashed-border cue after switching
+  // (the cue tracks the *currently displayed* variant, not just the option list).
+  var sel = document.getElementById('wc-var-sel');
+  var current = _variantsData[_currentVarIdx];
+  if (sel) {
+    sel.style.cssText = (current && current.archived)
+      ? 'max-width:300px;border-style:dashed;opacity:.75;'
+      : 'max-width:300px;';
+  }
 }
 
 function showVariant(vi) {
@@ -2214,8 +2278,16 @@ function saveCurrentVariantToData() {
   var existingAdd = (v.overrides && Array.isArray(v.overrides.add_parameters)) ? v.overrides.add_parameters : [];
   v.id = document.getElementById('wc-var-id').value.trim();
   v.label = document.getElementById('wc-var-label').value.trim();
-  var flags = [];
-  document.querySelectorAll('#wc-var-flags [data-flag]').forEach(function(cb) { if (cb.checked) flags.push(cb.dataset.flag); });
+  // Preserve flags that aren't represented in the UI (e.g. has_order_number,
+  // hidden because it's deprecated). Only flags rendered as checkboxes are
+  // recomputed from DOM; the rest pass through unchanged.
+  var renderedKeys = _allFlags.map(function(f) { return f.key; });
+  var preservedFlags = (Array.isArray(v.flags) ? v.flags : [])
+    .filter(function(k) { return renderedKeys.indexOf(k) === -1; });
+  var flags = preservedFlags.slice();
+  document.querySelectorAll('#wc-var-flags [data-flag]').forEach(function(cb) {
+    if (cb.checked) flags.push(cb.dataset.flag);
+  });
   v.flags = flags;
   var ov = {};
   var avonCode = document.getElementById('wc-var-avon-code');

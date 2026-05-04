@@ -168,18 +168,21 @@ def get_variants(produkt: str, *, include_archived: bool = False) -> list[dict]:
     try:
         with _db_session() as db:
             rows = db.execute(
-                f"SELECT variant_id, label, flags FROM cert_variants "
+                f"SELECT variant_id, label, flags, COALESCE(archived,0) AS archived "
+                f"FROM cert_variants "
                 f"WHERE produkt=? {sql_filter} ORDER BY kolejnosc", (key,)
             ).fetchall()
             if not rows:
                 rows = db.execute(
-                    f"SELECT variant_id, label, flags FROM cert_variants "
+                    f"SELECT variant_id, label, flags, COALESCE(archived,0) AS archived "
+                    f"FROM cert_variants "
                     f"WHERE produkt=? {sql_filter} ORDER BY kolejnosc",
                     (produkt.replace(" ", "_"),)
                 ).fetchall()
             return [{"id": r["variant_id"], "label": r["label"],
                      "flags": json.loads(r["flags"] or "[]"),
-                     "owner_produkt": key} for r in rows]
+                     "owner_produkt": key,
+                     "archived": bool(r["archived"])} for r in rows]
     except Exception:
         return []
 

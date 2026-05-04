@@ -53,6 +53,7 @@ def api_cert_templates():
                 "owner_produkt": v["owner_produkt"],
                 "required_fields": get_required_fields(v["owner_produkt"], v["id"]),
                 "default_expiry_months": _expiry_for(v["owner_produkt"]),
+                "archived": v.get("archived", False),
             })
     return jsonify({"templates": templates})
 
@@ -564,9 +565,13 @@ def api_cert_config_product_get(key):
             parameters.append(param)
         product["parameters"] = parameters
 
-        # Variants
+        # Variants — admin editor opts into archived rows via ?include_archived=1
+        # so the "Pokaż archiwalne warianty" toggle in the UI can surface them.
+        include_archived = request.args.get("include_archived") == "1"
+        archived_filter = "" if include_archived else "AND COALESCE(archived,0)=0"
         variants_db = db.execute(
-            "SELECT * FROM cert_variants WHERE produkt=? ORDER BY kolejnosc",
+            f"SELECT * FROM cert_variants WHERE produkt=? {archived_filter} "
+            f"ORDER BY kolejnosc",
             (key,),
         ).fetchall()
 
@@ -577,6 +582,7 @@ def api_cert_config_product_get(key):
                 "db_id": vr["id"],  # numeric PK — used by produkt_pola UI (scope=cert_variant)
                 "label": vr["label"],
                 "flags": _json.loads(vr["flags"] or "[]"),
+                "archived": bool(vr["archived"]) if "archived" in vr.keys() else False,
             }
             overrides = {}
             if vr["spec_number"]:
@@ -841,6 +847,17 @@ def api_cert_config_product_put(key):
                         )
 
                 if variants is not None:
+                    # Preserve archived flag across the delete-then-reinsert
+                    # variant write. The editor doesn't toggle archived through
+                    # this endpoint (that's done via /archive), but the GET-PUT
+                    # round-trip must not silently un-archive variants the admin
+                    # is viewing while "Pokaż archiwalne" is on.
+                    archived_by_vid = {
+                        r["variant_id"]: r["archived"] for r in db.execute(
+                            "SELECT variant_id, COALESCE(archived,0) AS archived "
+                            "FROM cert_variants WHERE produkt=?", (key,),
+                        ).fetchall()
+                    }
                     old_variant_rows = db.execute(
                         "SELECT id FROM cert_variants WHERE produkt=?", (key,),
                     ).fetchall()
@@ -853,9 +870,14 @@ def api_cert_config_product_put(key):
                         remove_kods = overrides.get("remove_parameters", [])
                         remove_ids = [kod_to_id[k] for k in remove_kods if k in kod_to_id]
 
+                        # Trust client-supplied archived only as a fallback;
+                        # primary source is the snapshot we took above.
+                        prev_archived = archived_by_vid.get(v.get("id", ""), 0)
+                        archived_val = 1 if (prev_archived or v.get("archived")) else 0
+
                         cur = db.execute(
-                            "INSERT INTO cert_variants (produkt, variant_id, label, flags, spec_number, opinion_pl, opinion_en, avon_code, avon_name, remove_params, kolejnosc) "
-                            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            "INSERT INTO cert_variants (produkt, variant_id, label, flags, spec_number, opinion_pl, opinion_en, avon_code, avon_name, remove_params, kolejnosc, archived) "
+                            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                             (key, v.get("id", ""), v.get("label", ""),
                              _json.dumps(v.get("flags", []), ensure_ascii=False),
                              overrides.get("spec_number") or None,
@@ -863,7 +885,7 @@ def api_cert_config_product_put(key):
                              overrides.get("opinion_en") or None,
                              overrides.get("avon_code") or None,
                              overrides.get("avon_name") or None,
-                             _json.dumps(remove_ids), idx),
+                             _json.dumps(remove_ids), idx, archived_val),
                         )
                         new_cv_id = cur.lastrowid
 
