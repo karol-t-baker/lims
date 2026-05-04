@@ -1051,6 +1051,22 @@ def generate_certificate_pdf(
 # ---------------------------------------------------------------------------
 # 7. save_certificate_pdf
 # ---------------------------------------------------------------------------
+def _sanitize_filename_segment(s: str | None) -> str:
+    """Strip path separators and control chars from a filename segment.
+
+    Used for runtime-entered values (e.g. recipient_name) that flow into
+    file paths. Removes anything < 0x20, '/', '\\', ':' and trims whitespace.
+    Truncates to 40 chars to keep filenames bounded.
+
+    Returns "" for None / empty / whitespace-only input.
+    """
+    if not s:
+        return ""
+    cleaned = "".join(c for c in s if ord(c) >= 0x20 and c not in ("/", "\\", ":"))
+    cleaned = cleaned.strip()
+    return cleaned[:40]
+
+
 def _cert_names(produkt: str, variant_label: str, nr_partii: str) -> tuple[str, str, str]:
     """Derive product folder name, PDF filename, and batch number from inputs.
 

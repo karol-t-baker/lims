@@ -43,3 +43,47 @@ def test_schema_cert_variants_archived_default_zero(db):
     db.commit()
     row = db.execute("SELECT archived FROM cert_variants WHERE produkt='TestProd'").fetchone()
     assert row["archived"] == 0
+
+
+# ===========================================================================
+# Task 3: _sanitize_filename_segment
+# ===========================================================================
+
+def test_sanitize_passes_normal_text():
+    from mbr.certs.generator import _sanitize_filename_segment
+    assert _sanitize_filename_segment("ADAM&PARTNER") == "ADAM&PARTNER"
+
+
+def test_sanitize_strips_path_separators():
+    from mbr.certs.generator import _sanitize_filename_segment
+    assert _sanitize_filename_segment("ADAM/PARTNER") == "ADAMPARTNER"
+    assert _sanitize_filename_segment("ADAM\\PARTNER") == "ADAMPARTNER"
+    assert _sanitize_filename_segment("ADAM:PARTNER") == "ADAMPARTNER"
+
+
+def test_sanitize_strips_control_chars():
+    from mbr.certs.generator import _sanitize_filename_segment
+    assert _sanitize_filename_segment("ADAM\x00\x01PARTNER") == "ADAMPARTNER"
+
+
+def test_sanitize_trims_whitespace():
+    from mbr.certs.generator import _sanitize_filename_segment
+    assert _sanitize_filename_segment("  ADAM  ") == "ADAM"
+
+
+def test_sanitize_max_40_chars():
+    from mbr.certs.generator import _sanitize_filename_segment
+    long_name = "A" * 100
+    assert _sanitize_filename_segment(long_name) == "A" * 40
+
+
+def test_sanitize_empty_returns_empty():
+    from mbr.certs.generator import _sanitize_filename_segment
+    assert _sanitize_filename_segment("") == ""
+    assert _sanitize_filename_segment("   ") == ""
+    assert _sanitize_filename_segment(None) == ""
+
+
+def test_sanitize_keeps_polish_chars_and_ampersand():
+    from mbr.certs.generator import _sanitize_filename_segment
+    assert _sanitize_filename_segment("Łódź & Co.") == "Łódź & Co."
