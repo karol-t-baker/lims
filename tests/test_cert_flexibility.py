@@ -194,3 +194,33 @@ def test_save_pdf_with_order_number_suffix(tmp_path):
     )
     from pathlib import Path
     assert Path(path).name == "Chegina K7 4 (NRZAM).pdf"
+
+
+# ===========================================================================
+# Task 6: save_certificate_data collision + new params
+# ===========================================================================
+
+def test_save_data_with_recipient_filename(tmp_path, monkeypatch):
+    from mbr.certs import generator
+    monkeypatch.setattr(generator, "OUTPUT_DIR", tmp_path)
+    monkeypatch.setattr(generator, "_PROJECT_ROOT", tmp_path)
+    path = generator.save_certificate_data(
+        "Chegina_K7", "Chegina K7", "4/2026",
+        {"foo": "bar"},
+        recipient_name="ADAM",
+    )
+    from pathlib import Path
+    assert Path(path).name == "Chegina K7 — ADAM 4.json"
+
+
+def test_save_data_collision_appends_suffix(tmp_path, monkeypatch):
+    from mbr.certs import generator
+    monkeypatch.setattr(generator, "OUTPUT_DIR", tmp_path)
+    monkeypatch.setattr(generator, "_PROJECT_ROOT", tmp_path)
+    p1 = generator.save_certificate_data("Chegina_K7", "Chegina K7", "4/2026",
+                                         {"id": 1})
+    p2 = generator.save_certificate_data("Chegina_K7", "Chegina K7", "4/2026",
+                                         {"id": 2})
+    from pathlib import Path
+    assert Path(p1).name == "Chegina K7 4.json"
+    assert Path(p2).name == "Chegina K7 4 (2).json"

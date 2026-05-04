@@ -1116,23 +1116,41 @@ def save_certificate_data(
     variant_label: str,
     nr_partii: str,
     generation_data: dict,
+    recipient_name: str | None = None,
+    has_order_number: bool = False,
 ) -> str:
-    """Save generation inputs as JSON to data/swiadectwa/ archive (for regeneration).
+    """Save generation inputs as JSON to data/swiadectwa/ archive.
 
     Structure: data/swiadectwa/{year}/{product_folder}/{name}.json
+    Collision: if filename exists, append " (2)", " (3)", ... before .json.
+
     Returns: path relative to project root.
     """
     year = date.today().year
-    product_folder, pdf_name, _ = _cert_names(produkt, variant_label, nr_partii)
+    product_folder, pdf_name, _ = _cert_names(
+        produkt, variant_label, nr_partii,
+        recipient_name=recipient_name, has_order_number=has_order_number,
+    )
     json_name = pdf_name.replace(".pdf", ".json")
 
     out_dir = OUTPUT_DIR / str(year) / product_folder
     out_dir.mkdir(parents=True, exist_ok=True)
 
     json_path = out_dir / json_name
+    if json_path.exists():
+        stem = json_path.stem
+        suffix = json_path.suffix
+        i = 2
+        while True:
+            candidate = out_dir / f"{stem} ({i}){suffix}"
+            if not candidate.exists():
+                json_path = candidate
+                break
+            i += 1
 
     import json
-    json_path.write_text(json.dumps(generation_data, ensure_ascii=False, indent=2), encoding="utf-8")
+    json_path.write_text(json.dumps(generation_data, ensure_ascii=False, indent=2),
+                        encoding="utf-8")
     return str(json_path.relative_to(_PROJECT_ROOT))
 
 
