@@ -306,3 +306,55 @@ def test_build_context_override_non_numeric_raises(db, monkeypatch):
     with pytest.raises(ValueError, match="Invalid expiry_months"):
         gen.build_context("TestProd", "base", "1/2026", date(2026, 1, 1),
                           wyniki_flat={}, extra_fields={"expiry_months": "abc"})
+
+
+# ===========================================================================
+# Task 8: create_swiadectwo persists recipient_name + expiry_months_used
+# ===========================================================================
+
+def _seed_ebr(db, produkt="TestProd", nr_partii="1/2026"):
+    db.execute(
+        "INSERT INTO mbr_templates (produkt, wersja, status, etapy_json, parametry_lab, dt_utworzenia) "
+        "VALUES (?, 1, 'active', '[]', '{}', datetime('now'))",
+        (produkt,),
+    )
+    mbr_id = db.execute("SELECT last_insert_rowid() id").fetchone()["id"]
+    db.execute(
+        "INSERT INTO ebr_batches (mbr_id, batch_id, nr_partii, dt_start, status) "
+        "VALUES (?, 'B001', ?, datetime('now'), 'completed')",
+        (mbr_id, nr_partii),
+    )
+    return db.execute("SELECT last_insert_rowid() id").fetchone()["id"]
+
+
+def test_create_swiadectwo_with_recipient_and_expiry(db):
+    from mbr.certs.models import create_swiadectwo
+    ebr_id = _seed_ebr(db)
+    cert_id = create_swiadectwo(
+        db, ebr_id, "TestProd", "1/2026", "/tmp/x.pdf", "tester",
+        data_json="{}", recipient_name="ADAM&PARTNER", expiry_months_used=18,
+    )
+    db.commit()
+    row = db.execute(
+        "SELECT recipient_name, expiry_months_used FROM swiadectwa WHERE id=?",
+        (cert_id,),
+    ).fetchone()
+    assert row["recipient_name"] == "ADAM&PARTNER"
+    assert row["expiry_months_used"] == 18
+
+
+def test_create_swiadectwo_without_new_fields_legacy(db):
+    """Legacy callers without new kwargs still work (NULL columns)."""
+    from mbr.certs.models import create_swiadectwo
+    ebr_id = _seed_ebr(db)
+    cert_id = create_swiadectwo(
+        db, ebr_id, "TestProd", "1/2026", "/tmp/x.pdf", "tester",
+        data_json="{}",
+    )
+    db.commit()
+    row = db.execute(
+        "SELECT recipient_name, expiry_months_used FROM swiadectwa WHERE id=?",
+        (cert_id,),
+    ).fetchone()
+    assert row["recipient_name"] is None
+    assert row["expiry_months_used"] is None

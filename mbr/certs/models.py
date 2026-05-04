@@ -11,14 +11,16 @@ from mbr.shared.timezone import app_now_iso
 
 
 def create_swiadectwo(db, ebr_id, template_name, nr_partii, pdf_path, wystawil,
-                     data_json=None, target_produkt=None):
+                     data_json=None, target_produkt=None,
+                     recipient_name=None, expiry_months_used=None):
     now = app_now_iso()
     cur = db.execute(
         "INSERT INTO swiadectwa (ebr_id, template_name, nr_partii, pdf_path, "
-        "dt_wystawienia, wystawil, data_json, target_produkt) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        "dt_wystawienia, wystawil, data_json, target_produkt, "
+        "recipient_name, expiry_months_used) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (ebr_id, template_name, nr_partii, pdf_path, now, wystawil,
-         data_json, target_produkt),
+         data_json, target_produkt, recipient_name, expiry_months_used),
     )
     return cur.lastrowid
 
