@@ -44,6 +44,28 @@ def api_cert_templates():
     return jsonify({"templates": templates})
 
 
+@certs_bp.route("/api/cert/recipient-suggestions")
+@login_required
+def api_cert_recipient_suggestions():
+    """Autocomplete source for recipient_name field in cert generate modal.
+
+    Threshold: 2 chars to avoid noisy short queries. Case-insensitive LIKE,
+    distinct values, ordered alphabetically, capped at 20.
+    """
+    q = (request.args.get("q") or "").strip()
+    if len(q) < 2:
+        return jsonify({"suggestions": []})
+    with db_session() as db:
+        rows = db.execute(
+            "SELECT DISTINCT recipient_name FROM swiadectwa "
+            "WHERE recipient_name IS NOT NULL "
+            "AND recipient_name LIKE ? COLLATE NOCASE "
+            "ORDER BY recipient_name LIMIT 20",
+            (f"%{q}%",),
+        ).fetchall()
+    return jsonify({"suggestions": [r["recipient_name"] for r in rows]})
+
+
 @certs_bp.route("/api/cert/generate", methods=["POST"])
 @login_required
 def api_cert_generate():

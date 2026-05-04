@@ -358,3 +358,77 @@ def test_create_swiadectwo_without_new_fields_legacy(db):
     ).fetchone()
     assert row["recipient_name"] is None
     assert row["expiry_months_used"] is None
+
+
+# ===========================================================================
+# Task 9: GET /api/cert/recipient-suggestions
+# ===========================================================================
+
+def _make_client(monkeypatch, db, rola="lab"):
+    """Test client with fake db_session and pre-set session user."""
+    import mbr.db
+    import mbr.certs.routes
+    @contextmanager
+    def fake_db_session():
+        yield db
+    monkeypatch.setattr(mbr.db, "db_session", fake_db_session)
+    monkeypatch.setattr(mbr.certs.routes, "db_session", fake_db_session)
+    from mbr.app import create_app
+    app = create_app()
+    app.config["TESTING"] = True
+    c = app.test_client()
+    with c.session_transaction() as sess:
+        sess["user"] = {"login": "tester", "rola": rola, "worker_id": None}
+    return c
+
+
+def _seed_swiadectwa_recipients(db, recipients):
+    """Create one cert row per recipient name (or NULL)."""
+    db.execute(
+        "INSERT INTO mbr_templates (produkt, wersja, status, etapy_json, parametry_lab, dt_utworzenia) "
+        "VALUES ('TestProd', 1, 'active', '[]', '{}', datetime('now'))"
+    )
+    db.execute(
+        "INSERT INTO ebr_batches (mbr_id, batch_id, nr_partii, dt_start, status) "
+        "VALUES (1, 'B001', '1/2026', datetime('now'), 'completed')"
+    )
+    for r in recipients:
+        db.execute(
+            "INSERT INTO swiadectwa (ebr_id, template_name, nr_partii, pdf_path, "
+            "dt_wystawienia, wystawil, recipient_name) "
+            "VALUES (1, 'base', '1/2026', '/x.pdf', datetime('now'), 't', ?)",
+            (r,),
+        )
+    db.commit()
+
+
+def test_recipient_suggestions_below_threshold(monkeypatch, db):
+    c = _make_client(monkeypatch, db)
+    _seed_swiadectwa_recipients(db, ["ADAM&PARTNER", "ADAM Partner"])
+    r = c.get("/api/cert/recipient-suggestions?q=A")
+    assert r.status_code == 200
+    assert r.get_json() == {"suggestions": []}
+
+
+def test_recipient_suggestions_returns_distinct_matches(monkeypatch, db):
+    c = _make_client(monkeypatch, db)
+    _seed_swiadectwa_recipients(db, [
+        "ADAM&PARTNER", "ADAM&PARTNER", "ADAM Partner", "Loreal",
+    ])
+    r = c.get("/api/cert/recipient-suggestions?q=ad")
+    out = r.get_json()["suggestions"]
+    assert sorted(out) == ["ADAM Partner", "ADAM&PARTNER"]
+
+
+def test_recipient_suggestions_no_match(monkeypatch, db):
+    c = _make_client(monkeypatch, db)
+    _seed_swiadectwa_recipients(db, ["ADAM&PARTNER"])
+    r = c.get("/api/cert/recipient-suggestions?q=xyz")
+    assert r.get_json() == {"suggestions": []}
+
+
+def test_recipient_suggestions_excludes_null(monkeypatch, db):
+    c = _make_client(monkeypatch, db)
+    _seed_swiadectwa_recipients(db, ["ADAM&PARTNER", None, None])
+    r = c.get("/api/cert/recipient-suggestions?q=ad")
+    assert r.get_json()["suggestions"] == ["ADAM&PARTNER"]
