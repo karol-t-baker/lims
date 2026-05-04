@@ -91,7 +91,8 @@ else:
 #### `_cert_names()` zmiany
 
 ```python
-def _cert_names(produkt, variant_label, nr_partii, recipient_name=None):
+def _cert_names(produkt, variant_label, nr_partii,
+                recipient_name=None, has_order_number=False):
     # ... obecna logika ...
     parts = [product_folder]
     if variant_suffix:
@@ -102,6 +103,8 @@ def _cert_names(produkt, variant_label, nr_partii, recipient_name=None):
             parts.append("—")  # em dash
             parts.append(sanitized)
     parts.append(nr_only)
+    if has_order_number:
+        parts.append("(NRZAM)")
     pdf_name = " ".join(parts) + ".pdf"
     return product_folder, pdf_name, nr_only
 
@@ -123,8 +126,38 @@ Format docelowy nazwy pliku:
 | Bez odbiorcy (jak dziś) | `Chegina K7 4.pdf` |
 | Z odbiorcą | `Chegina K7 — ADAM&PARTNER 4.pdf` |
 | Z odbiorcą + MB | `Chegina K7 MB — ADAM&PARTNER 4.pdf` |
+| Z odbiorcą + nr zamówienia | `Chegina K7 — ADAM&PARTNER 4 (NRZAM).pdf` |
+| Bez odbiorcy + nr zamówienia | `Chegina K7 4 (NRZAM).pdf` |
 
-Em-dash przed nazwą odbiorcy, numer szarży na końcu — utrzymujemy istniejącą konwencję "numer ostatni" (zachowuje sortowanie alfabetyczne grupujące po wariancie).
+Em-dash przed nazwą odbiorcy, numer szarży, opcjonalny suffix `(NRZAM)` na końcu — utrzymujemy istniejącą konwencję "numer ostatni" (zachowuje sortowanie alfabetyczne grupujące po wariancie). Suffix `(NRZAM)` zachowuje informację że ten cert miał wpisany numer zamówienia (zastępuje stary tag `NR_ZAM` z labela wariantu `nr_zam`).
+
+#### Kolizja nazw plików (collision-aware save)
+
+`save_certificate_pdf` (generator.py:1112) dziś robi `full_path.write_bytes(pdf_bytes)` — bez sprawdzenia czy plik istnieje. Dwa certy z identycznymi inputami (re-issue tej samej szarży, identyczny odbiorca, identyczne pola) → second silently overwrites first. To środowisko regulowane — nadpisanie wystawionego dokumentu jest niedopuszczalne.
+
+Nowe zachowanie:
+
+```python
+def save_certificate_pdf(pdf_bytes, produkt, variant_label, nr_partii,
+                         output_dir=None, recipient_name=None,
+                         has_order_number=False) -> str:
+    # ... compute target_dir, base_pdf_name jak dziś ...
+    full_path = target_dir / pdf_name
+    if full_path.exists():
+        stem = full_path.stem
+        suffix = full_path.suffix
+        i = 2
+        while True:
+            candidate = target_dir / f"{stem} ({i}){suffix}"
+            if not candidate.exists():
+                full_path = candidate
+                break
+            i += 1
+    full_path.write_bytes(pdf_bytes)
+    return str(full_path)
+```
+
+Pierwsza kolizja → `Chegina K7 — ADAM&PARTNER 4 (2).pdf`. Druga → `(3)`. Itd. `swiadectwa.pdf_path` zapisuje rzeczywistą ścieżkę z suffixem (a nie surową `pdf_name`). Stary kod pobierający historię świadectw po `pdf_path` działa bez zmian. `save_certificate_data` (JSON snapshot) używa identycznej logiki przyrostka.
 
 ### Routes — `mbr/certs/routes.py`
 
@@ -201,19 +234,67 @@ Wartość czytana z `produkty.expiry_months` po stronie serwera, fallback 12.
 @certs_bp.route("/api/cert/variants/<int:variant_id>/archive", methods=["POST"])
 @role_required("admin")
 def api_cert_variant_archive(variant_id):
-    archived = bool((request.get_json(silent=True) or {}).get("archived", True))
+    payload = request.get_json(silent=True) or {}
+    archived = bool(payload.get("archived", True))
+    backfill = payload.get("backfill_recipient")  # str | None
     event = "cert.variant.archived" if archived else "cert.variant.unarchived"
     with db_session() as db:
+        # 1. Toggle archive flag.
         db.execute("UPDATE cert_variants SET archived=? WHERE id=?",
                    (1 if archived else 0, variant_id))
-        # audit row: actor=session user, event=cert.variant.(un)archived,
-        # payload={"variant_id": <id>}; mechanizm jak istniejące cert.config.updated.
         log_audit(db, session.get("username"), event, {"variant_id": variant_id})
+        # 2. Optional backfill (only on archive, not unarchive).
+        backfill_count = 0
+        if archived and backfill:
+            cleaned = _sanitize_filename_segment(backfill)
+            if cleaned:
+                # Resolve template_name from variant_id for the WHERE clause.
+                vrow = db.execute(
+                    "SELECT variant_id FROM cert_variants WHERE id=?",
+                    (variant_id,)).fetchone()
+                if vrow:
+                    cur = db.execute(
+                        "UPDATE swiadectwa SET recipient_name=? "
+                        "WHERE template_name=? AND recipient_name IS NULL",
+                        (cleaned, vrow["variant_id"]))
+                    backfill_count = cur.rowcount
+                    if backfill_count > 0:
+                        log_audit(db, session.get("username"),
+                                  "cert.swiadectwa.recipient_backfilled",
+                                  {"variant_id": variant_id,
+                                   "recipient_name": cleaned,
+                                   "count": backfill_count})
         db.commit()
-    return jsonify({"ok": True, "archived": archived})
+    return jsonify({"ok": True, "archived": archived,
+                    "backfill_count": backfill_count})
 ```
 
 `api_cert_templates` filtruje `archived=0` chyba że `?include_archived=1`. Cert editor (admin) używa `include_archived=1` razem z togglem UI.
+
+#### Nowy endpoint: `GET /api/cert/variants/<id>/archive-preview`
+
+Wczytuje statystyki potrzebne do otwarcia modala backfillu (zanim user kliknie OK):
+
+```python
+@certs_bp.route("/api/cert/variants/<int:variant_id>/archive-preview")
+@role_required("admin")
+def api_cert_variant_archive_preview(variant_id):
+    with db_session() as db:
+        vrow = db.execute(
+            "SELECT variant_id, label FROM cert_variants WHERE id=?",
+            (variant_id,)).fetchone()
+        if not vrow:
+            abort(404)
+        count = db.execute(
+            "SELECT COUNT(*) c FROM swiadectwa "
+            "WHERE template_name=? AND recipient_name IS NULL",
+            (vrow["variant_id"],)).fetchone()["c"]
+    # Parsuj propozycję recipient z labela: "Chegina K7 — ADAM&PARTNER" → "ADAM&PARTNER".
+    suggested = ""
+    if "—" in vrow["label"]:
+        suggested = vrow["label"].split("—", 1)[1].strip()
+    return jsonify({"swiadectwa_count": count, "suggested_recipient": suggested})
+```
 
 ### UI — modal generowania (`mbr/templates/laborant/_fast_entry_content.html`)
 
@@ -252,12 +333,46 @@ JS: short-circuit `if (!requiredFields || requiredFields.length === 0) doGenerat
 
 ### UI — edytor wzorów (`mbr/templates/admin/wzory_cert.html`)
 
-Dwie zmiany:
+Trzy zmiany:
 
 1. **Info-box w tabie "Warianty"** (na górze listy):
    > *"Warianty per-odbiorca są deprecjonowane. Używaj pola 'Odbiorca' przy generowaniu świadectwa zamiast tworzenia osobnego wariantu. Definiuj warianty tylko gdy parametry / wymagania / opinie / flagi rzeczywiście się różnią."*
 
-2. **Toggle "Pokaż archiwalne warianty"** (default off) + **button "Archiwizuj" / "Przywróć" przy każdym wariancie** — analogicznie do toggle'a "Pokaż archiwalne" w grid'zie produktów (commit `7039083`). Klik archiwizuje przez `POST /api/cert/variants/<id>/archive`. Wariant z `archived=1` ma wizualne odróżnienie (opacity .55, border dashed — jak `wc-card.archived`).
+2. **Toggle "Pokaż archiwalne warianty"** (default off) + **button "Archiwizuj" / "Przywróć" przy każdym wariancie** — analogicznie do toggle'a "Pokaż archiwalne" w grid'zie produktów (commit `7039083`). Klik archiwizuje przez `POST /api/cert/variants/<id>/archive` (z opcjonalnym backfill recipient_name — patrz niżej). Wariant z `archived=1` ma wizualne odróżnienie (opacity .55, border dashed — jak `wc-card.archived`).
+
+3. **Ukryć checkbox `has_order_number`** z listy flag wariantu. `order_number` jest teraz zawsze dostępne przy generowaniu, więc flaga jest no-opem. Stare warianty zachowują flagę w DB (nie ruszamy danych) — backend ją ignoruje, UI jej nie pokazuje. Pozostałe flagi (`has_rspo`, `has_avon_code`, `has_avon_name`, `has_certificate_number`) bez zmian.
+
+#### Modal backfillu odbiorcy przy archiwizacji
+
+Klik "Archiwizuj" przy wariancie nie wykonuje akcji od razu — otwiera modal z propozycją backfill `recipient_name` dla starych świadectw tego wariantu:
+
+```
+┌─ Archiwizuj wariant: Chegina K7 — ADAM&PARTNER ────────┐
+│                                                        │
+│  Znaleziono 12 świadectw wystawionych z tego wariantu  │
+│  z pustym polem recipient_name.                        │
+│                                                        │
+│  Możesz wpisać dla nich wstecznie nazwę odbiorcy —     │
+│  ułatwi to autocomplete przy przyszłych certach.       │
+│                                                        │
+│  Recipient (opcjonalny):                               │
+│  [ ADAM&PARTNER                                    ]   │
+│  ↑ propozycja sparsowana z label'a wariantu — możesz   │
+│  edytować, usunąć (puste = bez backfillu) lub zatw.    │
+│                                                        │
+│         [ Anuluj ]  [ Archiwizuj bez backfill ]        │
+│                                  [ Archiwizuj + back. ]│
+└────────────────────────────────────────────────────────┘
+```
+
+Logika:
+- Backend przed otwarciem modala: `SELECT COUNT(*) FROM swiadectwa WHERE template_name=<variant_id> AND recipient_name IS NULL` → `swiadectwa_count`.
+- Propozycja recipient: parsing labela jak w `_cert_names` (`split("—", 1)[1].strip()`), albo NULL jeśli brak em-dasha.
+- Modal: input edytowalny + 3 przyciski (Anuluj / Archiwizuj bez backfill / Archiwizuj + backfill).
+- Wartość po zatwierdzeniu sanityzowana (consistent z runtime path, Pytanie 5 w grillu): server stosuje `_sanitize_filename_segment` przed UPDATE.
+- Endpoint payload: `POST /api/cert/variants/<id>/archive {"archived": true, "backfill_recipient": "ADAM&PARTNER"}`. Brak klucza / null → bez backfillu. Pusty string po sanityzacji → traktowany jak null.
+- SQL: `UPDATE swiadectwa SET recipient_name=? WHERE template_name=? AND recipient_name IS NULL`. Tylko stare wiersze bez wpisanego recipient (idempotent — wielokrotne archive/unarchive nie nadpisze poprawnie wpisanej historii).
+- Audit: jeśli backfill > 0 wierszy, dodatkowy event `cert.swiadectwa.recipient_backfilled` z payloadem `{variant_id, recipient_name, count}`.
 
 Brak skryptu masowego archiwizowania — użytkownik klika ręcznie po przeglądnięciu (uzgodnione w brainstormie).
 
@@ -274,7 +389,12 @@ Brak skryptu masowego archiwizowania — użytkownik klika ręcznie po przegląd
 | Stare `swiadectwa` (sprzed migracji) — odczyt | `recipient_name=NULL`, `expiry_months_used=NULL`. UI wyświetla "—" lub puste. |
 | `recipient_name` wpisany dla wariantu który ma w `cert_variants` `avon_name` ustawione | Bez kolizji — `recipient_name` to filename, `avon_name` to treść. Niezależne pola. |
 | Stary kod test'owy generuje cert bez `extra_fields.recipient_name` | Działa — `recipient_name=None`, `_cert_names` daje stary format pliku. |
-| Wariant ma flagę `has_order_number` ale UI pomija ją w `requiredFields` | Backend: `extra_fields.order_number` zawsze odczytywany, niezależnie od flagi. Flaga w DB pozostaje (no-op funkcjonalnie). Można wyczyścić bulk update'em w fazie cleanup, ale spec tego nie wymaga. |
+| Wariant ma flagę `has_order_number` ale UI pomija ją w `requiredFields` | Backend: `extra_fields.order_number` zawsze odczytywany, niezależnie od flagi. Flaga w DB pozostaje (no-op funkcjonalnie). UI edytora wzorów (`wzory_cert.html`) **ukrywa** checkbox `has_order_number` z listy flag — admin nie zaznacza nowych. |
+| Re-issue tej samej szarży, identyczny odbiorca, identyczne pola → kolizja nazwy pliku | `save_certificate_pdf` wykrywa istniejący plik i dokleja przyrostek `(2)`, `(3)`, ... aż znajdzie wolny slot. Stary cert nigdy nie nadpisany. `swiadectwa.pdf_path` zapisuje rzeczywistą ścieżkę z przyrostkiem. |
+| `order_number` wpisany ale `recipient_name` pusty | Filename: `Chegina K7 4 (NRZAM).pdf` — sufix `(NRZAM)` po numerze partii, bez sekcji odbiorcy. |
+| Archive backfill — wariant z labelem `Chegina K7` (bez em-dasha) | `archive-preview` zwraca `suggested_recipient=""`. Modal pokazuje pusty input — admin może wpisać ręcznie albo zarchiwizować bez backfillu. |
+| Archive backfill — niektóre stare certy mają już `recipient_name` (rzadkie, ale możliwe gdy ktoś częściowo backfilluje wcześniej) | `WHERE recipient_name IS NULL` chroni — backfill nie nadpisze ręcznie ustawionych wartości. |
+| Unarchive wariantu → zmiana decyzji | Toggle archived back. **Backfill nie jest cofany** — `recipient_name` zostaje (działa nadal jako sugestia w autocomplete). To intencjonalne: backfill to operacja "wzbogać dane historyczne", nie "zaznacz że wariant archived". |
 
 ## Tests (TDD)
 
@@ -286,21 +406,30 @@ Nowe testy do dodania (lokalizacja: `tests/test_certs.py` lub nowy `tests/test_c
    - `build_context(extra_fields={"expiry_months": 31})` → `ValueError`.
    - `build_context(extra_fields={"expiry_months": "abc"})` → `ValueError`.
    - `build_context(extra_fields={})` → użyte `produkty.expiry_months`.
-2. **recipient_name w filename**:
+2. **recipient_name + order_number suffix w filename**:
    - `_cert_names("Chegina_K7", "Chegina K7", "4/2026", recipient_name="ADAM&PARTNER")` → `"Chegina K7 — ADAM&PARTNER 4.pdf"`.
    - `_cert_names(..., recipient_name="ADAM/Partner")` → `"Chegina K7 — ADAMPartner 4.pdf"` (slash usunięty).
    - `_cert_names(..., recipient_name=None)` → `"Chegina K7 4.pdf"` (legacy).
    - `_cert_names(..., recipient_name="   ")` → `"Chegina K7 4.pdf"` (whitespace = brak).
+   - `_cert_names(..., has_order_number=True)` → `"Chegina K7 4 (NRZAM).pdf"`.
+   - `_cert_names(..., recipient_name="ADAM", has_order_number=True)` → `"Chegina K7 — ADAM 4 (NRZAM).pdf"`.
+2b. **Kolizja nazwy pliku → numeracja przyrostka**:
+   - `save_certificate_pdf` wywołane drugi raz z identycznymi inputami → `..._4.pdf` istnieje → zapisuje jako `..._4 (2).pdf`.
+   - Trzeci raz → `..._4 (3).pdf`. Sekwencja `(2), (3), ...` aż wolny.
+   - `(2)` istnieje + `(4)` istnieje, `(3)` wolny → zapisuje jako `(3)` (nie szuka pierwszej luki w pełni — dolicza naturalnie). (Akceptowalne: edge case rzadki, prosty algorytm > optymalny algorytm.)
 3. **`recipient_name` zapis w `swiadectwa`**:
    - Po `api_cert_generate` z `recipient_name="X"` → wiersz w `swiadectwa` ma `recipient_name="X"` i `expiry_months_used` = effective wartość.
 4. **Autocomplete endpoint**:
    - `?q=A` → empty list (poniżej threshold).
    - `?q=ad` z dwoma poprzednimi wpisami "ADAM&PARTNER" i "ADAM Partner" → zwraca oba (DISTINCT case-insensitive LIKE).
    - `?q=xyz` brak match → empty list.
-5. **Archive endpoint**:
-   - `POST /api/cert/variants/<id>/archive` → 200, wiersz `archived=1`.
-   - `api_cert_templates` bez `include_archived` filtruje archived = false.
-   - Z `include_archived=1` zwraca też archived.
+5. **Archive endpoint + backfill**:
+   - `POST /api/cert/variants/<id>/archive` z `{"archived": true}` → 200, wiersz `archived=1`, `backfill_count=0`.
+   - `POST .../archive` z `{"archived": true, "backfill_recipient": "ADAM&PARTNER"}` → UPDATE n starych `swiadectwa` z `template_name=<v>` i `recipient_name IS NULL`. Response `backfill_count=n`.
+   - Backfill **nie nadpisuje** wierszy gdzie `recipient_name IS NOT NULL` (idempotent).
+   - Unarchive (`archived=false`) ignoruje `backfill_recipient` (nie cofa).
+   - `api_cert_templates` bez `include_archived` filtruje archived = false; z `include_archived=1` zwraca też archived.
+   - `GET /api/cert/variants/<id>/archive-preview` → `{swiadectwa_count, suggested_recipient}`. Label bez em-dasha → `suggested_recipient=""`.
 
 ## Build sequence
 
